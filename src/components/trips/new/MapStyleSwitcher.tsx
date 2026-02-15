@@ -1,6 +1,8 @@
+// src/components/map/MapStyleSwitcher.tsx
 "use client";
 
 import React from "react";
+import { haptic } from "@/lib/native/haptics";
 
 export type MapBaseMode = "vector" | "hybrid";
 export type VectorTheme = "bright" | "dark";
@@ -13,54 +15,50 @@ export function MapStyleSwitcher(props: {
   const { mode, vectorTheme, onChange } = props;
 
   return (
-    <div className="trip-map-switcher">
-      <div className="trip-panel" style={{ padding: 10, boxShadow: "0 10px 30px rgba(0,0,0,0.25)" }}>
-        <div style={{ display: "flex", gap: 8 }}>
+    <div className="trip-map-switcher" role="group" aria-label="Map style">
+      <div className="trip-map-switcher-row">
+        <button
+          type="button"
+          className="trip-interactive trip-pill-btn"
+          data-active={mode === "vector"}
+          onClick={() => { haptic.selection(); onChange({ mode: "vector", vectorTheme }); }}
+          aria-pressed={mode === "vector"}
+        >
+          Map
+        </button>
+        <button
+          type="button"
+          className="trip-interactive trip-pill-btn"
+          data-active={mode === "hybrid"}
+          onClick={() => { haptic.selection(); onChange({ mode: "hybrid", vectorTheme }); }}
+          aria-pressed={mode === "hybrid"}
+        >
+          Sat
+        </button>
+      </div>
+
+      {mode === "vector" && (
+        <div className="trip-map-switcher-row trip-map-switcher-sub">
           <button
             type="button"
             className="trip-interactive trip-pill-btn"
-            data-active={mode === "vector"}
-            onClick={() => onChange({ mode: "vector", vectorTheme })}
-            aria-pressed={mode === "vector"}
+            data-active={vectorTheme === "bright"}
+            onClick={() => { haptic.selection(); onChange({ mode: "vector", vectorTheme: "bright" }); }}
+            aria-pressed={vectorTheme === "bright"}
           >
-            Vector
+            ☀
           </button>
           <button
             type="button"
             className="trip-interactive trip-pill-btn"
-            data-active={mode === "hybrid"}
-            onClick={() => onChange({ mode: "hybrid", vectorTheme })}
-            aria-pressed={mode === "hybrid"}
+            data-active={vectorTheme === "dark"}
+            onClick={() => { haptic.selection(); onChange({ mode: "vector", vectorTheme: "dark" }); }}
+            aria-pressed={vectorTheme === "dark"}
           >
-            Hybrid
+            ⏾
           </button>
         </div>
-
-        {mode === "vector" && (
-          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-            <button
-              type="button"
-              className="trip-interactive trip-pill-btn"
-              data-active={vectorTheme === "bright"}
-              onClick={() => onChange({ mode: "vector", vectorTheme: "bright" })}
-              aria-pressed={vectorTheme === "bright"}
-              style={{ flex: 1, textAlign: "center", justifyContent: "center" }}
-            >
-              Light
-            </button>
-            <button
-              type="button"
-              className="trip-interactive trip-pill-btn"
-              data-active={vectorTheme === "dark"}
-              onClick={() => onChange({ mode: "vector", vectorTheme: "dark" })}
-              aria-pressed={vectorTheme === "dark"}
-              style={{ flex: 1, textAlign: "center", justifyContent: "center" }}
-            >
-              Dark
-            </button>
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }

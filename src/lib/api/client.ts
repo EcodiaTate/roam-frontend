@@ -66,6 +66,15 @@ function sanitizeHeaders(input?: Record<string, string | undefined>): Record<str
   return out;
 }
 
+function toNiceMessage(v: unknown): string {
+  if (v == null) return "";
+  if (typeof v === "string") return v;
+  try {
+    return JSON.stringify(v, null, 2);
+  } catch {
+    return String(v);
+  }
+}
 export class ApiClient {
   private base: string;
 
@@ -130,21 +139,24 @@ export class ApiClient {
       }
 
       if (!res.ok) {
-        const message =
-          (payload &&
-            typeof payload === "object" &&
-            payload !== null &&
-            "detail" in payload &&
-            (payload as any).detail) ||
-          (typeof payload === "string" && payload) ||
-          `HTTP ${res.status}`;
+        const detail =
+  payload && typeof payload === "object" && payload !== null && "detail" in payload
+    ? (payload as any).detail
+    : null;
 
-        throw new ApiError({
-          status: res.status,
-          url,
-          message: String(message),
-          details: payload,
-        });
+const message =
+  detail != null
+    ? toNiceMessage(detail)
+    : typeof payload === "string"
+      ? payload
+      : `HTTP ${res.status}`;
+
+throw new ApiError({
+  status: res.status,
+  url,
+  message,
+  details: payload,
+});
       }
 
       return payload as T;

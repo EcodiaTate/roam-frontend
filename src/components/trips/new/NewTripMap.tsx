@@ -1,3 +1,4 @@
+// src/components/new/NewTripMap.tsx
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
@@ -9,71 +10,114 @@ import type { TripStop } from "@/lib/types/trip";
 import type { NavPack, CorridorGraphPack, TrafficOverlay, HazardOverlay } from "@/lib/types/navigation";
 import type { PlacesPack } from "@/lib/types/places";
 import type { NavCoord } from "@/lib/types/geo";
+import type { RoamPosition } from "@/lib/native/geolocation";
 import { assetsApi } from "@/lib/api/assets";
 import { polyline6ToGeoJSONLine } from "@/lib/nav/polyline6";
+
+/* ── Source / layer IDs ──────────────────────────────────────────────── */
 
 const ROUTE_SOURCE = "roam_route";
 const ROUTE_LAYER = "roam_route_line";
 const STOPS_SOURCE = "roam_stops";
 const STOPS_LAYER = "roam_stops_pts";
-
 const PLACES_SOURCE = "roam_places";
 const PLACES_LAYER = "roam_places_pts";
-
 const TRAFFIC_SOURCE = "roam_traffic";
 const TRAFFIC_LAYER = "roam_traffic_pts";
-
 const HAZARDS_SOURCE = "roam_hazards";
 const HAZARDS_LAYER = "roam_hazards_pts";
 
-/**
- * Ensure path begins with "/" and collapse accidental leading slashes.
- */
+const USER_LOC_SRC = "roam-user-loc-src";
+const USER_LOC_ACCURACY = "roam-user-loc-accuracy";
+const USER_LOC_DOT_OUTER = "roam-user-loc-dot-outer";
+const USER_LOC_DOT_INNER = "roam-user-loc-dot-inner";
+const USER_LOC_HEADING_SRC = "roam-user-heading-src";
+const USER_LOC_HEADING = "roam-user-loc-heading";
+
+const HEADING_ARROW_ID = "roam-heading-arrow";
+const HEADING_ARROW_SVG = `<svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+  <defs><linearGradient id="hg" x1="24" y1="4" x2="24" y2="28" gradientUnits="userSpaceOnUse">
+    <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.85"/>
+    <stop offset="100%" stop-color="#2563eb" stop-opacity="0.15"/>
+  </linearGradient></defs>
+  <path d="M24 4 L36 28 L24 22 L12 28 Z" fill="url(#hg)" stroke="#2563eb" stroke-width="1" stroke-opacity="0.4"/>
+</svg>`;
+
+/* ── Helpers ─────────────────────────────────────────────────────────── */
+
 function normalizePath(p: string) {
-  let x = (p ?? "").trim();
-  x = x.replace(/^\/+/, "/");
+  let x = (p ?? "").trim().replace(/^\/+/, "/");
   if (!x.startsWith("/")) x = `/${x}`;
   return x;
 }
 
-/**
- * Convert a relative path to an absolute URL (origin-prefixed).
- * Keeps full URLs intact.
- */
 function toAbsoluteUrl(pathOrUrl: string) {
   if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
   if (typeof window === "undefined") return pathOrUrl;
-  const p = pathOrUrl.startsWith("/") ? pathOrUrl : `/${pathOrUrl}`;
-  return `${window.location.origin}${p}`;
+  return `${window.location.origin}${pathOrUrl.startsWith("/") ? pathOrUrl : `/${pathOrUrl}`}`;
 }
 
-/**
- * Normalize pmtiles:// references so MapLibre fetches the PMTiles file
- * from the frontend-served /public/offline/* assets.
- */
 function rewritePmtilesUrl(url: string) {
   if (!url.startsWith("pmtiles://")) return url;
-
   const inner = url.slice("pmtiles://".length);
-
   if (/^https?:\/\//i.test(inner)) return url;
-
-  const normalizedPath = normalizePath(inner);
-  const abs = toAbsoluteUrl(normalizedPath);
-
-  return `pmtiles://${abs}`;
+  return `pmtiles://${toAbsoluteUrl(normalizePath(inner))}`;
 }
+
+function accuracyToPixels(accuracyM: number, lat: number, zoom: number): number {
+  const mpp = (Math.cos((lat * Math.PI) / 180) * 2 * Math.PI * 6371008.8) / (256 * Math.pow(2, zoom));
+  return Math.max(12, Math.min(200, accuracyM / mpp));
+}
+
+function userLocGeoJSON(pos: RoamPosition | null | undefined) {
+  if (!pos) return { type: "FeatureCollection", features: [] } as any;
+  return { type: "FeatureCollection", features: [{ type: "Feature", properties: { accuracy: pos.accuracy }, geometry: { type: "Point", coordinates: [pos.lng, pos.lat] } }] } as any;
+}
+
+function headingGeoJSON(pos: RoamPosition | null | undefined) {
+  if (!pos || pos.heading == null || pos.speed == null || pos.speed < 0.5) return { type: "FeatureCollection", features: [] } as any;
+  return { type: "FeatureCollection", features: [{ type: "Feature", properties: { heading: pos.heading }, geometry: { type: "Point", coordinates: [pos.lng, pos.lat] } }] } as any;
+}
+
+function loadHeadingArrow(map: MLMap): Promise<void> {
+  return new Promise((resolve) => {
+    if (map.hasImage(HEADING_ARROW_ID)) { resolve(); return; }
+    const img = new Image(48, 48);
+    img.onload = () => { if (!map.hasImage(HEADING_ARROW_ID)) map.addImage(HEADING_ARROW_ID, img, { sdf: false }); resolve(); };
+    img.onerror = () => resolve();
+    img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(HEADING_ARROW_SVG)}`;
+  });
+}
+
+function pointFromBbox(b: number[] | null | undefined): [number, number] | null {
+  if (!b || b.length !== 4) return null;
+  const [minLng, minLat, maxLng, maxLat] = b;
+  if (![minLng, minLat, maxLng, maxLat].every((x) => typeof x === "number" && Number.isFinite(x))) return null;
+  return [(minLng + maxLng) / 2, (minLat + maxLat) / 2];
+}
+
+function tryPointFromGeoJSON(g: any): [number, number] | null {
+  try {
+    if (g?.type === "Point" && Array.isArray(g.coordinates) && g.coordinates.length >= 2) {
+      const lng = Number(g.coordinates[0]), lat = Number(g.coordinates[1]);
+      if (Number.isFinite(lng) && Number.isFinite(lat)) return [lng, lat];
+    }
+  } catch {}
+  return null;
+}
+
+/* ── Component ───────────────────────────────────────────────────────── */
 
 export function NewTripMap(props: {
   stops: TripStop[];
   navPack: NavPack | null;
-  styleId: string; // e.g. "roam-basemap-vector-bright"
+  styleId: string;
   onMapCenterChanged?: (c: NavCoord) => void;
-
   corridorPack?: CorridorGraphPack | null;
   placesPack?: PlacesPack | null;
   traffic?: TrafficOverlay | null;
   hazards?: HazardOverlay | null;
+  userPosition?: RoamPosition | null;
 }) {
   const elRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MLMap | null>(null);
@@ -81,10 +125,11 @@ export function NewTripMap(props: {
   const stylePath = useMemo(() => assetsApi.styleUrl(props.styleId), [props.styleId]);
   const styleUrl = useMemo(() => toAbsoluteUrl(stylePath), [stylePath]);
 
-  // init map once
+  const userLocFC = useMemo(() => userLocGeoJSON(props.userPosition), [props.userPosition]);
+  const headingFC = useMemo(() => headingGeoJSON(props.userPosition), [props.userPosition]);
+
   useEffect(() => {
-    if (!elRef.current) return;
-    if (mapRef.current) return;
+    if (!elRef.current || mapRef.current) return;
 
     const protocol = new Protocol();
     maplibregl.addProtocol("pmtiles", protocol.tile);
@@ -95,7 +140,6 @@ export function NewTripMap(props: {
       center: [153.026, -27.4705],
       zoom: 10,
       attributionControl: false,
-
       transformRequest: (url) => {
         if (url.startsWith("pmtiles://")) return { url: rewritePmtilesUrl(url) };
         return { url };
@@ -109,364 +153,203 @@ export function NewTripMap(props: {
       props.onMapCenterChanged?.({ lat: c.lat, lng: c.lng });
     });
 
-    map.on("load", () => {
+    map.on("load", async () => {
       ensureSources(map);
-      syncStops(map, props.stops);
-      syncRoute(map, props.navPack);
-      syncPlaces(map, props.placesPack ?? null);
-      syncTraffic(map, props.traffic ?? null);
-      syncHazards(map, props.hazards ?? null);
+      ensureUserLocationLayers(map);
+      await loadHeadingArrow(map);
+      ensureHeadingLayer(map);
+      syncAll(map, props);
+      syncUserLocation(map, userLocFC, headingFC, props.userPosition);
     });
 
     return () => {
-      try {
-        map.remove();
-      } catch {
-        // ignore
-      }
+      try { map.remove(); } catch {}
       mapRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Style changes
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-
     map.setStyle(styleUrl);
-
-    const onStyleLoad = () => {
+    const onStyleLoad = async () => {
       ensureSources(map);
-      syncStops(map, props.stops);
-      syncRoute(map, props.navPack);
-      syncPlaces(map, props.placesPack ?? null);
-      syncTraffic(map, props.traffic ?? null);
-      syncHazards(map, props.hazards ?? null);
+      ensureUserLocationLayers(map);
+      await loadHeadingArrow(map);
+      ensureHeadingLayer(map);
+      syncAll(map, props);
+      syncUserLocation(map, userLocFC, headingFC, props.userPosition);
     };
-
     map.once("style.load", onStyleLoad);
-
-    return () => {
-      try {
-        map.off("style.load", onStyleLoad);
-      } catch {
-        // ignore
-      }
-    };
+    return () => { try { map.off("style.load", onStyleLoad); } catch {} };
   }, [styleUrl]);
 
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
-    ensureSources(map);
-    syncStops(map, props.stops);
-  }, [props.stops]);
+  // Data syncs
+  useEffect(() => { const m = mapRef.current; if (m?.isStyleLoaded()) { ensureSources(m); syncStops(m, props.stops); } }, [props.stops]);
+  useEffect(() => { const m = mapRef.current; if (m?.isStyleLoaded()) { ensureSources(m); syncRoute(m, props.navPack); } }, [props.navPack]);
+  useEffect(() => { const m = mapRef.current; if (m?.isStyleLoaded()) { ensureSources(m); syncPlaces(m, props.placesPack ?? null); } }, [props.placesPack]);
+  useEffect(() => { const m = mapRef.current; if (m?.isStyleLoaded()) { ensureSources(m); syncTraffic(m, props.traffic ?? null); } }, [props.traffic]);
+  useEffect(() => { const m = mapRef.current; if (m?.isStyleLoaded()) { ensureSources(m); syncHazards(m, props.hazards ?? null); } }, [props.hazards]);
 
+  // User location updates
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
-    ensureSources(map);
-    syncRoute(map, props.navPack);
-  }, [props.navPack]);
-
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
-    ensureSources(map);
-    syncPlaces(map, props.placesPack ?? null);
-  }, [props.placesPack]);
-
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
-    ensureSources(map);
-    syncTraffic(map, props.traffic ?? null);
-  }, [props.traffic]);
-
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
-    ensureSources(map);
-    syncHazards(map, props.hazards ?? null);
-  }, [props.hazards]);
+    syncUserLocation(map, userLocFC, headingFC, props.userPosition);
+  }, [userLocFC, headingFC, props.userPosition]);
 
   return (
-    <div className="trip-map-wrap">
+    <div className="trip-map-fullscreen">
       <div ref={elRef} className="trip-map-inner" />
     </div>
   );
 }
 
+/* ── Map setup helpers ────────────────────────────────────────────────── */
+
 function ensureSources(map: MLMap) {
-  // Route
   if (!map.getSource(ROUTE_SOURCE)) {
-    map.addSource(ROUTE_SOURCE, {
-      type: "geojson",
-      data: { type: "FeatureCollection", features: [] },
-    });
-
+    map.addSource(ROUTE_SOURCE, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
     map.addLayer({
-      id: ROUTE_LAYER,
-      type: "line",
-      source: ROUTE_SOURCE,
-      paint: {
-        "line-width": ["interpolate", ["linear"], ["zoom"], 4, 3, 10, 5, 14, 8],
-        "line-opacity": 0.9,
-        "line-color": "#2e7cf6",
-      },
+      id: ROUTE_LAYER, type: "line", source: ROUTE_SOURCE,
+      paint: { "line-width": ["interpolate", ["linear"], ["zoom"], 4, 3, 10, 5, 14, 8], "line-opacity": 0.9, "line-color": "#2e7cf6" },
     });
   }
-
-  // Stops
   if (!map.getSource(STOPS_SOURCE)) {
-    map.addSource(STOPS_SOURCE, {
-      type: "geojson",
-      data: { type: "FeatureCollection", features: [] },
-    });
-
+    map.addSource(STOPS_SOURCE, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
     map.addLayer({
-      id: STOPS_LAYER,
-      type: "circle",
-      source: STOPS_SOURCE,
-      paint: {
-        "circle-radius": ["interpolate", ["linear"], ["zoom"], 4, 4, 10, 7, 14, 9],
-        "circle-opacity": 0.95,
-        "circle-color": "#ffffff",
-        "circle-stroke-width": 2,
-        "circle-stroke-opacity": 0.9,
-        "circle-stroke-color": "#111827",
-      },
+      id: STOPS_LAYER, type: "circle", source: STOPS_SOURCE,
+      paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 4, 4, 10, 7, 14, 9], "circle-opacity": 0.95, "circle-color": "#ffffff", "circle-stroke-width": 2, "circle-stroke-opacity": 0.9, "circle-stroke-color": "#111827" },
     });
   }
-
-  // Places
   if (!map.getSource(PLACES_SOURCE)) {
-    map.addSource(PLACES_SOURCE, {
-      type: "geojson",
-      data: { type: "FeatureCollection", features: [] },
-    });
-
-    map.addLayer({
-      id: PLACES_LAYER,
-      type: "circle",
-      source: PLACES_SOURCE,
-      paint: {
-        "circle-radius": 4.5,
-        "circle-opacity": 0.85,
-        "circle-color": "#34d399",
-        "circle-stroke-width": 1,
-        "circle-stroke-opacity": 0.8,
-        "circle-stroke-color": "#0b1220",
-      },
-    });
+    map.addSource(PLACES_SOURCE, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+    map.addLayer({ id: PLACES_LAYER, type: "circle", source: PLACES_SOURCE, paint: { "circle-radius": 4.5, "circle-opacity": 0.85, "circle-color": "#34d399", "circle-stroke-width": 1, "circle-stroke-opacity": 0.8, "circle-stroke-color": "#0b1220" } });
   }
-
-  // Traffic
   if (!map.getSource(TRAFFIC_SOURCE)) {
-    map.addSource(TRAFFIC_SOURCE, {
-      type: "geojson",
-      data: { type: "FeatureCollection", features: [] },
-    });
-
-    map.addLayer({
-      id: TRAFFIC_LAYER,
-      type: "circle",
-      source: TRAFFIC_SOURCE,
-      paint: {
-        "circle-radius": 5.5,
-        "circle-opacity": 0.85,
-        "circle-color": "#f59e0b",
-        "circle-stroke-width": 1,
-        "circle-stroke-opacity": 0.9,
-        "circle-stroke-color": "#0b1220",
-      },
-    });
+    map.addSource(TRAFFIC_SOURCE, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+    map.addLayer({ id: TRAFFIC_LAYER, type: "circle", source: TRAFFIC_SOURCE, paint: { "circle-radius": 5.5, "circle-opacity": 0.85, "circle-color": "#f59e0b", "circle-stroke-width": 1, "circle-stroke-opacity": 0.9, "circle-stroke-color": "#0b1220" } });
   }
-
-  // Hazards
   if (!map.getSource(HAZARDS_SOURCE)) {
-    map.addSource(HAZARDS_SOURCE, {
-      type: "geojson",
-      data: { type: "FeatureCollection", features: [] },
-    });
+    map.addSource(HAZARDS_SOURCE, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+    map.addLayer({ id: HAZARDS_LAYER, type: "circle", source: HAZARDS_SOURCE, paint: { "circle-radius": 6.5, "circle-opacity": 0.85, "circle-color": "#ef4444", "circle-stroke-width": 1, "circle-stroke-opacity": 0.9, "circle-stroke-color": "#0b1220" } });
+  }
+}
 
+function ensureUserLocationLayers(map: MLMap) {
+  if (!map.getSource(USER_LOC_SRC)) {
+    map.addSource(USER_LOC_SRC, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+  }
+  if (!map.getSource(USER_LOC_HEADING_SRC)) {
+    map.addSource(USER_LOC_HEADING_SRC, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+  }
+
+  if (!map.getLayer(USER_LOC_ACCURACY)) {
     map.addLayer({
-      id: HAZARDS_LAYER,
-      type: "circle",
-      source: HAZARDS_SOURCE,
-      paint: {
-        "circle-radius": 6.5,
-        "circle-opacity": 0.85,
-        "circle-color": "#ef4444", 
-        "circle-stroke-width": 1,
-        "circle-stroke-opacity": 0.9,
-        "circle-stroke-color": "#0b1220",
-      },
+      id: USER_LOC_ACCURACY, type: "circle", source: USER_LOC_SRC,
+      paint: { "circle-radius": 30, "circle-color": "rgba(37,99,235,0.08)", "circle-stroke-color": "rgba(37,99,235,0.25)", "circle-stroke-width": 1.5, "circle-opacity": 1 },
     });
   }
+  if (!map.getLayer(USER_LOC_DOT_OUTER)) {
+    map.addLayer({
+      id: USER_LOC_DOT_OUTER, type: "circle", source: USER_LOC_SRC,
+      paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 4, 6, 10, 9, 16, 12], "circle-color": "#ffffff", "circle-opacity": 0.95 },
+    });
+  }
+  if (!map.getLayer(USER_LOC_DOT_INNER)) {
+    map.addLayer({
+      id: USER_LOC_DOT_INNER, type: "circle", source: USER_LOC_SRC,
+      paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 4, 4, 10, 6.5, 16, 9], "circle-color": "#2563eb", "circle-opacity": 1 },
+    });
+  }
+}
+
+function ensureHeadingLayer(map: MLMap) {
+  if (!map.getLayer(USER_LOC_HEADING) && map.hasImage(HEADING_ARROW_ID)) {
+    map.addLayer({
+      id: USER_LOC_HEADING, type: "symbol", source: USER_LOC_HEADING_SRC,
+      layout: {
+        "icon-image": HEADING_ARROW_ID,
+        "icon-size": ["interpolate", ["linear"], ["zoom"], 6, 0.6, 14, 1.0, 18, 1.3],
+        "icon-rotate": ["get", "heading"],
+        "icon-rotation-alignment": "map",
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true,
+      },
+      paint: { "icon-opacity": 0.9 },
+    });
+  }
+}
+
+function syncUserLocation(map: MLMap, locFC: any, headFC: any, pos: RoamPosition | null | undefined) {
+  const locSrc = map.getSource(USER_LOC_SRC) as GeoJSONSource | undefined;
+  if (locSrc) locSrc.setData(locFC);
+
+  const headSrc = map.getSource(USER_LOC_HEADING_SRC) as GeoJSONSource | undefined;
+  if (headSrc) headSrc.setData(headFC);
+
+  if (pos && map.getLayer(USER_LOC_ACCURACY)) {
+    const px = accuracyToPixels(pos.accuracy, pos.lat, map.getZoom());
+    map.setPaintProperty(USER_LOC_ACCURACY, "circle-radius", px);
+  }
+}
+
+function syncAll(map: MLMap, props: any) {
+  syncStops(map, props.stops);
+  syncRoute(map, props.navPack);
+  syncPlaces(map, props.placesPack ?? null);
+  syncTraffic(map, props.traffic ?? null);
+  syncHazards(map, props.hazards ?? null);
 }
 
 function syncStops(map: MLMap, stops: TripStop[]) {
   const src = map.getSource(STOPS_SOURCE) as GeoJSONSource | undefined;
   if (!src) return;
-
-  const features = stops.map((s, idx) => ({
-    type: "Feature" as const,
-    geometry: { type: "Point" as const, coordinates: [s.lng, s.lat] as [number, number] },
-    properties: {
-      id: s.id ?? String(idx),
-      type: s.type ?? "poi",
-      name: s.name ?? "",
-      idx,
-    },
-  }));
-
-  src.setData({ type: "FeatureCollection", features });
+  src.setData({
+    type: "FeatureCollection",
+    features: stops.map((s, idx) => ({
+      type: "Feature" as const,
+      geometry: { type: "Point" as const, coordinates: [s.lng, s.lat] as [number, number] },
+      properties: { id: s.id ?? String(idx), type: s.type ?? "poi", name: s.name ?? "", idx },
+    })),
+  });
 }
 
 function syncRoute(map: MLMap, navPack: NavPack | null) {
   const src = map.getSource(ROUTE_SOURCE) as GeoJSONSource | undefined;
   if (!src) return;
-
-  const poly6 =
-    (navPack as any)?.primary?.geometry ??
-    (navPack as any)?.routes?.primary?.geometry ??
-    (navPack as any)?.geometry ??
-    null;
-
-  if (!poly6) {
-    src.setData({ type: "FeatureCollection", features: [] });
-    return;
-  }
-
+  const poly6 = (navPack as any)?.primary?.geometry ?? (navPack as any)?.routes?.primary?.geometry ?? (navPack as any)?.geometry ?? null;
+  if (!poly6) { src.setData({ type: "FeatureCollection", features: [] }); return; }
   const line = polyline6ToGeoJSONLine(String(poly6));
-  src.setData({
-    type: "FeatureCollection",
-    features: [{ type: "Feature", geometry: line, properties: {} }],
-  });
-
-  const b =
-    (navPack as any)?.primary?.bbox ??
-    (navPack as any)?.routes?.primary?.bbox ??
-    (navPack as any)?.bbox ??
-    null;
-
+  src.setData({ type: "FeatureCollection", features: [{ type: "Feature", geometry: line, properties: {} }] });
+  const b = (navPack as any)?.primary?.bbox ?? (navPack as any)?.routes?.primary?.bbox ?? (navPack as any)?.bbox ?? null;
   if (b && typeof b === "object" && "minLng" in b) {
-    map.fitBounds(
-      [
-        [b.minLng, b.minLat],
-        [b.maxLng, b.maxLat],
-      ],
-      { padding: 80, duration: 600 },
-    );
+    map.fitBounds([[b.minLng, b.minLat], [b.maxLng, b.maxLat]], { padding: 80, duration: 600 });
   }
 }
 
 function syncPlaces(map: MLMap, pack: PlacesPack | null) {
   const src = map.getSource(PLACES_SOURCE) as GeoJSONSource | undefined;
   if (!src) return;
-
   const items: any[] = (pack as any)?.items ?? (pack as any)?.places ?? [];
-
-  if (!items.length) {
-    src.setData({ type: "FeatureCollection", features: [] });
-    return;
-  }
-
-  const features = items.map((it) => ({
-    type: "Feature" as const,
-    geometry: { type: "Point" as const, coordinates: [it.lng, it.lat] as [number, number] },
-    properties: {
-      id: it.id,
-      name: it.name,
-      category: it.category,
-    },
-  }));
-
-  src.setData({ type: "FeatureCollection", features });
-}
-
-function pointFromBbox(b: number[] | null | undefined): [number, number] | null {
-  if (!b || b.length !== 4) return null;
-  const [minLng, minLat, maxLng, maxLat] = b;
-  if (![minLng, minLat, maxLng, maxLat].every((x) => typeof x === "number" && Number.isFinite(x))) return null;
-  return [(minLng + maxLng) / 2, (minLat + maxLat) / 2];
-}
-
-function tryPointFromGeoJSON(g: any): [number, number] | null {
-  try {
-    if (!g || typeof g !== "object") return null;
-    if (g.type === "Point" && Array.isArray(g.coordinates) && g.coordinates.length >= 2) {
-      const lng = Number(g.coordinates[0]);
-      const lat = Number(g.coordinates[1]);
-      if (Number.isFinite(lng) && Number.isFinite(lat)) return [lng, lat];
-    }
-  } catch {
-    // ignore
-  }
-  return null;
+  if (!items.length) { src.setData({ type: "FeatureCollection", features: [] }); return; }
+  src.setData({ type: "FeatureCollection", features: items.map((it) => ({ type: "Feature" as const, geometry: { type: "Point" as const, coordinates: [it.lng, it.lat] as [number, number] }, properties: { id: it.id, name: it.name, category: it.category } })) });
 }
 
 function syncTraffic(map: MLMap, overlay: TrafficOverlay | null) {
   const src = map.getSource(TRAFFIC_SOURCE) as GeoJSONSource | undefined;
   if (!src) return;
-
   const items: any[] = (overlay as any)?.items ?? [];
-
-  if (!items.length) {
-    src.setData({ type: "FeatureCollection", features: [] });
-    return;
-  }
-
-  const features = items
-    .map((ev) => {
-      const p = tryPointFromGeoJSON(ev.geometry) ?? pointFromBbox(ev.bbox);
-      if (!p) return null;
-      return {
-        type: "Feature" as const,
-        geometry: { type: "Point" as const, coordinates: p },
-        properties: {
-          id: ev.id,
-          type: ev.type ?? "unknown",
-          severity: ev.severity ?? "unknown",
-          headline: ev.headline ?? "",
-          source: ev.source ?? "",
-        },
-      };
-    })
-    .filter(Boolean) as any[];
-
-  src.setData({ type: "FeatureCollection", features });
+  if (!items.length) { src.setData({ type: "FeatureCollection", features: [] }); return; }
+  src.setData({ type: "FeatureCollection", features: items.map((ev) => { const p = tryPointFromGeoJSON(ev.geometry) ?? pointFromBbox(ev.bbox); if (!p) return null; return { type: "Feature" as const, geometry: { type: "Point" as const, coordinates: p }, properties: { id: ev.id, type: ev.type ?? "unknown", severity: ev.severity ?? "unknown" } }; }).filter(Boolean) as any[] });
 }
 
 function syncHazards(map: MLMap, overlay: HazardOverlay | null) {
   const src = map.getSource(HAZARDS_SOURCE) as GeoJSONSource | undefined;
   if (!src) return;
-
   const items: any[] = (overlay as any)?.items ?? [];
-
-  if (!items.length) {
-    src.setData({ type: "FeatureCollection", features: [] });
-    return;
-  }
-
-  const features = items
-    .map((ev) => {
-      const p = tryPointFromGeoJSON(ev.geometry) ?? pointFromBbox(ev.bbox);
-      if (!p) return null;
-      return {
-        type: "Feature" as const,
-        geometry: { type: "Point" as const, coordinates: p },
-        properties: {
-          id: ev.id,
-          kind: ev.kind ?? "unknown",
-          severity: ev.severity ?? "unknown",
-          title: ev.title ?? "",
-          source: ev.source ?? "",
-        },
-      };
-    })
-    .filter(Boolean) as any[];
-
-  src.setData({ type: "FeatureCollection", features });
+  if (!items.length) { src.setData({ type: "FeatureCollection", features: [] }); return; }
+  src.setData({ type: "FeatureCollection", features: items.map((ev) => { const p = tryPointFromGeoJSON(ev.geometry) ?? pointFromBbox(ev.bbox); if (!p) return null; return { type: "Feature" as const, geometry: { type: "Point" as const, coordinates: p }, properties: { id: ev.id, kind: ev.kind ?? "unknown", severity: ev.severity ?? "unknown" } }; }).filter(Boolean) as any[] });
 }

@@ -1,4 +1,3 @@
-// src/app/new/ClientPage.tsx
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -44,7 +43,6 @@ export function NewTripClientPage() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTargetStopId, setSearchTargetStopId] = useState<string | null>(null);
 
-  // Map style UI
   const [baseMode, setBaseMode] = useState<MapBaseMode>("vector");
   const [vectorTheme, setVectorTheme] = useState<VectorTheme>("bright");
 
@@ -139,7 +137,6 @@ export function NewTripClientPage() {
     setSavedOffline(false);
     setBuildPhase("routing");
 
-    // ✅ TS2322-proof
     const plan_id: string = planIdRef.current ?? genPlanId();
     planIdRef.current = plan_id;
 
@@ -207,7 +204,6 @@ export function NewTripClientPage() {
   const saveOffline = useCallback(async () => {
     if (!manifest?.plan_id) return;
 
-    // Need a navPack to store preview info
     const pack = await ensureWeHaveNavPack();
     if (!pack?.primary?.geometry) {
       setBuildPhase("error");
@@ -253,7 +249,7 @@ export function NewTripClientPage() {
   }, [manifest, ensureWeHaveNavPack, draft.stops, draft.profile]);
 
   return (
-    <div style={{ minHeight: "100vh" }}>
+    <div className="trip-app-container">
       <NewTripMap
         stops={draft.stops}
         navPack={navPack}

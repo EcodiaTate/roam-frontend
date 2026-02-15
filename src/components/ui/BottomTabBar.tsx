@@ -1,19 +1,25 @@
+// src/components/ui/BottomTabBar.tsx
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { memo, useCallback } from "react";
 import type { ReactNode } from "react";
+import { haptic } from "@/lib/native/haptics";
+import { haptics } from "@/lib/utils/haptics";
 
 type Tab = {
   key: string;
   href: string;
   label: string;
   icon: (active: boolean) => ReactNode;
+  /** If true, tab gets the center bump style */
   isCenter?: boolean;
+  /** If true, tab gets the SOS emphasized style */
+  emergency?: boolean;
 };
 
-// --- Icons ---
+// --- Icons (keep the styling set from your first component) ---
 function IconPlus(active: boolean) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -29,8 +35,16 @@ function IconPlus(active: boolean) {
 function IconList(active: boolean) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path fill="currentColor" d="M7 6h14v2H7V6zM7 11h14v2H7v-2zM7 16h14v2H7v-2z" opacity={active ? 1 : 0.9} />
-      <path fill="currentColor" d="M3 6h2v2H3V6zM3 11h2v2H3v-2zM3 16h2v2H3v-2z" opacity={active ? 1 : 0.9} />
+      <path
+        fill="currentColor"
+        d="M7 6h14v2H7V6zM7 11h14v2H7v-2zM7 16h14v2H7v-2z"
+        opacity={active ? 1 : 0.9}
+      />
+      <path
+        fill="currentColor"
+        d="M3 6h2v2H3V6zM3 11h2v2H3v-2zM3 16h2v2H3v-2z"
+        opacity={active ? 1 : 0.9}
+      />
     </svg>
   );
 }
@@ -76,16 +90,9 @@ const TABS: Tab[] = [
   { key: "plans", href: "/plans", label: "Plans", icon: IconList },
   { key: "trip", href: "/trip", label: "Trip", icon: IconMap, isCenter: true },
   { key: "explore", href: "/explore", label: "Explore", icon: IconSearch },
-  { key: "sos", href: "/sos", label: "SOS", icon: IconSos },
+  { key: "sos", href: "/sos", label: "SOS", icon: IconSos, emergency: true },
 ];
 
-/**
- * Mobile-first tab bar:
- * - big hit targets (CSS should enforce >= 48px)
- * - safe-area inset friendly (CSS should use env(safe-area-inset-bottom))
- * - no heavy state; "active" derived from pathname
- * - optional micro-haptic via Vibration API (guarded, tiny)
- */
 export const BottomTabBar = memo(function BottomTabBar() {
   const pathname = usePathname();
 
@@ -94,55 +101,64 @@ export const BottomTabBar = memo(function BottomTabBar() {
     [pathname],
   );
 
-  const microHaptic = useCallback(() => {
-    // Super light, best-effort, won’t throw in unsupported environments.
-    try {
-      if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate(6);
-    } catch {
-      // ignore
-    }
-  }, []);
+  // Match the older component behavior: treat "/" as "trip"
+  const activeKey =
+    TABS.find((t) => isActive(t.href))?.key ?? (pathname === "/" ? "trip" : null);
 
   return (
     <div className="roam-tabs-wrap" role="navigation" aria-label="Primary">
-      <nav className="roam-tabs" aria-label="Primary tabs">
+      <nav className="roam-tabs" role="tablist" aria-label="Primary tabs">
         {TABS.map((t) => {
-          const active = isActive(t.href);
+          const active = t.key === activeKey;
 
-          // 🚨 FIX: Removed 'key' from commonProps!
-          const commonProps = {
-            href: t.href,
-            className: t.isCenter ? "roam-tab roam-tab-center" : "roam-tab",
-            "data-active": active ? "true" : "false",
-            "aria-current": active ? ("page" as const) : undefined,
-            onPointerDown: microHaptic,
-            draggable: false,
-            prefetch: false as const,
-          };
+          const classNameBase = t.isCenter ? "roam-tab roam-tab-center" : "roam-tab";
+          const className = `${classNameBase} trip-interactive${active ? " roam-tab-active" : ""}${
+            t.emergency ? " roam-tab-sos" : ""
+          }`;
 
-          if (t.isCenter) {
-            return (
-              // 🚨 FIX: Explicitly passing key={t.key} here
-              <Link key={t.key} {...commonProps}>
-                <span className="roam-tab-bump" aria-hidden="true" />
-                <span className="roam-tab-inner">
+          return (
+            <Link
+              key={t.key}
+              href={t.href}
+              role="tab"
+              aria-selected={active}
+              aria-label={t.label}
+              aria-current={active ? ("page" as const) : undefined}
+              className={className}
+              data-active={active ? "true" : "false"}
+              draggable={false}
+              prefetch={false}
+              // Instant physical feedback on touch-down (mobile first)
+              onPointerDown={() => {
+                if (!active) {
+                  // Keep both: web selection haptic + native tap haptic
+                  try { haptics.selection(); } catch {}
+                  try { haptic.tap(); } catch {}
+                }
+              }}
+              // Keyboard / click fallback (desktop)
+              onClick={() => {
+                try { haptic.tap(); } catch {}
+              }}
+            >
+              {t.isCenter ? (
+                <>
+                  <span className="roam-tab-bump" aria-hidden="true" />
+                  <span className="roam-tab-inner">
+                    <span className="roam-tab-icon" aria-hidden="true">
+                      {t.icon(active)}
+                    </span>
+                  </span>
+                  <span className="roam-tab-label">{t.label}</span>
+                </>
+              ) : (
+                <>
                   <span className="roam-tab-icon" aria-hidden="true">
                     {t.icon(active)}
                   </span>
-                </span>
-                {/* Notice the label is outside the inner floating button to dock at the bottom */}
-                <span className="roam-tab-label">{t.label}</span>
-              </Link>
-            );
-          }
-
-          return (
-            // 🚨 FIX: Explicitly passing key={t.key} here
-            <Link key={t.key} {...commonProps}>
-              <span className="roam-tab-icon" aria-hidden="true">
-                {t.icon(active)}
-              </span>
-              <span className="roam-tab-label">{t.label}</span>
+                  <span className="roam-tab-label">{t.label}</span>
+                </>
+              )}
             </Link>
           );
         })}

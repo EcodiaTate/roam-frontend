@@ -1,5 +1,5 @@
 // src/app/trip/page.tsx
-import {TripClientPage} from "./ClientPage";
+import { TripClientPage } from "./ClientPage";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 

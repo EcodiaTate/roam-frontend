@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* ==========================================================================
-   1. OUTBACK AUSTRALIA THEME VARIABLES (Solid, No Borders, AllTrails Vibe)
+   1. OUTBACK AUSTRALIA THEME VARIABLES
    ========================================================================== */
 :root {
   /* --- Thematic Palette (Light Mode) --- */
@@ -18,7 +18,8 @@
 
   /* Shadows instead of borders */
   --shadow-soft: 0 4px 24px rgba(45, 41, 38, 0.06);
-  --shadow-heavy: 0 12px 48px rgba(45, 41, 38, 0.12);
+  --shadow-heavy: 0 16px 48px rgba(45, 41, 38, 0.12);
+  --shadow-button: 0 4px 0 rgba(45, 41, 38, 0.1); /* Tactile 3D button depth */
 
   /* Tab Bar Specifics */
   --tab-bar-bg: #ffffff;
@@ -28,12 +29,33 @@
   --tab-center-icon: #ffffff;
 
   /* Universal Sizing */
-  --r-card: 24px;
+  --r-card: 28px;
   --r-btn: 16px;
   --r-pill: 999px;
   --tap-target: 52px; /* Extra chunky for sweaty hiking thumbs */
   --roam-safe-bottom: env(safe-area-inset-bottom, 0px);
   --roam-tab-h: 72px; /* Taller tab bar */
+
+  /* --- Mapped UI Component Variables (Trip App) --- */
+  --roam-bg: var(--bg-sand);
+  --roam-surface: var(--surface-card);
+  --roam-surface-hover: var(--surface-muted);
+  
+  --roam-text: var(--text-main);
+  --roam-text-muted: var(--text-muted);
+  
+  --roam-accent: var(--brand-eucalypt);
+  --roam-danger: var(--brand-ochre);
+  --roam-success: var(--brand-eucalypt);
+
+  --bottom-nav-height: calc(var(--roam-tab-h) + var(--roam-safe-bottom));
+  --radius-lg: var(--r-card);
+  --radius-md: var(--r-btn);
+  --radius-sm: 8px;
+  
+  /* Physics & Animations */
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -51,7 +73,8 @@
     --brand-sky: #7eb3e6;
 
     --shadow-soft: 0 8px 32px rgba(0, 0, 0, 0.4);
-    --shadow-heavy: 0 16px 64px rgba(0, 0, 0, 0.6);
+    --shadow-heavy: 0 24px 64px rgba(0, 0, 0, 0.6);
+    --shadow-button: 0 4px 0 rgba(0, 0, 0, 0.5);
 
     --tab-bar-bg: #22201e;
     --tab-inactive-color: #716c68;
@@ -59,50 +82,31 @@
 }
 
 /* ==========================================================================
-   2. GLOBAL HTML/BODY ELEMENTS
+   2. GLOBAL RESETS
    ========================================================================== */
-html,
-body {
+html, body {
   height: 100%;
-  background-color: var(--bg-sand);
-  color: var(--text-main);
+  background-color: var(--roam-bg);
+  color: var(--roam-text);
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-touch-callout: none; /* Disables the native iOS context menu on long press */
+  -webkit-user-select: none;   /* Disables text selection globally */
+  user-select: none;
+  overscroll-behavior: none;   /* Kills the elastic browser bounce entirely */
 }
 
+input, textarea, [contenteditable] {
+  -webkit-user-select: auto;
+  user-select: auto;
+}
 /* Hide scrollbars globally but keep functionality (App-like feel) */
 ::-webkit-scrollbar { display: none; }
 * { scrollbar-width: none; }
 
 /* ==========================================================================
-   3. BASE LAYOUT & SHELL
-   ========================================================================== */
-.roam-shell {
-  min-height: 100vh;
-  position: relative;
-  background-color: var(--bg-sand);
-}
-
-.roam-main {
-  min-height: 100vh;
-  padding-bottom: calc(var(--roam-tab-h) + var(--roam-safe-bottom));
-}
-
-.roam-page {
-  min-height: 100vh;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-/* Typography Base */
-.roam-h1 { font-size: 28px; line-height: 1.2; font-weight: 800; margin: 0; letter-spacing: -0.5px; }
-.roam-muted { color: var(--text-muted); margin: 0; font-size: 15px; font-weight: 500; }
-
-/* ==========================================================================
-   4. NATIVE MOBILE TAB BAR (Chunky, Solid, Shadowed)
+   3. NATIVE MOBILE TAB BAR (Chunky, Solid, Shadowed)
    ========================================================================== */
 .roam-tabs-wrap {
   position: fixed;
@@ -191,243 +195,504 @@ body {
 .roam-tab.roam-tab-center .roam-tab-label { position: absolute; bottom: 8px; color: var(--tab-inactive-color); }
 .roam-tab.roam-tab-center[data-active="true"] .roam-tab-label { color: var(--tab-active-color); }
 
+/* ==========================================================================
+   4. APP-LIKE LAYOUT ENGINE (Trip App Base)
+   ========================================================================== */
+.trip-app-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden; /* Prevent body scroll */
+  background: var(--roam-bg);
+  color: var(--roam-text);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Fallback Cards for Missing/Loading */
+.trip-wrap-center { display: grid; place-items: center; height: 100vh; padding: 20px; background: var(--roam-bg); }
+.trip-card { background: var(--roam-surface); border-radius: var(--r-card); padding: 24px; box-shadow: var(--shadow-heavy); display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 400px; }
+
+/* ── Typography ── */
+.trip-h1 { font-size: 1.5rem; font-weight: 800; margin: 0; letter-spacing: -0.5px; }
+.trip-h2 { font-size: 1.15rem; font-weight: 700; margin: 0; letter-spacing: -0.2px; }
+.trip-title { font-size: 1.05rem; font-weight: 800; margin: 0; letter-spacing: -0.1px; }
+.trip-muted { font-size: 0.9rem; color: var(--roam-text-muted); font-weight: 600; }
+.trip-muted-small { font-size: 0.8rem; color: var(--roam-text-muted); font-weight: 600; }
 
 /* ==========================================================================
-   5. TRIP APP UI (Solid, Rugged, Accessible)
+   5. TACTILE INTERACTIONS (Duolingo Style Physics)
    ========================================================================== */
-
-/* Typography */
-.trip-h1 { font-size: 22px; font-weight: 900; line-height: 1.1; margin: 0; letter-spacing: -0.3px; }
-.trip-h2 { font-size: 18px; font-weight: 800; margin: 0; letter-spacing: -0.2px; }
-.trip-title { font-size: 16px; font-weight: 700; line-height: 1.2; margin: 0; }
-.trip-muted { font-size: 14px; color: var(--text-muted); font-weight: 500; margin: 0; }
-.trip-muted-small { font-size: 12px; color: var(--text-muted); font-weight: 500; margin: 0; }
-.trip-empty { padding: 24px; font-size: 14px; color: var(--text-muted); font-weight: 600; text-align: center; }
-
-/* Layout Wrappers */
-.trip-wrap {
-  padding: 16px;
-  padding-bottom: calc(var(--roam-tab-h) + var(--roam-safe-bottom) + 24px);
-  max-width: 860px;
-  margin: 0 auto;
-}
-
-/* Bottom Sheet Container */
-.trip-sheet-wrap {
-  position: fixed;
-  left: 0; right: 0;
-  bottom: calc(var(--roam-tab-h) + var(--roam-safe-bottom));
-  padding: 0 12px 12px 12px; /* Pad above the tab bar */
-  pointer-events: none;
-  z-index: 40;
-  transform: translateZ(0);
-}
-
-.trip-sheet {
-  pointer-events: auto;
-  margin: 0 auto;
-  max-width: 820px;
-  border-radius: var(--r-card);
-  background-color: var(--surface-card);
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  box-shadow: var(--shadow-heavy);
-}
-
-/* Interior Panels/Cards */
-.trip-panel, .trip-card {
-  border-radius: 20px;
-  background-color: var(--bg-sand); /* Inset elements use sand bg to stand out from white cards */
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.trip-row-between { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-
-/* Interactive Elements Base */
 .trip-interactive {
-  -webkit-tap-highlight-color: transparent;
-  user-select: none;
-  border: none;
-  transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s, background-color 0.2s;
+  cursor: pointer; user-select: none; touch-action: manipulation;
+  transition: transform 0.2s var(--spring), box-shadow 0.15s ease, opacity 0.2s ease;
 }
-.trip-interactive:active:not(:disabled) { transform: scale(0.96); }
-.trip-interactive:disabled { opacity: 0.4 !important; cursor: not-allowed; transform: none; }
 
-.trip-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-
-/* Buttons */
+/* Base button gets depth */
 .trip-btn {
-  border-radius: var(--r-btn);
-  padding: 0 16px;
-  font-size: 15px;
-  font-weight: 700;
-  min-height: var(--tap-target);
-  display: flex; align-items: center; justify-content: center; gap: 8px;
+  display: flex; align-items: center; justify-content: center; width: 100%;
+  padding: 12px 16px; border-radius: var(--r-btn); font-weight: 800; font-size: 1rem;
+  border: none; min-height: 54px;
+  box-shadow: var(--shadow-button);
+  transform: translateY(0);
 }
+
+/* Button Press Down State */
+.trip-btn:active:not(:disabled) {
+  box-shadow: 0 0px 0 rgba(0,0,0,0);
+  transform: translateY(4px) scale(0.98); /* physically presses down */
+  opacity: 0.9;
+}
+.trip-btn:disabled { opacity: 0.5; pointer-events: none; box-shadow: none; transform: translateY(4px); }
+
+.trip-btn-primary { background: var(--roam-accent); color: white; }
+.trip-btn-secondary { background: var(--roam-surface-hover); color: var(--roam-text); }
+.trip-btn-danger { background: var(--roam-surface-hover); color: var(--roam-danger); }
+
+/* Small Button (Pill shaped but tactile) */
 .trip-btn-sm {
-  border-radius: 14px;
-  background-color: var(--surface-muted);
-  color: var(--text-main);
-  padding: 0 16px;
-  font-size: 14px;
-  font-weight: 700;
-  min-height: 44px;
+  border-radius: 14px; background: var(--roam-surface-hover); color: var(--roam-text);
+  padding: 0 16px; font-size: 0.9rem; font-weight: 800; min-height: 44px;
+  box-shadow: 0 3px 0 rgba(0,0,0,0.08); border: none; display: flex; align-items: center;
 }
+.trip-btn-sm:active:not(:disabled) { box-shadow: none; transform: translateY(3px) scale(0.98); }
+.trip-btn-sm:disabled { opacity: 0.5; pointer-events: none; box-shadow: none; transform: translateY(3px); }
+
+/* Icon Buttons */
 .trip-btn-icon {
-  border-radius: 14px;
-  background-color: var(--surface-muted);
-  color: var(--text-main);
-  font-size: 16px;
-  font-weight: 900;
-  min-height: 44px;
-  min-width: 44px;
-  display: grid; place-items: center;
+  background: var(--roam-surface-hover); border: none; display: grid; place-items: center;
+  width: 44px; height: 44px; border-radius: 14px; color: var(--roam-text); font-size: 1.1rem;
 }
+.trip-btn-icon:active:not(:disabled) { transform: scale(0.9); }
 
-/* Button Variants */
-.trip-btn-primary { background-color: var(--brand-eucalypt); color: #ffffff; }
-.trip-btn-secondary { background-color: var(--surface-muted); color: var(--text-main); }
-.trip-btn-danger { background-color: var(--surface-muted); color: var(--brand-ochre); } /* Less aggressive visually, but red text */
-
-/* Inputs & Selects */
-.trip-select, .trip-search, .trip-input {
-  border-radius: var(--r-btn);
-  background-color: var(--surface-muted);
-  color: var(--text-main);
-  padding: 0 16px;
-  font-size: 15px;
-  font-weight: 600;
-  outline: none;
-  border: none;
-  min-height: var(--tap-target);
+/* Inputs */
+.trip-input, .trip-search {
+  flex: 1; background: transparent; border: none; outline: none; font-size: 1rem;
+  font-weight: 700; color: var(--roam-text); padding: 8px 0;
 }
-.trip-select { padding: 0 16px 0 12px; min-height: 44px; font-size: 14px; }
-.trip-search:focus, .trip-input:focus { background-color: #e8e3dc; } /* Darken slightly on focus */
+.trip-input::placeholder, .trip-search::placeholder { color: var(--roam-text-muted); opacity: 0.6; }
+.trip-select { background: transparent; border: none; outline: none; font-weight: 800; color: var(--roam-text); font-size: 0.95rem; }
 
-@media (prefers-color-scheme: dark) {
-  .trip-search:focus, .trip-input:focus { background-color: #3b3734; }
-}
-
-/* Badges & Pills */
-.trip-badge {
-  display: inline-flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
-  padding: 6px 12px; border-radius: var(--r-pill); white-space: nowrap;
-}
-.trip-badge-blue { background-color: var(--brand-sky); color: #ffffff; } /* Info */
-.trip-badge-soft { background-color: var(--surface-muted); color: var(--text-main); } /* Default */
-.trip-badge-ok { background-color: #4a6c53; color: #ffffff; } /* Eucalypt Green */
-.trip-badge-bad { background-color: var(--brand-ochre); color: #ffffff; }
-
-.trip-cat-row {
-  display: flex; flex-wrap: nowrap; gap: 8px; overflow-x: auto;
-  padding: 4px 0 8px 0; -webkit-overflow-scrolling: touch;
-}
-
-.trip-pill-btn {
-  border-radius: var(--r-pill);
-  background-color: var(--surface-card);
-  color: var(--text-main);
-  padding: 0 16px;
-  font-size: 14px;
-  font-weight: 700;
-  min-height: 40px;
-  white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05); /* Slight pop off the sand bg */
-}
-.trip-pill-btn[data-active="true"] { background-color: var(--brand-eucalypt); color: #ffffff; }
-
-/* Scrollable Lists */
-.trip-list-container {
-  overflow-y: auto;
-  border-radius: 20px;
-  background-color: var(--surface-card);
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
-}
-.trip-places-list { max-height: 35vh; box-shadow: var(--shadow-soft); }
-.trip-editor-list { max-height: 40vh; display: flex; flex-direction: column; gap: 12px; background: transparent; }
-
-.trip-list-row {
-  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  text-align: left; background: transparent; color: inherit;
-  padding: 16px; cursor: pointer; min-height: 64px;
-}
-/* Subdued divider lines for lists, no borders */
-.trip-list-row:not(:last-child) { border-bottom: 2px solid var(--bg-sand); }
-.trip-list-row[data-focused="true"] { background-color: var(--bg-sand); border-radius: 16px; border-bottom: none; }
-
-.trip-editor-row {
-  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px;
-  border-radius: 20px;
-  background-color: var(--surface-card);
-  padding: 12px;
-  min-height: 72px;
-  box-shadow: var(--shadow-soft);
-}
-.trip-editor-row[data-focused="true"] { outline: 3px solid var(--brand-sky); outline-offset: -3px; }
-
-/* Editor Stop Row (Grid override for complex inputs) */
-.trip-stop-row {
-  display: grid;
-  grid-template-columns: 60px 1fr auto;
-  gap: 12px;
-  align-items: center;
-  border-radius: 20px;
-  background-color: var(--surface-card);
-  padding: 12px;
-  box-shadow: var(--shadow-soft);
-}
-
-.trip-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-/* Modals */
-.trip-modal-overlay {
-  position: fixed; inset: 0;
-  background-color: rgba(22, 21, 20, 0.6); /* Darker backdrop, no blur */
-  z-index: 90; display: grid; place-items: center; padding: 16px;
-  transform: translateZ(0);
-}
-
-.trip-modal {
-  width: min(820px, 100%);
-  max-height: 85vh; overflow: hidden;
-  border-radius: 28px;
-  background-color: var(--bg-sand);
-  padding: 24px;
-  display: flex; flex-direction: column; gap: 16px;
-  box-shadow: var(--shadow-heavy);
-}
-
-/* Key Value grids */
-.trip-kv-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.trip-kv { border-radius: 16px; background-color: var(--surface-card); padding: 16px; }
-.trip-kv-k { font-size: 12px; color: var(--text-muted); font-weight: 700; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-.trip-kv-v { font-size: 15px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
-
-/* Errors */
-.trip-err-box {
-  border-radius: 16px; background-color: #fde8e8; color: #9b1c1c;
-  padding: 16px; font-size: 14px; font-weight: 600; white-space: pre-wrap;
-}
-@media (prefers-color-scheme: dark) {
-  .trip-err-box { background-color: #4a1919; color: #fca5a5; }
-}
-
-/* Map Wrappers & Switchers */
-.trip-map-wrap { position: fixed; inset: 0; z-index: 0; overscroll-behavior: none; }
+/* ==========================================================================
+   6. MAP LAYERS & SWITCHERS
+   ========================================================================== */
+.trip-map-fullscreen { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 0; }
 .trip-map-inner { width: 100%; height: 100%; }
 
 .trip-map-switcher {
-  position: fixed;
-  top: calc(env(safe-area-inset-top, 0px) + 16px); 
-  right: 16px;
-  z-index: 50;
-  pointer-events: auto;
-  transform: translateZ(0);
+  position: absolute; top: calc(env(safe-area-inset-top, 0px) + 16px); right: 16px; z-index: 10;
+  background: var(--roam-surface); border-radius: var(--r-pill); padding: 6px;
+  box-shadow: var(--shadow-heavy);
 }
+.trip-pill-btn {
+  background: transparent; border: none; padding: 10px 20px; font-size: 0.9rem; font-weight: 800;
+  border-radius: var(--r-pill); color: var(--roam-text-muted);
+}
+.trip-pill-btn[data-active="true"] { background: var(--roam-surface-hover); color: var(--roam-text); box-shadow: var(--shadow-soft); }
+
+/* ==========================================================================
+   7. DRAGGABLE BOTTOM SHEET ENGINE
+   ========================================================================== */
+.trip-bottom-sheet-wrap {
+  position: absolute; bottom: 0; left: 0; right: 0; z-index: 20;
+  height: calc(100vh - 100px); /* Total expandable height */
+  pointer-events: none;
+}
+.trip-bottom-sheet {
+  height: 100%; background: var(--roam-surface); border-radius: var(--r-card) var(--r-card) 0 0;
+  box-shadow: 0 -12px 48px rgba(0,0,0,0.15); pointer-events: auto; display: flex; flex-direction: column;
+  transform: translateZ(0); /* Hardware acceleration */
+}
+
+.trip-sheet-header {
+  padding: 16px 20px 12px 20px;
+  touch-action: none; /* Crucial for custom pointer events */
+  flex-shrink: 0;
+  background: var(--roam-surface);
+  border-radius: var(--r-card) var(--r-card) 0 0;
+}
+
+.trip-sheet-content {
+  flex: 1; padding: 0 20px calc(var(--bottom-nav-height) + 20px) 20px;
+  overflow-y: auto; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 20px;
+}
+
+.trip-drag-handle {
+  width: 48px; height: 6px; background: var(--roam-surface-hover); border-radius: 10px; margin: 0 auto 16px auto;
+}
+
+/* ==========================================================================
+   8. LISTS, ROWS, MODALS, & UTILITIES
+   ========================================================================== */
+.trip-stop-row, .trip-editor-row {
+  display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center;
+  background: var(--roam-surface); box-shadow: var(--shadow-soft); border-radius: 20px; padding: 14px;
+  transition: transform 0.2s var(--spring), outline 0.1s;
+}
+.trip-editor-row[data-focused="true"] { outline: 3px solid var(--brand-sky); outline-offset: -3px; }
+.trip-stop-row:active { transform: scale(0.98); }
+
+.trip-badge {
+  font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
+  padding: 8px 12px; border-radius: var(--r-pill); display: inline-flex; align-items: center; justify-content: center; white-space: nowrap;
+}
+.trip-badge-blue { background: var(--brand-sky); color: white; }
+.trip-badge-soft { background: var(--roam-surface-hover); color: var(--roam-text); }
+.trip-badge-ok { background: var(--roam-success); color: white; }
+.trip-badge-bad { background: var(--roam-danger); color: white; }
+
+.trip-cat-row { display: flex; flex-wrap: nowrap; gap: 8px; overflow-x: auto; padding: 4px 0 8px 0; -webkit-overflow-scrolling: touch; }
+
+/* Modals */
+.trip-modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px);
+  z-index: 100; display: flex; flex-direction: column; justify-content: flex-end;
+  animation: fadeIn 0.2s ease-out forwards;
+}
+.trip-modal {
+  background: var(--roam-bg); border-radius: var(--r-card) var(--r-card) 0 0;
+  padding: 24px 20px calc(var(--bottom-nav-height) + 20px) 20px; height: 88vh;
+  display: flex; flex-direction: column; gap: 16px; box-shadow: var(--shadow-heavy);
+  animation: slideUp 0.4s var(--spring) forwards;
+}
+
+.trip-search-box {
+  background: var(--roam-surface); box-shadow: var(--shadow-soft); border-radius: 16px;
+  display: flex; align-items: center; padding: 0 16px; height: 56px;
+}
+
+/* Borderless List Rows */
+.trip-list-row {
+  width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  background: transparent; border: none; border-bottom: 2px solid var(--roam-surface-hover);
+  padding: 18px 0; text-align: left;
+}
+.trip-list-row:last-child { border-bottom: none; }
+.trip-list-row[data-focused="true"] { background: var(--roam-surface-hover); border-radius: 16px; border-bottom: none; padding: 18px 16px; }
+
+/* Layout Utilities */
+.trip-row-between { display: flex; justify-content: space-between; align-items: center; }
+.trip-flex-col { display: flex; flex-direction: column; gap: 12px; }
+.trip-actions { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); }
+.trip-truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Inset Panels & KV Rows */
+.trip-err-box { padding: 16px; background: #fde8e8; color: #9b1c1c; border-radius: 16px; font-weight: 700; white-space: pre-wrap; }
+.trip-panel { background: var(--roam-surface-hover); padding: 20px; border-radius: var(--r-card); display: flex; flex-direction: column; gap: 16px; }
+
+.trip-kv-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; background: var(--roam-surface-hover); padding: 16px; border-radius: 16px; }
+.trip-kv { display: flex; flex-direction: column; }
+.trip-kv-k { color: var(--roam-text-muted); text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px; margin-bottom: 4px; font-size: 0.75rem; }
+.trip-kv-v { color: var(--roam-text); font-weight: 800; font-family: monospace; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Animations */
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ==========================================================================
+   9. NATIVE ILLUSIONS & GLASSMORPHISM
+   ========================================================================== */
+
+/* Page Transition Animation (used by template.tsx) */
+.trip-page-transition {
+  animation: pageFadeIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: transform, opacity; /* GPU Acceleration */
+}
+
+@keyframes pageFadeIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.995); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Make the bottom tab bar Glassmorphic (Overrides earlier solid colors) */
+.roam-tabs {
+  background-color: rgba(253, 251, 247, 0.85); /* var(--bg-sand) with opacity */
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 -8px 32px rgba(45, 41, 38, 0.08); /* Softer shadow for glass */
+}
+
+@media (prefers-color-scheme: dark) {
+  .roam-tabs {
+    background-color: rgba(22, 21, 20, 0.75);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.4);
+  }
+}
+
+/* Smooth Spinner for Buttons (Replacing "Loading..." text) */
+.trip-spinner {
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #ffffff;
+  animation: spin 0.8s ease-in-out infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Rubber-band overscroll protection for the bottom sheet */
+.trip-sheet-content {
+  overscroll-behavior-y: contain; 
+}
+/* ─────────────────────────────────────────────────────────────────────
+   NATIVE CSS ADDITIONS
+   Add these to your globals.css (or import as a separate file)
+   ───────────────────────────────────────────────────────────────────── */
+
+/* ── CSS variables for native integration ────────────────────────────── */
+:root {
+  --roam-keyboard-h: 0px;
+  --roam-safe-top: env(safe-area-inset-top, 0px);
+  --roam-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --roam-safe-left: env(safe-area-inset-left, 0px);
+  --roam-safe-right: env(safe-area-inset-right, 0px);
+}
+
+/* ── Safe area padding for the main shell ────────────────────────────── */
+.roam-shell {
+  padding-top: var(--roam-safe-top);
+  padding-bottom: var(--roam-safe-bottom);
+  padding-left: var(--roam-safe-left);
+  padding-right: var(--roam-safe-right);
+}
+
+/* ── Keyboard open state ─────────────────────────────────────────────── */
+/* When keyboard is open, hide the tab bar and shrink bottom padding
+   so the input area isn't obscured */
+.keyboard-open .roam-tab-bar {
+  transform: translateY(100%);
+  pointer-events: none;
+  opacity: 0;
+  transition: transform 0.2s ease, opacity 0.15s ease;
+}
+
+.keyboard-open .roam-main {
+  padding-bottom: 0 !important;
+}
+
+/* ── Touch feedback for interactive elements ─────────────────────────── */
+/* Makes buttons/rows feel "physical" on press — subtle scale + opacity */
+.trip-interactive {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: transform 0.1s ease, opacity 0.1s ease;
+}
+
+.trip-interactive:active {
+  transform: scale(0.97);
+  opacity: 0.85;
+}
+
+/* ── Prevent text selection on UI elements (native feel) ─────────────── */
+.roam-shell button,
+.roam-shell [role="button"],
+.roam-tab-bar {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* ── Smooth scroll with momentum (iOS) ───────────────────────────────── */
+.trip-list-container,
+.trip-sheet-body {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* ── Pull-to-refresh prevention (we handle sync manually) ────────────── */
+body {
+  overscroll-behavior-y: none;
+}
+
+/* ── Notch-aware bottom tab bar ──────────────────────────────────────── */
+.roam-tab-bar {
+  padding-bottom: var(--roam-safe-bottom);
+  transition: transform 0.2s ease, opacity 0.15s ease;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   NATIVE CSS ADDITIONS
+   Append these to your globals.css
+   ───────────────────────────────────────────────────────────────────── */
+
+/* ── CSS variables for native integration ────────────────────────────── */
+:root {
+  --roam-keyboard-h: 0px;
+  --roam-safe-top: env(safe-area-inset-top, 0px);
+  --roam-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --roam-safe-left: env(safe-area-inset-left, 0px);
+  --roam-safe-right: env(safe-area-inset-right, 0px);
+  --roam-tab-h: 72px;
+}
+
+/* ── Safe area padding for the main shell ────────────────────────────── */
+.roam-shell {
+  padding-top: var(--roam-safe-top);
+  padding-left: var(--roam-safe-left);
+  padding-right: var(--roam-safe-right);
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+}
+
+.roam-main {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ── Bottom Tab Bar ──────────────────────────────────────────────────── */
+.roam-tab-bar {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-around;
+  height: var(--roam-tab-h);
+  padding-bottom: var(--roam-safe-bottom);
+  background: var(--roam-surface, #1a1a1a);
+  border-top: 1px solid var(--roam-border, rgba(255,255,255,0.08));
+  -webkit-user-select: none;
+  user-select: none;
+  transition: transform 0.25s ease, opacity 0.2s ease;
+  z-index: 100;
+  flex-shrink: 0;
+}
+
+.roam-tab-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  flex: 1;
+  text-decoration: none;
+  color: var(--roam-text-muted, #888);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: color 0.15s ease, transform 0.1s ease;
+  padding: 6px 0;
+}
+
+.roam-tab-item:active {
+  transform: scale(0.92);
+}
+
+.roam-tab-active {
+  color: var(--roam-accent, #3b82f6);
+}
+
+.roam-tab-active .roam-tab-icon {
+  transform: translateY(-1px);
+}
+
+.roam-tab-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  transition: transform 0.2s ease;
+}
+
+.roam-tab-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+/* SOS tab — emphasized with red tint */
+.roam-tab-sos {
+  color: var(--roam-danger, #ef4444);
+}
+
+.roam-tab-sos.roam-tab-active {
+  color: #ff3b30;
+}
+
+.roam-tab-sos .roam-tab-icon {
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: 8px;
+  padding: 2px;
+}
+
+/* ── Keyboard open state ─────────────────────────────────────────────── */
+.keyboard-open .roam-tab-bar {
+  transform: translateY(100%);
+  pointer-events: none;
+  opacity: 0;
+}
+
+.keyboard-open .roam-main {
+  padding-bottom: 0 !important;
+}
+
+/* ── Touch feedback for interactive elements ─────────────────────────── */
+.trip-interactive {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: transform 0.1s ease, opacity 0.1s ease;
+}
+
+.trip-interactive:active {
+  transform: scale(0.97);
+  opacity: 0.85;
+}
+
+/* ── Prevent text selection on UI elements (native feel) ─────────────── */
+.roam-shell button,
+.roam-shell [role="button"],
+.roam-tab-bar {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* ── Smooth scroll with momentum (iOS) ───────────────────────────────── */
+.trip-list-container,
+.trip-sheet-body,
+.trip-sheet-content {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* ── Pull-to-refresh prevention (we handle sync manually) ────────────── */
+body {
+  overscroll-behavior-y: none;
+}
+
+/* ── Location FAB button ─────────────────────────────────────────────── */
+.trip-fab {
+  position: absolute;
+  z-index: 20;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.06);
+}
+
+.trip-fab-locate {
+  bottom: calc(220px + var(--roam-safe-bottom) + 12px);
+  right: 12px;
+  background: var(--roam-surface, #1a1a1a);
+  color: var(--roam-accent, #3b82f6);
+}
+
+.trip-fab-locate:active {
+  background: var(--roam-surface-hover, #2a2a2a);
+}
+
+/* ── Blue dot pulse animation (for user location on map) ─────────────── */
+@keyframes roam-blue-dot-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4); }
+  70% { box-shadow: 0 0 0 12px rgba(37, 99, 235, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+}
+

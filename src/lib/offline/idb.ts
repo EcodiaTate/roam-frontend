@@ -3,14 +3,13 @@
 
 export type IDBValue = any;
 
-// If you previously created the DB without the required stores,
-// bumping this forces onupgradeneeded to run and create them.
 const DB_NAME = "roam_offline";
-const DB_VERSION = 4; // ✅ bump to 4 to add packs store
+const DB_VERSION = 5; // bumped from 4 → 5 to add sync_queue store
 
-const STORE_PLANS = "plans"; // keyPath: plan_id
-const STORE_META = "meta"; // key: string -> any
-const STORE_PACKS = "packs"; // keyPath: k (plan_id:kind)
+const STORE_PLANS = "plans";       // keyPath: plan_id
+const STORE_META = "meta";         // key: string -> any
+const STORE_PACKS = "packs";       // keyPath: k (plan_id:kind)
+const STORE_SYNC_QUEUE = "sync_queue"; // keyPath: id (auto-incrementing ops queue)
 
 let _dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -23,7 +22,6 @@ function openDb(): Promise<IDBDatabase> {
     req.onupgradeneeded = () => {
       const db = req.result;
 
-      // ✅ Create missing stores idempotently
       if (!db.objectStoreNames.contains(STORE_PLANS)) {
         db.createObjectStore(STORE_PLANS, { keyPath: "plan_id" });
       }
@@ -33,14 +31,17 @@ function openDb(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(STORE_PACKS)) {
         db.createObjectStore(STORE_PACKS, { keyPath: "k" });
       }
+      if (!db.objectStoreNames.contains(STORE_SYNC_QUEUE)) {
+        const sq = db.createObjectStore(STORE_SYNC_QUEUE, { keyPath: "id", autoIncrement: true });
+        // Index by created_at for FIFO ordering
+        sq.createIndex("created_at", "created_at", { unique: false });
+      }
     };
 
     req.onsuccess = () => {
       const db = req.result;
-
-      // ✅ Defensive: if somehow still missing, fail with a clear message
       const have = Array.from(db.objectStoreNames);
-      const need = [STORE_PLANS, STORE_META, STORE_PACKS];
+      const need = [STORE_PLANS, STORE_META, STORE_PACKS, STORE_SYNC_QUEUE];
       const missing = need.filter((s) => !db.objectStoreNames.contains(s));
       if (missing.length) {
         reject(
@@ -52,7 +53,6 @@ function openDb(): Promise<IDBDatabase> {
         );
         return;
       }
-
       resolve(db);
     };
 
@@ -68,6 +68,7 @@ function txStore(db: IDBDatabase, store: string, mode: IDBTransactionMode) {
   }
   return db.transaction(store, mode).objectStore(store);
 }
+
 function txStores(db: IDBDatabase, stores: string[], mode: IDBTransactionMode) {
   for (const s of stores) {
     if (!db.objectStoreNames.contains(s)) throw new Error(`IDB store not found: "${s}"`);
@@ -102,7 +103,6 @@ export async function idbWithTx<T>(
     Promise.resolve()
       .then(() => fn(ctx.os, ctx.tx))
       .then((result) => {
-        // Ensure resolve happens only after tx completes
         ctx.tx.oncomplete = () => resolve(result);
       })
       .catch((err) => {
@@ -182,4 +182,5 @@ export const idbStores = {
   plans: STORE_PLANS,
   meta: STORE_META,
   packs: STORE_PACKS,
+  syncQueue: STORE_SYNC_QUEUE,
 };

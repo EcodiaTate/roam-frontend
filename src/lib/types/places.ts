@@ -1,6 +1,5 @@
 // src/lib/types/places.ts
 import type { BBox4, NavCoord } from "./geo";
-
 export type PlaceCategory =
   | "fuel"
   | "camp"
@@ -22,8 +21,12 @@ export type PlaceCategory =
   | "hostel"
   | "attraction"
   | "park"
-  | "beach";
-
+  | "beach"
+  // Mapbox geocoding categories
+  | "address"
+  | "place"
+  | "region";
+  
 export type PlacesRequest = {
   bbox?: BBox4 | null;
   center?: NavCoord | null;
