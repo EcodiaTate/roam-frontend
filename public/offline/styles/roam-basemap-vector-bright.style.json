@@ -1,0 +1,88 @@
+{
+  "version": 8,
+  "glyphs": "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+  "sources": {
+    "basemap": {
+      "type": "vector",
+"url": "pmtiles://https://vzauarlfmkjfkcphojbd.supabase.co/storage/v1/object/public/tiles/australia.pmtiles",
+      "attribution": "© OpenStreetMap contributors"
+    }
+  },
+  "layers": [
+    { "id": "bg", "type": "background", "paint": { "background-color": "#cbd7df" } },
+
+    {
+      "id": "water-lines",
+      "type": "line",
+      "source": "basemap",
+      "source-layer": "water_lines",
+      "paint": {
+        "line-color": "#3f8797",
+        "line-opacity": 0.45,
+        "line-width": ["interpolate", ["linear"], ["zoom"], 4, 0.7, 10, 1.6, 14, 2.6]
+      }
+    },
+
+    {
+      "id": "streets-casing",
+      "type": "line",
+      "source": "basemap",
+      "source-layer": "streets",
+      "paint": {
+        "line-color": "#3a4148",
+        "line-opacity": ["interpolate", ["linear"], ["zoom"], 8, 0.10, 12, 0.14, 14, 0.18],
+        "line-width": ["interpolate", ["linear"], ["zoom"], 8, 2.0, 12, 5.6, 14, 8.5]
+      }
+    },
+    {
+      "id": "streets",
+      "type": "line",
+      "source": "basemap",
+      "source-layer": "streets",
+      "paint": {
+        "line-color": "#f2efe9",
+        "line-opacity": ["interpolate", ["linear"], ["zoom"], 8, 0.22, 12, 0.28, 14, 0.34],
+        "line-width": ["interpolate", ["linear"], ["zoom"], 8, 1.2, 12, 3.4, 14, 6.0]
+      }
+    },
+
+    {
+      "id": "place-labels",
+      "type": "symbol",
+      "source": "basemap",
+      "source-layer": "place_labels",
+      "minzoom": 3,
+      "layout": {
+        "text-field": ["coalesce", ["get", "name_en"], ["get", "name"], ""],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 3, 11, 7, 13, 12, 16],
+        "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"]
+      },
+      "paint": {
+        "text-color": "rgba(32, 38, 44, 0.68)",
+        "text-halo-color": "rgba(203, 215, 223, 0.45)",
+        "text-halo-width": 0.9,
+        "text-halo-blur": 0.9
+      }
+    },
+
+    {
+      "id": "street-labels",
+      "type": "symbol",
+      "source": "basemap",
+      "source-layer": "street_labels",
+      "minzoom": 10,
+      "layout": {
+        "symbol-placement": "line",
+        "text-field": ["coalesce", ["get", "name_en"], ["get", "name"], ""],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 10, 10, 14, 12],
+        "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"]
+      },
+      "paint": {
+        "text-color": "rgba(32, 38, 44, 0.48)",
+        "text-halo-color": "rgba(203, 215, 223, 0.35)",
+        "text-halo-width": 0.8,
+        "text-halo-blur": 1.0
+      }
+    }
+  ]
+}

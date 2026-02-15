@@ -1,0 +1,132 @@
+{
+  "version": 8,
+  "glyphs": "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+  "sources": {
+    "basemap": {
+      "type": "vector",
+"url": "pmtiles://https://vzauarlfmkjfkcphojbd.supabase.co/storage/v1/object/public/tiles/australia.pmtiles",
+      "attribution": "© OpenStreetMap contributors"
+    }
+  },
+  "layers": [
+    { "id": "bg", "type": "background", "paint": { "background-color": "#0b1418" } },
+
+    {
+      "id": "ocean",
+      "type": "fill",
+      "source": "basemap",
+      "source-layer": "ocean",
+      "paint": { "fill-color": "#071f2a", "fill-opacity": 1 }
+    },
+    {
+      "id": "water-polygons",
+      "type": "fill",
+      "source": "basemap",
+      "source-layer": "water_polygons",
+      "paint": { "fill-color": "#0a2a3a", "fill-opacity": 1 }
+    },
+    {
+      "id": "water-lines",
+      "type": "line",
+      "source": "basemap",
+      "source-layer": "water_lines",
+      "paint": {
+        "line-color": "#4aa7b5",
+        "line-opacity": 0.55,
+        "line-width": ["interpolate", ["linear"], ["zoom"], 4, 0.6, 10, 1.4, 14, 2.2]
+      }
+    },
+
+    {
+      "id": "land",
+      "type": "fill",
+      "source": "basemap",
+      "source-layer": "land",
+      "paint": { "fill-color": "#101b16", "fill-opacity": 1 }
+    },
+
+    {
+      "id": "buildings",
+      "type": "fill",
+      "source": "basemap",
+      "source-layer": "buildings",
+      "minzoom": 14,
+      "paint": { "fill-color": "#16231d", "fill-opacity": 0.55 }
+    },
+
+    {
+      "id": "streets-outline",
+      "type": "line",
+      "source": "basemap",
+      "source-layer": "streets",
+      "paint": {
+        "line-color": "#020406",
+        "line-opacity": ["interpolate", ["linear"], ["zoom"], 8, 0.22, 12, 0.26, 14, 0.32],
+        "line-width": ["interpolate", ["linear"], ["zoom"], 8, 1.6, 12, 4.6, 14, 7.2]
+      }
+    },
+    {
+      "id": "streets",
+      "type": "line",
+      "source": "basemap",
+      "source-layer": "streets",
+      "paint": {
+        "line-color": "#c4ced6",
+        "line-opacity": ["interpolate", ["linear"], ["zoom"], 8, 0.18, 12, 0.22, 14, 0.28],
+        "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.9, 12, 2.6, 14, 4.4]
+      }
+    },
+
+    {
+      "id": "ferries",
+      "type": "line",
+      "source": "basemap",
+      "source-layer": "ferries",
+      "paint": {
+        "line-color": "#7fc1cf",
+        "line-opacity": 0.35,
+        "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.6, 12, 1.2, 14, 2.0],
+        "line-dasharray": [2, 2]
+      }
+    },
+
+    {
+      "id": "place-labels",
+      "type": "symbol",
+      "source": "basemap",
+      "source-layer": "place_labels",
+      "minzoom": 3,
+      "layout": {
+        "text-field": ["coalesce", ["get", "name_en"], ["get", "name"], ""],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 3, 11, 7, 13, 12, 16],
+        "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"]
+      },
+      "paint": {
+        "text-color": "rgba(236, 226, 206, 0.60)",
+        "text-halo-color": "rgba(2, 4, 6, 0.35)",
+        "text-halo-width": 0.9,
+        "text-halo-blur": 0.8
+      }
+    },
+
+    {
+      "id": "street-labels",
+      "type": "symbol",
+      "source": "basemap",
+      "source-layer": "street_labels",
+      "minzoom": 10,
+      "layout": {
+        "symbol-placement": "line",
+        "text-field": ["coalesce", ["get", "name_en"], ["get", "name"], ""],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 10, 10, 14, 12],
+        "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"]
+      },
+      "paint": {
+        "text-color": "rgba(236, 226, 206, 0.42)",
+        "text-halo-color": "rgba(2, 4, 6, 0.30)",
+        "text-halo-width": 0.7,
+        "text-halo-blur": 0.9
+      }
+    }
+  ]
+}

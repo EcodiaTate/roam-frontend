@@ -245,7 +245,7 @@ export function TripMap(props: Props) {
     const origin = typeof window !== "undefined" ? window.location.origin : "";
     const protocol = new Protocol();
     protocolRef.current = protocol;
-    maplibregl.addProtocol("pmtiles", protocol.tile);
+    maplibregl.addProtocol("pmtiles", protocol.tile.bind(protocol));
 
     const map = new maplibregl.Map({
       container: containerRef.current,

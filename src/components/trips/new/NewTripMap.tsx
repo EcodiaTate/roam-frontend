@@ -132,7 +132,7 @@ export function NewTripMap(props: {
     if (!elRef.current || mapRef.current) return;
 
     const protocol = new Protocol();
-    maplibregl.addProtocol("pmtiles", protocol.tile);
+    maplibregl.addProtocol("pmtiles", protocol.tile.bind(protocol));
 
     const map = new maplibregl.Map({
       container: elRef.current,
