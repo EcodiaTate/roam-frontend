@@ -1,8 +1,8 @@
 // src/app/trip/ClientPage.tsx
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { TripMap } from "@/components/trip/TripMap";
 import { TripView } from "@/components/trip/TripView";
@@ -15,6 +15,7 @@ import { haptic } from "@/lib/native/haptics";
 import { getCurrentPlanId, getOfflinePlan, type OfflinePlanRecord } from "@/lib/offline/plansStore";
 import { getAllPacks, hasCorePacks } from "@/lib/offline/packsStore";
 import { unpackAndStoreBundle } from "@/lib/offline/unpackBundle";
+
 import type { NavPack, CorridorGraphPack } from "@/lib/types/navigation";
 import type { PlacesPack, PlaceItem } from "@/lib/types/places";
 
@@ -22,6 +23,18 @@ type TabState = "itinerary" | "explore";
 
 export function TripClientPage(props: { initialPlanId: string | null }) {
   const router = useRouter();
+  const sp = useSearchParams();
+
+  // Read plan_id from URL on the client (static-export safe)
+  const planIdFromUrl = sp.get("plan_id"); // string | null
+
+  // Choose the effective plan id deterministically:
+  // 1) server-provided initialPlanId (if any)
+  // 2) ?plan_id=...
+  // 3) last-used current plan from IDB
+  const desiredPlanId = useMemo(() => {
+    return props.initialPlanId ?? planIdFromUrl ?? null;
+  }, [props.initialPlanId, planIdFromUrl]);
 
   // Native hooks
   const geo = useGeolocation({ autoStart: true, highAccuracy: true });
@@ -45,16 +58,19 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   const isDragging = useRef(false);
   const dragData = useRef({ startY: 0 });
 
-  // Boot logic
+  // Boot logic (static-export safe)
   useEffect(() => {
     let cancelled = false;
+
     async function boot() {
-      const id = props.initialPlanId ?? (await getCurrentPlanId());
+      // If a desired plan is specified, use it; else fall back to the last used plan.
+      const id = desiredPlanId ?? (await getCurrentPlanId());
       if (!id || cancelled) return;
 
       const rec = await getOfflinePlan(id);
       if (!rec || cancelled) return;
 
+      // Ensure core packs exist (bundle may need unpacking)
       const has = await hasCorePacks(rec.plan_id);
       if (!has) await unpackAndStoreBundle(rec);
 
@@ -66,11 +82,13 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       setCorridor(packs.corridor ?? null);
       setPlaces(packs.places ?? null);
     }
+
     boot();
+
     return () => {
       cancelled = true;
     };
-  }, [props.initialPlanId]);
+  }, [desiredPlanId]);
 
   // Bottom Sheet Handlers
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -84,15 +102,13 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
 
     const totalDelta = e.clientY - dragData.current.startY;
     const sheetHeight = sheetRef.current.clientHeight;
-    
-    // Calculate absolute travel bounds to prevent state desync
+
     // Pulling up is negative. Peek height leaves ~180px exposed.
-    const maxUp = -(sheetHeight - 180); 
-    const maxDown = 0; 
+    const maxUp = -(sheetHeight - 180);
+    const maxDown = 0;
 
     let proposedOffset = offsetY + totalDelta;
 
-    // Hard bounds so the invisible mathematical offset doesn't exceed visual clamps
     if (proposedOffset < maxUp) proposedOffset = maxUp;
     if (proposedOffset > maxDown) proposedOffset = maxDown;
 
@@ -107,12 +123,11 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       // ignore
     }
 
-    // Commit the physical drag to the permanent offset state
     setOffsetY((prev) => prev + dragOffset);
     setDragOffset(0);
   };
 
-  // CSS Clamp guarantees the sheet visually CANNOT detach from the bottom (0px limit relative to bottom)
+  // CSS Clamp guarantees the sheet visually CANNOT detach from the bottom
   const peekBase = `calc(100% - 180px - var(--roam-safe-bottom, 0px))`;
   const sheetTransform = `translateY(clamp(0px, calc(${peekBase} + ${offsetY + dragOffset}px), ${peekBase}))`;
 
@@ -173,7 +188,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
             setActiveTab("explore");
             // Programmatically pull the sheet up safely
             if (sheetRef.current) {
-               setOffsetY(-(sheetRef.current.clientHeight - 180));
+              setOffsetY(-(sheetRef.current.clientHeight - 180));
             }
           }}
           userPosition={geo.position}
@@ -198,7 +213,6 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           flexDirection: "column",
 
           transform: sheetTransform,
-          // Kill the spring transition so it stays exactly where dropped
           transition: isDragging.current ? "none" : "transform 0.1s ease-out",
           willChange: "transform",
         }}
