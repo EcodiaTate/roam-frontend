@@ -34,6 +34,11 @@ yarn-error.log*
 .env*
 
 # vercel
+# Next static export (Capacitor bundle)
+out/
+
+# Next build cache
+.next/
 .vercel
 
 # typescript
