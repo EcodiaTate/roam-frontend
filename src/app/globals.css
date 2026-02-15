@@ -288,19 +288,19 @@ input, textarea, [contenteditable] {
   border-radius: var(--r-pill); color: var(--roam-text-muted);
 }
 .trip-pill-btn[data-active="true"] { background: var(--roam-surface-hover); color: var(--roam-text); box-shadow: var(--shadow-soft); }
-
 /* ==========================================================================
    7. DRAGGABLE BOTTOM SHEET ENGINE
    ========================================================================== */
 .trip-bottom-sheet-wrap {
   position: absolute; bottom: 0; left: 0; right: 0; z-index: 20;
-  height: calc(100vh - 100px); /* Total expandable height */
+  height: 92vh; /* Matches the new JS reference */
   pointer-events: none;
 }
 .trip-bottom-sheet {
   height: 100%; background: var(--roam-surface); border-radius: var(--r-card) var(--r-card) 0 0;
   box-shadow: 0 -12px 48px rgba(0,0,0,0.15); pointer-events: auto; display: flex; flex-direction: column;
   transform: translateZ(0); /* Hardware acceleration */
+  touch-action: none; /* Prevents scroll-chaining on the outer container */
 }
 
 .trip-sheet-header {
@@ -314,12 +314,12 @@ input, textarea, [contenteditable] {
 .trip-sheet-content {
   flex: 1; padding: 0 20px calc(var(--bottom-nav-height) + 20px) 20px;
   overflow-y: auto; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 20px;
+  overscroll-behavior-y: contain; /* Prevents rubber-banding the sheet itself when scrolling inner content */
 }
 
 .trip-drag-handle {
   width: 48px; height: 6px; background: var(--roam-surface-hover); border-radius: 10px; margin: 0 auto 16px auto;
 }
-
 /* ==========================================================================
    8. LISTS, ROWS, MODALS, & UTILITIES
    ========================================================================== */

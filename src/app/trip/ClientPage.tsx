@@ -38,11 +38,12 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   const [focusedStopId, setFocusedStopId] = useState<string | null>(null);
   const [focusedPlaceId, setFocusedPlaceId] = useState<string | null>(null);
 
-  // Bottom Sheet Drag State
-  const [snapState, setSnapState] = useState<"peek" | "expanded">("peek");
+  // Fluid Bottom Sheet Drag State
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const [offsetY, setOffsetY] = useState(0); // 0 = peek, negative = pulled up
   const [dragOffset, setDragOffset] = useState(0);
   const isDragging = useRef(false);
-  const dragData = useRef({ startY: 0, lastY: 0, lastTime: 0, velocity: 0 });
+  const dragData = useRef({ startY: 0 });
 
   // Boot logic
   useEffect(() => {
@@ -74,21 +75,28 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   // Bottom Sheet Handlers
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     isDragging.current = true;
-    dragData.current = { startY: e.clientY, lastY: e.clientY, lastTime: Date.now(), velocity: 0 };
+    dragData.current = { startY: e.clientY };
     e.currentTarget.setPointerCapture(e.pointerId);
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDragging.current) return;
+    if (!isDragging.current || !sheetRef.current) return;
 
     const totalDelta = e.clientY - dragData.current.startY;
+    const sheetHeight = sheetRef.current.clientHeight;
+    
+    // Calculate absolute travel bounds to prevent state desync
+    // Pulling up is negative. Peek height leaves ~180px exposed.
+    const maxUp = -(sheetHeight - 180); 
+    const maxDown = 0; 
 
-    // "Rubber band" resistance when pulling past bounds
-    if ((snapState === "expanded" && totalDelta < 0) || (snapState === "peek" && totalDelta > 0)) {
-      setDragOffset(totalDelta * 0.15);
-    } else {
-      setDragOffset(totalDelta);
-    }
+    let proposedOffset = offsetY + totalDelta;
+
+    // Hard bounds so the invisible mathematical offset doesn't exceed visual clamps
+    if (proposedOffset < maxUp) proposedOffset = maxUp;
+    if (proposedOffset > maxDown) proposedOffset = maxDown;
+
+    setDragOffset(proposedOffset - offsetY);
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -99,29 +107,20 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       // ignore
     }
 
-    let snapped = false;
-    if (snapState === "peek" && dragOffset < -60) {
-      setSnapState("expanded");
-      snapped = true;
-    } else if (snapState === "expanded" && dragOffset > 60) {
-      setSnapState("peek");
-      snapped = true;
-    }
-
-    if (snapped) haptic.tap();
+    // Commit the physical drag to the permanent offset state
+    setOffsetY((prev) => prev + dragOffset);
     setDragOffset(0);
   };
 
-  const baseTransform =
-    snapState === "peek" ? `calc(100% - 180px - var(--roam-safe-bottom, 0px))` : "0px";
-  const sheetTransform = `translateY(calc(${baseTransform} + ${dragOffset}px))`;
+  // CSS Clamp guarantees the sheet visually CANNOT detach from the bottom (0px limit relative to bottom)
+  const peekBase = `calc(100% - 180px - var(--roam-safe-bottom, 0px))`;
+  const sheetTransform = `translateY(clamp(0px, calc(${peekBase} + ${offsetY + dragOffset}px), ${peekBase}))`;
 
   // Extracted map data
   const effectiveStops = navpack?.req?.stops ?? plan?.preview?.stops ?? [];
   const effectiveGeom = navpack?.primary?.geometry ?? plan?.preview?.geometry ?? null;
   const effectiveBbox = navpack?.primary?.bbox ?? plan?.preview?.bbox ?? null;
 
-  // TypeScript Safety: Wait until plan, geometry, and bbox are available
   if (!plan || !effectiveGeom || !effectiveBbox) {
     return (
       <div
@@ -158,8 +157,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         <TripMap
           styleId="roam-basemap-hybrid"
           stops={effectiveStops}
-          geometry={effectiveGeom} // TS knows string
-          bbox={effectiveBbox} // TS knows BBox4
+          geometry={effectiveGeom}
+          bbox={effectiveBbox}
           focusedStopId={focusedStopId}
           onStopPress={(id) => {
             haptic.selection();
@@ -172,7 +171,10 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
             haptic.selection();
             setFocusedPlaceId(id);
             setActiveTab("explore");
-            setSnapState("expanded");
+            // Programmatically pull the sheet up safely
+            if (sheetRef.current) {
+               setOffsetY(-(sheetRef.current.clientHeight - 180));
+            }
           }}
           userPosition={geo.position}
         />
@@ -180,6 +182,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
 
       {/* 2. Bottom Sheet */}
       <div
+        ref={sheetRef}
         style={{
           position: "absolute",
           bottom: 0,
@@ -195,7 +198,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           flexDirection: "column",
 
           transform: sheetTransform,
-          transition: isDragging.current ? "none" : "transform 0.4s var(--spring)",
+          // Kill the spring transition so it stays exactly where dropped
+          transition: isDragging.current ? "none" : "transform 0.1s ease-out",
           willChange: "transform",
         }}
       >
@@ -258,10 +262,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
             className="trip-interactive"
             style={{
               padding: "10px 0",
-              borderBottom:
-                activeTab === "itinerary"
-                  ? "3px solid var(--brand-sky)"
-                  : "3px solid transparent",
+              borderBottom: activeTab === "itinerary" ? "3px solid var(--brand-sky)" : "3px solid transparent",
               background: "none",
               borderTop: "none",
               borderLeft: "none",
@@ -285,8 +286,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
             className="trip-interactive"
             style={{
               padding: "10px 0",
-              borderBottom:
-                activeTab === "explore" ? "3px solid var(--brand-sky)" : "3px solid transparent",
+              borderBottom: activeTab === "explore" ? "3px solid var(--brand-sky)" : "3px solid transparent",
               background: "none",
               borderTop: "none",
               borderLeft: "none",
@@ -355,7 +355,6 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
                 onFocusPlace={setFocusedPlaceId}
                 onAddStop={(place: PlaceItem) => {
                   haptic.success();
-                  // Trigger your add stop rebuild logic here
                   setActiveTab("itinerary");
                 }}
               />
