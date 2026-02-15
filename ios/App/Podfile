@@ -3,9 +3,6 @@ require_relative '../../node_modules/@capacitor/ios/scripts/pods_helpers'
 platform :ios, '14.0'
 use_frameworks!
 
-# workaround to avoid Xcode caching of Pods that requires
-# Product -> Clean Build Folder after new Cordova plugins installed
-# Requires CocoaPods 1.6 or newer
 install! 'cocoapods', :disable_input_output_paths => true
 
 def capacitor_pods
@@ -27,18 +24,16 @@ end
 
 target 'App' do
   capacitor_pods
-  # Add your Pods here
 end
 
 post_install do |installer|
-  # Force all Pods targets to iOS 14.0 (avoids "required a higher minimum deployment target")
+  # Force iOS 14 everywhere (Pods project + user project)
   installer.pods_project.targets.each do |target|
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
     end
   end
 
-  # Also force the user project targets (App) to iOS 14.0
   installer.aggregate_targets.each do |aggregate_target|
     aggregate_target.user_project.native_targets.each do |t|
       t.build_configurations.each do |config|
@@ -47,7 +42,6 @@ post_install do |installer|
     end
   end
 
-  # Keep Capacitor’s safety check
+  # Capacitor sanity check
   assertDeploymentTarget(installer)
 end
-

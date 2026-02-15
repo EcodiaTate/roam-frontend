@@ -5,23 +5,27 @@ import { KeyboardResize } from "@capacitor/keyboard";
 const isDev = process.env.NODE_ENV === "development";
 
 const config: CapacitorConfig = {
+  // ✅ Correct, stable bundle identity
   appId: "com.ecodia.roam",
   appName: "Roam Nav",
 
-  // IMPORTANT:
-  // This must point to the static export output
+  // ✅ Static export output folder (Next output: export)
   webDir: "out",
 
-  ...(isDev && {
-    server: {
-      url: "http://localhost:3000",
-      cleartext: true,
-      androidScheme: "http",
-    },
-  }),
+  // ✅ Dev-only live reload server. In prod, Capacitor serves the static bundle from /out.
+  ...(isDev
+    ? {
+        server: {
+          url: "http://localhost:3000",
+          cleartext: true,
+          androidScheme: "http",
+        },
+      }
+    : {}),
 
   plugins: {
     SplashScreen: {
+      // Keep splash visible until we call hide() manually
       launchAutoHide: false,
       launchShowDuration: 0,
       backgroundColor: "#0a0a0a",
@@ -55,14 +59,11 @@ const config: CapacitorConfig = {
   android: {
     backgroundColor: "#0a0a0a",
 
-    // REQUIRED for:
-    // • pmtiles
-    // • local tile serving
-    // • mixed asset sources
+    // You’re loading remote resources (Supabase PMTiles, optional satellite),
+    // so mixed content can matter depending on what’s embedded.
     allowMixedContent: true,
 
-    // Required for local bundle fetches (OSRM, packs)
-    // prevents blocked requests inside WebView
+    // Keeps input handling stable for gesture-heavy map UIs
     captureInput: true,
   },
 };
