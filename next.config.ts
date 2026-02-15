@@ -2,27 +2,20 @@
 const nextConfig = {
   reactStrictMode: true,
 
-  // ✅ This is what makes `next export` (and `out/`) happen
+  // Static export (writes to /out on build)
   output: "export",
 
-  // ✅ Capacitor / static hosting needs trailingSlash for clean routing
-  // (so /trip becomes /trip/ and maps to /trip/index.html)
+  // Required for file-based routing: /trip -> /trip/index.html
   trailingSlash: true,
 
-  // ✅ Static export must ignore image optimization
+  // No Next image optimizer in static export
   images: {
     unoptimized: true,
-    remotePatterns: [],
   },
 
-  // ✅ Rewrites only work in dev (they require a running Next server).
+  // ✅ No rewrites (tiles/styles no longer proxied through Next)
   async rewrites() {
-    if (process.env.NODE_ENV !== "development") return [];
-    return [
-      { source: "/styles/:path*", destination: "http://127.0.0.1:8000/styles/:path*" },
-      { source: "/tiles/:path*", destination: "http://127.0.0.1:8000/tiles/:path*" },
-      // optionally add /health, /nav, /places, /bundle in dev if you want
-    ];
+    return [];
   },
 };
 
