@@ -86,7 +86,7 @@ function IconSos(active: boolean) {
 }
 
 const TABS: Tab[] = [
-  { key: "new", href: "/new", label: "New", icon: IconPlus },
+  { key: "guide", href: "/guide", label: "Guide", icon: IconSearch },
   { key: "trip", href: "/trip", label: "Trip", icon: IconMap, isCenter: true },
   { key: "sos", href: "/sos", label: "SOS", icon: IconSos, emergency: true },
 ];

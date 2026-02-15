@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { TripMap } from "@/components/trip/TripMap";
 import { TripView } from "@/components/trip/TripView";
-import { ExploreView } from "@/components/trip/ExploreView";
 import { SyncStatusBadge } from "@/components/ui/SyncStatusBadge";
 
 import { useGeolocation } from "@/lib/native/geolocation";
@@ -17,24 +16,19 @@ import { getAllPacks, hasCorePacks } from "@/lib/offline/packsStore";
 import { unpackAndStoreBundle } from "@/lib/offline/unpackBundle";
 
 import type { NavPack, CorridorGraphPack } from "@/lib/types/navigation";
-import type { PlacesPack, PlaceItem } from "@/lib/types/places";
-
-type TabState = "itinerary" | "explore";
+import type { PlacesPack } from "@/lib/types/places";
 
 export function TripClientPage(props: { initialPlanId: string | null }) {
   const router = useRouter();
   const sp = useSearchParams();
 
-  // Read plan_id from URL on the client (static-export safe)
-  const planIdFromUrl = sp.get("plan_id"); // string | null
+  const planIdFromUrl = sp.get("plan_id");
+  const focusPlaceFromUrl = sp.get("focus_place_id");
 
-  // Choose the effective plan id deterministically:
-  // 1) server-provided initialPlanId (if any)
-  // 2) ?plan_id=...
-  // 3) last-used current plan from IDB
-  const desiredPlanId = useMemo(() => {
-    return props.initialPlanId ?? planIdFromUrl ?? null;
-  }, [props.initialPlanId, planIdFromUrl]);
+  const desiredPlanId = useMemo(
+    () => props.initialPlanId ?? planIdFromUrl ?? null,
+    [props.initialPlanId, planIdFromUrl]
+  );
 
   // Native hooks
   const geo = useGeolocation({ autoStart: true, highAccuracy: true });
@@ -47,7 +41,6 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   const [places, setPlaces] = useState<PlacesPack | null>(null);
 
   // UI State
-  const [activeTab, setActiveTab] = useState<TabState>("itinerary");
   const [focusedStopId, setFocusedStopId] = useState<string | null>(null);
   const [focusedPlaceId, setFocusedPlaceId] = useState<string | null>(null);
 
@@ -63,14 +56,12 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     let cancelled = false;
 
     async function boot() {
-      // If a desired plan is specified, use it; else fall back to the last used plan.
       const id = desiredPlanId ?? (await getCurrentPlanId());
       if (!id || cancelled) return;
 
       const rec = await getOfflinePlan(id);
       if (!rec || cancelled) return;
 
-      // Ensure core packs exist (bundle may need unpacking)
       const has = await hasCorePacks(rec.plan_id);
       if (!has) await unpackAndStoreBundle(rec);
 
@@ -84,11 +75,23 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     }
 
     boot();
-
     return () => {
       cancelled = true;
     };
   }, [desiredPlanId]);
+
+  // If we arrived with focus_place_id (from Guide), focus it
+  useEffect(() => {
+    if (!focusPlaceFromUrl) return;
+    setFocusedPlaceId(focusPlaceFromUrl);
+    // also pull sheet up a bit so the user sees itinerary context
+    if (sheetRef.current) {
+      const h = sheetRef.current.clientHeight;
+      const maxUp = -(h - 180);
+      // pull up ~60% of the way to full height
+      setOffsetY(Math.max(maxUp, Math.round(maxUp * 0.6)));
+    }
+  }, [focusPlaceFromUrl]);
 
   // Bottom Sheet Handlers
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -103,12 +106,10 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     const totalDelta = e.clientY - dragData.current.startY;
     const sheetHeight = sheetRef.current.clientHeight;
 
-    // Pulling up is negative. Peek height leaves ~180px exposed.
     const maxUp = -(sheetHeight - 180);
     const maxDown = 0;
 
     let proposedOffset = offsetY + totalDelta;
-
     if (proposedOffset < maxUp) proposedOffset = maxUp;
     if (proposedOffset > maxDown) proposedOffset = maxDown;
 
@@ -148,9 +149,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           color: "var(--roam-text)",
         }}
       >
-        <div style={{ color: "var(--roam-text-muted)", fontSize: 16, fontWeight: 800 }}>
-          Loading trip map...
-        </div>
+        <div style={{ color: "var(--roam-text-muted)", fontSize: 16, fontWeight: 800 }}>Loading trip map…</div>
       </div>
     );
   }
@@ -167,7 +166,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         color: "var(--roam-text)",
       }}
     >
-      {/* 1. Map Layer */}
+      {/* Map Layer */}
       <div style={{ position: "absolute", inset: 0, zIndex: 1 }}>
         <TripMap
           styleId="roam-basemap-hybrid"
@@ -178,24 +177,19 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           onStopPress={(id) => {
             haptic.selection();
             setFocusedStopId(id);
-            setActiveTab("itinerary");
           }}
           suggestions={places?.items ?? null}
           focusedSuggestionId={focusedPlaceId}
           onSuggestionPress={(id) => {
             haptic.selection();
             setFocusedPlaceId(id);
-            setActiveTab("explore");
-            // Programmatically pull the sheet up safely
-            if (sheetRef.current) {
-              setOffsetY(-(sheetRef.current.clientHeight - 180));
-            }
+            router.push(`/guide?plan_id=${encodeURIComponent(plan.plan_id)}&focus_place_id=${encodeURIComponent(id)}`);
           }}
           userPosition={geo.position}
         />
       </div>
 
-      {/* 2. Bottom Sheet */}
+      {/* Bottom Sheet */}
       <div
         ref={sheetRef}
         style={{
@@ -225,7 +219,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           onPointerCancel={handlePointerUp}
           className="trip-sheet-header"
           style={{
-            padding: "0 20px 14px",
+            padding: "0 20px 12px",
             cursor: "grab",
             touchAction: "none",
             background: "var(--roam-surface)",
@@ -239,140 +233,122 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
               height: 6,
               borderRadius: 10,
               background: "var(--roam-surface-hover)",
-              margin: "10px auto 14px",
+              margin: "10px auto 12px",
             }}
           />
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-            <h1
-              className="trip-h1"
+
+          {/* Title row */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+            <div style={{ minWidth: 0 }}>
+              <div
+                className="trip-h1"
+                style={{
+                  fontSize: 22,
+                  fontWeight: 950,
+                  margin: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  color: "var(--roam-text)",
+                  letterSpacing: "-0.3px",
+                }}
+              >
+                <span className="trip-truncate">{plan.label ?? "Trip Plan"}</span> <SyncStatusBadge />
+              </div>
+              <div style={{ marginTop: 4, fontSize: 12, fontWeight: 850, color: "var(--roam-text-muted)" }}>
+                Itinerary
+              </div>
+            </div>
+          </div>
+
+          {/* Action row (the “missing controls”) */}
+          <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+            <button
+              type="button"
+              className="trip-btn-sm trip-interactive"
+              onClick={() => {
+                haptic.selection();
+                // we already pass geo.position to map; this just nudges the user mentally
+                // if TripMap exposes a recenter callback later, hook it here.
+                setOffsetY(0); // quick return to peek
+              }}
               style={{
-                fontSize: 22,
-                fontWeight: 900,
-                margin: 0,
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
+                borderRadius: 999,
+                minHeight: 42,
+                padding: "0 14px",
+                fontWeight: 950,
+                background: "var(--roam-surface-hover)",
                 color: "var(--roam-text)",
-                letterSpacing: "-0.3px",
+                boxShadow: "var(--shadow-button)",
+                whiteSpace: "nowrap",
               }}
             >
-              {plan.label ?? "Trip Plan"} <SyncStatusBadge />
-            </h1>
+              Peek
+            </button>
+
+            <button
+              type="button"
+              className="trip-btn-sm trip-interactive"
+              onClick={() => {
+                haptic.selection();
+                router.push(`/guide?plan_id=${encodeURIComponent(plan.plan_id)}`);
+              }}
+              style={{
+                borderRadius: 999,
+                minHeight: 42,
+                padding: "0 14px",
+                fontWeight: 950,
+                background: "var(--roam-surface-hover)",
+                color: "var(--roam-text)",
+                boxShadow: "var(--shadow-button)",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Guide
+            </button>
+
+            <button
+              type="button"
+              className="trip-btn-sm trip-interactive"
+              onClick={() => {
+                haptic.selection();
+                router.push(`/plans`);
+              }}
+              style={{
+                marginLeft: "auto",
+                borderRadius: 999,
+                minHeight: 42,
+                padding: "0 14px",
+                fontWeight: 950,
+                background: "var(--roam-surface-hover)",
+                color: "var(--roam-text)",
+                boxShadow: "var(--shadow-button)",
+                whiteSpace: "nowrap",
+              }}
+            >
+              All Plans
+            </button>
           </div>
         </div>
 
-        {/* Tab Switcher UI */}
-        <div
-          style={{
-            display: "flex",
-            padding: "0 20px",
-            gap: 16,
-            borderBottom: "2px solid rgba(0,0,0,0.06)",
-            marginBottom: 14,
-          }}
-        >
-          <button
-            type="button"
-            className="trip-interactive"
-            style={{
-              padding: "10px 0",
-              borderBottom: activeTab === "itinerary" ? "3px solid var(--brand-sky)" : "3px solid transparent",
-              background: "none",
-              borderTop: "none",
-              borderLeft: "none",
-              borderRight: "none",
-              fontSize: 16,
-              fontWeight: activeTab === "itinerary" ? 900 : 800,
-              color: activeTab === "itinerary" ? "var(--roam-text)" : "var(--roam-text-muted)",
-              cursor: "pointer",
-              transition: "all 0.2s var(--ease-out)",
-            }}
-            onClick={() => {
-              haptic.selection();
-              setActiveTab("itinerary");
-            }}
-          >
-            Itinerary
-          </button>
-
-          <button
-            type="button"
-            className="trip-interactive"
-            style={{
-              padding: "10px 0",
-              borderBottom: activeTab === "explore" ? "3px solid var(--brand-sky)" : "3px solid transparent",
-              background: "none",
-              borderTop: "none",
-              borderLeft: "none",
-              borderRight: "none",
-              fontSize: 16,
-              fontWeight: activeTab === "explore" ? 900 : 800,
-              color: activeTab === "explore" ? "var(--roam-text)" : "var(--roam-text-muted)",
-              cursor: "pointer",
-              transition: "all 0.2s var(--ease-out)",
-            }}
-            onClick={() => {
-              haptic.selection();
-              setActiveTab("explore");
-            }}
-          >
-            Explore
-          </button>
-        </div>
-
-        {/* Smooth Sliding Viewport */}
-        <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
+        {/* Itinerary */}
+        <div style={{ flex: 1, overflow: "hidden" }}>
           <div
             style={{
-              display: "flex",
-              width: "200%",
               height: "100%",
-              transform: activeTab === "itinerary" ? "translateX(0)" : "translateX(-50%)",
-              transition: "transform 0.4s var(--spring)",
-              willChange: "transform",
+              overflowY: "auto",
+              padding: "0 20px calc(var(--bottom-nav-height) + 20px)",
+              WebkitOverflowScrolling: "touch",
+              overscrollBehavior: "contain",
             }}
           >
-            {/* View 1: Itinerary */}
-            <div
-              style={{
-                width: "50%",
-                height: "100%",
-                overflowY: "auto",
-                padding: "0 20px calc(var(--bottom-nav-height) + 20px)",
-                WebkitOverflowScrolling: "touch",
-                overscrollBehavior: "contain",
-              }}
-            >
-              <TripView
-                planId={plan.plan_id}
-                navpack={navpack}
-                corridor={corridor}
-                focusedStopId={focusedStopId}
-                onFocusStop={setFocusedStopId}
-              />
-            </div>
-
-            {/* View 2: Explore */}
-            <div
-              style={{
-                width: "50%",
-                height: "100%",
-                overflowY: "auto",
-                padding: "0 20px calc(var(--bottom-nav-height) + 20px)",
-                WebkitOverflowScrolling: "touch",
-                overscrollBehavior: "contain",
-              }}
-            >
-              <ExploreView
-                places={places}
-                focusedPlaceId={focusedPlaceId}
-                onFocusPlace={setFocusedPlaceId}
-                onAddStop={(place: PlaceItem) => {
-                  haptic.success();
-                  setActiveTab("itinerary");
-                }}
-              />
-            </div>
+            <TripView
+              planId={plan.plan_id}
+              navpack={navpack}
+              corridor={corridor}
+              focusedStopId={focusedStopId}
+              onFocusStop={setFocusedStopId}
+            />
           </div>
         </div>
       </div>
