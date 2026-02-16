@@ -13,7 +13,7 @@ const nextConfig = {
     unoptimized: true,
   },
 
-  // ✅ No rewrites (tiles/styles no longer proxied through Next)
+  //  No rewrites (tiles/styles no longer proxied through Next)
   async rewrites() {
     return [];
   },

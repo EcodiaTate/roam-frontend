@@ -26,7 +26,7 @@ export function rebuildNavpackOffline(args: {
   prevNavpack: NavPack;
   corridor: CorridorGraphPack;
   stops: TripStop[];
-  route_key: string; // ✅ must change when stops change
+  route_key: string; //  must change when stops change
   max_snap_m?: number;
 }): NavPack {
   const prev = args.prevNavpack;

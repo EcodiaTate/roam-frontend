@@ -8,6 +8,8 @@ const DB_VERSION = 5; // bumped from 4 → 5 to add sync_queue store
 
 const STORE_PLANS = "plans";       // keyPath: plan_id
 const STORE_META = "meta";         // key: string -> any
+const STORE_EMERGENCY = "emergency_contacts"; // keyPath: id (uuid)
+
 const STORE_PACKS = "packs";       // keyPath: k (plan_id:kind)
 const STORE_SYNC_QUEUE = "sync_queue"; // keyPath: id (auto-incrementing ops queue)
 
@@ -25,6 +27,9 @@ function openDb(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(STORE_PLANS)) {
         db.createObjectStore(STORE_PLANS, { keyPath: "plan_id" });
       }
+      if (!db.objectStoreNames.contains(STORE_EMERGENCY)) {
+        db.createObjectStore(STORE_EMERGENCY, { keyPath: "id" });
+      }
       if (!db.objectStoreNames.contains(STORE_META)) {
         db.createObjectStore(STORE_META);
       }
@@ -41,7 +46,7 @@ function openDb(): Promise<IDBDatabase> {
     req.onsuccess = () => {
       const db = req.result;
       const have = Array.from(db.objectStoreNames);
-      const need = [STORE_PLANS, STORE_META, STORE_PACKS, STORE_SYNC_QUEUE];
+      const need = [STORE_PLANS, STORE_META, STORE_PACKS, STORE_SYNC_QUEUE, STORE_EMERGENCY];
       const missing = need.filter((s) => !db.objectStoreNames.contains(s));
       if (missing.length) {
         reject(
@@ -183,4 +188,5 @@ export const idbStores = {
   meta: STORE_META,
   packs: STORE_PACKS,
   syncQueue: STORE_SYNC_QUEUE,
+  emergency: STORE_EMERGENCY,
 };

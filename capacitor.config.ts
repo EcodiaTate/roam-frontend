@@ -5,14 +5,14 @@ import { KeyboardResize } from "@capacitor/keyboard";
 const isDev = process.env.NODE_ENV === "development";
 
 const config: CapacitorConfig = {
-  // ✅ Correct, stable bundle identity
+  //  Correct, stable bundle identity
   appId: "com.ecodia.roam",
   appName: "Roam Nav",
 
-  // ✅ Static export output folder (Next output: export)
+  //  Static export output folder (Next output: export)
   webDir: "out",
 
-  // ✅ Dev-only live reload server. In prod, Capacitor serves the static bundle from /out.
+  //  Dev-only live reload server. In prod, Capacitor serves the static bundle from /out.
   ...(isDev
     ? {
         server: {

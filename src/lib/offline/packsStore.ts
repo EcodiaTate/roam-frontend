@@ -76,7 +76,7 @@ export async function deleteAllPacks(planId: string): Promise<void> {
 }
 
 /**
- * ✅ Atomic: put multiple packs in the same transaction.
+ *  Atomic: put multiple packs in the same transaction.
  * Used for offline edits where plan + navpack + manifest must stay consistent.
  */
 export async function putPacksAtomic(args: {

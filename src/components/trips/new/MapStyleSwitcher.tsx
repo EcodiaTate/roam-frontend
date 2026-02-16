@@ -3,6 +3,7 @@
 
 import React from "react";
 import { haptic } from "@/lib/native/haptics";
+import { Sun, Moon, Map as MapIcon, Satellite } from "lucide-react";
 
 export type MapBaseMode = "vector" | "hybrid";
 export type VectorTheme = "bright" | "dark";
@@ -21,19 +22,32 @@ export function MapStyleSwitcher(props: {
           type="button"
           className="trip-interactive trip-pill-btn"
           data-active={mode === "vector"}
-          onClick={() => { haptic.selection(); onChange({ mode: "vector", vectorTheme }); }}
+          onClick={() => {
+            haptic.selection();
+            onChange({ mode: "vector", vectorTheme });
+          }}
           aria-pressed={mode === "vector"}
         >
-          Map
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+            <MapIcon size={16} />
+            Map
+          </span>
         </button>
+
         <button
           type="button"
           className="trip-interactive trip-pill-btn"
           data-active={mode === "hybrid"}
-          onClick={() => { haptic.selection(); onChange({ mode: "hybrid", vectorTheme }); }}
+          onClick={() => {
+            haptic.selection();
+            onChange({ mode: "hybrid", vectorTheme });
+          }}
           aria-pressed={mode === "hybrid"}
         >
-          Sat
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+            <Satellite size={16} />
+            Sat
+          </span>
         </button>
       </div>
 
@@ -43,19 +57,30 @@ export function MapStyleSwitcher(props: {
             type="button"
             className="trip-interactive trip-pill-btn"
             data-active={vectorTheme === "bright"}
-            onClick={() => { haptic.selection(); onChange({ mode: "vector", vectorTheme: "bright" }); }}
+            onClick={() => {
+              haptic.selection();
+              onChange({ mode: "vector", vectorTheme: "bright" });
+            }}
             aria-pressed={vectorTheme === "bright"}
+            aria-label="Bright theme"
+            title="Bright"
           >
-            ☀
+            <Sun size={16} />
           </button>
+
           <button
             type="button"
             className="trip-interactive trip-pill-btn"
             data-active={vectorTheme === "dark"}
-            onClick={() => { haptic.selection(); onChange({ mode: "vector", vectorTheme: "dark" }); }}
+            onClick={() => {
+              haptic.selection();
+              onChange({ mode: "vector", vectorTheme: "dark" });
+            }}
             aria-pressed={vectorTheme === "dark"}
+            aria-label="Dark theme"
+            title="Dark"
           >
-            ⏾
+            <Moon size={16} />
           </button>
         </div>
       )}

@@ -5,6 +5,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { PlaceCategory, PlaceItem, PlacesPack } from "@/lib/types/places";
 import { haptic } from "@/lib/native/haptics";
 
+import { Search } from "lucide-react"
+
 function fmtCat(c: PlaceCategory) { return c.replace(/_/g, " "); }
 
 const DEFAULT_CATS: PlaceCategory[] = [
@@ -77,7 +79,7 @@ export function TripSuggestionsPanel(props: {
 
         {props.enableSearch && (
           <div className="trip-search-box">
-            <span className="trip-search-icon">🔍</span>
+            <span className="trip-search-icon"><Search/></span>
             <input value={q} onChange={(e) => setQ(e.currentTarget.value)} placeholder="Filter..." className="trip-input-borderless" aria-label="Search places" />
           </div>
         )}

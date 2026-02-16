@@ -1,5 +1,6 @@
 // src/lib/types/places.ts
 import type { BBox4, NavCoord } from "./geo";
+
 export type PlaceCategory =
   | "fuel"
   | "camp"
@@ -22,11 +23,23 @@ export type PlaceCategory =
   | "attraction"
   | "park"
   | "beach"
+  // Nature & outdoors
+  | "waterfall"
+  | "swimming_hole"
+  | "national_park"
+  | "picnic"
+  | "hiking"
+  // Sightseeing
+  | "museum"
+  | "gallery"
+  | "zoo"
+  | "theme_park"
+  | "heritage"
   // Mapbox geocoding categories
   | "address"
   | "place"
   | "region";
-  
+
 export type PlacesRequest = {
   bbox?: BBox4 | null;
   center?: NavCoord | null;
@@ -47,7 +60,7 @@ export type PlaceItem = {
 
 export type PlacesPack = {
   places_key: string;
-  req: PlacesRequest;
+  req: PlacesRequest | null;
   items: PlaceItem[];
   provider: string;
   created_at: string;
@@ -59,6 +72,10 @@ export type CorridorPlacesRequest = {
   corridor_key: string;
   categories?: PlaceCategory[];
   limit?: number; // default 8000
+  /** Polyline6 of the route — enables true corridor search along the road shape */
+  geometry?: string;
+  /** Corridor buffer radius in km (default 15) */
+  buffer_km?: number;
 };
 
 // /places/suggest

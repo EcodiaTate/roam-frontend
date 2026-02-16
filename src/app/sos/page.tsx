@@ -1,6 +1,7 @@
-// src/app/(shell)/sos/page.tsx
-import { SosClientPage } from "./ClientPage";
+import EmergencyClientPage from "./ClientPage";
 
-export default function Page() {
-  return <SosClientPage />;
+export const dynamic = "force-static";
+
+export default function EmergencyPage() {
+  return <EmergencyClientPage />;
 }

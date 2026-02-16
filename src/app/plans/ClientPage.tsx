@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { OfflinePlanRecord } from "@/lib/offline/plansStore";
 import { deleteOfflinePlan, getCurrentPlanId, listOfflinePlans, setCurrentPlanId } from "@/lib/offline/plansStore";
-
+import { Map } from "lucide-react"
 function fmtBytes(n?: number) {
   if (!n || n <= 0) return "—";
   const kb = n / 1024;
@@ -80,7 +80,7 @@ export function PlansClientPage() {
         {/* Empty State */}
         {!hasPlans && (
           <div className="trip-card" style={{ maxWidth: "100%", textAlign: "center", padding: 32, alignItems: "center" }}>
-            <div style={{ fontSize: "2rem", marginBottom: 8 }}>🗺️</div>
+            <div style={{ fontSize: "2rem", marginBottom: 8 }}><Map/></div>
             <div className="trip-h2">No offline plans yet</div>
             <div className="trip-muted" style={{ marginTop: 8 }}>
               Build a route in <b>New</b>, then hit <b>Build offline</b> followed by <b>Save</b> to store it here.

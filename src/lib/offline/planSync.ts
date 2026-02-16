@@ -4,18 +4,9 @@
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
 import { networkMonitor } from "./networkMonitor";
-import {
-  enqueueSync,
-  getPendingOps,
-  removeOp,
-  markOpFailed,
-  hasQueuedUpsert,
-} from "./syncQueue";
-import {
-  getOfflinePlan,
-  listOfflinePlans,
-  type OfflinePlanRecord,
-} from "./plansStore";
+
+import { enqueueSync, getPendingOps, removeOp, markOpFailed, hasQueuedUpsert } from "./syncQueue";
+import { getOfflinePlan, type OfflinePlanRecord } from "./plansStore";
 import { idbPut, idbDel, idbStores } from "./idb";
 
 /* ── Supabase row shape ──────────────────────────────────────────────── */
@@ -41,11 +32,20 @@ function cloudToLocal(row: SupaPlanRow): Partial<OfflinePlanRecord> {
     preview: row.preview ?? undefined,
     created_at: row.created_at,
     saved_at: row.updated_at,
+
     // Status fields from manifest_meta if present
     corridor_status: row.manifest_meta?.corridor_status,
     places_status: row.manifest_meta?.places_status,
+    traffic_status: row.manifest_meta?.traffic_status,
+    hazards_status: row.manifest_meta?.hazards_status,
+
     corridor_key: row.manifest_meta?.corridor_key,
     places_key: row.manifest_meta?.places_key,
+    traffic_key: row.manifest_meta?.traffic_key,
+    hazards_key: row.manifest_meta?.hazards_key,
+
+    styles: row.manifest_meta?.styles,
+    tiles_id: row.manifest_meta?.tiles_id,
   };
 }
 
@@ -78,15 +78,29 @@ function localToCloud(rec: OfflinePlanRecord, userId: string): Partial<SupaPlanR
    PlanSyncManager — singleton
    ═══════════════════════════════════════════════════════════════════════ */
 
-type SyncListener = (event: "drain_start" | "drain_end" | "pull_complete" | "error", detail?: any) => void;
+type SyncListener = (
+  event: "drain_start" | "drain_end" | "pull_complete" | "error",
+  detail?: any,
+) => void;
 
 class PlanSyncManager {
-  private _channel: RealtimeChannel | null = null;
+  private _ownedChannel: RealtimeChannel | null = null;
+  private _memberChannel: RealtimeChannel | null = null;
+
   private _networkUnsub: (() => void) | null = null;
+  private _pullInterval: any = null;
+
   private _draining = false;
   private _userId: string | null = null;
   private _listeners = new Set<SyncListener>();
   private _started = false;
+
+  private _memberPlanIds = new Set<string>();
+
+  // Persisted sync visibility (UI can read these from idbStores.meta)
+  private static META_LAST_ERROR = "plans_last_sync_error";
+  private static META_LAST_OK_AT = "plans_last_sync_ok_at";
+  private static META_LAST_ATTEMPT_AT = "plans_last_sync_attempt_at";
 
   /* ── Lifecycle ─────────────────────────────────────────────────────── */
 
@@ -96,20 +110,31 @@ class PlanSyncManager {
    */
   start(userId: string) {
     if (this._started && this._userId === userId) return;
-    this.stop(); // clean up previous user if any
+    this.stop();
 
     this._userId = userId;
     this._started = true;
 
-    // 1. Listen for network transitions → drain queue when online
+    // 1) Network transitions → pull + drain when online
     this._networkUnsub = networkMonitor.subscribe((online) => {
-      if (online) this.drainQueue();
+      if (online) {
+        this.pullRemote().finally(() => this.drainQueue());
+      }
     });
 
-    // 2. Subscribe to Supabase Realtime for plans this user owns or is a member of
-    this._subscribeRealtime(userId);
+    // 2) Realtime (cheap filters)
+    this._subscribeRealtimeOwned(userId);
+    this._subscribeRealtimeMemberships(userId);
 
-    // 3. If already online, do an initial sync
+    // 3) Periodic pull while online (covers partner edits on shared plans)
+    this._pullInterval = setInterval(() => {
+      if (!this._started) return;
+      if (!this._userId) return;
+      if (!networkMonitor.online) return;
+      this.pullRemote().catch(() => {});
+    }, 15_000);
+
+    // 4) Initial sync
     if (networkMonitor.online) {
       this.pullRemote().then(() => this.drainQueue());
     }
@@ -119,11 +144,23 @@ class PlanSyncManager {
   stop() {
     this._started = false;
     this._userId = null;
+    this._memberPlanIds.clear();
+
     this._networkUnsub?.();
     this._networkUnsub = null;
-    if (this._channel) {
-      supabase.removeChannel(this._channel);
-      this._channel = null;
+
+    if (this._pullInterval) {
+      clearInterval(this._pullInterval);
+      this._pullInterval = null;
+    }
+
+    if (this._ownedChannel) {
+      supabase.removeChannel(this._ownedChannel);
+      this._ownedChannel = null;
+    }
+    if (this._memberChannel) {
+      supabase.removeChannel(this._memberChannel);
+      this._memberChannel = null;
     }
   }
 
@@ -133,25 +170,16 @@ class PlanSyncManager {
     return () => this._listeners.delete(fn);
   }
 
-  /* ── Enqueue helpers (called by plansStore wrappers) ───────────────── */
+  /* ── Enqueue helpers ──────────────────────────────────────────────── */
 
   async enqueuePlanUpsert(planId: string): Promise<void> {
-    // Deduplicate: don't flood queue with repeated upserts for same plan
     const already = await hasQueuedUpsert(planId);
-    if (!already) {
-      await enqueueSync("plan_upsert", planId);
-    }
-    // Try to drain immediately if online
+    if (!already) await enqueueSync("plan_upsert", planId);
     if (networkMonitor.online) this.drainQueue();
   }
 
   async enqueuePlanDelete(planId: string): Promise<void> {
     await enqueueSync("plan_delete", planId);
-    if (networkMonitor.online) this.drainQueue();
-  }
-
-  async enqueueInviteCreate(planId: string): Promise<void> {
-    await enqueueSync("invite_create", planId);
     if (networkMonitor.online) this.drainQueue();
   }
 
@@ -165,11 +193,17 @@ class PlanSyncManager {
     this._draining = true;
     this._emit("drain_start");
 
+    // new drain attempt
+    await idbPut(idbStores.meta, new Date().toISOString(), PlanSyncManager.META_LAST_ATTEMPT_AT);
+
     try {
       const ops = await getPendingOps();
 
+      // optimistic: clear last error at start of a new drain attempt
+      await idbPut(idbStores.meta, null, PlanSyncManager.META_LAST_ERROR);
+
       for (const op of ops) {
-        if (!networkMonitor.online) break; // stop if we lose connection mid-drain
+        if (!networkMonitor.online) break;
 
         try {
           await this._executeOp(op);
@@ -177,15 +211,83 @@ class PlanSyncManager {
         } catch (e: any) {
           const msg = e?.message ?? String(e);
           console.error(`[PlanSync] op failed: ${op.op} plan=${op.plan_id}`, msg);
+
+          // IMPORTANT:
+          // - keep op in queue (authoritative)
+          // - STOP on first failure to preserve ordering (FIFO)
+          // - persist error so UI can show "sync error" instead of failing silently
           await markOpFailed(op, msg);
+
+          await idbPut(idbStores.meta, msg, PlanSyncManager.META_LAST_ERROR);
+          this._emit("error", { op, message: msg });
+
+          // Preserve ordering: do not attempt later ops until this one succeeds.
+          break;
         }
+      }
+
+      // If we got here without throwing, and queue is empty, we mark last ok timestamp.
+      // (If there are ops left, either we broke on error or went offline mid-drain.)
+      const remaining = await getPendingOps();
+      if (remaining.length === 0) {
+        await idbPut(idbStores.meta, new Date().toISOString(), PlanSyncManager.META_LAST_OK_AT);
       }
     } catch (e) {
       this._emit("error", e);
+
+      try {
+        const msg = (e as any)?.message ?? String(e);
+        await idbPut(idbStores.meta, msg, PlanSyncManager.META_LAST_ERROR);
+      } catch {}
     } finally {
       this._draining = false;
       this._emit("drain_end");
     }
+  }
+
+  /* ── Online-first creation ────────────────────────────────────────── */
+
+  /**
+   * Plans can only be created while online. This helper enforces that invariant.
+   *
+   * Creates the cloud row FIRST (stamping owner_id), then returns the plan_id.
+   * Callers should then create the local OfflinePlanRecord using that id.
+   */
+  async createPlanOnline(args: {
+    plan_id?: string;
+    route_key: string;
+    label?: string | null;
+    preview?: any | null;
+    manifest_meta?: any | null;
+  }): Promise<string> {
+    if (!this._userId) throw new Error("Not authenticated");
+    if (!networkMonitor.online) throw new Error("You need to be online to create a plan");
+
+    const planId = args.plan_id ?? (globalThis.crypto?.randomUUID?.() ?? String(Date.now()));
+    const now = new Date().toISOString();
+
+    const row: Partial<SupaPlanRow> = {
+      plan_id: planId,
+      owner_id: this._userId,
+      route_key: args.route_key,
+      label: args.label ?? null,
+      preview: args.preview ?? null,
+      manifest_meta: args.manifest_meta ?? null,
+      created_at: now,
+      updated_at: now,
+    };
+
+    const { error } = await supabase.from("roam_plans").insert(row);
+    if (error) throw new Error(`createPlanOnline: ${error.message}`);
+
+    // Ensure owner membership exists (uniform access for shared-plan flows)
+    const { error: e2 } = await supabase.from("roam_plan_memberships").upsert(
+      { plan_id: planId, user_id: this._userId, role: "admin" },
+      { onConflict: "plan_id,user_id" },
+    );
+    if (e2) throw new Error(`createPlanOnline memberships: ${e2.message}`);
+
+    return planId;
   }
 
   /* ── Pull remote plans → local IDB ─────────────────────────────────── */
@@ -195,7 +297,7 @@ class PlanSyncManager {
     if (!networkMonitor.online) return;
 
     try {
-      // Get plans where user is owner
+      // Owned
       const { data: owned, error: e1 } = await supabase
         .from("roam_plans")
         .select("*")
@@ -203,15 +305,16 @@ class PlanSyncManager {
 
       if (e1) throw new Error(`pullRemote owned: ${e1.message}`);
 
-      // Get plans where user is a member (shared plans)
+      // Memberships (shared plans)
       const { data: memberships, error: e2 } = await supabase
-        .from("roam_plan_members")
+        .from("roam_plan_memberships")
         .select("plan_id")
         .eq("user_id", this._userId);
 
       if (e2) throw new Error(`pullRemote memberships: ${e2.message}`);
 
-      const memberPlanIds = (memberships ?? []).map((m: any) => m.plan_id);
+      const memberPlanIds = (memberships ?? []).map((m: any) => String(m.plan_id));
+      this._memberPlanIds = new Set(memberPlanIds);
 
       let shared: SupaPlanRow[] = [];
       if (memberPlanIds.length > 0) {
@@ -219,24 +322,22 @@ class PlanSyncManager {
           .from("roam_plans")
           .select("*")
           .in("plan_id", memberPlanIds);
+
         if (e3) throw new Error(`pullRemote shared: ${e3.message}`);
         shared = data ?? [];
       }
 
-      // Merge: owned + shared, deduplicate by plan_id
+      // Merge: owned + shared, dedupe by plan_id
       const all = new Map<string, SupaPlanRow>();
-      for (const row of [...(owned ?? []), ...shared]) {
-        all.set(row.plan_id, row);
-      }
+      for (const row of [...(owned ?? []), ...shared]) all.set(row.plan_id, row);
 
-      // Upsert to local IDB (only if remote is newer)
+      // Upsert to local IDB when remote newer
       for (const row of all.values()) {
         const local = await getOfflinePlan(row.plan_id);
         const remoteTs = new Date(row.updated_at).getTime();
         const localTs = local?.saved_at ? new Date(local.saved_at).getTime() : 0;
 
         if (remoteTs > localTs) {
-          // Remote is newer → merge into local (preserve local-only fields like zip_blob)
           const merged: OfflinePlanRecord = {
             ...(local ?? ({} as any)),
             ...cloudToLocal(row),
@@ -252,7 +353,7 @@ class PlanSyncManager {
     }
   }
 
-  /* ── Invite code management ────────────────────────────────────────── */
+  /* ── Invite code management (RPC) ──────────────────────────────────── */
 
   /**
    * Create an invite code for a plan (online-only).
@@ -260,20 +361,16 @@ class PlanSyncManager {
    */
   async createInviteCode(planId: string): Promise<string> {
     if (!this._userId) throw new Error("Not authenticated");
+    if (!networkMonitor.online) throw new Error("You need to be online to create an invite code");
 
-    const code = this._generateCode();
-
-    const { error } = await supabase.from("roam_plan_invites").insert({
-      code,
-      plan_id: planId,
-      created_by: this._userId,
-      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
-      max_uses: 5,
-      uses: 0,
+    const { data, error } = await supabase.rpc("create_plan_invite", {
+      p_plan_id: planId,
+      p_expires_minutes: 10080, // 7 days
+      p_max_uses: 5,
     });
 
-    if (error) throw new Error(`Failed to create invite: ${error.message}`);
-    return code;
+    if (error) throw new Error(error.message);
+    return String(data);
   }
 
   /**
@@ -282,47 +379,23 @@ class PlanSyncManager {
    */
   async redeemInviteCode(code: string): Promise<string> {
     if (!this._userId) throw new Error("Not authenticated");
+    if (!networkMonitor.online) throw new Error("You need to be online to redeem an invite code");
 
-    // 1. Look up the invite
-    const { data: invite, error: e1 } = await supabase
-      .from("roam_plan_invites")
-      .select("*")
-      .eq("code", code.toUpperCase().trim())
-      .single();
+    const trimmed = code.toUpperCase().trim();
+    if (!trimmed) throw new Error("Invalid invite code");
 
-    if (e1 || !invite) throw new Error("Invalid invite code");
+    const { data, error } = await supabase.rpc("redeem_plan_invite", {
+      p_code: trimmed,
+    });
 
-    // Check expiry
-    if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
-      throw new Error("Invite code has expired");
-    }
-    // Check uses
-    if (invite.max_uses > 0 && invite.uses >= invite.max_uses) {
-      throw new Error("Invite code has reached its usage limit");
-    }
+    if (error) throw new Error(error.message);
 
-    // 2. Add user as member
-    const { error: e2 } = await supabase.from("roam_plan_members").upsert(
-      {
-        plan_id: invite.plan_id,
-        user_id: this._userId,
-        role: "editor",
-      },
-      { onConflict: "plan_id,user_id" },
-    );
+    const planId = String(data);
 
-    if (e2) throw new Error(`Failed to join plan: ${e2.message}`);
-
-    // 3. Increment invite uses
-    await supabase
-      .from("roam_plan_invites")
-      .update({ uses: invite.uses + 1 })
-      .eq("code", code);
-
-    // 4. Pull the plan data to local
+    // Immediately pull now that membership changed
     await this.pullRemote();
 
-    return invite.plan_id;
+    return planId;
   }
 
   /* ── Private ───────────────────────────────────────────────────────── */
@@ -333,23 +406,19 @@ class PlanSyncManager {
     switch (op.op) {
       case "plan_upsert": {
         const rec = await getOfflinePlan(op.plan_id);
-        if (!rec) {
-          // Plan was deleted locally before sync — skip silently
-          return;
-        }
+        if (!rec) return;
+
         const row = localToCloud(rec, this._userId);
 
-        const { error } = await supabase
-          .from("roam_plans")
-          .upsert(row, { onConflict: "plan_id" });
-
+        const { error } = await supabase.from("roam_plans").upsert(row, { onConflict: "plan_id" });
         if (error) throw new Error(`plan_upsert: ${error.message}`);
 
-        // Also ensure we're an owner-member
-        await supabase.from("roam_plan_members").upsert(
-          { plan_id: op.plan_id, user_id: this._userId, role: "owner" },
+        // Ensure membership exists for owner (so other queries can treat uniformly)
+        await supabase.from("roam_plan_memberships").upsert(
+          { plan_id: op.plan_id, user_id: this._userId, role: "admin" },
           { onConflict: "plan_id,user_id" },
         );
+
         break;
       }
 
@@ -358,29 +427,21 @@ class PlanSyncManager {
           .from("roam_plans")
           .delete()
           .eq("plan_id", op.plan_id)
-          .eq("owner_id", this._userId); // only owner can delete
+          .eq("owner_id", this._userId);
 
         if (error) throw new Error(`plan_delete: ${error.message}`);
         break;
       }
 
+      // (Optional legacy op)
       case "plan_label": {
         const { error } = await supabase
           .from("roam_plans")
           .update({ label: op.payload?.label ?? null, updated_at: new Date().toISOString() })
-          .eq("plan_id", op.plan_id);
+          .eq("plan_id", op.plan_id)
+          .eq("owner_id", this._userId);
 
         if (error) throw new Error(`plan_label: ${error.message}`);
-        break;
-      }
-
-      case "invite_create": {
-        await this.createInviteCode(op.plan_id);
-        break;
-      }
-
-      case "invite_redeem": {
-        await this.redeemInviteCode(op.payload?.code ?? "");
         break;
       }
 
@@ -389,65 +450,64 @@ class PlanSyncManager {
     }
   }
 
-  private _subscribeRealtime(userId: string) {
-    this._channel = supabase
-      .channel("roam_plans_sync")
+  private _subscribeRealtimeOwned(userId: string) {
+    // Only listen to owned plan changes (server-side filter)
+    this._ownedChannel = supabase
+      .channel("roam_plans_owned_sync")
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "roam_plans",
+          filter: `owner_id=eq.${userId}`,
         },
         async (payload) => {
-          // Only process changes for plans we're a member of
           const row = (payload.new ?? payload.old) as SupaPlanRow | null;
           if (!row) return;
 
-          // Check membership
-          const { data: member } = await supabase
-            .from("roam_plan_members")
-            .select("plan_id")
-            .eq("plan_id", row.plan_id)
-            .eq("user_id", userId)
-            .maybeSingle();
-
-          // Also check ownership
-          const isMember = !!member || row.owner_id === userId;
-          if (!isMember) return;
-
           if (payload.eventType === "DELETE") {
-            // Remote delete → remove from local IDB
             try {
               await idbDel(idbStores.plans, row.plan_id);
             } catch {}
-          } else {
-            // INSERT or UPDATE → merge to local
-            const local = await getOfflinePlan(row.plan_id);
-            const remoteTs = new Date(row.updated_at).getTime();
-            const localTs = local?.saved_at ? new Date(local.saved_at).getTime() : 0;
+            return;
+          }
 
-            if (remoteTs > localTs) {
-              const merged: OfflinePlanRecord = {
-                ...(local ?? ({} as any)),
-                ...cloudToLocal(row),
-              };
-              await idbPut(idbStores.plans, merged);
-            }
+          const local = await getOfflinePlan(row.plan_id);
+          const remoteTs = new Date(row.updated_at).getTime();
+          const localTs = local?.saved_at ? new Date(local.saved_at).getTime() : 0;
+
+          if (remoteTs > localTs) {
+            const merged: OfflinePlanRecord = {
+              ...(local ?? ({} as any)),
+              ...cloudToLocal(row),
+            };
+            await idbPut(idbStores.plans, merged);
           }
         },
       )
       .subscribe();
   }
 
-  private _generateCode(): string {
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no I/O/0/1 to avoid confusion
-    let code = "";
-    const arr = crypto.getRandomValues(new Uint8Array(6));
-    for (let i = 0; i < 6; i++) {
-      code += chars[arr[i] % chars.length];
-    }
-    return code;
+  private _subscribeRealtimeMemberships(userId: string) {
+    // When your memberships change (redeem invite, removed, etc) → pullRemote
+    this._memberChannel = supabase
+      .channel("roam_plan_memberships_sync")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "roam_plan_memberships",
+          filter: `user_id=eq.${userId}`,
+        },
+        async () => {
+          // membership changed; refresh plan list
+          if (!networkMonitor.online) return;
+          await this.pullRemote();
+        },
+      )
+      .subscribe();
   }
 
   private _emit(event: string, detail?: any) {

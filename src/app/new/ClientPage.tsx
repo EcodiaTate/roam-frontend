@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+
 import type { NavPack, CorridorGraphMeta } from "@/lib/types/navigation";
 import type { OfflineBundleManifest } from "@/lib/types/bundle";
 
@@ -9,6 +11,7 @@ import { placesApi } from "@/lib/api/places";
 import { bundleApi } from "@/lib/api/bundle";
 
 import { saveOfflinePlan } from "@/lib/offline/plansStore";
+import { haptic } from "@/lib/native/haptics";
 
 import { useNewTripDraft } from "@/components/trips/new/useNewTripDraft";
 import { NewTripMap } from "@/components/trips/new/NewTripMap";
@@ -33,12 +36,39 @@ function genPlanId() {
   return `plan_${Math.random().toString(36).slice(2)}_${Date.now().toString(36)}`;
 }
 
-export function NewTripClientPage() {
+function uiStatus(phase: OfflineBuildPhase, saved: boolean, err: string | null) {
+  if (err) return err;
+  if (saved) return "Saved. Offline ready.";
+  switch (phase) {
+    case "idle":
+      return "Ready";
+    case "routing":
+      return "Building route…";
+    case "corridor_ensure":
+    case "corridor_get":
+      return "Preparing offline corridor…";
+    case "places_corridor":
+      return "Caching places…";
+    case "traffic_poll":
+      return "Fetching traffic…";
+    case "hazards_poll":
+      return "Fetching warnings…";
+    case "bundle_build":
+      return "Packaging offline bundle…";
+    case "ready":
+      return "Offline ready.";
+    case "error":
+      return err ?? "Something went wrong";
+  }
+}
+
+export default function NewTripClientPage() {
+  const router = useRouter();
   const draft = useNewTripDraft();
 
   const [navPack, setNavPack] = useState<NavPack | null>(null);
   const [routing, setRouting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [routeError, setRouteError] = useState<string | null>(null);
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTargetStopId, setSearchTargetStopId] = useState<string | null>(null);
@@ -58,7 +88,7 @@ export function NewTripClientPage() {
 
   const requestRoute = useCallback(async () => {
     if (!canRoute) return;
-    setError(null);
+    setRouteError(null);
     setRouting(true);
     try {
       const pack = await navApi.route({
@@ -71,7 +101,7 @@ export function NewTripClientPage() {
       setNavPack(pack);
     } catch (e: any) {
       setNavPack(null);
-      setError(e?.message ?? "Failed to build route");
+      setRouteError(e?.message ?? "Failed to build route");
     } finally {
       setRouting(false);
     }
@@ -88,18 +118,18 @@ export function NewTripClientPage() {
   const [corridorMeta, setCorridorMeta] = useState<CorridorGraphMeta | null>(null);
   const [manifest, setManifest] = useState<OfflineBundleManifest | null>(null);
 
-  const [savingOffline, setSavingOffline] = useState(false);
-  const [savedOffline, setSavedOffline] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   const planIdRef = useRef<string | null>(null);
 
-  const resetOfflineArtifacts = useCallback(() => {
+  const resetArtifacts = useCallback(() => {
     setBuildPhase("idle");
     setBuildError(null);
     setCorridorMeta(null);
     setManifest(null);
-    setSavingOffline(false);
-    setSavedOffline(false);
+    setSaving(false);
+    setSaved(false);
     planIdRef.current = null;
   }, []);
 
@@ -109,13 +139,13 @@ export function NewTripClientPage() {
       setSearchOpen(false);
       setSearchTargetStopId(null);
       setNavPack(null);
-      setError(null);
-      resetOfflineArtifacts();
+      setRouteError(null);
+      resetArtifacts();
     },
-    [draft, resetOfflineArtifacts],
+    [draft, resetArtifacts],
   );
 
-  const ensureWeHaveNavPack = useCallback(async (): Promise<NavPack> => {
+  const ensureNavPack = useCallback(async (): Promise<NavPack> => {
     if (navPack?.primary?.geometry) return navPack;
 
     setBuildPhase("routing");
@@ -130,22 +160,26 @@ export function NewTripClientPage() {
     return pack;
   }, [navPack, draft]);
 
-  const buildOffline = useCallback(async () => {
+  const saveTripOfflineReady = useCallback(async () => {
     if (!canRoute) return;
 
+    haptic.medium();
     setBuildError(null);
-    setSavedOffline(false);
-    setBuildPhase("routing");
+    setSaved(false);
+    setSaving(true);
 
     const plan_id: string = planIdRef.current ?? genPlanId();
     planIdRef.current = plan_id;
 
     try {
-      const pack = await ensureWeHaveNavPack();
+      // 1) Ensure route
+      setBuildPhase("routing");
+      const pack = await ensureNavPack();
       const route_key = pack.primary.route_key;
       const geometry = pack.primary.geometry;
       const bbox = pack.primary.bbox;
 
+      // 2) Offline pipeline
       setBuildPhase("corridor_ensure");
       const meta = await navApi.corridorEnsure({
         route_key,
@@ -159,10 +193,13 @@ export function NewTripClientPage() {
       setBuildPhase("corridor_get");
       await navApi.corridorGet(meta.corridor_key);
 
+      // Places corridor — send route geometry so the backend searches
+      // along the actual road shape, not just a start-to-end rectangle
       setBuildPhase("places_corridor");
       await placesApi.corridor({
         corridor_key: meta.corridor_key,
-        categories: [],
+        geometry,
+        buffer_km: 15,
         limit: 8000,
       });
 
@@ -184,38 +221,8 @@ export function NewTripClientPage() {
       });
       setManifest(m);
 
-      setBuildPhase("ready");
-    } catch (e: any) {
-      setBuildPhase("error");
-      setBuildError(e?.message ?? "Offline build failed");
-    }
-  }, [canRoute, ensureWeHaveNavPack, draft.profile, styleId]);
-
-  const canDownloadOffline = useMemo(
-    () => buildPhase === "ready" && !!manifest?.plan_id,
-    [buildPhase, manifest?.plan_id],
-  );
-
-  const downloadOffline = useCallback(() => {
-    if (!manifest?.plan_id) return;
-    window.location.href = bundleApi.downloadUrl(manifest.plan_id);
-  }, [manifest?.plan_id]);
-
-  const saveOffline = useCallback(async () => {
-    if (!manifest?.plan_id) return;
-
-    const pack = await ensureWeHaveNavPack();
-    if (!pack?.primary?.geometry) {
-      setBuildPhase("error");
-      setBuildError("Missing nav geometry; rebuild route.");
-      return;
-    }
-
-    setSavingOffline(true);
-    setBuildError(null);
-
-    try {
-      const url = bundleApi.downloadUrl(manifest.plan_id);
+      // 3) Download zip & save locally
+      const url = bundleApi.downloadUrl(m.plan_id);
       const res = await fetch(url);
       if (!res.ok) throw new Error(`Zip download failed (${res.status})`);
 
@@ -224,7 +231,7 @@ export function NewTripClientPage() {
       const bytes = Number(res.headers.get("content-length") || blob.size || 0);
 
       await saveOfflinePlan({
-        manifest,
+        manifest: m,
         zipBlob: blob,
         zipBytes: bytes,
         zipMime: mime,
@@ -238,15 +245,23 @@ export function NewTripClientPage() {
         },
       });
 
-      setSavedOffline(true);
+      setBuildPhase("ready");
+      setSaved(true);
+      haptic.success();
+
+      // 4) Jump into the trip
+      router.replace(`/trip?plan_id=${encodeURIComponent(plan_id)}`);
     } catch (e: any) {
-      setSavedOffline(false);
       setBuildPhase("error");
-      setBuildError(e?.message ?? "Failed to save offline");
+      setBuildError(e?.message ?? "Failed to save trip");
+      setSaved(false);
+      haptic.error();
     } finally {
-      setSavingOffline(false);
+      setSaving(false);
     }
-  }, [manifest, ensureWeHaveNavPack, draft.stops, draft.profile]);
+  }, [canRoute, ensureNavPack, draft.profile, draft.stops, styleId, router]);
+
+  const statusText = uiStatus(buildPhase, saved, buildError);
 
   return (
     <div className="trip-app-container">
@@ -263,6 +278,7 @@ export function NewTripClientPage() {
         onChange={(next) => {
           setBaseMode(next.mode);
           setVectorTheme(next.vectorTheme);
+          resetArtifacts();
         }}
       />
 
@@ -271,56 +287,93 @@ export function NewTripClientPage() {
         onProfileChange={(p) => {
           draft.setProfile(p);
           setNavPack(null);
-          setError(null);
-          resetOfflineArtifacts();
+          setRouteError(null);
+          resetArtifacts();
         }}
         stops={draft.stops}
         onAddStop={(t) => {
           draft.addStop(t as any);
           setNavPack(null);
-          setError(null);
-          resetOfflineArtifacts();
+          setRouteError(null);
+          resetArtifacts();
         }}
         onRemoveStop={(id) => {
           draft.removeStop(id);
           setNavPack(null);
-          setError(null);
-          resetOfflineArtifacts();
+          setRouteError(null);
+          resetArtifacts();
         }}
         onReorderStop={(a, b) => {
           draft.reorderStop(a, b);
           setNavPack(null);
-          setError(null);
-          resetOfflineArtifacts();
+          setRouteError(null);
+          resetArtifacts();
         }}
         onEditStop={(id, patch) => {
           draft.updateStop(id, patch);
           setNavPack(null);
-          setError(null);
-          resetOfflineArtifacts();
+          setRouteError(null);
+          resetArtifacts();
         }}
         onUseMyLocation={() => {
           draft.useMyLocationForStart();
           setNavPack(null);
-          setError(null);
-          resetOfflineArtifacts();
+          setRouteError(null);
+          resetArtifacts();
         }}
         onSearchStop={openSearchForStop}
         onBuildRoute={requestRoute}
         canBuildRoute={canRoute}
         routing={routing}
-        error={error}
-        onBuildOffline={buildOffline}
-        onDownloadOffline={downloadOffline}
-        onSaveOffline={saveOffline}
-        onResetOffline={resetOfflineArtifacts}
+        error={routeError}
+        // new simplified save action (one button)
+        onBuildOffline={saveTripOfflineReady}
+        onDownloadOffline={() => {}}
+        onSaveOffline={() => {}}
+        onResetOffline={resetArtifacts}
         offlinePhase={buildPhase as any}
         offlineError={buildError}
         offlineManifest={manifest}
-        canDownloadOffline={canDownloadOffline}
-        savingOffline={savingOffline}
-        savedOffline={savedOffline}
+        canDownloadOffline={false}
+        savingOffline={saving}
+        savedOffline={saved}
       />
+
+      {/* Simple status overlay */}
+      {(saving || buildPhase !== "idle") && (
+        <div
+          style={{
+            position: "absolute",
+            left: 12,
+            right: 12,
+            bottom: 12,
+            zIndex: 50,
+            pointerEvents: "none",
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              borderRadius: 14,
+              padding: "12px 14px",
+              background: "rgba(0,0,0,0.55)",
+              backdropFilter: "blur(10px)",
+              color: "white",
+              fontSize: 13,
+              fontWeight: 900,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 10,
+            }}
+          >
+            <span style={{ opacity: 0.95 }}>{statusText}</span>
+            <span style={{ opacity: 0.75, fontWeight: 800 }}>
+              {saving ? "…" : buildPhase === "ready" ? "✓" : ""}
+            </span>
+          </div>
+        </div>
+      )}
 
       <PlaceSearchModal
         open={searchOpen}

@@ -5,6 +5,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { NavCoord } from "@/lib/types/geo";
 import { placesApi } from "@/lib/api/places";
 import type { PlaceItem } from "@/lib/types/places";
+import { Search } from "lucide-react"
+
 import { haptic } from "@/lib/native/haptics";
 import { hideKeyboard } from "@/lib/native/keyboard";
 
@@ -110,7 +112,7 @@ export function PlaceSearchModal(props: {
         </div>
 
         <div className="trip-search-box">
-          <span style={{ marginRight: 12, fontSize: "1.2rem", opacity: 0.5 }}>🔍</span>
+          <span style={{ marginRight: 12, fontSize: "1.2rem", opacity: 0.5 }}><Search/></span>
           <input
             ref={inputRef} value={q} onChange={(e) => onInput(e.target.value)} onKeyDown={onKeyDown}
             placeholder="Where to?" autoComplete="off" autoCorrect="off" spellCheck={false} className="trip-input"

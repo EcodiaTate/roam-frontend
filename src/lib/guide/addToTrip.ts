@@ -1,4 +1,4 @@
-// src/lib/explore/addToTrip.ts
+// src/lib/guide/addToTrip.ts
 "use client";
 
 import type { OfflinePlanRecord } from "@/lib/offline/plansStore";
@@ -67,9 +67,16 @@ async function onlineRebuild(args: {
 
   const nextCorr = await navApi.corridorGet(corridorKey);
 
+  // Pass route geometry so the backend searches along the actual road
+  // shape instead of a start-to-end bounding box
   let nextPlaces: PlacesPack | null = null;
   try {
-    nextPlaces = await placesApi.corridor({ corridor_key: corridorKey, categories: [], limit: 8000 });
+    nextPlaces = await placesApi.corridor({
+      corridor_key: corridorKey,
+      geometry: geom,
+      buffer_km: 15,
+      limit: 8000,
+    });
   } catch {
     nextPlaces = null;
   }

@@ -43,7 +43,7 @@ export type OfflinePlanRecord = {
   label?: string | null;
   saved_at: string; // local time ISO
 
-  // ✅ Offline preview (so /trip can render without unpacking zip)
+  //  Offline preview (so /trip can render without unpacking zip)
   preview?: OfflinePlanPreview;
 };
 
@@ -125,7 +125,7 @@ export async function setCurrentPlanId(planId: string | null): Promise<void> {
 }
 
 /**
- * ✅ Update an existing plan record (non-atomic, single-store)
+ *  Update an existing plan record (non-atomic, single-store)
  */
 export async function updateOfflinePlan(planId: string, patch: Partial<OfflinePlanRecord>): Promise<OfflinePlanRecord> {
   const cur = await getOfflinePlan(planId);
@@ -141,7 +141,7 @@ export async function updateOfflinePlan(planId: string, patch: Partial<OfflinePl
 }
 
 /**
- * ✅ Atomic variant used by offline route edits.
+ *  Atomic variant used by offline route edits.
  */
 export async function updateOfflinePlanAtomic(planId: string, patch: Partial<OfflinePlanRecord>): Promise<OfflinePlanRecord> {
   return await idbWithTx([idbStores.plans], async (osMap) => {

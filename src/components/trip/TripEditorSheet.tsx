@@ -215,7 +215,7 @@ export function TripEditorSheet(props: {
             }}
           />
           <p className="trip-muted-small trip-mt-sm">
-            <strong>Tip:</strong> Use the Explore tab to ask for specific spots and they will sync here.
+            <strong>Tip:</strong> Use the Guide tab to ask for specific spots and they will sync here.
           </p>
         </div>
       )}

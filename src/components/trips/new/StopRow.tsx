@@ -3,6 +3,8 @@
 
 import { useState } from "react";
 import type { TripStop } from "@/lib/types/trip";
+import { Search } from "lucide-react"
+
 import { haptic } from "@/lib/native/haptics";
 import { getCurrentPosition } from "@/lib/native/geolocation";
 
@@ -74,7 +76,7 @@ export function StopRow(props: {
             className="trip-input"
           />
           <button type="button" onClick={() => { haptic.tap(); props.onSearch(); }} className="trip-interactive trip-btn-icon" aria-label="Search place">
-            🔍
+            <Search/>
           </button>
         </div>
 

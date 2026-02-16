@@ -7,16 +7,12 @@
     "build": "next build",
     "export": "next export -o out",
     "build:static": "next build && next export -o out",
-
     "start": "next start",
-
     "cap:copy": "npx cap copy",
     "cap:build": "npm run build:static && npm run cap:copy",
     "cap:sync": "npx cap sync",
-
     "cap:ios": "npx cap open ios",
     "cap:android": "npx cap open android",
-
     "lint": "eslint"
   },
   "dependencies": {
@@ -40,6 +36,7 @@
     "fflate": "^0.8.2",
     "i": "^0.3.7",
     "idb": "^8.0.3",
+    "lucide-react": "^0.564.0",
     "maplibre-gl": "^5.18.0",
     "next": "16.1.6",
     "pmtiles": "^4.4.0",

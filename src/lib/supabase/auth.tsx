@@ -12,15 +12,11 @@ import {
 } from "react";
 import type { Session, User, AuthError } from "@supabase/supabase-js";
 import { supabase } from "./client";
-
-/* ── Public types ────────────────────────────────────────────────────── */
+import { planSync } from "@/lib/offline/planSync"; //  ADD
 
 export type AuthState = {
-  /** True while the initial session is being loaded from storage */
   loading: boolean;
-  /** Current Supabase session (null if signed out) */
   session: Session | null;
-  /** Convenience: session.user */
   user: User | null;
 
   signInWithGoogle: () => Promise<{ error: AuthError | null }>;
@@ -31,21 +27,16 @@ export type AuthState = {
 
 const AuthContext = createContext<AuthState | null>(null);
 
-/* ── Provider ────────────────────────────────────────────────────────── */
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  /* Hydrate session on mount + listen for changes */
   useEffect(() => {
-    // 1. Get existing session from storage
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setLoading(false);
     });
 
-    // 2. Subscribe to auth state changes (sign-in, sign-out, token refresh)
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, newSession) => {
@@ -56,13 +47,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  /* ── Auth methods ──────────────────────────────────────────────────── */
+  //  START/STOP SYNC BASED ON AUTH
+  useEffect(() => {
+    const uid = session?.user?.id ?? null;
+
+    if (uid) {
+      planSync.start(uid);
+    } else {
+      planSync.stop();
+    }
+
+    // stop on unmount
+    return () => {
+      planSync.stop();
+    };
+  }, [session?.user?.id]);
 
   const signInWithGoogle = useCallback(async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        // For Capacitor: use a deep link redirect. For web: current origin works.
         redirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined,
       },
     });
@@ -82,6 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
     setSession(null);
+    planSync.stop(); //  belt & suspenders
   }, []);
 
   const user = session?.user ?? null;
@@ -93,8 +98,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
-
-/* ── Hook ─────────────────────────────────────────────────────────────── */
 
 export function useAuth(): AuthState {
   const ctx = useContext(AuthContext);

@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   title: "Roam",
   description: "Offline-first outback routing and navigation",
 
-  // ✅ Updated for static manifest
+  //  Updated for static manifest
   manifest: "/manifest.webmanifest",
 
   // Ensures installable feel on mobile web too
