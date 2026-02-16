@@ -17,6 +17,7 @@ import type {
   DiscoveredPlace,
   TripProgress,
   WirePlace,
+  GuideAction,
 } from "@/lib/types/guide";
 
 import { guideApi } from "@/lib/api/guide";
@@ -141,21 +142,75 @@ function buildContext(args: GuideBootstrap): GuideContext {
 // Wire payload building
 // ──────────────────────────────────────────────────────────────
 
-function rankedToWire(places: RankedPlace[]): WirePlace[] {
-  return places.map((p) => ({
-    id: p.id,
-    name: p.name,
-    lat: p.lat,
-    lng: p.lng,
-    category: p.category,
-    dist_km: p.dist_km,
-    ahead: p.ahead,
-    locality: p.locality,
-    hours: p.hours,
-    phone: p.phone,
-  }));
+/**
+ * Extract compact extra fields from a PlaceItem's extra dict.
+ * These are the fields the backend now populates from Overpass
+ * (phone, website, opening_hours, fuel_types, socket_types, etc).
+ * We pick them out explicitly so the LLM sees them.
+ */
+function pickPlaceExtras(item: PlaceItem | Record<string, any>): Record<string, any> {
+  const extra: any = (item as any).extra ?? item;
+  const out: Record<string, any> = {};
+
+  // Contact & hours
+  if (extra.phone) out.phone = String(extra.phone).slice(0, 40);
+  if (extra.website) out.website = String(extra.website).slice(0, 120);
+  if (extra.opening_hours) out.opening_hours = String(extra.opening_hours).slice(0, 50);
+  if (extra.address) out.address = String(extra.address).slice(0, 60);
+
+  // Fuel station specifics
+  if (Array.isArray(extra.fuel_types) && extra.fuel_types.length > 0) {
+    out.fuel_types = extra.fuel_types;
+  }
+
+  // EV charging specifics
+  if (Array.isArray(extra.socket_types) && extra.socket_types.length > 0) {
+    out.socket_types = extra.socket_types;
+  }
+
+  // Camping amenities
+  if (extra.free === true) out.free = true;
+  if (extra.has_water === true) out.has_water = true;
+  if (extra.has_toilets === true) out.has_toilets = true;
+  if (extra.powered_sites === true) out.powered_sites = true;
+
+  return out;
 }
 
+function rankedToWire(places: RankedPlace[]): WirePlace[] {
+  return places.map((p) => {
+    // Pull website from extra if not on the RankedPlace directly
+    const extra: any = (p as any).extra ?? {};
+    const website =
+      (p as any).website ??
+      extra.website ??
+      extra["contact:website"] ??
+      null;
+
+    return {
+      id: p.id,
+      name: p.name,
+      lat: p.lat,
+      lng: p.lng,
+      category: p.category,
+      dist_km: p.dist_km,
+      ahead: p.ahead,
+      locality: p.locality,
+      hours: p.hours,
+      phone: p.phone,
+      website: website ? String(website).slice(0, 120) : null,
+    };
+  });
+}
+
+/**
+ * Trim a tool result for the wire payload.
+ *
+ * IMPORTANT: We now include rich extra fields (phone, website,
+ * opening_hours, fuel_types, socket_types, camping amenities)
+ * so the LLM can make informed recommendations and emit
+ * structured actions (web/call buttons) from tool result data.
+ */
 function trimToolResultForWire(tr: GuideToolResult): GuideToolResult {
   if (!tr.ok) return tr;
   const result = tr.result as any;
@@ -166,9 +221,17 @@ function trimToolResultForWire(tr: GuideToolResult): GuideToolResult {
       ...tr,
       result: {
         ...result,
-        items: items.slice(0, WIRE_MAX_ITEMS_PER_RESULT).map((p: any) => ({
-          id: p.id, name: p.name, category: p.category, lat: p.lat, lng: p.lng,
-        })),
+        items: items.slice(0, WIRE_MAX_ITEMS_PER_RESULT).map((p: any) => {
+          const extras = pickPlaceExtras(p);
+          return {
+            id: p.id,
+            name: p.name,
+            category: p.category,
+            lat: p.lat,
+            lng: p.lng,
+            ...extras,
+          };
+        }),
       },
     };
   }
@@ -179,12 +242,10 @@ function trimToolResultForWire(tr: GuideToolResult): GuideToolResult {
     return {
       ...tr,
       result: {
-        // Preserve the backend schema shape: cluster.places MUST be a PlacesPack
         clusters: clusters.slice(0, 5).map((cl: any) => {
           const rawPack = cl?.places ?? null;
           const rawItems = (rawPack?.items ?? []) as any[];
 
-          // Prefer cluster centroid; otherwise derive from raw items
           let lat = typeof cl?.lat === "number" ? cl.lat : null;
           let lng = typeof cl?.lng === "number" ? cl.lng : null;
 
@@ -211,20 +272,22 @@ function trimToolResultForWire(tr: GuideToolResult): GuideToolResult {
             lat: lat ?? 0,
             lng: lng ?? 0,
 
-            // IMPORTANT: keep PlacesPack fields, only trim items + fields inside items
             places: rawPack
               ? {
                   ...rawPack,
-                  items: rawItems.slice(0, 5).map((p: any) => ({
-                    id: p.id,
-                    name: p.name,
-                    category: p.category,
-                    lat: p.lat,
-                    lng: p.lng,
-                  })),
+                  items: rawItems.slice(0, 5).map((p: any) => {
+                    const extras = pickPlaceExtras(p);
+                    return {
+                      id: p.id,
+                      name: p.name,
+                      category: p.category,
+                      lat: p.lat,
+                      lng: p.lng,
+                      ...extras,
+                    };
+                  }),
                 }
               : {
-                  // Fallback only if backend ever returns null/undefined (should be rare)
                   places_key: "missing",
                   req: {},
                   provider: "unknown",
@@ -237,7 +300,6 @@ function trimToolResultForWire(tr: GuideToolResult): GuideToolResult {
       },
     };
   }
-
 
   return tr;
 }
@@ -256,7 +318,6 @@ function buildWireRequest(
   corridorPlaces: PlaceItem[],
   progress: TripProgress | null,
 ): GuideTurnRequest {
-  // Find the latest user message to extract intent
   let latestUserText = "";
   for (let i = pack.thread.length - 1; i >= 0; i--) {
     if (pack.thread[i].role === "user") {
@@ -265,23 +326,15 @@ function buildWireRequest(
     }
   }
 
-  // Extract intent and pre-filter places
   let relevantPlaces: WirePlace[] = [];
   if (latestUserText && corridorPlaces.length > 0) {
     const intent = extractIntent(latestUserText);
 
-    // Merge chip-filter preferred categories if intent didn't match anything specific
     if (preferredCategories.length > 0 && intent.categories.length === 0) {
       intent.categories = preferredCategories as any[];
     }
 
-    const ranked = filterAndRankPlaces(
-      corridorPlaces,
-      intent,
-      progress,
-      WIRE_MAX_RELEVANT_PLACES,
-    );
-
+    const ranked = filterAndRankPlaces(corridorPlaces, intent, progress, WIRE_MAX_RELEVANT_PLACES);
     relevantPlaces = rankedToWire(ranked);
   }
 
@@ -298,10 +351,7 @@ function buildWireRequest(
 // Discovered places extraction
 // ──────────────────────────────────────────────────────────────
 
-function extractDiscoveredPlaces(
-  toolResult: GuideToolResult,
-  progress: TripProgress | null,
-): DiscoveredPlace[] {
+function extractDiscoveredPlaces(toolResult: GuideToolResult, progress: TripProgress | null): DiscoveredPlace[] {
   const now = nowIso();
   const items: (PlaceItem & { _cluster_km?: number })[] = [];
 
@@ -318,12 +368,14 @@ function extractDiscoveredPlaces(
   }
 
   return items.map((item) => {
-    const dist = progress
-      ? haversineKm(progress.user_lat, progress.user_lng, item.lat, item.lng)
-      : null;
+    const dist = progress ? haversineKm(progress.user_lat, progress.user_lng, item.lat, item.lng) : null;
     return {
-      id: item.id, name: item.name, lat: item.lat, lng: item.lng,
-      category: item.category, extra: item.extra,
+      id: item.id,
+      name: item.name,
+      lat: item.lat,
+      lng: item.lng,
+      category: item.category,
+      extra: item.extra,
       source_tool_id: toolResult.id,
       discovered_at: now,
       km_from_start: item._cluster_km ?? null,
@@ -356,7 +408,8 @@ export async function createGuidePack(
   const algo_version = "guide.llm.v2";
 
   const fingerprint = JSON.stringify({
-    schema_version, algo_version,
+    schema_version,
+    algo_version,
     planId: args.planId ?? null,
     route_key: context.route_key,
     corridor_key: context.corridor_key,
@@ -368,7 +421,8 @@ export async function createGuidePack(
   const existingPack = await getGuidePack(args.planId ?? null, guideKey);
   if (existingPack && existingPack.thread.length > 0) {
     const restored: GuidePack = {
-      ...existingPack, updated_at: nowIso(),
+      ...existingPack,
+      updated_at: nowIso(),
       last_progress: args.progress ?? existingPack.last_progress ?? null,
     };
     await putGuidePack(args.planId ?? null, guideKey, restored);
@@ -376,16 +430,21 @@ export async function createGuidePack(
   }
 
   const pack: GuidePack = {
-    schema_version, algo_version,
-    created_at: nowIso(), updated_at: nowIso(),
+    schema_version,
+    algo_version,
+    created_at: nowIso(),
+    updated_at: nowIso(),
     plan_id: args.planId ?? null,
     route_key: context.route_key,
     corridor_key: context.corridor_key,
     manifest_route_key: context.manifest_route_key,
-    thread: [], tool_calls: [], tool_results: [],
+    thread: [],
+    tool_calls: [],
+    tool_results: [],
     discovered_places: [],
     last_progress: args.progress ?? null,
-    resolution_map: {}, trip_links: {},
+    resolution_map: {},
+    trip_links: {},
   };
 
   await putGuidePack(args.planId ?? null, guideKey, pack);
@@ -404,17 +463,7 @@ export async function restoreLatestGuidePack(
 // Tool execution
 // ──────────────────────────────────────────────────────────────
 
-/**
- * Execute a guide tool call.
- *
- * For places_corridor calls, we inject the route geometry from context
- * so the backend searches along the actual road shape instead of a
- * start-to-end bounding box.
- */
-async function execToolCall(
-  call: GuideToolCall,
-  context: GuideContext,
-): Promise<GuideToolResult> {
+async function execToolCall(call: GuideToolCall, context: GuideContext): Promise<GuideToolResult> {
   const base = call as unknown as { id: string; tool: string; req?: unknown };
   try {
     if ((call as any).tool === "places_search") {
@@ -422,8 +471,6 @@ async function execToolCall(
       return { id: base.id, tool: base.tool as any, ok: true, result: res as any };
     }
     if ((call as any).tool === "places_corridor") {
-      // Inject route geometry from context so corridor search follows
-      // the actual road, not just a rectangle
       const corridorReq = { ...(call as any).req };
       if (context.geometry && !corridorReq.geometry) {
         corridorReq.geometry = context.geometry;
@@ -459,9 +506,13 @@ export async function guideSendMessage(args: {
   corridorPlaces?: PlaceItem[];
 }): Promise<{ pack: GuidePack; assistantText: string }> {
   const {
-    planId, guideKey, userText,
-    preferredCategories = [], maxSteps = 4,
-    progress, corridorPlaces = [],
+    planId,
+    guideKey,
+    userText,
+    preferredCategories = [],
+    maxSteps = 4,
+    progress,
+    corridorPlaces = [],
   } = args;
 
   const context: GuideContext = {
@@ -470,7 +521,8 @@ export async function guideSendMessage(args: {
   };
 
   let pack: GuidePack = {
-    ...args.pack, updated_at: nowIso(),
+    ...args.pack,
+    updated_at: nowIso(),
     thread: [...args.pack.thread, { role: "user", content: userText }],
     last_progress: progress ?? args.pack.last_progress ?? null,
   };
@@ -487,10 +539,21 @@ export async function guideSendMessage(args: {
     const turn: GuideTurnResponse = await guideApi.turn(turnReq);
 
     assistantText = turn.assistant ?? "";
-    const assistantMsg: GuideMsg = { role: "assistant", content: assistantText, resolved_tool_id: null };
+
+    // Store structured actions directly on the assistant message so the
+    // frontend can render them as pills without parsing markdown.
+    const actions: GuideAction[] = Array.isArray(turn.actions) ? turn.actions : [];
+
+    const assistantMsg: GuideMsg = {
+      role: "assistant",
+      content: assistantText,
+      resolved_tool_id: null,
+      actions,
+    };
 
     pack = {
-      ...pack, updated_at: nowIso(),
+      ...pack,
+      updated_at: nowIso(),
       thread: [...pack.thread, assistantMsg],
       tool_calls: [...pack.tool_calls, ...(turn.tool_calls ?? [])],
     };
@@ -511,7 +574,8 @@ export async function guideSendMessage(args: {
     }
 
     pack = {
-      ...pack, updated_at: nowIso(),
+      ...pack,
+      updated_at: nowIso(),
       thread: updatedThread,
       tool_results: [...pack.tool_results, toolRes],
       discovered_places: mergedPlaces,

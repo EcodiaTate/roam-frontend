@@ -344,35 +344,10 @@ export default function GuideClientPage(props: {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <button
-            type="button"
-            className="trip-btn-sm trip-interactive"
-            onClick={() => {
-              haptic.selection();
-              router.push(`/trip?plan_id=${encodeURIComponent(plan.plan_id)}`);
-            }}
-            style={{
-              borderRadius: 999,
-              minHeight: 42,
-              padding: "0 14px",
-              fontWeight: 950,
-              background: "var(--roam-surface)",
-              color: "var(--roam-text)",
-              boxShadow: "var(--shadow-soft)",
-              whiteSpace: "nowrap",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
-            <ArrowLeft size={16} />
-            Trip
-          </button>
+     
 
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: 12, fontWeight: 900, color: "var(--roam-text-muted)" }}>
-              Guide
-            </div>
+           
             <div
               className="trip-truncate"
               style={{

@@ -18,10 +18,43 @@ import type { OfflineBundleManifest } from "./bundle";
 
 export type GuideToolName = "places_search" | "places_corridor" | "places_suggest";
 
+// ──────────────────────────────────────────────────────────────
+// UI Actions (render as buttons/pills under assistant messages)
+// ──────────────────────────────────────────────────────────────
+
+export type GuideActionType = "web" | "call";
+
+export type GuideAction = {
+  type: GuideActionType;
+
+  /**
+   * Button label. IMPORTANT: backend guarantees this does NOT include raw url/phone.
+   * Examples:
+   * - "Website · Coles Express Kawana"
+   * - "Call Reddy Express"
+   */
+  label: string;
+
+  place_id?: string | null;
+  place_name?: string | null;
+
+  // For type="web"
+  url?: string | null;
+
+  // For type="call"
+  tel?: string | null;
+};
+
 export type GuideMsg = {
   role: "user" | "assistant";
   content: string;
   resolved_tool_id?: string | null;
+
+  /**
+   * Actions associated with THIS message (usually assistant messages only).
+   * Render these as pills/buttons under the message bubble.
+   */
+  actions?: GuideAction[] | null;
 };
 
 // ──────────────────────────────────────────────────────────────
@@ -91,11 +124,17 @@ export type WirePlace = {
   lat: number;
   lng: number;
   category: PlaceCategory;
-  dist_km: number | null;    // distance from user
-  ahead: boolean;            // is this ahead on the route?
-  locality: string | null;   // suburb/town
-  hours: string | null;      // opening hours
+  dist_km: number | null; // distance from user
+  ahead: boolean; // is this ahead on the route?
+  locality: string | null; // suburb/town
+  hours: string | null; // opening hours
   phone: string | null;
+
+  /**
+   * NEW: allow backend to output clean "Website · <Place>" actions.
+   * Keep optional for backward compat.
+   */
+  website?: string | null;
 };
 
 // ──────────────────────────────────────────────────────────────
@@ -132,6 +171,12 @@ export type GuideTurnRequest = {
 
 export type GuideTurnResponse = {
   assistant: string;
+
+  /**
+   * NEW: structured UI actions. Render as buttons; do NOT parse markdown.
+   */
+  actions?: GuideAction[];
+
   tool_calls: GuideToolCall[];
   done: boolean;
 };

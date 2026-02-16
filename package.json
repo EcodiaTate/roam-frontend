@@ -16,6 +16,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@capacitor-community/apple-sign-in": "^7.1.0",
     "@capacitor-community/keep-awake": "^8.0.0",
     "@capacitor/android": "^8.1.0",
     "@capacitor/app": "^8.0.1",
@@ -33,6 +34,7 @@
     "@capacitor/splash-screen": "^8.0.1",
     "@capacitor/status-bar": "^8.0.1",
     "@supabase/supabase-js": "^2.95.3",
+    "@what3words/api": "^5.4.0",
     "fflate": "^0.8.2",
     "i": "^0.3.7",
     "idb": "^8.0.3",

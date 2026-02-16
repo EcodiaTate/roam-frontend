@@ -1,4 +1,3 @@
-// src/components/map/MapStyleSwitcher.tsx
 "use client";
 
 import React from "react";
@@ -15,73 +14,184 @@ export function MapStyleSwitcher(props: {
 }) {
   const { mode, vectorTheme, onChange } = props;
 
+  const SegBtn = ({
+    active,
+    onClick,
+    children,
+    title,
+    ariaLabel,
+  }: {
+    active: boolean;
+    onClick: () => void;
+    children: React.ReactNode;
+    title?: string;
+    ariaLabel?: string;
+  }) => (
+    <button
+      type="button"
+      className="trip-interactive"
+      onClick={onClick}
+      aria-pressed={active}
+      title={title}
+      aria-label={ariaLabel}
+      style={{
+        all: "unset",
+        cursor: "pointer",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        height: 40,
+        padding: "0 14px",
+        borderRadius: 12,
+        fontSize: 14,
+        fontWeight: 800,
+        letterSpacing: -0.2,
+        color: active ? "var(--roam-surface)" : "var(--roam-text)",
+        background: active ? "var(--roam-text)" : "transparent",
+        WebkitTapHighlightColor: "transparent",
+        transition: "background 160ms ease, color 160ms ease, transform 120ms ease",
+        transform: active ? "scale(1.02)" : "scale(1)",
+      }}
+    >
+      {children}
+    </button>
+  );
+
+  const IconBtn = ({
+    active,
+    onClick,
+    children,
+    title,
+    ariaLabel,
+  }: {
+    active: boolean;
+    onClick: () => void;
+    children: React.ReactNode;
+    title: string;
+    ariaLabel: string;
+  }) => (
+    <button
+      type="button"
+      className="trip-interactive"
+      onClick={onClick}
+      aria-pressed={active}
+      title={title}
+      aria-label={ariaLabel}
+      style={{
+        all: "unset",
+        cursor: "pointer",
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: active ? "var(--roam-surface)" : "var(--roam-text)",
+        background: active ? "var(--roam-text)" : "transparent",
+        WebkitTapHighlightColor: "transparent",
+        transition: "background 160ms ease, color 160ms ease, transform 120ms ease",
+        transform: active ? "scale(1.02)" : "scale(1)",
+      }}
+    >
+      {children}
+    </button>
+  );
+
   return (
-    <div className="trip-map-switcher" role="group" aria-label="Map style">
-      <div className="trip-map-switcher-row">
-        <button
-          type="button"
-          className="trip-interactive trip-pill-btn"
-          data-active={mode === "vector"}
+    <div
+      className=""
+      role="group"
+      aria-label="Map style"
+      style={{
+        position: "absolute",
+        top: 12,
+        right: 12,
+        zIndex: 30,
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+        pointerEvents: "auto",
+      }}
+    >
+      {/* Main segmented control */}
+      <div
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 4,
+          padding: 4,
+          borderRadius: 14,
+          background: "rgba(0,0,0,0.35)",
+          backdropFilter: "blur(10px)",
+          border: "1px solid rgba(255,255,255,0.16)",
+          boxShadow: "0 10px 26px rgba(0,0,0,0.22)",
+        }}
+      >
+        <SegBtn
+          active={mode === "vector"}
           onClick={() => {
             haptic.selection();
             onChange({ mode: "vector", vectorTheme });
           }}
-          aria-pressed={mode === "vector"}
+          title="Map"
         >
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-            <MapIcon size={16} />
-            Map
-          </span>
-        </button>
+          <MapIcon size={16} />
+          Map
+        </SegBtn>
 
-        <button
-          type="button"
-          className="trip-interactive trip-pill-btn"
-          data-active={mode === "hybrid"}
+        <SegBtn
+          active={mode === "hybrid"}
           onClick={() => {
             haptic.selection();
             onChange({ mode: "hybrid", vectorTheme });
           }}
-          aria-pressed={mode === "hybrid"}
+          title="Satellite"
         >
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-            <Satellite size={16} />
-            Sat
-          </span>
-        </button>
+          <Satellite size={16} />
+          Sat
+        </SegBtn>
       </div>
 
+      {/* Theme toggle (only when in vector) */}
       {mode === "vector" && (
-        <div className="trip-map-switcher-row trip-map-switcher-sub">
-          <button
-            type="button"
-            className="trip-interactive trip-pill-btn"
-            data-active={vectorTheme === "bright"}
+        <div
+          style={{
+            alignSelf: "flex-end",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            padding: 4,
+            borderRadius: 14,
+            background: "rgba(0,0,0,0.35)",
+            backdropFilter: "blur(10px)",
+            border: "1px solid rgba(255,255,255,0.16)",
+            boxShadow: "0 10px 26px rgba(0,0,0,0.22)",
+          }}
+        >
+          <IconBtn
+            active={vectorTheme === "bright"}
+            title="Bright"
+            ariaLabel="Bright theme"
             onClick={() => {
               haptic.selection();
               onChange({ mode: "vector", vectorTheme: "bright" });
             }}
-            aria-pressed={vectorTheme === "bright"}
-            aria-label="Bright theme"
-            title="Bright"
           >
             <Sun size={16} />
-          </button>
+          </IconBtn>
 
-          <button
-            type="button"
-            className="trip-interactive trip-pill-btn"
-            data-active={vectorTheme === "dark"}
+          <IconBtn
+            active={vectorTheme === "dark"}
+            title="Dark"
+            ariaLabel="Dark theme"
             onClick={() => {
               haptic.selection();
               onChange({ mode: "vector", vectorTheme: "dark" });
             }}
-            aria-pressed={vectorTheme === "dark"}
-            aria-label="Dark theme"
-            title="Dark"
           >
             <Moon size={16} />
-          </button>
+          </IconBtn>
         </div>
       )}
     </div>

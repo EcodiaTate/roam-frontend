@@ -6,9 +6,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { TripMap } from "@/components/trip/TripMap";
 import { TripView, type TripEditorRebuildMode } from "@/components/trip/TripView";
-import type { AlertFocusEvent } from "@/components/trip/TripAlertsPanel";
+import type { AlertHighlightEvent } from "@/components/trip/TripAlertsPanel";
 import { SyncStatusBadge } from "@/components/ui/SyncStatusBadge";
 import { InviteCodeModal } from "@/components/plans/InviteCodeModal";
+import { BasemapDownloadCard } from "@/components/basemap/BasemapDownloadCard";
 
 import { useGeolocation } from "@/lib/native/geolocation";
 import { useKeepAwake } from "@/lib/native/keepAwake";
@@ -69,7 +70,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   // UI State
   const [focusedStopId, setFocusedStopId] = useState<string | null>(null);
   const [focusedPlaceId, setFocusedPlaceId] = useState<string | null>(null);
-  const [focusCoord, setFocusCoord] = useState<{ lat: number; lng: number; zoom?: number } | null>(null);
+  const [highlightedAlertId, setHighlightedAlertId] = useState<string | null>(null);
 
   // Invite modal state
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -145,7 +146,6 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
 
   // ── Overlay polling ─────────────────────────────────────────────
   const pollOverlays = useCallback(async () => {
-    // Skip polling when offline — IDB data is already hydrated on boot
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
     if (!navpack?.primary?.bbox) return;
 
@@ -167,7 +167,6 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         if (currentPlanId) putPack(currentPlanId, "hazards", hazardsRes.value).catch(() => {});
       }
     } catch (e) {
-      // Overlay polling is best-effort — don't crash the trip view
       console.warn("[Trip] overlay poll failed:", e);
     }
   }, [navpack, plan]);
@@ -176,10 +175,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   useEffect(() => {
     if (phase !== "ready" || !navpack?.primary?.bbox) return;
 
-    // Initial poll
     pollOverlays();
 
-    // Interval
     overlayTimerRef.current = setInterval(pollOverlays, OVERLAY_POLL_INTERVAL_MS);
 
     return () => {
@@ -192,14 +189,12 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
 
   // ── Rebuild handler ─────────────────────────────────────────────
   const handleRebuild = useCallback(async (args: { stops: TripStop[]; mode: TripEditorRebuildMode }) => {
-    // Re-route with the new stops
     const result = await navApi.route({
       profile: navpack?.primary?.profile ?? "drive",
       stops: args.stops,
     });
     setNavpack(result);
 
-    // Re-poll overlays for the new route bbox
     if (result?.primary?.bbox) {
       try {
         const [t, h] = await Promise.allSettled([
@@ -224,14 +219,18 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     router.push(`/guide?plan_id=${encodeURIComponent(plan.plan_id)}&focus_place_id=${encodeURIComponent(placeId)}`);
   }, [plan, router]);
 
-  // ── Alert focus handler (collapse sheet + zoom to coord) ────────
-  const handleFocusAlert = useCallback((focus: AlertFocusEvent) => {
-    haptic.medium();
-    // Collapse sheet to peek
-    setOffsetY(0);
-    // Zoom map to the alert's coordinates — use a new object ref each time
-    // so the useEffect in TripMap always triggers even for repeated taps
-    setFocusCoord({ lat: focus.lat, lng: focus.lng, zoom: 13 });
+  // ── Alert highlight handler ─────────────────────────────────────
+  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleHighlightAlert = useCallback((ev: AlertHighlightEvent) => {
+    haptic.selection();
+    setHighlightedAlertId(ev.id);
+
+    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    highlightTimerRef.current = setTimeout(() => {
+      setHighlightedAlertId(null);
+      highlightTimerRef.current = null;
+    }, 4000);
   }, []);
 
   // ── Bottom Sheet Handlers ───────────────────────────────────────
@@ -332,8 +331,13 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           userPosition={geo.position}
           planId={plan.plan_id}
           onNavigateToGuide={handleNavigateToGuide}
-          focusCoord={focusCoord}
+          highlightedAlertId={highlightedAlertId}
         />
+      </div>
+
+      {/* Basemap download card — floats above map, below sheet */}
+      <div style={{ position: "absolute", top: 12, left: 12, right: 12, zIndex: 15, pointerEvents: "auto" }}>
+        <BasemapDownloadCard region="australia" compact />
       </div>
 
       {/* Invite modal */}
@@ -491,9 +495,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
               focusedPlaceId={focusedPlaceId}
               onFocusPlace={setFocusedPlaceId}
               onRebuildRequested={handleRebuild}
-              onFocusTrafficEvent={(id) => { haptic.selection(); }}
-              onFocusHazardEvent={(id) => { haptic.selection(); }}
-              onFocusAlert={handleFocusAlert}
+              highlightedAlertId={highlightedAlertId}
+              onHighlightAlert={handleHighlightAlert}
               userPosition={geo.position}
             />
           </div>

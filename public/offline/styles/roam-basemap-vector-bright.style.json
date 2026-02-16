@@ -1,37 +1,148 @@
 {
   "version": 8,
+  "name": "Roam Outback Bright",
   "glyphs": "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
   "sources": {
     "basemap": {
       "type": "vector",
-"url": "pmtiles://https://vzauarlfmkjfkcphojbd.supabase.co/storage/v1/object/public/tiles/australia.pmtiles",
+      "url": "pmtiles://https://vzauarlfmkjfkcphojbd.supabase.co/storage/v1/object/public/tiles/australia.pmtiles",
       "attribution": "© OpenStreetMap contributors"
     }
   },
   "layers": [
-    { "id": "bg", "type": "background", "paint": { "background-color": "#cbd7df" } },
+    { "id": "bg", "type": "background", "paint": { "background-color": "#e9e2d5" } },
 
+    {
+      "id": "ocean",
+      "type": "fill",
+      "source": "basemap",
+      "source-layer": "ocean",
+      "paint": { "fill-color": "#8fd0d6", "fill-opacity": 1 }
+    },
+    {
+      "id": "water-polygons",
+      "type": "fill",
+      "source": "basemap",
+      "source-layer": "water_polygons",
+      "paint": { "fill-color": "#4fb7b8", "fill-opacity": 0.96 }
+    },
     {
       "id": "water-lines",
       "type": "line",
       "source": "basemap",
       "source-layer": "water_lines",
       "paint": {
-        "line-color": "#3f8797",
-        "line-opacity": 0.45,
-        "line-width": ["interpolate", ["linear"], ["zoom"], 4, 0.7, 10, 1.6, 14, 2.6]
+        "line-color": "#1b8f97",
+        "line-opacity": ["interpolate", ["linear"], ["zoom"], 4, 0.35, 10, 0.55, 14, 0.75],
+        "line-width": ["interpolate", ["linear"], ["zoom"], 4, 0.7, 10, 1.8, 14, 3.0]
       }
     },
 
     {
-      "id": "streets-casing",
+      "id": "land",
+      "type": "fill",
+      "source": "basemap",
+      "source-layer": "land",
+      "paint": { "fill-color": "#d8c6a6", "fill-opacity": 1 }
+    },
+
+    {
+      "id": "landuse-green",
+      "type": "fill",
+      "source": "basemap",
+      "source-layer": "landuse",
+      "paint": {
+        "fill-color": [
+          "match",
+          ["coalesce", ["get", "class"], ["get", "type"], ["get", "subclass"], ""],
+          "park", "#b7d2a6",
+          "grass", "#c7ddb0",
+          "meadow", "#cfe3b8",
+          "forest", "#9dbf9a",
+          "wood", "#92b58f",
+          "scrub", "#b4c6a4",
+          "heath", "#b9c7a8",
+          "farmland", "#d6d3a6",
+          "farm", "#d6d3a6",
+          "#d8c6a6"
+        ],
+        "fill-opacity": 0.9
+      }
+    },
+
+    {
+      "id": "landuse-sand",
+      "type": "fill",
+      "source": "basemap",
+      "source-layer": "landuse",
+      "paint": {
+        "fill-color": [
+          "match",
+          ["coalesce", ["get", "class"], ["get", "type"], ["get", "subclass"], ""],
+          "beach", "#f0dfbf",
+          "sand", "#f0dfbf",
+          "dune", "#ead3a5",
+          "desert", "#e3c391",
+          "#000000"
+        ],
+        "fill-opacity": ["case",
+          ["in", ["coalesce", ["get", "class"], ["get", "type"], ""], ["literal", ["beach", "sand", "dune", "desert"]]],
+          0.9,
+          0
+        ]
+      }
+    },
+
+    {
+      "id": "landcover",
+      "type": "fill",
+      "source": "basemap",
+      "source-layer": "landcover",
+      "paint": {
+        "fill-color": [
+          "match",
+          ["coalesce", ["get", "class"], ["get", "type"], ""],
+          "grass", "#cfe3b8",
+          "forest", "#93b892",
+          "wood", "#8caf8a",
+          "scrub", "#b9c7a8",
+          "wetland", "#a7cfc4",
+          "#d8c6a6"
+        ],
+        "fill-opacity": 0.55
+      }
+    },
+
+    {
+      "id": "admin-outline",
+      "type": "line",
+      "source": "basemap",
+      "source-layer": "admin",
+      "paint": {
+        "line-color": "rgba(90, 76, 62, 0.28)",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 3, 0.35, 6, 0.8, 10, 1.2],
+        "line-dasharray": [2, 2]
+      }
+    },
+
+    {
+      "id": "buildings",
+      "type": "fill",
+      "source": "basemap",
+      "source-layer": "buildings",
+      "minzoom": 14,
+      "paint": { "fill-color": "#c8b9a2", "fill-opacity": 0.6 }
+    },
+
+    {
+      "id": "streets-outline",
       "type": "line",
       "source": "basemap",
       "source-layer": "streets",
       "paint": {
-        "line-color": "#3a4148",
-        "line-opacity": ["interpolate", ["linear"], ["zoom"], 8, 0.10, 12, 0.14, 14, 0.18],
-        "line-width": ["interpolate", ["linear"], ["zoom"], 8, 2.0, 12, 5.6, 14, 8.5]
+        "line-color": "rgba(76, 63, 52, 0.42)",
+        "line-opacity": ["interpolate", ["linear"], ["zoom"], 7, 0.08, 12, 0.16, 14, 0.22],
+        "line-width": ["interpolate", ["linear"], ["zoom"], 7, 2.2, 12, 6.2, 14, 10.0]
       }
     },
     {
@@ -40,9 +151,22 @@
       "source": "basemap",
       "source-layer": "streets",
       "paint": {
-        "line-color": "#f2efe9",
-        "line-opacity": ["interpolate", ["linear"], ["zoom"], 8, 0.22, 12, 0.28, 14, 0.34],
-        "line-width": ["interpolate", ["linear"], ["zoom"], 8, 1.2, 12, 3.4, 14, 6.0]
+        "line-color": "#f6f0e6",
+        "line-opacity": ["interpolate", ["linear"], ["zoom"], 7, 0.30, 12, 0.42, 14, 0.50],
+        "line-width": ["interpolate", ["linear"], ["zoom"], 7, 1.2, 12, 3.8, 14, 6.6]
+      }
+    },
+
+    {
+      "id": "ferries",
+      "type": "line",
+      "source": "basemap",
+      "source-layer": "ferries",
+      "paint": {
+        "line-color": "#2f8f99",
+        "line-opacity": 0.35,
+        "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.6, 12, 1.2, 14, 2.0],
+        "line-dasharray": [2, 2]
       }
     },
 
@@ -58,9 +182,9 @@
         "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"]
       },
       "paint": {
-        "text-color": "rgba(32, 38, 44, 0.68)",
-        "text-halo-color": "rgba(203, 215, 223, 0.45)",
-        "text-halo-width": 0.9,
+        "text-color": "rgba(46, 40, 33, 0.78)",
+        "text-halo-color": "rgba(233, 226, 213, 0.72)",
+        "text-halo-width": 1.1,
         "text-halo-blur": 0.9
       }
     },
@@ -78,10 +202,10 @@
         "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"]
       },
       "paint": {
-        "text-color": "rgba(32, 38, 44, 0.48)",
-        "text-halo-color": "rgba(203, 215, 223, 0.35)",
-        "text-halo-width": 0.8,
-        "text-halo-blur": 1.0
+        "text-color": "rgba(46, 40, 33, 0.58)",
+        "text-halo-color": "rgba(233, 226, 213, 0.62)",
+        "text-halo-width": 0.95,
+        "text-halo-blur": 0.95
       }
     }
   ]

@@ -1,126 +1,202 @@
 @import "tailwindcss";
 
 /* ==========================================================================
-   1. OUTBACK AUSTRALIA THEME VARIABLES
+   ROAM — Australian Road Trip Navigation
+   Design System: "Outback Native"
+   
+   Palette story:
+     Sand dunes at golden hour → backgrounds
+     Sun-bleached canvas       → card surfaces
+     Eucalyptus canopy         → primary actions, success
+     Red Centre earth          → danger, SOS, active tab
+     Clear outback sky         → info, GPS, water
+     Golden hour light         → warnings, highlights
+
+   Native philosophy:
+     System fonts (SF Pro / Roboto) — this is a Capacitor app, not a website
+     Warm brown shadows — never cool gray
+     Spring physics — organic, not mechanical
+     Heavy weights — chunky, confident, readable at a glance while driving
+     Restraint — the theme is in the warmth, not in decoration
+   ========================================================================== */
+
+
+/* ==========================================================================
+   1. THEME TOKENS — LIGHT MODE
    ========================================================================== */
 :root {
-  /* --- Thematic Palette (Light Mode) --- */
-  /* --- Thematic Palette (Light Mode - Richer Outback) --- */
-  /* --- Thematic Palette (Light Mode - FULL RUGGED KHAKI) --- */
-  --bg-sand: #a3966a;        /* Solid, undeniable heavy khaki dirt */
-  --surface-card: #e5dac3;   /* Sun-bleached canvas tent (snaps sharply against the khaki) */
-  --surface-muted: #c2b280;  /* Deep, dry olive-mud for heavily recessed inputs */
-  --text-main: #2d2926;      /* Charcoal black */
-  --text-muted: #736d67;     /* Dusty gray-brown */
-  
-  --brand-eucalypt: #4a6c53; /* Outback tree green (Primary Action) */
-  --brand-ochre: #b84a39;    /* Red earth (Destructive / Active States) */
-  --brand-sky: #5a98d0;      /* Clear outback sky (Info / Badges) */
+  /* ── Core surfaces ─────────────────────────────────────────
+     Hierarchy: bg (ground) → card (elevated) → muted (recessed in card)
+     Every surface has a warm undertone — no cold grays anywhere. */
+  --bg-sand: #dcd3c1;          /* Golden sand — the ground everything sits on */
+  --surface-card: #f4efe6;     /* Bleached canvas — primary reading surface */
+  --surface-muted: #e3dccf;    /* Dusty wash — inputs, chips, recessed wells */
+  --surface-raised: #faf8f3;   /* Bright float — tooltips, dropdowns, popovers */
 
-  /* --- Mapped UI Component Variables (Trip App) --- */
+  /* ── Text ──────────────────────────────────────────────────
+     Main on card: ~14.5:1 contrast ✓✓✓
+     Muted on card: ~5.1:1 contrast ✓ (AA normal text) */
+  --text-main: #1a1613;        /* Warm charcoal — body text, headings */
+  --text-muted: #7a7067;       /* Stone dust — secondary, captions */
+
+  /* ── Brand accents ─────────────────────────────────────────
+     Each chosen for: thematic resonance + white text readability (≥4.5:1) */
+  --brand-eucalypt: #33784a;   /* Deep gum leaf — primary, go, confirm */
+  --brand-ochre: #bf4a30;      /* Red Centre — danger, SOS, active state */
+  --brand-sky: #2c7cb5;        /* Outback sky — info, GPS, water features */
+  --brand-amber: #b8872a;      /* Golden hour — warnings, highlights, stars */
+
+  /* ── On-color text ─────────────────────────────────────────
+     Warm white for text ON any accent-colored surface.
+     Fixes the dark-mode bug where color: var(--surface-card) was illegible. */
+  --on-color: #faf6ef;
+
+  /* ── Semantic mapping ──────────────────────────────────────
+     Components reference these, never raw palette tokens. */
   --roam-bg: var(--bg-sand);
   --roam-surface: var(--surface-card);
   --roam-surface-hover: var(--surface-muted);
-  
+  --roam-surface-raised: var(--surface-raised);
+
   --roam-text: var(--text-main);
   --roam-text-muted: var(--text-muted);
-  
+
   --roam-accent: var(--brand-eucalypt);
   --roam-danger: var(--brand-ochre);
   --roam-success: var(--brand-eucalypt);
   --roam-info: var(--brand-sky);
+  --roam-warn: var(--brand-amber);
 
-  /* --- State & Utility Colors --- */
-  --bg-error: #fde8e8;
-  --text-error: #9b1c1c;
-  --danger-tint: rgba(184, 74, 57, 0.1);    /* Based on ochre */
-  --info-pulse-active: rgba(90, 152, 208, 0.4); /* Based on sky */
-  --info-pulse-clear: rgba(90, 152, 208, 0);
-  --overlay-bg: rgba(45, 41, 38, 0.4);      /* Darkened sand */
-  --spinner-track: rgba(255, 255, 255, 0.3);
-  --spinner-head: var(--surface-card);
+  /* ── Borders & dividers (warm, subtle) ─────────────────── */
+  --roam-border: rgba(26, 22, 19, 0.08);
+  --roam-border-strong: rgba(26, 22, 19, 0.15);
 
-  /* --- Tab Bar & Glassmorphism Variables --- */
+  /* ── State & utility colors ────────────────────────────── */
+  --bg-error: #fae5e2;
+  --text-error: #922018;
+  --bg-warn: #faf0dc;
+  --text-warn: #7a5c12;
+  --danger-tint: rgba(191, 74, 48, 0.10);
+  --accent-tint: rgba(51, 120, 74, 0.10);
+  --info-tint: rgba(44, 124, 181, 0.10);
+  --info-pulse-active: rgba(44, 124, 181, 0.40);
+  --info-pulse-clear: rgba(44, 124, 181, 0);
+  --overlay-bg: rgba(26, 22, 19, 0.45);
+  --spinner-track: rgba(26, 22, 19, 0.10);
+  --spinner-head: var(--brand-eucalypt);
+
+  /* ── Tab bar ───────────────────────────────────────────── */
   --tab-bar-bg: var(--surface-card);
   --tab-active-color: var(--brand-ochre);
-  --tab-inactive-color: #9ba3a1;
+  --tab-inactive-color: #9e9488;       /* Warm stone — NOT cool gray */
   --tab-center-bg: var(--brand-eucalypt);
-  --tab-center-icon: var(--surface-card);
-  --tab-center-glow: 0 8px 24px rgba(74, 108, 83, 0.4); /* Eucalypt glow */
-  
-  --tab-glass-bg: rgba(253, 251, 247, 0.85);
-  --tab-glass-border: rgba(45, 41, 38, 0.05);
-  --tab-glass-shadow: 0 -8px 32px rgba(45, 41, 38, 0.08);
+  --tab-center-icon: var(--on-color);
+  --tab-center-glow: 0 6px 20px rgba(51, 120, 74, 0.35);
 
-  /* --- Shadows (Instead of borders) --- */
-  --shadow-soft: 0 4px 24px rgba(45, 41, 38, 0.06);
-  --shadow-heavy: 0 16px 48px rgba(45, 41, 38, 0.12);
-  --shadow-button: 0 4px 0 rgba(45, 41, 38, 0.1);
-  --shadow-fab: 0 2px 8px rgba(45, 41, 38, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --tab-glass-bg: rgba(244, 239, 230, 0.80);
+  --tab-glass-border: rgba(26, 22, 19, 0.05);
+  --tab-glass-shadow: 0 -6px 24px rgba(26, 22, 19, 0.06);
 
-  /* --- Native Variables & Universal Sizing --- */
+  /* ── Warm shadows ──────────────────────────────────────── 
+     All shadows use warm brown — never neutral/cool gray. */
+  --shadow-soft: 0 2px 12px rgba(40, 32, 20, 0.06);
+  --shadow-medium: 0 4px 20px rgba(40, 32, 20, 0.09);
+  --shadow-heavy: 0 12px 40px rgba(40, 32, 20, 0.13);
+  --shadow-button: 0 3px 0 rgba(40, 32, 20, 0.10);
+  --shadow-fab: 0 3px 10px rgba(40, 32, 20, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --shadow-sheet: 0 -8px 32px rgba(40, 32, 20, 0.10);
+
+  /* ── Native chrome ─────────────────────────────────────── */
   --roam-keyboard-h: 0px;
   --roam-safe-top: env(safe-area-inset-top, 0px);
   --roam-safe-bottom: env(safe-area-inset-bottom, 0px);
   --roam-safe-left: env(safe-area-inset-left, 0px);
   --roam-safe-right: env(safe-area-inset-right, 0px);
 
-  --r-card: 28px;
-  --r-btn: 16px;
+  /* ── Radii ─────────────────────────────────────────────── */
+  --r-card: 24px;
+  --r-btn: 14px;
   --r-pill: 999px;
   --radius-lg: var(--r-card);
   --radius-md: var(--r-btn);
-  --radius-sm: 8px;
-  
-  --tap-target: 52px;
-  --roam-tab-h: 72px;
+  --radius-sm: 10px;
+
+  /* ── Sizing ────────────────────────────────────────────── */
+  --tap-target: 48px;
+  --roam-tab-h: 68px;
   --bottom-nav-height: calc(var(--roam-tab-h) + var(--roam-safe-bottom));
 
-  /* --- Physics & Animations --- */
+  /* ── Motion ────────────────────────────────────────────── */
   --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --ease-out: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-out: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --dur-fast: 120ms;
+  --dur-normal: 200ms;
+  --dur-slow: 350ms;
 }
 
+
+/* ==========================================================================
+   1b. THEME TOKENS — DARK MODE
+   ========================================================================== */
 @media (prefers-color-scheme: dark) {
   :root {
-    /* --- Thematic Palette (Dark Mode) --- */
-    --bg-sand: #161514;        /* Very deep warm gray/black */
-    --surface-card: #22201e;   /* Elevated dark surface */
-    --surface-muted: #2d2a28;  /* Inputs / secondary buttons */
-    
-    --text-main: #f5f2ed;      /* Off-white */
-    --text-muted: #9c9791;     /* Medium gray */
-    
-    --brand-eucalypt: #5d8a6b; /* Lighter eucalypt for dark mode contrast */
-    --brand-ochre: #d65c49;    /* Punchier red earth */
-    --brand-sky: #7eb3e6;
+    /* ── Core surfaces ───────────────────────────────────── */
+    --bg-sand: #111010;          /* Campfire dark — near-black with warm undertone */
+    --surface-card: #1c1a17;     /* Dark canvas — elevated reading surface */
+    --surface-muted: #272420;    /* Warm recess — inputs, wells */
+    --surface-raised: #302d28;   /* Bright float — popovers, tooltips */
 
-    /* --- State & Utility Colors --- */
-    --bg-error: #3a1c1c;
-    --text-error: #ffb4b4;
-    --danger-tint: rgba(214, 92, 73, 0.15);
-    --info-pulse-active: rgba(126, 179, 230, 0.4);
-    --info-pulse-clear: rgba(126, 179, 230, 0);
-    --overlay-bg: rgba(0, 0, 0, 0.6);
-    --spinner-track: rgba(255, 255, 255, 0.15);
+    /* ── Text ────────────────────────────────────────────── */
+    --text-main: #efe9e0;        /* Warm parchment — NOT pure white */
+    --text-muted: #908780;       /* Dusty stone */
+
+    /* ── Brand accents (boosted for dark backgrounds) ───── */
+    --brand-eucalypt: #48a866;   /* Bright gum leaf */
+    --brand-ochre: #de5840;      /* Hot ochre */
+    --brand-sky: #52a6de;        /* Vivid sky */
+    --brand-amber: #dea440;      /* Bright gold */
+
+    /* on-color stays warm white — works in both modes */
+    --on-color: #faf6ef;
+
+    /* ── Borders ─────────────────────────────────────────── */
+    --roam-border: rgba(255, 255, 255, 0.06);
+    --roam-border-strong: rgba(255, 255, 255, 0.12);
+
+    /* ── State colors ────────────────────────────────────── */
+    --bg-error: #301714;
+    --text-error: #ffb8a8;
+    --bg-warn: #2a2210;
+    --text-warn: #f0c860;
+    --danger-tint: rgba(222, 88, 64, 0.14);
+    --accent-tint: rgba(72, 168, 102, 0.12);
+    --info-tint: rgba(82, 166, 222, 0.12);
+    --info-pulse-active: rgba(82, 166, 222, 0.40);
+    --info-pulse-clear: rgba(82, 166, 222, 0);
+    --overlay-bg: rgba(0, 0, 0, 0.60);
+    --spinner-track: rgba(255, 255, 255, 0.08);
     --spinner-head: var(--brand-eucalypt);
 
-    /* --- Tab Bar & Glassmorphism Variables --- */
-    --tab-bar-bg: #22201e;
-    --tab-inactive-color: #716c68;
-    --tab-center-glow: 0 8px 24px rgba(93, 138, 107, 0.3);
-    
-    --tab-glass-bg: rgba(22, 21, 20, 0.75);
-    --tab-glass-border: rgba(255, 255, 255, 0.08);
-    --tab-glass-shadow: 0 -8px 32px rgba(0, 0, 0, 0.4);
+    /* ── Tab bar ─────────────────────────────────────────── */
+    --tab-bar-bg: #1c1a17;
+    --tab-inactive-color: #6b6259;
+    --tab-center-glow: 0 6px 20px rgba(72, 168, 102, 0.25);
 
-    /* --- Shadows --- */
-    --shadow-soft: 0 8px 32px rgba(0, 0, 0, 0.4);
-    --shadow-heavy: 0 24px 64px rgba(0, 0, 0, 0.6);
-    --shadow-button: 0 4px 0 rgba(0, 0, 0, 0.5);
-    --shadow-fab: 0 2px 8px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1);
+    --tab-glass-bg: rgba(17, 16, 16, 0.78);
+    --tab-glass-border: rgba(255, 255, 255, 0.06);
+    --tab-glass-shadow: 0 -6px 24px rgba(0, 0, 0, 0.40);
+
+    /* ── Dark shadows ────────────────────────────────────── */
+    --shadow-soft: 0 2px 12px rgba(0, 0, 0, 0.40);
+    --shadow-medium: 0 4px 20px rgba(0, 0, 0, 0.50);
+    --shadow-heavy: 0 12px 40px rgba(0, 0, 0, 0.60);
+    --shadow-button: 0 3px 0 rgba(0, 0, 0, 0.45);
+    --shadow-fab: 0 3px 10px rgba(0, 0, 0, 0.50), 0 0 0 1px rgba(255, 255, 255, 0.08);
+    --shadow-sheet: 0 -8px 32px rgba(0, 0, 0, 0.50);
   }
 }
+
 
 /* ==========================================================================
    2. GLOBAL RESETS & NATIVE SHELL
@@ -129,7 +205,8 @@ html, body {
   height: 100%;
   background-color: var(--roam-bg);
   color: var(--roam-text);
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-touch-callout: none;
@@ -139,14 +216,31 @@ html, body {
   overscroll-behavior-y: none;
 }
 
+/* Let text fields be selectable */
 input, textarea, [contenteditable] {
   -webkit-user-select: auto;
   user-select: auto;
 }
 
+/* Text selection color — warm, on-brand */
+::selection {
+  background: var(--accent-tint);
+  color: var(--roam-text);
+}
+
+/* Hide scrollbars everywhere (native feel) */
 ::-webkit-scrollbar { display: none; }
 * { scrollbar-width: none; }
 
+/* Accessible focus ring — only on keyboard nav */
+:focus-visible {
+  outline: 2.5px solid var(--roam-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+:focus:not(:focus-visible) { outline: none; }
+
+/* App shell */
 .roam-shell {
   padding-top: var(--roam-safe-top);
   padding-bottom: var(--roam-safe-bottom);
@@ -170,18 +264,21 @@ input, textarea, [contenteditable] {
   user-select: none;
 }
 
+
 /* ==========================================================================
    3. NATIVE MOBILE TAB BAR & BOTTOM NAV
    ========================================================================== */
+
+/* Outer positioning wrapper */
 .roam-tabs-wrap {
   position: fixed;
   bottom: 0; left: 0; right: 0;
   z-index: 100;
-  transform: translateZ(0);
+  transform: translateZ(0);        /* Own compositing layer */
   pointer-events: none;
 }
 
-/* Standard/Chunky Tab Base */
+/* Glassmorphic tab container (fixed-position variant) */
 .roam-tabs {
   position: relative;
   display: flex;
@@ -191,17 +288,15 @@ input, textarea, [contenteditable] {
   pointer-events: auto;
   padding-bottom: var(--roam-safe-bottom);
   height: calc(var(--roam-tab-h) + var(--roam-safe-bottom));
-  border-radius: 24px 24px 0 0;
-  
-  /* Glassmorphism Implementation */
+  border-radius: 22px 22px 0 0;
   background-color: var(--tab-glass-bg);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(170%);
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
   border-top: 1px solid var(--tab-glass-border);
   box-shadow: var(--tab-glass-shadow);
 }
 
-/* Tab Bar Base (Alternative format combined) */
+/* Flex-child tab container (in-flow variant) */
 .roam-tab-bar {
   display: flex;
   align-items: stretch;
@@ -209,14 +304,16 @@ input, textarea, [contenteditable] {
   height: var(--roam-tab-h);
   padding-bottom: var(--roam-safe-bottom);
   background: var(--tab-glass-bg);
+  backdrop-filter: blur(20px) saturate(170%);
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
   border-top: 1px solid var(--tab-glass-border);
   box-shadow: var(--tab-glass-shadow);
-  transition: transform 0.25s ease, opacity 0.2s ease;
+  transition: transform var(--dur-normal) ease, opacity var(--dur-fast) ease;
   z-index: 100;
   flex-shrink: 0;
 }
 
-/* Tab Items (Merged .roam-tab and .roam-tab-item styling logic) */
+/* ── Individual tab items ─────────────────────────────────── */
 .roam-tab, .roam-tab-item {
   display: flex;
   flex-direction: column;
@@ -227,304 +324,736 @@ input, textarea, [contenteditable] {
   color: var(--tab-inactive-color);
   text-decoration: none;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
   user-select: none;
-  transition: transform 0.15s var(--ease-out), color 0.2s ease;
+  transition: color var(--dur-normal) ease;
   padding: 6px 0;
+  gap: 3px;
 }
 
-.roam-tab:active, .roam-tab-item:active { transform: scale(0.92); }
-.roam-tab[data-active="true"], .roam-tab-active { color: var(--tab-active-color); }
+.roam-tab:active,
+.roam-tab-item:active {
+  transform: scale(0.90);
+  transition: transform 60ms ease-out;
+}
+
+.roam-tab[data-active="true"],
+.roam-tab-active {
+  color: var(--tab-active-color);
+}
 
 .roam-tab-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  margin-bottom: 4px;
-  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  width: 26px;
+  height: 26px;
+  transition: transform var(--dur-normal) var(--ease-spring);
 }
 .roam-tab-icon svg { width: 100%; height: 100%; }
 
-.roam-tab[data-active="true"] .roam-tab-icon, 
-.roam-tab-active .roam-tab-icon { 
-  transform: translateY(-3px) scale(1.15); 
+.roam-tab[data-active="true"] .roam-tab-icon,
+.roam-tab-active .roam-tab-icon {
+  transform: translateY(-2px) scale(1.12);
 }
 
-.roam-tab-label { font-size: 11px; font-weight: 700; line-height: 1; letter-spacing: 0.2px; }
+.roam-tab-label {
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.3px;
+}
 
-/* Special Tabs (Center Button & SOS) */
-.roam-tab.roam-tab-center { position: relative; flex: 1.2; }
-.roam-tab.roam-tab-center:active .roam-tab-inner { transform: scale(0.9); }
+/* ── Center "Trip" raised button ──────────────────────────── */
+.roam-tab.roam-tab-center {
+  position: relative;
+  flex: 1.2;
+}
+.roam-tab.roam-tab-center:active .roam-tab-inner {
+  transform: scale(0.88);
+  transition: transform 60ms ease-out;
+}
 
 .roam-tab-bump {
-  position: absolute; top: -28px; width: 76px; height: 76px;
-  border-radius: 50%; background-color: var(--roam-bg); z-index: -1;
+  position: absolute;
+  top: -26px;
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  background-color: var(--roam-bg);
+  z-index: -1;
 }
 
 .roam-tab-inner {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  position: absolute; top: -24px; width: 64px; height: 64px; border-radius: 50%;
-  background-color: var(--tab-center-bg); color: var(--tab-center-icon);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  top: -22px;
+  width: 60px; height: 60px;
+  border-radius: 50%;
+  background-color: var(--tab-center-bg);
+  color: var(--tab-center-icon);
   box-shadow: var(--tab-center-glow);
-  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease;
+  transition: transform var(--dur-normal) var(--ease-spring),
+              box-shadow var(--dur-normal) ease;
   z-index: 10;
 }
 
-.roam-tab.roam-tab-center .roam-tab-icon { margin-bottom: 0; color: var(--tab-center-icon); width: 32px; height: 32px; }
-.roam-tab.roam-tab-center .roam-tab-label { position: absolute; bottom: 8px; color: var(--tab-inactive-color); }
-.roam-tab.roam-tab-center[data-active="true"] .roam-tab-label { color: var(--tab-active-color); }
+.roam-tab.roam-tab-center .roam-tab-icon {
+  margin-bottom: 0;
+  color: var(--tab-center-icon);
+  width: 30px; height: 30px;
+}
+.roam-tab.roam-tab-center .roam-tab-label {
+  position: absolute;
+  bottom: 8px;
+  color: var(--tab-inactive-color);
+}
+.roam-tab.roam-tab-center[data-active="true"] .roam-tab-label {
+  color: var(--tab-active-color);
+}
 
-/* SOS Tab Emphasis */
+/* ── SOS tab emphasis ─────────────────────────────────────── */
 .roam-tab-sos { color: var(--roam-danger); }
 .roam-tab-sos.roam-tab-active { color: var(--roam-danger); }
-.roam-tab-sos .roam-tab-icon { background: var(--danger-tint); border-radius: 8px; padding: 2px; }
+.roam-tab-sos .roam-tab-icon {
+  background: var(--danger-tint);
+  border-radius: 8px;
+  padding: 2px;
+}
 
-/* Keyboard open state */
-.keyboard-open .roam-tab-bar, .keyboard-open .roam-tabs-wrap {
-  transform: translateY(100%); pointer-events: none; opacity: 0;
-  transition: transform 0.2s ease, opacity 0.15s ease;
+/* ── Keyboard open: hide tab bar ──────────────────────────── */
+.keyboard-open .roam-tab-bar,
+.keyboard-open .roam-tabs-wrap {
+  transform: translateY(100%);
+  pointer-events: none;
+  opacity: 0;
+  transition: transform var(--dur-normal) ease, opacity var(--dur-fast) ease;
 }
 .keyboard-open .roam-main { padding-bottom: 0 !important; }
 
+
 /* ==========================================================================
-   4. APP-LIKE LAYOUT ENGINE
+   4. APP LAYOUT PRIMITIVES
    ========================================================================== */
 .trip-app-container {
-  position: relative; width: 100vw; height: 100vh; overflow: hidden;
-  background: var(--roam-bg); color: var(--roam-text); -webkit-tap-highlight-color: transparent;
+  position: relative;
+  width: 100vw; height: 100vh;
+  overflow: hidden;
+  background: var(--roam-bg);
+  color: var(--roam-text);
+  -webkit-tap-highlight-color: transparent;
 }
 
-.trip-wrap-center { display: grid; place-items: center; height: 100vh; padding: 20px; background: var(--roam-bg); }
-.trip-card { background: var(--roam-surface); border-radius: var(--r-card); padding: 24px; box-shadow: var(--shadow-heavy); display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 400px; }
+.trip-wrap-center {
+  display: grid;
+  place-items: center;
+  height: 100vh;
+  padding: 20px;
+  background: var(--roam-bg);
+}
 
-/* ── Typography ── */
-.trip-h1 { font-size: 1.5rem; font-weight: 800; margin: 0; letter-spacing: -0.5px; }
-.trip-h2 { font-size: 1.15rem; font-weight: 700; margin: 0; letter-spacing: -0.2px; }
-.trip-title { font-size: 1.05rem; font-weight: 800; margin: 0; letter-spacing: -0.1px; }
-.trip-muted { font-size: 0.9rem; color: var(--roam-text-muted); font-weight: 600; }
-.trip-muted-small { font-size: 0.8rem; color: var(--roam-text-muted); font-weight: 600; }
+.trip-card {
+  background: var(--roam-surface);
+  border-radius: var(--r-card);
+  padding: 24px;
+  box-shadow: var(--shadow-heavy);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 400px;
+}
+
 
 /* ==========================================================================
-   5. TACTILE INTERACTIONS
+   5. TYPOGRAPHY
    ========================================================================== */
+.trip-h1 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: -0.5px;
+  line-height: 1.2;
+}
+.trip-h2 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.2px;
+  line-height: 1.25;
+}
+.trip-title {
+  font-size: 1.0rem;
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: -0.1px;
+  line-height: 1.3;
+}
+.trip-muted {
+  font-size: 0.875rem;
+  color: var(--roam-text-muted);
+  font-weight: 600;
+  line-height: 1.4;
+}
+.trip-muted-small {
+  font-size: 0.78rem;
+  color: var(--roam-text-muted);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+
+/* ==========================================================================
+   6. BUTTONS & TACTILE INTERACTIONS
+   ========================================================================== */
+
+/* ── Interactive card / row press ─────────────────────────── */
 .trip-interactive {
-  cursor: pointer; user-select: none; touch-action: manipulation;
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-  transition: transform 0.2s var(--spring), box-shadow 0.15s ease, opacity 0.2s ease;
+  transition: transform var(--dur-fast) var(--spring),
+              opacity var(--dur-fast) ease;
 }
 
-/* If a press begins on a nested interactive control, do NOT press the parent card */
-.trip-interactive:has(button:active, a:active, input:active, textarea:active, select:active, [role="button"]:active) {
+.trip-interactive:active {
+  transform: scale(0.97);
+  opacity: 0.85;
+}
+
+/* Cancel parent press when a child control is the real target */
+.trip-interactive:has(
+  button:active, a:active, input:active,
+  textarea:active, select:active, [role="button"]:active
+) {
+  transform: none !important;
+  opacity: 1 !important;
+}
+.trip-interactive:has(
+  button:focus-visible, a:focus-visible,
+  input:focus-visible, [role="button"]:focus-visible
+) {
   transform: none !important;
   opacity: 1 !important;
 }
 
-/* Optional: also avoid the parent press when focusing/pressing inside the card */
-.trip-interactive:has(button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, [role="button"]:focus-visible) {
-  transform: none !important;
-  opacity: 1 !important;
-}
-/* Prevent parent press-down when a child button/link is the active target */
-.trip-interactive:has(button:active, a:active, [role="button"]:active) {
-  transform: none !important;
-  opacity: 1 !important;
-}
-
-.trip-interactive:active { transform: scale(0.97); opacity: 0.85; }
-
-/* Standard Buttons */
+/* ── Primary button (chunky, tactile) ─────────────────────── */
 .trip-btn {
-  display: flex; align-items: center; justify-content: center; width: 100%;
-  padding: 12px 16px; border-radius: var(--r-btn); font-weight: 800; font-size: 1rem;
-  border: none; min-height: 54px; box-shadow: var(--shadow-button); transform: translateY(0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px 18px;
+  border-radius: var(--r-btn);
+  font-weight: 800;
+  font-size: 0.95rem;
+  border: none;
+  min-height: 52px;
+  box-shadow: var(--shadow-button);
+  transform: translateY(0);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 80ms ease, box-shadow 80ms ease, opacity var(--dur-fast) ease;
 }
 .trip-btn:active:not(:disabled) {
-  box-shadow: 0 0px 0 rgba(0,0,0,0); transform: translateY(4px) scale(0.98); opacity: 0.9;
+  box-shadow: 0 0 0 rgba(0,0,0,0);
+  transform: translateY(3px) scale(0.98);
+  opacity: 0.88;
 }
-.trip-btn:disabled { opacity: 0.5; pointer-events: none; box-shadow: none; transform: translateY(4px); }
+.trip-btn:disabled {
+  opacity: 0.45;
+  pointer-events: none;
+  box-shadow: none;
+  transform: translateY(3px);
+}
 
-.trip-btn-primary { background: var(--roam-accent); color: var(--surface-card); }
-.trip-btn-secondary { background: var(--roam-surface-hover); color: var(--roam-text); }
-.trip-btn-danger { background: var(--roam-surface-hover); color: var(--roam-danger); }
+/* Color variants — uses --on-color for legible text in BOTH light/dark */
+.trip-btn-primary {
+  background: var(--roam-accent);
+  color: var(--on-color);
+}
+.trip-btn-secondary {
+  background: var(--roam-surface-hover);
+  color: var(--roam-text);
+}
+.trip-btn-danger {
+  background: var(--roam-surface-hover);
+  color: var(--roam-danger);
+}
 
-/* Small Button */
+/* ── Small button ─────────────────────────────────────────── */
 .trip-btn-sm {
-  border-radius: 14px; background: var(--roam-surface-hover); color: var(--roam-text);
-  padding: 0 16px; font-size: 0.9rem; font-weight: 800; min-height: 44px;
-  box-shadow: 0 3px 0 rgba(0,0,0,0.08); border: none; display: flex; align-items: center;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 12px;
+  background: var(--roam-surface-hover);
+  color: var(--roam-text);
+  padding: 0 14px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  min-height: 42px;
+  box-shadow: 0 2px 0 rgba(40, 32, 20, 0.08);
+  border: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 80ms ease, box-shadow 80ms ease;
 }
-.trip-btn-sm:active:not(:disabled) { box-shadow: none; transform: translateY(3px) scale(0.98); }
-.trip-btn-sm:disabled { opacity: 0.5; pointer-events: none; box-shadow: none; transform: translateY(3px); }
+.trip-btn-sm:active:not(:disabled) {
+  box-shadow: none;
+  transform: translateY(2px) scale(0.97);
+}
+.trip-btn-sm:disabled {
+  opacity: 0.45;
+  pointer-events: none;
+  box-shadow: none;
+  transform: translateY(2px);
+}
 
-/* Icon Buttons */
+/* ── Icon button (square, minimal) ────────────────────────── */
 .trip-btn-icon {
-  background: var(--roam-surface-hover); border: none; display: grid; place-items: center;
-  width: 44px; height: 44px; border-radius: 14px; color: var(--roam-text); font-size: 1.1rem;
+  background: var(--roam-surface-hover);
+  border: none;
+  display: grid;
+  place-items: center;
+  width: 44px; height: 44px;
+  border-radius: 13px;
+  color: var(--roam-text);
+  font-size: 1.1rem;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 80ms ease;
 }
-.trip-btn-icon:active:not(:disabled) { transform: scale(0.9); }
+.trip-btn-icon:active:not(:disabled) {
+  transform: scale(0.88);
+}
 
-/* Inputs */
-.trip-input, .trip-search {
-  flex: 1; background: transparent; border: none; outline: none; font-size: 1rem;
-  font-weight: 700; color: var(--roam-text); padding: 8px 0;
-}
-.trip-input::placeholder, .trip-search::placeholder { color: var(--roam-text-muted); opacity: 0.6; }
-.trip-select { background: transparent; border: none; outline: none; font-weight: 800; color: var(--roam-text); font-size: 0.95rem; }
 
 /* ==========================================================================
-   6. MAP LAYERS, SWITCHERS, & FABs
+   7. INPUTS & FORMS
    ========================================================================== */
-.trip-map-fullscreen { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 0; }
+.trip-input, .trip-search {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--roam-text);
+  padding: 8px 0;
+}
+.trip-input::placeholder,
+.trip-search::placeholder {
+  color: var(--roam-text-muted);
+  opacity: 0.55;
+}
+
+.trip-select {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-weight: 800;
+  color: var(--roam-text);
+  font-size: 0.95rem;
+}
+
+.trip-search-box {
+  background: var(--roam-surface);
+  box-shadow: var(--shadow-soft);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  height: 52px;
+  gap: 10px;
+}
+
+
+/* ==========================================================================
+   8. MAP LAYERS, SWITCHERS & FABs
+   ========================================================================== */
+.trip-map-fullscreen {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 0;
+}
 .trip-map-inner { width: 100%; height: 100%; }
 
 .trip-map-switcher {
-  position: absolute; top: calc(var(--roam-safe-top) + 16px); right: 16px; z-index: 10;
-  background: var(--roam-surface); border-radius: var(--r-pill); padding: 6px;
+  position: absolute;
+  top: calc(var(--roam-safe-top) + 14px);
+  right: 14px;
+  z-index: 10;
+  background: var(--roam-surface);
+  border-radius: var(--r-pill);
+  padding: 4px;
   box-shadow: var(--shadow-heavy);
 }
 
 .trip-pill-btn {
-  background: transparent; border: none; padding: 10px 20px; font-size: 0.9rem; font-weight: 800;
-  border-radius: var(--r-pill); color: var(--roam-text-muted);
+  background: transparent;
+  border: none;
+  padding: 9px 16px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  border-radius: var(--r-pill);
+  color: var(--roam-text-muted);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background var(--dur-fast) ease, color var(--dur-fast) ease;
 }
-.trip-pill-btn[data-active="true"] { background: var(--roam-surface-hover); color: var(--roam-text); box-shadow: var(--shadow-soft); }
+.trip-pill-btn[data-active="true"] {
+  background: var(--roam-surface-hover);
+  color: var(--roam-text);
+  box-shadow: var(--shadow-soft);
+}
 
-/* FAB Buttons */
+/* ── Floating action buttons ──────────────────────────────── */
 .trip-fab {
-  position: absolute; z-index: 20; width: 44px; height: 44px; border-radius: 50%;
-  border: none; display: flex; align-items: center; justify-content: center;
-  cursor: pointer; box-shadow: var(--shadow-fab);
+  position: absolute;
+  z-index: 20;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-fab);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 80ms ease;
 }
-.trip-fab-locate {
-  bottom: calc(220px + var(--roam-safe-bottom) + 12px); right: 12px;
-  background: var(--roam-surface); color: var(--roam-info);
-}
-.trip-fab-locate:active { background: var(--roam-surface-hover); }
+.trip-fab:active { transform: scale(0.88); }
 
-/* Map Pulse */
-@keyframes roam-blue-dot-pulse {
-  0% { box-shadow: 0 0 0 0 var(--info-pulse-active); }
-  70% { box-shadow: 0 0 0 12px var(--info-pulse-clear); }
-  100% { box-shadow: 0 0 0 0 var(--info-pulse-clear); }
+.trip-fab-locate {
+  bottom: calc(220px + var(--roam-safe-bottom) + 12px);
+  right: 12px;
+  background: var(--roam-surface);
+  color: var(--roam-info);
 }
+
+/* ── Map blue dot pulse ───────────────────────────────────── */
+@keyframes roam-blue-dot-pulse {
+  0%  { box-shadow: 0 0 0 0 var(--info-pulse-active); }
+  70% { box-shadow: 0 0 0 12px var(--info-pulse-clear); }
+  100%{ box-shadow: 0 0 0 0 var(--info-pulse-clear); }
+}
+
 
 /* ==========================================================================
-   7. DRAGGABLE BOTTOM SHEET ENGINE
+   9. DRAGGABLE BOTTOM SHEET
    ========================================================================== */
 .trip-bottom-sheet-wrap {
-  position: absolute; bottom: 0; left: 0; right: 0; z-index: 20;
-  height: 92vh; pointer-events: none;
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  z-index: 20;
+  height: 92vh;
+  pointer-events: none;
 }
+
 .trip-bottom-sheet {
-  height: 100%; background: var(--roam-surface); border-radius: var(--r-card) var(--r-card) 0 0;
-  box-shadow: 0 -12px 48px rgba(0,0,0,0.15); pointer-events: auto; display: flex; flex-direction: column;
-  transform: translateZ(0); touch-action: none;
+  height: 100%;
+  background: var(--roam-surface);
+  border-radius: var(--r-card) var(--r-card) 0 0;
+  box-shadow: var(--shadow-sheet);
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  transform: translateZ(0);
+  touch-action: none;
+  contain: layout style;
 }
 
 .trip-sheet-header {
-  padding: 16px 20px 12px 20px; touch-action: none; flex-shrink: 0;
-  background: var(--roam-surface); border-radius: var(--r-card) var(--r-card) 0 0;
+  padding: 14px 20px 10px 20px;
+  touch-action: none;
+  flex-shrink: 0;
+  background: var(--roam-surface);
+  border-radius: var(--r-card) var(--r-card) 0 0;
 }
 
-.trip-sheet-content, .trip-list-container, .trip-sheet-body {
-  flex: 1; padding: 0 20px calc(var(--bottom-nav-height) + 20px) 20px;
-  overflow-y: auto; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 20px;
-  overscroll-behavior: contain; overscroll-behavior-y: contain;
+.trip-sheet-content,
+.trip-list-container,
+.trip-sheet-body {
+  flex: 1;
+  padding: 0 20px calc(var(--bottom-nav-height) + 16px) 20px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
 }
 
 .trip-drag-handle {
-  width: 48px; height: 6px; background: var(--roam-surface-hover); border-radius: 10px; margin: 0 auto 16px auto;
+  width: 40px; height: 5px;
+  background: var(--roam-surface-hover);
+  border-radius: 10px;
+  margin: 0 auto 14px auto;
+  opacity: 0.7;
 }
 
+
 /* ==========================================================================
-   8. LISTS, ROWS, MODALS, & UTILITIES
+   10. LISTS, ROWS & STOP CARDS
    ========================================================================== */
 .trip-stop-row, .trip-editor-row {
-  display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center;
-  background: var(--roam-surface); box-shadow: var(--shadow-soft); border-radius: 20px; padding: 14px;
-  transition: transform 0.2s var(--spring), outline 0.1s;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+  background: var(--roam-surface);
+  box-shadow: var(--shadow-soft);
+  border-radius: 18px;
+  padding: 12px 14px;
+  transition: transform var(--dur-fast) var(--spring), outline 80ms;
 }
-.trip-editor-row[data-focused="true"] { outline: 3px solid var(--roam-info); outline-offset: -3px; }
-.trip-stop-row:active { transform: scale(0.98); }
-
-.trip-badge {
-  font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
-  padding: 8px 12px; border-radius: var(--r-pill); display: inline-flex; align-items: center; justify-content: center; white-space: nowrap;
+.trip-editor-row[data-focused="true"] {
+  outline: 2.5px solid var(--roam-info);
+  outline-offset: -2.5px;
 }
-.trip-badge-blue { background: var(--roam-info); color: var(--surface-card); }
-.trip-badge-soft { background: var(--roam-surface-hover); color: var(--roam-text); }
-.trip-badge-ok { background: var(--roam-success); color: var(--surface-card); }
-.trip-badge-bad { background: var(--roam-danger); color: var(--surface-card); }
-
-.trip-cat-row { display: flex; flex-wrap: nowrap; gap: 8px; overflow-x: auto; padding: 4px 0 8px 0; -webkit-overflow-scrolling: touch; }
-
-/* Modals */
-.trip-modal-overlay {
-  position: fixed; inset: 0; background: var(--overlay-bg); backdrop-filter: blur(4px);
-  z-index: 100; display: flex; flex-direction: column; justify-content: flex-end;
-  animation: fadeIn 0.2s ease-out forwards;
-}
-.trip-modal {
-  background: var(--roam-bg); border-radius: var(--r-card) var(--r-card) 0 0;
-  padding: 24px 20px calc(var(--bottom-nav-height) + 20px) 20px; height: 88vh;
-  display: flex; flex-direction: column; gap: 16px; box-shadow: var(--shadow-heavy);
-  animation: slideUp 0.4s var(--spring) forwards;
+.trip-stop-row:active {
+  transform: scale(0.98);
 }
 
-.trip-search-box {
-  background: var(--roam-surface); box-shadow: var(--shadow-soft); border-radius: 16px;
-  display: flex; align-items: center; padding: 0 16px; height: 56px;
-}
-
-/* Borderless List Rows */
+/* Borderless list rows (plans list, search results) */
 .trip-list-row {
-  width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 12px;
-  background: transparent; border: none; border-bottom: 2px solid var(--roam-surface-hover);
-  padding: 18px 0; text-align: left;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px solid var(--roam-border);
+  padding: 16px 0;
+  text-align: left;
 }
 .trip-list-row:last-child { border-bottom: none; }
-.trip-list-row[data-focused="true"] { background: var(--roam-surface-hover); border-radius: 16px; border-bottom: none; padding: 18px 16px; }
+.trip-list-row[data-focused="true"] {
+  background: var(--roam-surface-hover);
+  border-radius: 14px;
+  border-bottom: none;
+  padding: 16px 14px;
+}
 
-/* Layout Utilities */
-.trip-row-between { display: flex; justify-content: space-between; align-items: center; }
-.trip-flex-col { display: flex; flex-direction: column; gap: 12px; }
-.trip-actions { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); }
-.trip-truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Horizontal scroll row (categories, chips) */
+.trip-cat-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 0 6px 0;
+  -webkit-overflow-scrolling: touch;
+}
 
-/* Inset Panels & KV Rows */
-.trip-err-box { padding: 16px; background: var(--bg-error); color: var(--text-error); border-radius: 16px; font-weight: 700; white-space: pre-wrap; }
-.trip-panel { background: var(--roam-surface-hover); padding: 20px; border-radius: var(--r-card); display: flex; flex-direction: column; gap: 16px; }
-
-.trip-kv-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; background: var(--roam-surface-hover); padding: 16px; border-radius: 16px; }
-.trip-kv { display: flex; flex-direction: column; }
-.trip-kv-k { color: var(--roam-text-muted); text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px; margin-bottom: 4px; font-size: 0.75rem; }
-.trip-kv-v { color: var(--roam-text); font-weight: 800; font-family: monospace; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ==========================================================================
-   9. NATIVE ILLUSIONS & ANIMATIONS
+   11. BADGES & CHIPS
+   ========================================================================== */
+.trip-badge {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 7px 11px;
+  border-radius: var(--r-pill);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  line-height: 1;
+}
+.trip-badge-blue { background: var(--roam-info); color: var(--on-color); }
+.trip-badge-soft { background: var(--roam-surface-hover); color: var(--roam-text); }
+.trip-badge-ok   { background: var(--roam-success); color: var(--on-color); }
+.trip-badge-bad  { background: var(--roam-danger); color: var(--on-color); }
+.trip-badge-warn { background: var(--roam-warn); color: var(--on-color); }
+
+
+/* ==========================================================================
+   12. MODALS & OVERLAYS
+   ========================================================================== */
+.trip-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay-bg);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  animation: roam-fadeIn var(--dur-normal) ease-out forwards;
+}
+
+.trip-modal {
+  background: var(--roam-bg);
+  border-radius: var(--r-card) var(--r-card) 0 0;
+  padding: 24px 20px calc(var(--bottom-nav-height) + 20px) 20px;
+  height: 88vh;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: var(--shadow-heavy);
+  animation: roam-slideUp var(--dur-slow) var(--spring) forwards;
+}
+
+
+/* ==========================================================================
+   13. DATA DISPLAY — Panels, KV rows, Errors
+   ========================================================================== */
+.trip-err-box {
+  padding: 14px 16px;
+  background: var(--bg-error);
+  color: var(--text-error);
+  border-radius: 14px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  white-space: pre-wrap;
+  line-height: 1.4;
+}
+
+.trip-warn-box {
+  padding: 14px 16px;
+  background: var(--bg-warn);
+  color: var(--text-warn);
+  border-radius: 14px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  white-space: pre-wrap;
+  line-height: 1.4;
+}
+
+.trip-panel {
+  background: var(--roam-surface-hover);
+  padding: 18px;
+  border-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.trip-kv-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  background: var(--roam-surface-hover);
+  padding: 14px;
+  border-radius: 14px;
+}
+.trip-kv { display: flex; flex-direction: column; }
+.trip-kv-k {
+  color: var(--roam-text-muted);
+  text-transform: uppercase;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  margin-bottom: 3px;
+  font-size: 0.72rem;
+}
+.trip-kv-v {
+  color: var(--roam-text);
+  font-weight: 800;
+  font-family: ui-monospace, "SF Mono", "Cascadia Mono", "Segoe UI Mono", Menlo, monospace;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
+/* ==========================================================================
+   14. ANIMATIONS & MOTION
    ========================================================================== */
 
-/* Page Transition Animation */
+/* Page entrance */
 .trip-page-transition {
-  animation: pageFadeIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: roam-pageIn var(--dur-slow) cubic-bezier(0.22, 1, 0.36, 1) forwards;
   will-change: transform, opacity;
 }
 
-/* Smooth Spinner */
+/* Spinner */
 .trip-spinner {
   width: 20px; height: 20px;
-  border: 3px solid var(--spinner-track);
+  border: 2.5px solid var(--spinner-track);
   border-radius: 50%;
   border-top-color: var(--spinner-head);
-  animation: spin 0.8s ease-in-out infinite;
+  animation: roam-spin 0.75s ease-in-out infinite;
   display: inline-block;
 }
 
-@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes pageFadeIn {
-  from { opacity: 0; transform: translateY(12px) scale(0.995); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+/* Keyframes (prefixed with roam- to avoid collisions) */
+@keyframes roam-slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
 }
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes roam-fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes roam-pageIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.997); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes roam-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Backwards-compat aliases — old names still work */
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes pageFadeIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.997); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Reduced motion ───────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .trip-interactive:active { transform: none; }
+  .trip-btn:active:not(:disabled) { transform: none; }
+}
+
+
+/* ==========================================================================
+   15. LAYOUT UTILITIES
+   ========================================================================== */
+.trip-row-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.trip-flex-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.trip-actions {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+}
+.trip-truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

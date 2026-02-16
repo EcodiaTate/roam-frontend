@@ -13,6 +13,7 @@ import type { NavCoord } from "@/lib/types/geo";
 import type { RoamPosition } from "@/lib/native/geolocation";
 import { assetsApi } from "@/lib/api/assets";
 import { polyline6ToGeoJSONLine } from "@/lib/nav/polyline6";
+import { rewriteStyleForLocalServer, isFullyOfflineCapable } from "@/lib/offline/basemapManager";
 
 /* ── Source / layer IDs ──────────────────────────────────────────────── */
 
@@ -127,22 +128,29 @@ function tryPointFromGeoJSON(g: any): [number, number] | null {
 
 /**
  * Safely check if the map is alive and style is loaded.
- * Prevents all the "source not found" / "style not loaded" cascading errors.
  */
 function mapReady(map: MLMap | null): map is MLMap {
   if (!map) return false;
-
   try {
-    // getCanvas() throws if map is removed
     map.getCanvas();
-
-    // Some MapLibre typings expose isStyleLoaded(): boolean | void
-    // Force a strict boolean so this function can be used as a type guard.
     const loaded = (map as any).isStyleLoaded?.();
     return loaded === true;
   } catch {
     return false;
   }
+}
+
+/**
+ * Fetch a style JSON and rewrite it for the local tile server if available.
+ * Falls back to the raw style JSON if the tile server isn't running.
+ */
+async function fetchAndRewriteStyle(styleUrl: string): Promise<any> {
+  const res = await fetch(styleUrl);
+  let styleJson = await res.json();
+  if (isFullyOfflineCapable()) {
+    styleJson = rewriteStyleForLocalServer(styleJson);
+  }
+  return styleJson;
 }
 
 /* ── Component ───────────────────────────────────────────────────────── */
@@ -162,36 +170,24 @@ export function NewTripMap(props: {
   const mapRef = useRef<MLMap | null>(null);
   const initRef = useRef(false);
 
-  // Stable callback ref for onMapCenterChanged to avoid effect re-fires
   const onCenterRef = useRef(props.onMapCenterChanged);
   onCenterRef.current = props.onMapCenterChanged;
 
   const stylePath = useMemo(() => assetsApi.styleUrl(props.styleId), [props.styleId]);
-  const styleUrl = useMemo(() => toAbsoluteUrl(stylePath), [stylePath]);
+  const styleAbsUrl = useMemo(() => toAbsoluteUrl(stylePath), [stylePath]);
 
   const userLocFC = useMemo(() => userLocGeoJSON(props.userPosition), [props.userPosition]);
   const headingFC = useMemo(() => headingGeoJSON(props.userPosition), [props.userPosition]);
 
   /**
    * Full layer setup — called once on init and again on every style swap.
-   * Order matters: sources MUST exist before any layer references them.
    */
   const setupAllLayers = useCallback(async (map: MLMap) => {
     if (!mapReady(map)) return;
-
-    // 1) Data sources + layers
     ensureDataSources(map);
-
-    // 2) User location sources (MUST come before heading layer)
     ensureUserLocationSources(map);
-
-    // 3) User location paint layers
     ensureUserLocationLayers(map);
-
-    // 4) Heading arrow image
     await loadHeadingArrow(map);
-
-    // 5) Heading layer — only now that source + image both exist
     ensureHeadingLayer(map);
   }, []);
 
@@ -203,9 +199,10 @@ export function NewTripMap(props: {
     const protocol = new Protocol();
     maplibregl.addProtocol("pmtiles", protocol.tile.bind(protocol));
 
+    // Start with an empty style — we load + rewrite the real one async
     const map = new maplibregl.Map({
       container: elRef.current,
-      style: styleUrl,
+      style: { version: 8, sources: {}, layers: [] } as any,
       center: [153.026, -27.4705],
       zoom: 10,
       attributionControl: false,
@@ -222,7 +219,18 @@ export function NewTripMap(props: {
       onCenterRef.current?.({ lat: c.lat, lng: c.lng });
     });
 
-    map.on("load", async () => {
+    // Fetch, rewrite for local tile server, then set style
+    (async () => {
+      try {
+        const styleJson = await fetchAndRewriteStyle(styleAbsUrl);
+        map.setStyle(styleJson);
+      } catch (e) {
+        console.error("[NewTripMap] style load failed, falling back to URL:", e);
+        map.setStyle(styleAbsUrl);
+      }
+    })();
+
+    map.on("style.load", async () => {
       await setupAllLayers(map);
       syncAll(map, props);
       syncUserLocation(map, userLocFC, headingFC, props.userPosition);
@@ -241,7 +249,6 @@ export function NewTripMap(props: {
     const map = mapRef.current;
     if (!map) return;
 
-    // Don't set style on first render (init handles it)
     let cancelled = false;
 
     const onStyleLoad = async () => {
@@ -251,16 +258,24 @@ export function NewTripMap(props: {
       syncUserLocation(map, userLocFC, headingFC, props.userPosition);
     };
 
-    // setStyle wipes all sources/layers — onStyleLoad rebuilds them
     map.once("style.load", onStyleLoad);
-    map.setStyle(styleUrl);
+
+    // Fetch, rewrite, then set (instead of passing raw URL)
+    (async () => {
+      try {
+        const styleJson = await fetchAndRewriteStyle(styleAbsUrl);
+        if (!cancelled) map.setStyle(styleJson);
+      } catch {
+        if (!cancelled) map.setStyle(styleAbsUrl);
+      }
+    })();
 
     return () => {
       cancelled = true;
       try { map.off("style.load", onStyleLoad); } catch {}
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [styleUrl]);
+  }, [styleAbsUrl]);
 
   // ── Data syncs ────────────────────────────────────────────
   useEffect(() => {
@@ -303,10 +318,6 @@ export function NewTripMap(props: {
 
 /* ── Map setup helpers ────────────────────────────────────────────────── */
 
-/**
- * Ensure data sources (route, stops, places, traffic, hazards).
- * Each source + layer is created only if not already present.
- */
 function ensureDataSources(map: MLMap) {
   if (!map.getSource(ROUTE_SOURCE)) {
     map.addSource(ROUTE_SOURCE, { type: "geojson", data: EMPTY_FC });
@@ -377,11 +388,6 @@ function ensureDataSources(map: MLMap) {
   }
 }
 
-/**
- * Ensure user location + heading SOURCES exist.
- * Separated from layers so we can guarantee sources exist before
- * any layer references them.
- */
 function ensureUserLocationSources(map: MLMap) {
   if (!map.getSource(USER_LOC_SRC)) {
     map.addSource(USER_LOC_SRC, { type: "geojson", data: EMPTY_FC });
@@ -391,12 +397,7 @@ function ensureUserLocationSources(map: MLMap) {
   }
 }
 
-/**
- * Ensure user location paint layers (accuracy ring, outer dot, inner dot).
- * These reference USER_LOC_SRC which MUST already exist.
- */
 function ensureUserLocationLayers(map: MLMap) {
-  // Guard: source must exist
   if (!map.getSource(USER_LOC_SRC)) return;
 
   if (!map.getLayer(USER_LOC_ACCURACY)) {
@@ -433,14 +434,7 @@ function ensureUserLocationLayers(map: MLMap) {
   }
 }
 
-/**
- * Ensure heading arrow layer.
- * CRITICAL: Only add if BOTH the source AND the image exist.
- * This was the source of the error loop — layer was added before
- * its source was created.
- */
 function ensureHeadingLayer(map: MLMap) {
-  // Both prerequisites must exist
   if (!map.getSource(USER_LOC_HEADING_SRC)) return;
   if (!map.hasImage(HEADING_ARROW_ID)) return;
   if (map.getLayer(USER_LOC_HEADING)) return;
@@ -459,7 +453,6 @@ function ensureHeadingLayer(map: MLMap) {
       paint: { "icon-opacity": 0.9 },
     });
   } catch (e) {
-    // Swallow — race condition on style swap is harmless
     console.warn("[NewTripMap] ensureHeadingLayer failed (harmless):", e);
   }
 }
@@ -550,7 +543,6 @@ function syncPlaces(map: MLMap, pack: PlacesPack | null) {
     return;
   }
 
-  // Cap features to prevent map from choking on 8000+ points during dev
   const MAX_MAP_FEATURES = 2000;
   const capped = items.length > MAX_MAP_FEATURES ? items.slice(0, MAX_MAP_FEATURES) : items;
 

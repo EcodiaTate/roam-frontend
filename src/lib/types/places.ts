@@ -1,44 +1,31 @@
 // src/lib/types/places.ts
 import type { BBox4, NavCoord } from "./geo";
+// ──────────────────────────────────────────────────────────────
+// PlaceCategory — replace the existing PlaceCategory type in
+// src/lib/types/places.ts with this one.
+// Must match backend contracts.py exactly.
+// ──────────────────────────────────────────────────────────────
 
 export type PlaceCategory =
-  | "fuel"
-  | "camp"
-  | "water"
-  | "toilet"
-  | "town"
-  | "grocery"
-  | "mechanic"
-  | "hospital"
-  | "pharmacy"
-  | "viewpoint"
-  | "cafe"
-  | "restaurant"
-  | "fast_food"
-  | "pub"
-  | "bar"
-  | "hotel"
-  | "motel"
-  | "hostel"
-  | "attraction"
-  | "park"
-  | "beach"
+  // Essentials & safety
+  | "fuel" | "ev_charging" | "rest_area" | "toilet" | "water"
+  | "dump_point" | "mechanic" | "hospital" | "pharmacy"
+  // Supplies
+  | "grocery" | "town" | "atm" | "laundromat"
+  // Food & drink
+  | "bakery" | "cafe" | "restaurant" | "fast_food" | "pub" | "bar"
+  // Accommodation
+  | "camp" | "hotel" | "motel" | "hostel"
   // Nature & outdoors
-  | "waterfall"
-  | "swimming_hole"
-  | "national_park"
-  | "picnic"
-  | "hiking"
-  // Sightseeing
-  | "museum"
-  | "gallery"
-  | "zoo"
-  | "theme_park"
-  | "heritage"
-  // Mapbox geocoding categories
-  | "address"
-  | "place"
-  | "region";
+  | "viewpoint" | "waterfall" | "swimming_hole" | "beach"
+  | "national_park" | "hiking" | "picnic" | "hot_spring"
+  // Family & recreation
+  | "playground" | "pool" | "zoo" | "theme_park"
+  // Culture & sightseeing
+  | "visitor_info" | "museum" | "gallery" | "heritage"
+  | "winery" | "brewery" | "attraction" | "market" | "park"
+  // Geocoding (Mapbox)
+  | "address" | "place" | "region";
 
 export type PlacesRequest = {
   bbox?: BBox4 | null;

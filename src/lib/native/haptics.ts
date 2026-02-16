@@ -3,20 +3,6 @@
 
 import { isNative, hasPlugin } from "./platform";
 
-/**
- * Named haptic presets for consistent feedback across the app.
- *
- * Back-compat:
- * - Older code used `haptics.light()/medium()/heavy()/success()/error()/selection()`.
- * - Newer code uses `haptic.tap()/medium()/heavy()/success()/warning()/error()/selection()`.
- *
- * This file exports BOTH:
- *   - `haptic` (preferred)
- *   - `haptics` (legacy alias + legacy method names)
- *
- * Web fallback:
- * - If not native (or plugin missing), we fall back to `navigator.vibrate` where available.
- */
 type VibratePattern = number | number[];
 
 function vibrate(pattern: VibratePattern) {
@@ -72,7 +58,6 @@ async function selectionTick(fallback: VibratePattern) {
   }
   try {
     const { Haptics } = await import("@capacitor/haptics");
-    // Prefer the simplest reliable call; selectionStart/End are optional niceties.
     await Haptics.selectionChanged();
   } catch {
     vibrate(fallback);
@@ -81,10 +66,16 @@ async function selectionTick(fallback: VibratePattern) {
 
 /**
  * Preferred modern API
+ * (plus a couple of legacy aliases so old callsites don't crash)
  */
 export const haptic = {
   /** Light tap — tab press, list item selection, button confirm */
   async tap() {
+    await impact("Light", 10);
+  },
+
+  /** ✅ legacy alias: some older callsites use haptic.light() */
+  async light() {
     await impact("Light", 10);
   },
 
@@ -105,7 +96,11 @@ export const haptic = {
 
   /** Warning — hazard nearby, entering dead zone */
   async warning() {
-    // Web has no "warning" haptic; this pattern is a gentle distinct buzz.
+    await notify("Warning", [15, 30, 15]);
+  },
+
+  /** ✅ legacy-ish alias some codebases use */
+  async warn() {
     await notify("Warning", [15, 30, 15]);
   },
 
@@ -122,7 +117,6 @@ export const haptic = {
 
 /**
  * Legacy API (backwards compatible with older code)
- * Keeps existing callsites working with zero refactors.
  */
 export const haptics = {
   light: haptic.tap,

@@ -1,0 +1,472 @@
+/* src/components/trip/TripView.module.css
+   ═══════════════════════════════════════════════════════════════
+   All colors reference globals.css tokens.
+   Stop type colors use the Roam outback palette:
+     start  → eucalypt  (green = go, departure)
+     end    → ochre     (red earth = destination, arrival)
+     via    → amber     (golden hour = waypoint, intentional)
+     poi    → sky       (outback sky = discovery, exploration)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Root container ──────────────────────────────────────────── */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── Route summary card ──────────────────────────────────────── */
+
+.summaryCard {
+  padding: 14px 16px;
+  background: var(--roam-surface-hover);
+  border-radius: 16px;
+  box-shadow: var(--shadow-soft);
+}
+
+.summaryRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.summaryLabel {
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--roam-text);
+}
+
+.summaryStats {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--roam-text-muted);
+}
+
+.dirtyBanner {
+  margin-top: 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--bg-warn);
+  font-size: 11px;
+  font-weight: 900;
+  color: var(--text-warn);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── Error box ───────────────────────────────────────────────── */
+
+.errorBox {
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--bg-error);
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text-error);
+}
+
+/* ── Section tab bar ─────────────────────────────────────────── */
+
+.tabBar {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tab {
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: none;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  white-space: nowrap;
+  background: var(--roam-surface-hover);
+  color: var(--roam-text-muted);
+  box-shadow: none;
+  transition: background 120ms ease, color 120ms ease, box-shadow 120ms ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.tab:active {
+  transform: scale(0.96);
+}
+
+.tabActive {
+  background: var(--roam-accent);
+  color: var(--on-color);
+  box-shadow: var(--shadow-medium);
+}
+
+.tabBadge {
+  font-size: 10px;
+  font-weight: 900;
+  background: var(--roam-surface-hover);
+  color: var(--roam-text-muted);
+  padding: 2px 7px;
+  border-radius: 6px;
+  min-width: 18px;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.tabActive .tabBadge {
+  background: rgba(255, 255, 255, 0.22);
+  color: var(--on-color);
+}
+
+/* ── Stop list ───────────────────────────────────────────────── */
+
+.stopList {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ── Individual stop entry (card + connector) ────────────────── */
+
+.stopEntry {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Stop card ───────────────────────────────────────────────── */
+
+.stopCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 13px;
+  border-radius: 16px;
+  cursor: pointer;
+  background: var(--roam-surface);
+  box-shadow: var(--shadow-soft);
+  border: none;
+  outline: 2.5px solid transparent;
+  outline-offset: -2.5px;
+  transition: box-shadow 150ms ease, outline-color 150ms ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.stopCard:active {
+  transform: scale(0.98);
+  transition: transform 60ms ease;
+}
+
+.stopCardFocused {
+  box-shadow: var(--shadow-medium);
+}
+
+/* Focus ring color per stop type — set via data attribute */
+.stopCard[data-stop-type="start"].stopCardFocused { outline-color: var(--brand-eucalypt); }
+.stopCard[data-stop-type="end"].stopCardFocused    { outline-color: var(--brand-ochre); }
+.stopCard[data-stop-type="via"].stopCardFocused    { outline-color: var(--brand-amber); }
+.stopCard[data-stop-type="poi"].stopCardFocused    { outline-color: var(--brand-sky); }
+
+/* ── Stop marker (icon circle) ───────────────────────────────── */
+
+.stopMarker {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  position: relative;
+  color: var(--on-color);
+}
+
+/* Marker colors per type */
+.stopMarker[data-type="start"] { background: var(--brand-eucalypt); box-shadow: 0 2px 8px rgba(51, 120, 74, 0.30); }
+.stopMarker[data-type="end"]   { background: var(--brand-ochre);    box-shadow: 0 2px 8px rgba(191, 74, 48, 0.30); }
+.stopMarker[data-type="via"]   { background: var(--brand-amber);    box-shadow: 0 2px 8px rgba(184, 135, 42, 0.30); }
+.stopMarker[data-type="poi"]   { background: var(--brand-sky);      box-shadow: 0 2px 8px rgba(44, 124, 181, 0.25); }
+
+/* ── Index badge (small number in corner) ────────────────────── */
+
+.indexBadge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 17px;
+  height: 17px;
+  border-radius: 999px;
+  background: var(--roam-surface);
+  display: grid;
+  place-items: center;
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.indexBadge[data-type="start"] { border: 2px solid var(--brand-eucalypt); color: var(--brand-eucalypt); }
+.indexBadge[data-type="end"]   { border: 2px solid var(--brand-ochre);    color: var(--brand-ochre); }
+.indexBadge[data-type="via"]   { border: 2px solid var(--brand-amber);    color: var(--brand-amber); }
+.indexBadge[data-type="poi"]   { border: 2px solid var(--brand-sky);      color: var(--brand-sky); }
+
+/* ── Stop content (name + meta) ──────────────────────────────── */
+
+.stopContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.stopName {
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--roam-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.1px;
+}
+
+.stopMeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.stopCoords {
+  font-size: 11px;
+  color: var(--roam-text-muted);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.stopTypeBadge {
+  font-size: 9px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.stopTypeBadge[data-type="start"] { color: var(--brand-eucalypt); background: var(--accent-tint); }
+.stopTypeBadge[data-type="end"]   { color: var(--brand-ochre);    background: var(--danger-tint); }
+.stopTypeBadge[data-type="via"]   { color: var(--brand-amber);    background: var(--bg-warn); }
+.stopTypeBadge[data-type="poi"]   { color: var(--brand-sky);      background: var(--info-tint); }
+
+/* ── Stop edit controls ──────────────────────────────────────── */
+
+.stopControls {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.controlBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  border: none;
+  background: var(--roam-surface-hover);
+  color: var(--roam-text-muted);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  box-shadow: var(--shadow-button);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: transform 80ms ease, box-shadow 80ms ease;
+}
+
+.controlBtn:active:not(:disabled) {
+  box-shadow: none;
+  transform: translateY(3px) scale(0.95);
+}
+
+.controlBtn:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.controlBtnDanger {
+  background: var(--danger-tint);
+  color: var(--brand-ochre);
+}
+
+/* ── Connector line between stops ────────────────────────────── */
+
+.connector {
+  display: flex;
+  justify-content: flex-start;
+  padding-left: 29px;
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+
+.connectorLine {
+  width: 2px;
+  height: 10px;
+  background: var(--roam-border-strong);
+  border-radius: 2px;
+}
+
+/* ── Add stop button ─────────────────────────────────────────── */
+
+.addStopBtn {
+  margin-top: 8px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 2px dashed var(--roam-border-strong);
+  background: transparent;
+  color: var(--roam-text-muted);
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 120ms ease, color 120ms ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.addStopBtn:active:not(:disabled) {
+  border-color: var(--roam-accent);
+  color: var(--roam-accent);
+  transform: scale(0.97);
+}
+
+.addStopBtn:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* ── Save / Reset footer ─────────────────────────────────────── */
+
+.footer {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.resetBtn {
+  flex: 1;
+  padding: 12px 0;
+  border-radius: 14px;
+  border: 1px solid var(--roam-border-strong);
+  background: transparent;
+  color: var(--roam-text-muted);
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: transform 80ms ease;
+}
+
+.resetBtn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.resetBtn:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.saveBtn {
+  flex: 2;
+  padding: 12px 0;
+  border-radius: 14px;
+  border: none;
+  background: var(--roam-accent);
+  color: var(--on-color);
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: var(--shadow-button);
+  transition: transform 80ms ease, box-shadow 80ms ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.saveBtn:active:not(:disabled) {
+  box-shadow: none;
+  transform: translateY(3px) scale(0.98);
+}
+
+.saveBtnDisabled {
+  background: var(--roam-surface-hover);
+  color: var(--roam-text-muted);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.saveBtnDisabled:active {
+  transform: none;
+}
+
+/* ── Empty places state ──────────────────────────────────────── */
+
+.emptyPlaces {
+  padding: 24px 14px;
+  border-radius: 16px;
+  background: var(--roam-surface-hover);
+  text-align: center;
+}
+
+.emptyPlacesIcon {
+  margin-bottom: 10px;
+  display: grid;
+  place-items: center;
+  color: var(--roam-text-muted);
+}
+
+.emptyPlacesTitle {
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--roam-text);
+}
+
+.emptyPlacesSub {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--roam-text-muted);
+  margin-top: 4px;
+}
+
+/* ── No-route fallback ───────────────────────────────────────── */
+
+.noRoute {
+  color: var(--roam-text-muted);
+  font-weight: 700;
+  font-size: 14px;
+  padding: 20px 0;
+}
+
+/* ── Places section wrapper ──────────────────────────────────── */
+
+.placesSection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ── Spinning loader ─────────────────────────────────────────── */
+
+.spinner {
+  animation: roam-spin 0.6s linear infinite;
+}

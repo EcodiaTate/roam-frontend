@@ -1,16 +1,25 @@
 // src/lib/api/assets.ts
+//
+// Roam Asset API (Hybrid — local tile server preferred, Supabase fallback)
+//
+// Invariants:
+// - Styles are shipped inside the app bundle (static export): /public/offline/styles/*
+// - PMTiles served from LOCAL tile server if basemap is installed (offline-first)
+// - PMTiles fall back to Supabase Storage (public bucket) when tile server is not running
+// - Glyphs: local tile server when running, CDN fallback
+//
+// The local tile server (RoamTileServer native plugin) serves files from device
+// storage with proper Range/206 support for PMTiles streaming.
 
-/**
- * Roam Asset API (Hybrid)
- *
- * Invariant:
- * - Styles are shipped inside the app bundle (static export): /public/offline/styles/*
- * - PMTiles are served from Supabase Storage (public bucket): /storage/v1/object/public/...
- *
- * This matches:
- * - Static export + Capacitor (no Next server)
- * - Remote tiles w/ Range requests (PMTiles streaming)
- */
+import {
+  getTileServerUrl,
+  isFullyOfflineCapable,
+  getPmtilesUrl,
+  getGlyphsUrl,
+  getSpriteUrl,
+} from "@/lib/offline/basemapManager";
+
+/* ── Internals ────────────────────────────────────────────────────────── */
 
 function safeId(id: string): string {
   return encodeURIComponent(id);
@@ -30,7 +39,6 @@ function bucket(): string {
 }
 
 function tilesPrefix(): string {
-  // Optional folder prefix in the bucket, e.g. "tiles" or "pmtiles"
   return trimSlashes(process.env.NEXT_PUBLIC_SUPABASE_TILES_PREFIX || "tiles");
 }
 
@@ -44,40 +52,90 @@ function joinPath(...parts: string[]) {
 
 function supaPublicObjectUrl(pathInBucket: string): string {
   const base = supaBaseUrl();
-  if (!base) {
-    // Fallback so dev doesn't hard-crash if env is missing.
-    // (But PMTiles obviously won't load without a real URL.)
-    return `/${trimSlashes(pathInBucket)}`;
-  }
+  if (!base) return `/${trimSlashes(pathInBucket)}`;
   const b = bucket();
   const p = trimSlashes(pathInBucket);
-  // Keep bucket name unencoded; encode path segments via safeId() where needed.
   return `${base}/storage/v1/object/public/${b}/${p}`;
 }
 
+/* ── Public API ──────────────────────────────────────────────────────── */
+
 export const assetsApi = {
   /**
-   * PMTiles URL (Supabase public)
+   * PMTiles URL — prefers local tile server, falls back to Supabase.
    *
-   * Example:
-   *   tileUrl("australia")
-   *   -> https://xxx.supabase.co/storage/v1/object/public/tiles/tiles/australia.pmtiles
-   *   (depending on your TILES_PREFIX)
+   * When tile server is running:
+   *   → pmtiles://http://127.0.0.1:8765/tiles/australia.pmtiles
+   *
+   * When tile server is NOT running (online mode):
+   *   → pmtiles://https://xxx.supabase.co/storage/v1/object/public/tiles/tiles/australia.pmtiles
    */
-  tileUrl(tileId: string) {
+  tileUrl(tileId: string = "australia"): string {
+    const serverUrl = getTileServerUrl();
+    if (serverUrl) {
+      return `pmtiles://${serverUrl}/tiles/${safeId(tileId)}.pmtiles`;
+    }
+    // Fallback: Supabase remote
+    const file = `${safeId(tileId)}.pmtiles`;
+    const p = joinPath(tilesPrefix(), file);
+    return `pmtiles://${supaPublicObjectUrl(p)}`;
+  },
+
+  /**
+   * Raw tile URL without pmtiles:// prefix.
+   * Used when constructing source objects directly.
+   */
+  tileUrlRaw(tileId: string = "australia"): string {
+    const serverUrl = getTileServerUrl();
+    if (serverUrl) {
+      return `${serverUrl}/tiles/${safeId(tileId)}.pmtiles`;
+    }
     const file = `${safeId(tileId)}.pmtiles`;
     const p = joinPath(tilesPrefix(), file);
     return supaPublicObjectUrl(p);
   },
 
   /**
-   * Style JSON URL (bundled, same-origin)
+   * Style JSON URL (always bundled, same-origin).
    *
    * Example:
-   *   styleUrl("roam-basemap-hybrid")
-   *   -> /offline/styles/roam-basemap-hybrid.style.json
+   *   styleUrl("roam-basemap-vector-bright")
+   *   → /offline/styles/roam-basemap-vector-bright.style.json
    */
-  styleUrl(styleId: string) {
+  styleUrl(styleId: string): string {
     return `/offline/styles/${safeId(styleId)}.style.json`;
+  },
+
+  /**
+   * Glyphs URL template — local tile server when available, CDN fallback.
+   *
+   * When local:  http://127.0.0.1:8765/glyphs/{fontstack}/{range}.pbf
+   * When remote: https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf
+   */
+  glyphsUrl(): string {
+    return getGlyphsUrl();
+  },
+
+  /**
+   * Sprite URL — local tile server when available, undefined if none.
+   * Returns the URL without file extension (MapLibre adds .json / .png).
+   */
+  spriteUrl(): string | undefined {
+    return getSpriteUrl();
+  },
+
+  /**
+   * Whether the local tile server is running and basemap is installed.
+   * Use this to decide whether to show "offline ready" UI.
+   */
+  isLocalTileServerActive(): boolean {
+    return isFullyOfflineCapable();
+  },
+
+  /**
+   * Get the local tile server base URL, or null.
+   */
+  localServerUrl(): string | null {
+    return getTileServerUrl();
   },
 };

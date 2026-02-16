@@ -8,6 +8,7 @@ import { BottomTabBar } from "@/components/ui/BottomTabBar";
 import { AuthProvider } from "@/lib/supabase/auth";
 import { SyncBootstrap } from "@/components/auth/SyncBootstrap";
 import { NativeBootstrap } from "@/components/native/NativeBootstrap";
+import { BasemapBootstrap } from "@/components/native/BasemapBootstrap";
 
 const outbackFont = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -67,6 +68,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AuthProvider>
           <NativeBootstrap />
           <SyncBootstrap />
+          <BasemapBootstrap />
 
           <div className="roam-shell">
             <main className="roam-main">{children}</main>

@@ -1,29 +1,30 @@
 {
   "version": 8,
+  "name": "Roam Outback Dark",
   "glyphs": "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
   "sources": {
     "basemap": {
       "type": "vector",
-"url": "pmtiles://https://vzauarlfmkjfkcphojbd.supabase.co/storage/v1/object/public/tiles/australia.pmtiles",
+      "url": "pmtiles://https://vzauarlfmkjfkcphojbd.supabase.co/storage/v1/object/public/tiles/australia.pmtiles",
       "attribution": "© OpenStreetMap contributors"
     }
   },
   "layers": [
-    { "id": "bg", "type": "background", "paint": { "background-color": "#0b1418" } },
+    { "id": "bg", "type": "background", "paint": { "background-color": "#071012" } },
 
     {
       "id": "ocean",
       "type": "fill",
       "source": "basemap",
       "source-layer": "ocean",
-      "paint": { "fill-color": "#071f2a", "fill-opacity": 1 }
+      "paint": { "fill-color": "#06232a", "fill-opacity": 1 }
     },
     {
       "id": "water-polygons",
       "type": "fill",
       "source": "basemap",
       "source-layer": "water_polygons",
-      "paint": { "fill-color": "#0a2a3a", "fill-opacity": 1 }
+      "paint": { "fill-color": "#07363c", "fill-opacity": 1 }
     },
     {
       "id": "water-lines",
@@ -31,9 +32,9 @@
       "source": "basemap",
       "source-layer": "water_lines",
       "paint": {
-        "line-color": "#4aa7b5",
-        "line-opacity": 0.55,
-        "line-width": ["interpolate", ["linear"], ["zoom"], 4, 0.6, 10, 1.4, 14, 2.2]
+        "line-color": "#56c0bf",
+        "line-opacity": ["interpolate", ["linear"], ["zoom"], 4, 0.25, 10, 0.42, 14, 0.62],
+        "line-width": ["interpolate", ["linear"], ["zoom"], 4, 0.6, 10, 1.5, 14, 2.7]
       }
     },
 
@@ -42,7 +43,67 @@
       "type": "fill",
       "source": "basemap",
       "source-layer": "land",
-      "paint": { "fill-color": "#101b16", "fill-opacity": 1 }
+      "paint": { "fill-color": "#0c1712", "fill-opacity": 1 }
+    },
+
+    {
+      "id": "landuse-variety",
+      "type": "fill",
+      "source": "basemap",
+      "source-layer": "landuse",
+      "paint": {
+        "fill-color": [
+          "match",
+          ["coalesce", ["get", "class"], ["get", "type"], ["get", "subclass"], ""],
+          "park", "#12241c",
+          "grass", "#13281f",
+          "meadow", "#142b21",
+          "forest", "#0e2218",
+          "wood", "#0d2017",
+          "scrub", "#14261b",
+          "heath", "#16281c",
+          "farmland", "#1a241a",
+          "farm", "#1a241a",
+          "beach", "#171312",
+          "sand", "#171312",
+          "dune", "#1a1411",
+          "desert", "#1c1511",
+          "#0c1712"
+        ],
+        "fill-opacity": 0.88
+      }
+    },
+
+    {
+      "id": "landcover",
+      "type": "fill",
+      "source": "basemap",
+      "source-layer": "landcover",
+      "paint": {
+        "fill-color": [
+          "match",
+          ["coalesce", ["get", "class"], ["get", "type"], ""],
+          "grass", "#152a20",
+          "forest", "#0f2419",
+          "wood", "#0e2218",
+          "scrub", "#17291d",
+          "wetland", "#0d2a2a",
+          "#0c1712"
+        ],
+        "fill-opacity": 0.42
+      }
+    },
+
+    {
+      "id": "admin-outline",
+      "type": "line",
+      "source": "basemap",
+      "source-layer": "admin",
+      "paint": {
+        "line-color": "rgba(120, 140, 150, 0.16)",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 3, 0.35, 6, 0.8, 10, 1.2],
+        "line-dasharray": [2, 2]
+      }
     },
 
     {
@@ -51,7 +112,7 @@
       "source": "basemap",
       "source-layer": "buildings",
       "minzoom": 14,
-      "paint": { "fill-color": "#16231d", "fill-opacity": 0.55 }
+      "paint": { "fill-color": "#13211c", "fill-opacity": 0.58 }
     },
 
     {
@@ -60,9 +121,9 @@
       "source": "basemap",
       "source-layer": "streets",
       "paint": {
-        "line-color": "#020406",
-        "line-opacity": ["interpolate", ["linear"], ["zoom"], 8, 0.22, 12, 0.26, 14, 0.32],
-        "line-width": ["interpolate", ["linear"], ["zoom"], 8, 1.6, 12, 4.6, 14, 7.2]
+        "line-color": "rgba(0, 0, 0, 0.55)",
+        "line-opacity": ["interpolate", ["linear"], ["zoom"], 8, 0.22, 12, 0.28, 14, 0.34],
+        "line-width": ["interpolate", ["linear"], ["zoom"], 8, 2.0, 12, 5.8, 14, 9.2]
       }
     },
     {
@@ -71,9 +132,9 @@
       "source": "basemap",
       "source-layer": "streets",
       "paint": {
-        "line-color": "#c4ced6",
-        "line-opacity": ["interpolate", ["linear"], ["zoom"], 8, 0.18, 12, 0.22, 14, 0.28],
-        "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.9, 12, 2.6, 14, 4.4]
+        "line-color": "#e6dfd2",
+        "line-opacity": ["interpolate", ["linear"], ["zoom"], 8, 0.16, 12, 0.22, 14, 0.28],
+        "line-width": ["interpolate", ["linear"], ["zoom"], 8, 1.1, 12, 3.2, 14, 5.6]
       }
     },
 
@@ -83,8 +144,8 @@
       "source": "basemap",
       "source-layer": "ferries",
       "paint": {
-        "line-color": "#7fc1cf",
-        "line-opacity": 0.35,
+        "line-color": "#79d0cc",
+        "line-opacity": 0.22,
         "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.6, 12, 1.2, 14, 2.0],
         "line-dasharray": [2, 2]
       }
@@ -102,10 +163,10 @@
         "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"]
       },
       "paint": {
-        "text-color": "rgba(236, 226, 206, 0.60)",
-        "text-halo-color": "rgba(2, 4, 6, 0.35)",
-        "text-halo-width": 0.9,
-        "text-halo-blur": 0.8
+        "text-color": "rgba(236, 226, 206, 0.70)",
+        "text-halo-color": "rgba(2, 4, 6, 0.55)",
+        "text-halo-width": 1.0,
+        "text-halo-blur": 0.95
       }
     },
 
@@ -122,10 +183,10 @@
         "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"]
       },
       "paint": {
-        "text-color": "rgba(236, 226, 206, 0.42)",
-        "text-halo-color": "rgba(2, 4, 6, 0.30)",
-        "text-halo-width": 0.7,
-        "text-halo-blur": 0.9
+        "text-color": "rgba(236, 226, 206, 0.50)",
+        "text-halo-color": "rgba(2, 4, 6, 0.48)",
+        "text-halo-width": 0.85,
+        "text-halo-blur": 0.95
       }
     }
   ]

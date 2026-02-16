@@ -5,7 +5,13 @@ import { useMemo, useRef, useState, useEffect } from "react";
 import type { PlacesPack, PlaceItem, PlaceCategory } from "@/lib/types/places";
 import type { MouseEvent, SyntheticEvent } from "react";
 
-import type { GuidePack, DiscoveredPlace, TripProgress } from "@/lib/types/guide";
+import type {
+  GuidePack,
+  DiscoveredPlace,
+  TripProgress,
+  GuideAction,
+  GuideMsg,
+} from "@/lib/types/guide";
 import { haptic } from "@/lib/native/haptics";
 
 import type { LucideIcon } from "lucide-react";
@@ -31,38 +37,92 @@ import {
   Bed,
   Phone,
   Link2,
-  Map as MapIcon,
+  ParkingMeter,
   Target,
   Camera,
-  ParkingMeter,
+  Zap,
+  Wine,
+  Beer,
+  Info,
+  Mountain,
+  Landmark,
+  Baby,
+  Trash2,
+  Banknote,
+  Shirt,
+  Thermometer,
+  Star,
+  Store,
+  Globe,
+  Compass,
+  ExternalLink,
 } from "lucide-react";
 
 // ──────────────────────────────────────────────────────────────
-// Constants
+// Constants — category chips + icon map
 // ──────────────────────────────────────────────────────────────
 
 type ChipKey = PlaceCategory | "all";
 type Chip = { key: ChipKey; label: string; Icon: LucideIcon };
 
+/**
+ * Chips in priority order for the horizontal scroll bar.
+ * First ~8 are visible without scrolling on most phones.
+ * Organised: safety → food → sleep → nature → family → culture → supplies
+ */
 const CHIPS: Chip[] = [
   { key: "all", label: "All", Icon: Layers },
+  // Safety & essentials
   { key: "fuel", label: "Fuel", Icon: Fuel },
-  { key: "camp", label: "Camp", Icon: Tent },
+  { key: "ev_charging", label: "EV", Icon: Zap },
+  { key: "rest_area", label: "Rest", Icon: ParkingMeter },
   { key: "toilet", label: "Toilets", Icon: Bath },
   { key: "water", label: "Water", Icon: Droplets },
+  // Food & drink
+  { key: "bakery", label: "Bakery", Icon: Star },
+  { key: "cafe", label: "Café", Icon: Coffee },
+  { key: "restaurant", label: "Food", Icon: Utensils },
+  { key: "fast_food", label: "Takeaway", Icon: Utensils },
+  { key: "pub", label: "Pub", Icon: Beer },
+  // Accommodation
+  { key: "camp", label: "Camp", Icon: Tent },
+  { key: "motel", label: "Motel", Icon: Bed },
+  { key: "hotel", label: "Hotel", Icon: Bed },
+  // Nature & outdoors
+  { key: "viewpoint", label: "Views", Icon: Eye },
+  { key: "beach", label: "Beach", Icon: Waves },
+  { key: "swimming_hole", label: "Swim", Icon: Waves },
+  { key: "waterfall", label: "Waterfall", Icon: Droplets },
+  { key: "national_park", label: "Parks", Icon: TreePine },
+  { key: "hiking", label: "Hiking", Icon: Mountain },
+  { key: "picnic", label: "Picnic", Icon: TreePine },
+  { key: "hot_spring", label: "Hot Spring", Icon: Thermometer },
+  // Family & recreation
+  { key: "playground", label: "Kids", Icon: Baby },
+  { key: "pool", label: "Pool", Icon: Waves },
+  { key: "zoo", label: "Zoo", Icon: Compass },
+  { key: "theme_park", label: "Theme Park", Icon: Star },
+  // Culture & sightseeing
+  { key: "winery", label: "Wine", Icon: Wine },
+  { key: "brewery", label: "Brew", Icon: Beer },
+  { key: "visitor_info", label: "Info", Icon: Info },
+  { key: "museum", label: "Museum", Icon: Landmark },
+  { key: "gallery", label: "Gallery", Icon: Landmark },
+  { key: "heritage", label: "Heritage", Icon: Landmark },
+  { key: "attraction", label: "Sights", Icon: Camera },
+  { key: "market", label: "Market", Icon: Store },
+  // Supplies
+  { key: "grocery", label: "Grocery", Icon: ShoppingCart },
   { key: "town", label: "Towns", Icon: Building2 },
-  { key: "grocery", label: "Groceries", Icon: ShoppingCart },
+  { key: "atm", label: "ATM", Icon: Banknote },
+  { key: "laundromat", label: "Laundry", Icon: Shirt },
+  { key: "dump_point", label: "Dump", Icon: Trash2 },
   { key: "mechanic", label: "Mechanic", Icon: Wrench },
   { key: "hospital", label: "Hospital", Icon: Hospital },
   { key: "pharmacy", label: "Pharmacy", Icon: Pill },
-  { key: "cafe", label: "Cafes", Icon: Coffee },
-  { key: "restaurant", label: "Food", Icon: Utensils },
-  { key: "park", label: "Parks", Icon: TreePine },
-  { key: "viewpoint", label: "Views", Icon: Eye },
-  { key: "beach", label: "Beaches", Icon: Waves },
-  { key: "hotel", label: "Stay", Icon: Bed },
 ];
 
+/** Fast lookup: category → icon component */
 const CATEGORY_ICON: Record<string, LucideIcon> = {};
 for (const c of CHIPS) CATEGORY_ICON[c.key] = c.Icon;
 
@@ -82,18 +142,9 @@ function fmtCategory(c?: string) {
   return (c ?? "").replace(/_/g, " ");
 }
 
-function buildAddress(tags: Record<string, any>) {
-  const hn = tags["addr:housenumber"];
-  const st = tags["addr:street"];
-  const suburb = tags["addr:suburb"] || tags["addr:city"] || tags["addr:town"];
-  const pc = tags["addr:postcode"];
-  const parts = [hn && st ? `${hn} ${st}` : st, suburb, pc].filter(Boolean);
-  return parts.length ? parts.join(", ") : null;
-}
-
 function fmtDist(km?: number | null) {
   if (km == null) return null;
-  if (km < 1) return `${Math.round(km * 1000)}m`;
+  if (km < 1) return `${Math.round(km * 1000)} m`;
   return `${km.toFixed(1)} km`;
 }
 
@@ -108,160 +159,124 @@ function normalizeUrl(raw: string) {
   if (!s) return null;
   if (/^https?:\/\//i.test(s)) return s;
   if (/^www\./i.test(s)) return `https://${s}`;
-  // If it's a naked domain like example.com
   if (/^[a-z0-9.-]+\.[a-z]{2,}(\/|$)/i.test(s)) return `https://${s}`;
   return null;
 }
 
+function normalizeUrlKey(normUrl: string) {
+  try {
+    const u = new URL(normUrl);
+    const host = (u.host || "").toLowerCase().replace(/^www\./, "");
+    const path = (u.pathname || "/").replace(/\/+$/, "") || "/";
+    return `${host}${path}`;
+  } catch {
+    return normUrl
+      .toLowerCase()
+      .replace(/^https?:\/\//, "")
+      .replace(/^www\./, "")
+      .replace(/\/+$/, "");
+  }
+}
+
 function cleanPhone(raw: string) {
-  // Keep + and digits, strip others
   const trimmed = raw.trim();
   const keepPlus = trimmed.startsWith("+");
   const digits = trimmed.replace(/[^\d]/g, "");
-  // Heuristic: avoid short junk; allow typical phone lengths
   if (digits.length < 8 || digits.length > 15) return null;
   return (keepPlus ? "+" : "") + digits;
 }
 
-type MessageAction =
-  | { type: "web"; url: string; label: string }
-  | { type: "call"; tel: string; label: string };
-  function extractActions(text: string): MessageAction[] {
-    if (!text) return [];
-  
-    const actions: MessageAction[] = [];
-  
-    // Keep ordering stable and dedupe hard (url host+path, phone digits)
-    const seenWeb = new Set<string>();
-    const seenTel = new Set<string>();
-  
-    const lines = text.split(/\r?\n/);
-  
-    // "Current" context name (updated as we scan down)
-    let currentName: string | null = null;
-  
-    const cleanName = (s: string | null | undefined) => {
-      const t = (s ?? "").trim();
-      if (!t) return null;
-      // strip bullets/emoji/prefixes
-      const u = t.replace(/^[-*•\s]+/, "").trim();
-      // avoid obvious non-names
-      if (!u) return null;
-      if (u.length > 60) return u.slice(0, 60).trim();
-      return u;
-    };
-  
-    const nameFromBoldOrHeading = (line: string) => {
-      // **Name**
-      const b = line.match(/\*\*(.+?)\*\*/);
-      if (b?.[1]) return cleanName(b[1]);
-      // # Name
-      const h = line.match(/^\s*#{1,3}\s+(.+)\s*$/);
-      if (h?.[1]) return cleanName(h[1]);
-      return null;
-    };
-  
-    const nameFromPrefixBeforeMatch = (line: string, matchIndex: number) => {
-      // Take prefix before the url/phone and try to interpret it as "Name: ..." or "Name — ..."
-      const prefix = line.slice(0, matchIndex).trim();
-      if (!prefix) return null;
-  
-      // Common separators
-      const parts = prefix.split(/—|–|-|:|\|/).map((p) => p.trim()).filter(Boolean);
-      if (!parts.length) return null;
-  
-      // Often the name is the last "chunk" before the separator
-      return cleanName(parts[parts.length - 1]);
-    };
-  
-    // Regexes
-    const urlRegex = /(https?:\/\/[^\s)>\]]+|www\.[^\s)>\]]+|[a-z0-9.-]+\.[a-z]{2,}(\/[^\s)>\]]*)?)/gi;
-    const phoneRegex = /(\+?\d[\d\s().-]{6,}\d)/g;
-  
-    for (const rawLine of lines) {
-      const line = rawLine.trim();
-      if (!line) continue;
-  
-      // Update currentName if this line looks like a "header/name line"
-      const headerName = nameFromBoldOrHeading(line);
-      if (headerName) currentName = headerName;
-  
-      // --- URLs in this line ---
-      {
-        const matches = Array.from(line.matchAll(urlRegex));
-        for (const m of matches) {
-          const rawUrl = m[0];
-          const idx = m.index ?? 0;
-  
-          const norm = normalizeUrl(rawUrl);
-          if (!norm) continue;
-  
-          let key = norm;
-          try {
-            const u = new URL(norm);
-            key = `${u.host}${u.pathname}`;
-          } catch {}
-  
-          if (seenWeb.has(key)) continue;
-          seenWeb.add(key);
-  
-          const localName = nameFromPrefixBeforeMatch(line, idx) ?? currentName;
-  
-          let finalUrl = norm;
-          // normalizeUrl already ensures scheme, but just in case:
-          if (!/^https?:\/\//i.test(finalUrl)) finalUrl = `https://${finalUrl}`;
-  
-          actions.push({
-            type: "web",
-            url: finalUrl,
-            label: localName ? `Website · ${localName}` : "Website",
-          });
-        }
-      }
-  
-      // --- Phones in this line ---
-      {
-        const matches = Array.from(line.matchAll(phoneRegex));
-        for (const m of matches) {
-          const rawPhone = m[0];
-          const idx = m.index ?? 0;
-  
-          const tel = cleanPhone(rawPhone);
-          if (!tel) continue;
-  
-          const telKey = tel.replace(/[^\d+]/g, "");
-          if (seenTel.has(telKey)) continue;
-          seenTel.add(telKey);
-  
-          const localName = nameFromPrefixBeforeMatch(line, idx) ?? currentName;
-  
-          actions.push({
-            type: "call",
-            tel,
-            label: localName ? `Call ${localName}` : "Call",
-          });
-        }
-      }
-    }
-  
-    // Keep UI sane
-    return actions.slice(0, 8);
-  }
-  
 function stopEvent(e: SyntheticEvent) {
   e.stopPropagation();
 }
+
+// ──────────────────────────────────────────────────────────────
+// Markdown-based action extraction (FALLBACK for old messages
+// that don't have structured actions from the backend)
+// ──────────────────────────────────────────────────────────────
+
+type FallbackAction =
+  | { type: "web"; url: string; label: string }
+  | { type: "call"; tel: string; label: string };
+
+function extractActionsFromMarkdown(text: string): FallbackAction[] {
+  if (!text) return [];
+
+  const actions: FallbackAction[] = [];
+  const seenWeb = new Set<string>();
+  const seenTel = new Set<string>();
+
+  const lines = text.split(/\r?\n/);
+  const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+  const urlRegex =
+    /(https?:\/\/[^\s)>\]]+|www\.[^\s)>\]]+|[a-z0-9.-]+\.[a-z]{2,}(\/[^\s)>\]]*)?)/gi;
+  const phoneRegex = /(\+?\d[\d\s().-]{6,}\d)/g;
+
+  const cleanName = (s: string | null | undefined) => {
+    const t = (s ?? "").trim();
+    if (!t) return null;
+    return t.replace(/^\s*(?:\d+\.)?\s*[-*•]?\s*/, "").trim() || null;
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    const bold = line.match(/\*\*(.+?)\*\*/);
+    const lineName = cleanName(bold?.[1]);
+
+    const strippedLine = line.replace(markdownLinkRegex, (_m, _lbl, urlRaw) => {
+      const href = normalizeUrl(String(urlRaw)) ?? String(urlRaw).trim();
+      if (href) {
+        const key = normalizeUrlKey(href);
+        if (!seenWeb.has(key)) {
+          seenWeb.add(key);
+          actions.push({ type: "web", url: href, label: lineName ?? "Website" });
+        }
+      }
+      return " ";
+    });
+
+    const urlMatches = Array.from(strippedLine.matchAll(urlRegex));
+    for (const m of urlMatches) {
+      const norm = normalizeUrl(m[0]);
+      if (!norm) continue;
+      const key = normalizeUrlKey(norm);
+      if (seenWeb.has(key)) continue;
+      seenWeb.add(key);
+      actions.push({ type: "web", url: norm, label: lineName ?? "Website" });
+    }
+
+    const phoneMatches = Array.from(line.matchAll(phoneRegex));
+    for (const m of phoneMatches) {
+      const tel = cleanPhone(m[0]);
+      if (!tel) continue;
+      const telKey = tel.replace(/[^\d+]/g, "");
+      if (seenTel.has(telKey)) continue;
+      seenTel.add(telKey);
+      actions.push({ type: "call", tel, label: lineName ? `Call ${lineName}` : "Call" });
+    }
+  }
+
+  return actions.slice(0, 10);
+}
+
+// ──────────────────────────────────────────────────────────────
+// Action pill component
+// ──────────────────────────────────────────────────────────────
 
 function ActionPill({
   Icon,
   label,
   onClick,
   href,
+  muted,
 }: {
   Icon: LucideIcon;
   label: string;
   onClick?: () => void;
   href?: string;
+  muted?: boolean;
 }) {
   const baseStyle: React.CSSProperties = {
     borderRadius: 999,
@@ -270,7 +285,7 @@ function ActionPill({
     fontWeight: 950,
     fontSize: 12.5,
     border: "none",
-    background: "var(--roam-surface-hover)",
+    background: muted ? "var(--roam-surface)" : "var(--roam-surface-hover)",
     color: "var(--roam-text)",
     boxShadow: "var(--shadow-button)",
     display: "inline-flex",
@@ -293,7 +308,7 @@ function ActionPill({
         onClick={stopEvent}
       >
         <Icon size={15} />
-        <span className="trip-truncate" style={{ maxWidth: 220 }}>
+        <span className="trip-truncate" style={{ maxWidth: 200 }}>
           {label}
         </span>
       </a>
@@ -313,10 +328,102 @@ function ActionPill({
       }}
     >
       <Icon size={15} />
-      <span className="trip-truncate" style={{ maxWidth: 220 }}>
+      <span className="trip-truncate" style={{ maxWidth: 200 }}>
         {label}
       </span>
     </button>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────
+// Message actions row — prefers structured backend actions,
+// falls back to markdown extraction for older messages
+// ──────────────────────────────────────────────────────────────
+
+function MessageActionsRow({
+  msg,
+  isOnline,
+}: {
+  msg: GuideMsg;
+  isOnline: boolean;
+}) {
+  const structured = msg.actions ?? [];
+
+  // Only extract from markdown if no structured actions exist
+  const fallback = useMemo(() => {
+    if (structured.length > 0) return [];
+    return extractActionsFromMarkdown(msg.content ?? "");
+  }, [msg.content, structured.length]);
+
+  const hasStructured = structured.length > 0;
+  const hasFallback = fallback.length > 0;
+  if (!hasStructured && !hasFallback) return null;
+
+  return (
+    <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 8 }}>
+      {/* Structured actions from backend (preferred) */}
+      {structured.map((a, idx) => {
+        if (a.type === "web" && a.url) {
+          return (
+            <ActionPill
+              key={`sa_web_${idx}_${a.place_id ?? idx}`}
+              Icon={ExternalLink}
+              label={a.label}
+              onClick={
+                isOnline
+                  ? () => {
+                      haptic.selection();
+                      safeOpen(a.url!);
+                    }
+                  : () => haptic.selection()
+              }
+              muted={!isOnline}
+            />
+          );
+        }
+        if (a.type === "call" && a.tel) {
+          return (
+            <ActionPill
+              key={`sa_call_${idx}_${a.place_id ?? idx}`}
+              Icon={Phone}
+              label={a.label}
+              href={`tel:${a.tel}`}
+            />
+          );
+        }
+        return null;
+      })}
+
+      {/* Fallback: extracted from markdown */}
+      {fallback.map((a, idx) => {
+        if (a.type === "web") {
+          return (
+            <ActionPill
+              key={`fb_web_${idx}`}
+              Icon={Link2}
+              label={a.label}
+              onClick={
+                isOnline
+                  ? () => {
+                      haptic.selection();
+                      safeOpen(a.url);
+                    }
+                  : () => haptic.selection()
+              }
+              muted={!isOnline}
+            />
+          );
+        }
+        return (
+          <ActionPill
+            key={`fb_call_${idx}`}
+            Icon={Phone}
+            label={a.label}
+            href={`tel:${a.tel}`}
+          />
+        );
+      })}
+    </div>
   );
 }
 
@@ -342,8 +449,6 @@ type InlineNode =
 
 function parseInline(s: string): InlineNode[] {
   const out: InlineNode[] = [];
-
-  // Simple token scan
   let i = 0;
   const pushText = (txt: string) => {
     if (!txt) return;
@@ -351,7 +456,6 @@ function parseInline(s: string): InlineNode[] {
   };
 
   while (i < s.length) {
-    // Inline code `
     if (s[i] === "`") {
       const j = s.indexOf("`", i + 1);
       if (j > i + 1) {
@@ -363,7 +467,6 @@ function parseInline(s: string): InlineNode[] {
       }
     }
 
-    // Link [text](url)
     if (s[i] === "[") {
       const close = s.indexOf("]", i + 1);
       if (close > i + 1 && s[close + 1] === "(") {
@@ -381,7 +484,6 @@ function parseInline(s: string): InlineNode[] {
       }
     }
 
-    // Bold **text**
     if (s[i] === "*" && s[i + 1] === "*") {
       const j = s.indexOf("**", i + 2);
       if (j > i + 2) {
@@ -394,7 +496,6 @@ function parseInline(s: string): InlineNode[] {
       }
     }
 
-    // Italic *text*
     if (s[i] === "*") {
       const j = s.indexOf("*", i + 1);
       if (j > i + 1) {
@@ -416,7 +517,6 @@ function parseInline(s: string): InlineNode[] {
 
 function parseMarkdown(md: string): MdNode[] {
   const lines = (md ?? "").replace(/\r\n/g, "\n").split("\n");
-
   const nodes: MdNode[] = [];
   let i = 0;
 
@@ -429,22 +529,18 @@ function parseMarkdown(md: string): MdNode[] {
   while (i < lines.length) {
     const line = lines[i];
 
-    // Code fences
     if (line.trimStart().startsWith("```")) {
-      const fence = line.trimStart().slice(0, 3);
       const buf: string[] = [];
       i++;
-      while (i < lines.length && !lines[i].trimStart().startsWith(fence)) {
+      while (i < lines.length && !lines[i].trimStart().startsWith("```")) {
         buf.push(lines[i]);
         i++;
       }
-      // skip closing fence if present
       if (i < lines.length) i++;
       nodes.push({ t: "codeblock", code: buf.join("\n") });
       continue;
     }
 
-    // Headings
     const hm = /^(#{1,3})\s+(.*)$/.exec(line.trim());
     if (hm) {
       const level = Math.min(3, hm[1].length) as 1 | 2 | 3;
@@ -453,7 +549,6 @@ function parseMarkdown(md: string): MdNode[] {
       continue;
     }
 
-    // Unordered list
     if (/^\s*[-*]\s+/.test(line)) {
       const items: InlineNode[][] = [];
       while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) {
@@ -465,7 +560,6 @@ function parseMarkdown(md: string): MdNode[] {
       continue;
     }
 
-    // Ordered list
     if (/^\s*\d+\.\s+/.test(line)) {
       const items: InlineNode[][] = [];
       while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) {
@@ -477,13 +571,11 @@ function parseMarkdown(md: string): MdNode[] {
       continue;
     }
 
-    // Blank line splits paragraphs
     if (!line.trim()) {
       i++;
       continue;
     }
 
-    // Paragraph gather
     const pbuf: string[] = [];
     while (
       i < lines.length &&
@@ -502,34 +594,41 @@ function parseMarkdown(md: string): MdNode[] {
   return nodes;
 }
 
-function renderInline(nodes: InlineNode[], keyPrefix: string) {
+function renderInline(nodes: InlineNode[], keyPrefix: string, inLink = false) {
   const out: React.ReactNode[] = [];
   for (let i = 0; i < nodes.length; i++) {
     const n = nodes[i];
     const k = `${keyPrefix}_${i}`;
 
     if (n.t === "text") {
-      // Autolink urls inside text chunks
-      const parts = n.s.split(/(https?:\/\/[^\s)>\]]+|www\.[^\s)>\]]+)/g);
-      for (let pi = 0; pi < parts.length; pi++) {
-        const p = parts[pi];
-        const maybe = normalizeUrl(p);
-        if (maybe) {
-          out.push(
-            <a
-              key={`${k}_u_${pi}`}
-              href={maybe}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ color: "var(--roam-accent)", textDecoration: "underline", textUnderlineOffset: 2 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {p}
-            </a>,
-          );
-        } else {
-          out.push(<span key={`${k}_t_${pi}`}>{p}</span>);
+      if (!inLink) {
+        const parts = n.s.split(/(https?:\/\/[^\s)>\]]+|www\.[^\s)>\]]+)/g);
+        for (let pi = 0; pi < parts.length; pi++) {
+          const p = parts[pi];
+          const maybe = normalizeUrl(p);
+          if (maybe) {
+            out.push(
+              <a
+                key={`${k}_u_${pi}`}
+                href={maybe}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: "var(--roam-accent)",
+                  textDecoration: "underline",
+                  textUnderlineOffset: 2,
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {p}
+              </a>,
+            );
+          } else {
+            out.push(<span key={`${k}_t_${pi}`}>{p}</span>);
+          }
         }
+      } else {
+        out.push(<span key={k}>{n.s}</span>);
       }
       continue;
     }
@@ -539,7 +638,7 @@ function renderInline(nodes: InlineNode[], keyPrefix: string) {
         <code
           key={k}
           style={{
-            fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+            fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
             fontSize: "0.92em",
             background: "rgba(0,0,0,0.06)",
             padding: "2px 6px",
@@ -555,7 +654,7 @@ function renderInline(nodes: InlineNode[], keyPrefix: string) {
     if (n.t === "strong") {
       out.push(
         <strong key={k} style={{ fontWeight: 950 }}>
-          {renderInline(n.c, k)}
+          {renderInline(n.c, k, inLink)}
         </strong>,
       );
       continue;
@@ -564,7 +663,7 @@ function renderInline(nodes: InlineNode[], keyPrefix: string) {
     if (n.t === "em") {
       out.push(
         <em key={k} style={{ fontStyle: "italic" }}>
-          {renderInline(n.c, k)}
+          {renderInline(n.c, k, inLink)}
         </em>,
       );
       continue;
@@ -578,10 +677,14 @@ function renderInline(nodes: InlineNode[], keyPrefix: string) {
           href={href}
           target="_blank"
           rel="noopener noreferrer"
-          style={{ color: "var(--roam-accent)", textDecoration: "underline", textUnderlineOffset: 2 }}
+          style={{
+            color: "var(--roam-accent)",
+            textDecoration: "underline",
+            textUnderlineOffset: 2,
+          }}
           onClick={(e) => e.stopPropagation()}
         >
-          {renderInline(n.c, k)}
+          {renderInline(n.c, k, true)}
         </a>,
       );
       continue;
@@ -613,12 +716,7 @@ function MarkdownBody({ text }: { text: string }) {
                 lineHeight: 1.35,
               }}
             >
-              <code
-                style={{
-                  fontFamily:
-                    "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-                }}
-              >
+              <code style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" }}>
                 {n.code}
               </code>
             </pre>
@@ -656,7 +754,7 @@ function MarkdownBody({ text }: { text: string }) {
               }}
             >
               {n.items.map((it, ii) => (
-                <li key={`${k}_li_${ii}`} style={{ margin: "4px 0" }}>
+                <li key={`${k}_li_${ii}`} style={{ margin: "4px 0px" }}>
                   {renderInline(it, `${k}_li_${ii}`)}
                 </li>
               ))}
@@ -664,9 +762,16 @@ function MarkdownBody({ text }: { text: string }) {
           );
         }
 
-        // paragraph
         return (
-          <div key={k} style={{ color: "var(--roam-text)", fontWeight: 850, lineHeight: 1.35, whiteSpace: "pre-wrap" }}>
+          <div
+            key={k}
+            style={{
+              color: "var(--roam-text)",
+              fontWeight: 850,
+              lineHeight: 1.35,
+              whiteSpace: "pre-wrap",
+            }}
+          >
             {renderInline(n.inl, k)}
           </div>
         );
@@ -674,58 +779,70 @@ function MarkdownBody({ text }: { text: string }) {
     </div>
   );
 }
-function MessageActionsRow({ text, isOnline }: { text: string; isOnline: boolean }) {
-  const actions = useMemo(() => extractActions(text ?? ""), [text]);
 
-  if (!actions.length) return null;
+// ──────────────────────────────────────────────────────────────
+// Extra badges — show rich metadata from the new extra fields
+// ──────────────────────────────────────────────────────────────
+
+function ExtraBadges({ place }: { place: PlaceItem }) {
+  const extra: any = place.extra ?? {};
+  const badges: { label: string; accent?: boolean }[] = [];
+
+  // Free camp
+  if (extra.free) badges.push({ label: "Free", accent: true });
+  // Powered sites
+  if (extra.powered_sites) badges.push({ label: "Powered" });
+  // Has water
+  if (extra.has_water) badges.push({ label: "Water" });
+  // Has toilets
+  if (extra.has_toilets) badges.push({ label: "Toilets" });
+  // Fuel types
+  if (extra.fuel_types && Array.isArray(extra.fuel_types)) {
+    const fuels = extra.fuel_types as string[];
+    if (fuels.includes("diesel")) badges.push({ label: "Diesel" });
+    if (fuels.includes("lpg")) badges.push({ label: "LPG" });
+    if (fuels.includes("adblue")) badges.push({ label: "AdBlue" });
+  }
+  // EV socket types
+  if (extra.socket_types && Array.isArray(extra.socket_types)) {
+    const sockets = extra.socket_types as string[];
+    const display = sockets.slice(0, 2).map((s: string) => s.replace(/_/g, " ")).join(", ");
+    if (display) badges.push({ label: display });
+  }
+  // Opening hours (short)
+  if (extra.opening_hours) {
+    const hrs = String(extra.opening_hours);
+    if (hrs.length <= 20) badges.push({ label: hrs });
+  }
+
+  if (badges.length === 0) return null;
 
   return (
-    <div
-      style={{
-        marginTop: 10,
-        display: "flex",
-        flexWrap: "wrap",
-        gap: 8,
-      }}
-    >
-      {actions.map((a, idx) => {
-        if (a.type === "web") {
-          return (
-            <ActionPill
-              key={`web_${idx}_${a.url}`}
-              Icon={Link2}
-              label={a.label}
-              onClick={
-                isOnline
-                  ? () => {
-                      haptic.selection();
-                      safeOpen(a.url);
-                    }
-                  : () => {
-                      haptic.selection();
-                    }
-              }
-            />
-          );
-        }
-
-        return (
-          <ActionPill
-            key={`call_${idx}_${a.tel}`}
-            Icon={Phone}
-            label={a.label}
-            href={`tel:${a.tel}`}
-          />
-        );
-      })}
+    <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 4 }}>
+      {badges.map((b, i) => (
+        <span
+          key={i}
+          style={{
+            fontSize: 10,
+            fontWeight: 950,
+            padding: "2px 7px",
+            borderRadius: 6,
+            background: b.accent ? "rgba(0,180,100,0.12)" : "rgba(0,0,0,0.05)",
+            color: b.accent ? "rgba(0,140,70,1)" : "var(--roam-text-muted)",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {b.label}
+        </span>
+      ))}
     </div>
   );
 }
 
+// ──────────────────────────────────────────────────────────────
+// Place card
+// ──────────────────────────────────────────────────────────────
 
-// ──────────────────────────────────────────────────────────────
-// Sub-components
-// ──────────────────────────────────────────────────────────────
 function PlaceCard({
   place,
   isFocused,
@@ -741,13 +858,12 @@ function PlaceCard({
   onShowOnMap?: () => void;
   isOnline: boolean;
 }) {
-  const tags = getTags(place);
-  const suburb = tags["addr:suburb"] || tags["addr:city"] || tags["addr:town"];
-  const phone = tags.phone as string | undefined;
-  const website = tags.website as string | undefined;
+  const extra: any = place.extra ?? {};
+  const suburb = extra["addr:suburb"] || extra["addr:city"] || extra.address;
+  const phone = extra.phone as string | undefined;
+  const website = extra.website as string | undefined;
 
-  const CatIcon = CATEGORY_ICON[place.category];
-
+  const CatIcon = CATEGORY_ICON[place.category] ?? MapPin;
   const dist = fmtDist((place as DiscoveredPlace).distance_from_user_km);
 
   function handleCardClick(e: MouseEvent<HTMLDivElement>) {
@@ -785,16 +901,17 @@ function PlaceCard({
             background: "var(--roam-surface-hover)",
             display: "grid",
             placeItems: "center",
-            fontSize: 18,
             flexShrink: 0,
           }}
-          aria-hidden="true"
         >
-          {CatIcon ? <CatIcon size={18} /> : "📍"}
+          <CatIcon size={18} />
         </div>
 
         <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ fontSize: 15, fontWeight: 950, color: "var(--roam-text)" }} className="trip-truncate">
+          <div
+            style={{ fontSize: 15, fontWeight: 950, color: "var(--roam-text)" }}
+            className="trip-truncate"
+          >
             {place.name}
           </div>
           <div
@@ -809,9 +926,11 @@ function PlaceCard({
             }}
           >
             <span>{fmtCategory(place.category)}</span>
-            {suburb ? <span>· {suburb}</span> : null}
-            {dist ? <span>· {dist} away</span> : null}
+            {suburb ? <span>· {typeof suburb === "string" ? suburb.split(",")[0] : suburb}</span> : null}
+            {dist ? <span>· {dist}</span> : null}
           </div>
+
+          <ExtraBadges place={place} />
         </div>
       </div>
 
@@ -837,7 +956,7 @@ function PlaceCard({
             boxShadow: "var(--shadow-button)",
           }}
         >
-          + Add to Trip
+          + Add
         </button>
 
         {onShowOnMap ? (
@@ -887,8 +1006,10 @@ function PlaceCard({
               background: "var(--roam-surface-hover)",
               color: "var(--roam-text)",
               boxShadow: "var(--shadow-button)",
+              gap: 6,
             }}
           >
+            <Phone size={14} />
             Call
           </a>
         ) : null}
@@ -901,7 +1022,8 @@ function PlaceCard({
             onClick={(e) => {
               stop(e);
               haptic.selection();
-              safeOpen(String(website));
+              const norm = normalizeUrl(String(website));
+              if (norm) safeOpen(norm);
             }}
             className="trip-btn-sm trip-interactive"
             style={{
@@ -913,8 +1035,12 @@ function PlaceCard({
               background: "var(--roam-surface-hover)",
               color: "var(--roam-text)",
               boxShadow: "var(--shadow-button)",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
             }}
           >
+            <Globe size={14} />
             Web
           </button>
         ) : null}
@@ -922,6 +1048,10 @@ function PlaceCard({
     </div>
   );
 }
+
+// ──────────────────────────────────────────────────────────────
+// Discovery group
+// ──────────────────────────────────────────────────────────────
 
 function DiscoveryGroup({
   category,
@@ -1002,7 +1132,6 @@ export function GuideView({
   onAddStop,
   isOnline = true,
   onShowOnMap,
-
   guideReady = false,
   guidePack,
   tripProgress,
@@ -1015,7 +1144,6 @@ export function GuideView({
   onAddStop: (place: PlaceItem) => void;
   isOnline?: boolean;
   onShowOnMap?: (placeId: string) => void;
-
   guideReady?: boolean;
   guidePack?: GuidePack | null;
   tripProgress?: TripProgress | null;
@@ -1029,47 +1157,55 @@ export function GuideView({
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll chat on new messages
   const thread = guidePack?.thread ?? [];
   const prevThreadLen = useRef(thread.length);
   useEffect(() => {
     if (thread.length > prevThreadLen.current) {
-      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }), 80);
+      setTimeout(
+        () => chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }),
+        80,
+      );
     }
     prevThreadLen.current = thread.length;
   }, [thread.length]);
 
-  // Switch to discoveries tab when new places are found
   const discoveredPlaces = guidePack?.discovered_places ?? [];
-  const prevDiscoveredLen = useRef(discoveredPlaces.length);
-  useEffect(() => {
-    if (discoveredPlaces.length > prevDiscoveredLen.current && discoveredPlaces.length > 0) {
-      // Don't auto-switch — let user notice the badge update
-    }
-    prevDiscoveredLen.current = discoveredPlaces.length;
-  }, [discoveredPlaces.length]);
 
   // ── Discovered places grouped by category ──────────────────
   const discoveryGroups = useMemo(() => {
     const groups: Record<string, DiscoveredPlace[]> = {};
     for (const p of discoveredPlaces) {
-      const cat = p.category ?? "unknown";
+      const cat = p.category ?? "town";
       if (!groups[cat]) groups[cat] = [];
       groups[cat].push(p);
     }
 
     for (const cat of Object.keys(groups)) {
-      groups[cat].sort((a, b) => (a.distance_from_user_km ?? 9999) - (b.distance_from_user_km ?? 9999));
+      groups[cat].sort(
+        (a, b) => (a.distance_from_user_km ?? 9999) - (b.distance_from_user_km ?? 9999),
+      );
     }
 
-    const essentialOrder = ["fuel", "water", "camp", "toilet", "hospital", "grocery", "mechanic"];
+    // Priority order: safety → food → sleep → nature → culture → supplies
+    const priorityOrder = [
+      "fuel", "ev_charging", "rest_area", "water", "toilet", "dump_point",
+      "hospital", "pharmacy", "mechanic",
+      "bakery", "cafe", "restaurant", "fast_food", "pub", "bar",
+      "camp", "motel", "hotel", "hostel",
+      "grocery", "town", "atm", "laundromat",
+      "viewpoint", "waterfall", "swimming_hole", "beach",
+      "national_park", "hiking", "picnic", "hot_spring",
+      "playground", "pool", "zoo", "theme_park",
+      "visitor_info", "winery", "brewery", "museum", "gallery",
+      "heritage", "attraction", "market", "park",
+    ];
+
     const cats = Object.keys(groups).sort((a, b) => {
-      const ai = essentialOrder.indexOf(a);
-      const bi = essentialOrder.indexOf(b);
-      if (ai >= 0 && bi >= 0) return ai - bi;
-      if (ai >= 0) return -1;
-      if (bi >= 0) return 1;
-      return groups[b].length - groups[a].length;
+      const ai = priorityOrder.indexOf(a);
+      const bi = priorityOrder.indexOf(b);
+      const aN = ai >= 0 ? ai : 999;
+      const bN = bi >= 0 ? bi : 999;
+      return aN - bN;
     });
 
     return cats.map((cat) => ({ category: cat, places: groups[cat] }));
@@ -1085,41 +1221,113 @@ export function GuideView({
     return list.slice(0, 140);
   }, [places, searchQuery, chip]);
 
-  // ── Quick suggestions (smart prompts based on progress) ────
+  // ── Quick suggestions — context-aware based on trip phase ──
   const quickSuggestions = useMemo(() => {
     const suggestions: { label: string; query: string; Icon: LucideIcon }[] = [];
 
-    if (tripProgress) {
+    if (tripProgress && tripProgress.total_km > 0) {
       const kmRemaining = tripProgress.km_remaining;
+      const kmDone = tripProgress.km_from_start;
       const hour = new Date().getHours();
 
-      suggestions.push({ label: "Fuel ahead", query: "Where's the next fuel stop?", Icon: Fuel });
+      // Always useful
+      suggestions.push({
+        label: "Next fuel",
+        query: "Where's the next fuel stop ahead?",
+        Icon: Fuel,
+      });
 
-      if (hour >= 11 && hour < 14) {
-        suggestions.push({ label: "Lunch spots", query: "Good places to stop for lunch nearby?", Icon: Utensils });
+      // Time-based
+      if (hour >= 5 && hour < 9) {
+        suggestions.push({
+          label: "Coffee",
+          query: "Any good cafes or bakeries ahead for a morning coffee?",
+          Icon: Coffee,
+        });
+      } else if (hour >= 11 && hour < 14) {
+        suggestions.push({
+          label: "Lunch",
+          query: "Where's a good spot to stop for lunch?",
+          Icon: Utensils,
+        });
       } else if (hour >= 16 && hour < 20) {
-        suggestions.push({ label: "Stay tonight", query: "Where can I stay tonight? Camps or motels ahead.", Icon: Bed });
+        suggestions.push({
+          label: "Tonight",
+          query: "Where should I stay tonight? Show me camps and motels ahead.",
+          Icon: Bed,
+        });
       } else if (hour >= 20 || hour < 5) {
-        suggestions.push({ label: "Nearest stop", query: "I need to stop for the night. What's closest?", Icon: Tent });
+        suggestions.push({
+          label: "Stop now",
+          query: "I need to stop for the night. What's the closest safe option?",
+          Icon: Tent,
+        });
       }
 
+      // Distance-based
+      if (kmDone > 150) {
+        suggestions.push({
+          label: "Rest area",
+          query: "Where's the next rest area? Need a break.",
+          Icon: ParkingMeter,
+        });
+      }
       if (kmRemaining > 200) {
-        suggestions.push({ label: "Rest stops", query: "Where are good rest stops in the next 100km?", Icon: ParkingMeter });
+        suggestions.push({
+          label: "Highlights",
+          query: "What are the best stops and things to see in the next 100km?",
+          Icon: Camera,
+        });
       }
-      if (kmRemaining < 100) {
-        suggestions.push({ label: "Near destination", query: "What's there to see near my destination?", Icon: Target });
+      if (kmRemaining < 80 && kmRemaining > 5) {
+        suggestions.push({
+          label: "Near destination",
+          query: "What's worth seeing near my destination?",
+          Icon: Target,
+        });
       }
 
-      suggestions.push({ label: "Water", query: "Where can I get drinking water ahead?", Icon: Droplets });
-      suggestions.push({ label: "Scenic", query: "Any scenic viewpoints or interesting stops ahead?", Icon: Camera });
+      // Nature/discovery
+      suggestions.push({
+        label: "Scenic",
+        query: "Any scenic lookouts, waterfalls, or swimming holes ahead?",
+        Icon: Eye,
+      });
+      suggestions.push({
+        label: "Water",
+        query: "Where can I fill up drinking water ahead?",
+        Icon: Droplets,
+      });
     } else {
-      suggestions.push({ label: "Fuel", query: "Where can I refuel along this route?", Icon: Fuel });
-      suggestions.push({ label: "Camps", query: "Find camping spots along my route", Icon: Tent });
-      suggestions.push({ label: "Scenic", query: "What's worth seeing along this route?", Icon: Camera });
-      suggestions.push({ label: "Towns", query: "What towns will I pass through?", Icon: Building2 });
+      // Planning phase — no live position
+      suggestions.push({
+        label: "Fuel stops",
+        query: "Where can I refuel along this route?",
+        Icon: Fuel,
+      });
+      suggestions.push({
+        label: "Camps",
+        query: "Find camping spots along my route",
+        Icon: Tent,
+      });
+      suggestions.push({
+        label: "Scenic",
+        query: "What's worth seeing along this route?",
+        Icon: Camera,
+      });
+      suggestions.push({
+        label: "Towns",
+        query: "What towns will I pass through?",
+        Icon: Building2,
+      });
+      suggestions.push({
+        label: "Food",
+        query: "Where are good bakeries and cafes along the route?",
+        Icon: Coffee,
+      });
     }
 
-    return suggestions.slice(0, 5);
+    return suggestions.slice(0, 6);
   }, [tripProgress]);
 
   // ── Send handler ───────────────────────────────────────────
@@ -1162,15 +1370,17 @@ export function GuideView({
           boxShadow: "var(--shadow-soft)",
         }}
       >
-        {([
-          { key: "chat" as ViewTab, label: "Chat", badge: null },
-          {
-            key: "discoveries" as ViewTab,
-            label: "Discoveries",
-            badge: discoveredPlaces.length > 0 ? discoveredPlaces.length : null,
-          },
-          { key: "browse" as ViewTab, label: "Browse", badge: null },
-        ]).map((tab) => {
+        {(
+          [
+            { key: "chat" as ViewTab, label: "Guide", badge: null },
+            {
+              key: "discoveries" as ViewTab,
+              label: "Found",
+              badge: discoveredPlaces.length > 0 ? discoveredPlaces.length : null,
+            },
+            { key: "browse" as ViewTab, label: "Browse", badge: null },
+          ] as const
+        ).map((tab) => {
           const active = activeTab === tab.key;
           return (
             <button
@@ -1220,7 +1430,7 @@ export function GuideView({
       </div>
 
       {/* ════════════════════════════════════════════════════════
-          TAB: CHAT
+          TAB: CHAT (Guide)
           ════════════════════════════════════════════════════════ */}
       {activeTab === "chat" ? (
         <div
@@ -1235,7 +1445,14 @@ export function GuideView({
           }}
         >
           {/* Header */}
-          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "baseline",
+              justifyContent: "space-between",
+              gap: 10,
+            }}
+          >
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div
                 style={{
@@ -1250,12 +1467,20 @@ export function GuideView({
                 <Sparkles size={16} />
                 Ask Roam
               </div>
-              {!guideReady ? <div style={{ fontSize: 12, fontWeight: 900, color: "var(--roam-text-muted)" }}>Booting…</div> : null}
+              {!guideReady ? (
+                <div style={{ fontSize: 12, fontWeight: 900, color: "var(--roam-text-muted)" }}>
+                  Loading…
+                </div>
+              ) : null}
             </div>
-            {chatBusy ? <div style={{ fontSize: 12, fontWeight: 900, color: "var(--roam-text-muted)" }}>Thinking…</div> : null}
+            {chatBusy ? (
+              <div style={{ fontSize: 12, fontWeight: 900, color: "var(--roam-text-muted)" }}>
+                Thinking…
+              </div>
+            ) : null}
           </div>
 
-          {/* Quick suggestions */}
+          {/* Quick suggestions — shown when chat is empty */}
           {thread.length === 0 ? (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {quickSuggestions.map((s, i) => {
@@ -1298,7 +1523,7 @@ export function GuideView({
                 display: "flex",
                 flexDirection: "column",
                 gap: 10,
-                maxHeight: 360,
+                maxHeight: 400,
                 overflowY: "auto",
                 paddingRight: 4,
                 WebkitOverflowScrolling: "touch",
@@ -1307,8 +1532,12 @@ export function GuideView({
             >
               {thread.slice(-20).map((m, idx) => {
                 const mine = m.role === "user";
-                const bubbleBg = mine ? "var(--roam-surface-hover)" : "rgba(0,0,0,0.04)";
-                const bubbleRadius = mine ? "16px 16px 4px 16px" : "16px 16px 16px 4px";
+                const bubbleBg = mine
+                  ? "var(--roam-surface-hover)"
+                  : "rgba(0,0,0,0.04)";
+                const bubbleRadius = mine
+                  ? "16px 16px 4px 16px"
+                  : "16px 16px 16px 4px";
 
                 return (
                   <div key={`${m.role}_${idx}`}>
@@ -1328,16 +1557,28 @@ export function GuideView({
                       }}
                     >
                       {!mine ? (
-                        <div style={{ fontSize: 11, fontWeight: 950, color: "var(--roam-text-muted)", marginBottom: 6 }}>
+                        <div
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 950,
+                            color: "var(--roam-text-muted)",
+                            marginBottom: 6,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 5,
+                          }}
+                        >
+                          <Sparkles size={12} />
                           Roam Guide
                         </div>
                       ) : null}
 
-                      {/* ✅ Markdown rendering */}
                       <MarkdownBody text={m.content ?? ""} />
 
-                      {/* ✅ Actions (web + call) */}
-                      {!mine ? <MessageActionsRow text={m.content ?? ""} isOnline={!!isOnline} /> : null}
+                      {/* Actions: structured from backend → fallback from markdown */}
+                      {!mine ? (
+                        <MessageActionsRow msg={m} isOnline={!!isOnline} />
+                      ) : null}
                     </div>
 
                     {/* Discovery CTA after tool resolution */}
@@ -1365,7 +1606,7 @@ export function GuideView({
                         }}
                       >
                         <MapPin size={14} />
-                        View {discoveredPlaces.length} discovered places
+                        View {discoveredPlaces.length} places
                         <span aria-hidden="true">→</span>
                       </button>
                     ) : null}
@@ -1386,20 +1627,31 @@ export function GuideView({
                     fontWeight: 850,
                   }}
                 >
-                  <span style={{ animation: "pulse 1.5s ease-in-out infinite" }}>Searching…</span>
+                  <span style={{ animation: "pulse 1.5s ease-in-out infinite" }}>
+                    Searching…
+                  </span>
                 </div>
               ) : null}
 
               <div ref={chatEndRef} />
             </div>
           ) : thread.length === 0 && quickSuggestions.length === 0 ? (
-            <div style={{ color: "var(--roam-text-muted)", fontSize: 13, fontWeight: 850 }}>
+            <div
+              style={{
+                color: "var(--roam-text-muted)",
+                fontSize: 13,
+                fontWeight: 850,
+              }}
+            >
               Ask about fuel, camps, food, scenic stops — anything along your route.
             </div>
           ) : null}
 
           {/* Input */}
-          <form onSubmit={handleSubmit} style={{ display: "flex", gap: 10, marginTop: 4 }}>
+          <form
+            onSubmit={handleSubmit}
+            style={{ display: "flex", gap: 10, marginTop: 4 }}
+          >
             <input
               type="text"
               value={chatInput}
@@ -1453,12 +1705,30 @@ export function GuideView({
                 boxShadow: "var(--shadow-soft)",
               }}
             >
-              <div style={{ display: "grid", placeItems: "center", marginBottom: 10 }}>
+              <div
+                style={{ display: "grid", placeItems: "center", marginBottom: 10 }}
+              >
                 <Search size={22} />
               </div>
-              <div style={{ fontSize: 15, fontWeight: 950, color: "var(--roam-text)" }}>No discoveries yet</div>
-              <div style={{ fontSize: 13, fontWeight: 850, color: "var(--roam-text-muted)", marginTop: 8 }}>
-                Ask the Guide about fuel, camps, food, or scenic stops to discover places along your route.
+              <div
+                style={{
+                  fontSize: 15,
+                  fontWeight: 950,
+                  color: "var(--roam-text)",
+                }}
+              >
+                No discoveries yet
+              </div>
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 850,
+                  color: "var(--roam-text-muted)",
+                  marginTop: 8,
+                }}
+              >
+                Ask the Guide about fuel, camps, food, or scenic stops to discover
+                places along your route.
               </div>
               <button
                 type="button"
@@ -1500,11 +1770,24 @@ export function GuideView({
                 }}
               >
                 <div>
-                  <div style={{ fontSize: 15, fontWeight: 950, color: "var(--roam-text)" }}>
-                    {discoveredPlaces.length} places discovered
+                  <div
+                    style={{
+                      fontSize: 15,
+                      fontWeight: 950,
+                      color: "var(--roam-text)",
+                    }}
+                  >
+                    {discoveredPlaces.length} places found
                   </div>
-                  <div style={{ fontSize: 12, fontWeight: 850, color: "var(--roam-text-muted)", marginTop: 2 }}>
-                    {discoveryGroups.length} categories · sorted by distance
+                  <div
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 850,
+                      color: "var(--roam-text-muted)",
+                      marginTop: 2,
+                    }}
+                  >
+                    {discoveryGroups.length} categories · nearest first
                   </div>
                 </div>
                 <button
@@ -1559,7 +1842,7 @@ export function GuideView({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search places by name…"
+            placeholder="Search places…"
             className="trip-interactive"
             style={{
               padding: "12px 14px",
@@ -1602,9 +1885,13 @@ export function GuideView({
                     padding: "8px 12px",
                     fontSize: 13,
                     fontWeight: 950,
-                    background: active ? "var(--roam-surface-hover)" : "var(--roam-surface)",
+                    background: active
+                      ? "var(--roam-surface-hover)"
+                      : "var(--roam-surface)",
                     color: active ? "var(--roam-text)" : "var(--roam-text-muted)",
-                    boxShadow: active ? "var(--shadow-button)" : "var(--shadow-soft)",
+                    boxShadow: active
+                      ? "var(--shadow-button)"
+                      : "var(--shadow-soft)",
                     display: "flex",
                     gap: 8,
                     alignItems: "center",
@@ -1631,7 +1918,8 @@ export function GuideView({
                 boxShadow: "var(--shadow-soft)",
               }}
             >
-              No places found.
+              No places found
+              {chip !== "all" ? ` for "${fmtCategory(chip)}"` : ""}.
             </div>
           ) : (
             browseItems.map((p) => (
