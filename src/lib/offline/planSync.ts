@@ -171,6 +171,23 @@ class PlanSyncManager {
     return () => this._listeners.delete(fn);
   }
 
+  /* ── Public: enqueue a plan upsert (called by addToTrip, rebuild, etc.) */
+
+  /**
+   * Enqueue a plan_upsert sync op for the given plan and drain if online.
+   * Safe to call multiple times — deduplicates against the queue.
+   */
+  async enqueuePlanUpsert(planId: string): Promise<void> {
+    const already = await hasQueuedUpsert(planId);
+    if (!already) {
+      await enqueueSync("plan_upsert", planId);
+    }
+    if (networkMonitor.online && this._started) {
+      this.drainQueue();
+    }
+  }
+
+  /* ── Plan event handler (from plansStore) ──────────────────────────── */
   /* ── Plan event handler (from plansStore) ──────────────────────────── */
 
   private _handlePlanEvent = async (type: PlanEventType, payload: PlanEventPayload) => {
