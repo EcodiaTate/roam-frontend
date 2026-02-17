@@ -1048,20 +1048,21 @@ html, body {
   /* This prevents the "flash" of dark color during overscroll */
   color-scheme: light dark; 
 }
-
-/* 2. Fix the "Dark Corners" around the Tab Bar */
+/* 1. Make the wrapper transparent so it doesn't block the view */
 .roam-tabs-wrap {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   z-index: 100;
-  /* Ensure the wrap itself has the same background as the sand 
-     so the rounded corners "blend" into the ground */
-  background-color: var(--roam-bg);
+  background-color: transparent; /* Remove the solid tan background */
   pointer-events: none;
+  /* Ensure it sits at the very bottom */
+  display: flex;
+  flex-direction: column;
 }
 
+/* 2. Update the tabs container */
 .roam-tabs {
   position: relative;
   display: flex;
@@ -1069,21 +1070,35 @@ html, body {
   align-items: center;
   justify-content: space-evenly;
   pointer-events: auto;
-  padding-bottom: var(--roam-safe-bottom);
-  height: calc(var(--roam-tab-h) + var(--roam-safe-bottom));
   
-  /* CRITICAL: Ensure the radius doesn't show a background 'leak' */
+  /* Height only covers the interactive part */
+  height: var(--roam-tab-h); 
+  
+  /* Standard styling */
   border-radius: 24px 24px 0 0;
   background-color: var(--tab-glass-bg);
   backdrop-filter: blur(20px) saturate(170%);
   -webkit-backdrop-filter: blur(20px) saturate(170%);
-  
-  /* Add this to hide the square edges of the nav background */
-  overflow: visible; 
   border-top: 1px solid var(--tab-glass-border);
   box-shadow: var(--tab-glass-shadow);
+  
+  /* This ensures the glass effect extends DOWN into the safe area 
+     without creating a solid tan block */
+  margin-bottom: 0; 
 }
 
+/* 3. The "Leg" — This fills the safe area below the bar with the same glass effect */
+.roam-tabs::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: var(--roam-safe-bottom);
+  background-color: var(--tab-glass-bg);
+  backdrop-filter: blur(20px) saturate(170%);
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
+}
 /* 3. The "Immersion" Fix: match the overscroll area to the page surface */
 .roam-main {
   flex: 1;
