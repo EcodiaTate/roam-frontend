@@ -36,9 +36,6 @@ export function BasemapDownloadCard({ region = "australia", compact = false, onR
     onReady?.();
   }, [download, onReady]);
 
-  // Don't render on web (dev mode) — basemap is loaded from Supabase
-  if (!isNative) return null;
-
   const progressPct = useMemo(() => {
     if (status.downloadProgress <= 0) return 0;
     return Math.min(Math.round(status.downloadProgress * 100), 100);
@@ -146,6 +143,41 @@ export function BasemapDownloadCard({ region = "australia", compact = false, onR
   }
 
   /* ── Not installed (prompt to download) ──────────────────────────── */
+
+  // On web (non-native), show a softer informational banner instead of a download prompt
+  // since web loads tiles from Supabase directly and doesn't need a local basemap pack.
+  if (!isNative) {
+    if (compact) {
+      return (
+        <div className={className} style={styles.compactBar}>
+          <div style={styles.compactInner}>
+            <span style={styles.compactIcon}>☁</span>
+            <span style={styles.compactText}>
+              Map tiles streaming online
+            </span>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className={className} style={styles.card}>
+        <div style={styles.row}>
+          <div style={styles.iconCircleBlue}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
+            </svg>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={styles.title}>Map tiles streaming</div>
+            <div style={styles.subtitle}>
+              Tiles loaded from cloud. Install the native app for offline maps.
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (compact) {
     return (
