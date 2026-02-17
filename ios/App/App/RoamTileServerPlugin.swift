@@ -76,7 +76,7 @@ public class RoamTileServerPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func getServerStatus(_ call: CAPPluginCall) {
         let running = fileServer?.isRunning ?? false
         let port = fileServer?.actualPort ?? 0
-        let url = running ? "http://127.0.0.1:\(port)" : NSNull()
+        let url: Any = running ? "http://127.0.0.1:\(port)" as Any : NSNull()
         call.resolve([
             "running": running,
             "url": url,
