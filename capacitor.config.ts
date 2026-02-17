@@ -39,7 +39,7 @@ const config: CapacitorConfig = {
     },
 
     Keyboard: {
-      resize: KeyboardResize.Body,
+      resize: KeyboardResize.None,
       resizeOnFullScreen: true,
     },
 
@@ -49,11 +49,13 @@ const config: CapacitorConfig = {
     },
   },
 
+  // capacitor.config.ts
   ios: {
-    contentInset: "automatic",
+    contentInset: "always", // Changed from automatic to ensure safe areas are consistent
     backgroundColor: "#0a0a0a",
     preferredContentMode: "mobile",
     allowsLinkPreview: false,
+    scrollEnabled: false, // THIS stops the whole window from scrolling/bouncing
   },
 
   android: {

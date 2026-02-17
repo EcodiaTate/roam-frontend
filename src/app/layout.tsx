@@ -39,14 +39,11 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   width: "device-width",
+  height: "device-height", // Add this
   initialScale: 1,
-  viewportFit: "cover",
-
-  // Native feel
+  maximumScale: 1,         // Add this to be extra safe
   userScalable: false,
-
-  // Dark UI harmony
-  themeColor: "#0a0a0a",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
