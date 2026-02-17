@@ -264,11 +264,7 @@ input, textarea, [contenteditable] {
   flex-direction: column;
   overflow: hidden; /* Double lock */
 }
-.roam-main {
-  flex: 1;
-  overflow: hidden;
-  position: relative;
-}
+
 
 .roam-shell button,
 .roam-shell [role="button"],
@@ -277,37 +273,6 @@ input, textarea, [contenteditable] {
   user-select: none;
 }
 
-
-/* ==========================================================================
-   3. NATIVE MOBILE TAB BAR & BOTTOM NAV
-   ========================================================================== */
-
-/* Outer positioning wrapper */
-.roam-tabs-wrap {
-  position: fixed;
-  bottom: 0; left: 0; right: 0;
-  z-index: 100;
-  transform: translateZ(0);        /* Own compositing layer */
-  pointer-events: none;
-}
-
-/* Glassmorphic tab container (fixed-position variant) */
-.roam-tabs {
-  position: relative;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-evenly;
-  pointer-events: auto;
-  padding-bottom: var(--roam-safe-bottom);
-  height: calc(var(--roam-tab-h) + var(--roam-safe-bottom));
-  border-radius: 22px 22px 0 0;
-  background-color: var(--tab-glass-bg);
-  backdrop-filter: blur(20px) saturate(170%);
-  -webkit-backdrop-filter: blur(20px) saturate(170%);
-  border-top: 1px solid var(--tab-glass-border);
-  box-shadow: var(--tab-glass-shadow);
-}
 
 /* Flex-child tab container (in-flow variant) */
 .roam-tab-bar {
@@ -1071,20 +1036,60 @@ input, textarea, [contenteditable] {
   text-overflow: ellipsis;
 }
 
-.roam-main {
-  flex: 1;
-  overflow-y: auto; /* This is the ONLY place scrolling should happen */
-  -webkit-overflow-scrolling: touch; /* Smooth inertia for iOS */
-  position: relative;
+
+/* 1. Force the background to match the "ground" (Sand) instead of black */
+html, body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  position: fixed;
+  /* Change this from #0a0a0a to your sand variable */
+  background-color: var(--roam-bg); 
+  /* This prevents the "flash" of dark color during overscroll */
+  color-scheme: light dark; 
 }
 
-/* Change from position: fixed to standard flex behavior */
+/* 2. Fix the "Dark Corners" around the Tab Bar */
 .roam-tabs-wrap {
-  position: relative; 
-  bottom: auto; 
-  left: auto; 
-  right: auto;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
   z-index: 100;
-  flex-shrink: 0; /* Ensures it doesn't squash */
+  /* Ensure the wrap itself has the same background as the sand 
+     so the rounded corners "blend" into the ground */
+  background-color: var(--roam-bg);
+  pointer-events: none;
+}
+
+.roam-tabs {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-evenly;
   pointer-events: auto;
+  padding-bottom: var(--roam-safe-bottom);
+  height: calc(var(--roam-tab-h) + var(--roam-safe-bottom));
+  
+  /* CRITICAL: Ensure the radius doesn't show a background 'leak' */
+  border-radius: 24px 24px 0 0;
+  background-color: var(--tab-glass-bg);
+  backdrop-filter: blur(20px) saturate(170%);
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
+  
+  /* Add this to hide the square edges of the nav background */
+  overflow: visible; 
+  border-top: 1px solid var(--tab-glass-border);
+  box-shadow: var(--tab-glass-shadow);
+}
+
+/* 3. The "Immersion" Fix: match the overscroll area to the page surface */
+.roam-main {
+  flex: 1;
+  position: relative;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  /* Ensure the scrolling container is the Sand color */
+  background-color: var(--roam-bg);
 }
