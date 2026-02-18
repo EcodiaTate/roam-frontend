@@ -89,7 +89,9 @@ export function rebuildNavpackOffline(args: {
       distance_m: Math.round(path.distance_m),
       duration_s: Math.round(path.duration_s),
       geometry: encodePolyline6(coords),
+      steps: [], // offline A* routing has no turn-by-turn steps
     };
+    
 
     totalDist += leg.distance_m;
     totalDur += leg.duration_s;
