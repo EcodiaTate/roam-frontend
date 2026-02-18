@@ -15,6 +15,9 @@ import { navApi } from "@/lib/api/nav";
 import { placesApi } from "@/lib/api/places";
 import { bundleApi } from "@/lib/api/bundle";
 import { saveOfflinePlan, type OfflinePlanPreview } from "./plansStore";
+import { putPack } from "./packsStore";
+import { getVehicleFuelProfile } from "./fuelProfileStore";
+import { analyzeFuel } from "@/lib/nav/fuelAnalysis";
 
 /* ── Types ────────────────────────────────────────────────────────────── */
 
@@ -24,6 +27,7 @@ export type BuildPhase =
   | "corridor_ensure"
   | "corridor_get"
   | "places_corridor"
+  | "fuel_analysis"
   | "traffic_poll"
   | "hazards_poll"
   | "bundle_build"
@@ -76,6 +80,7 @@ export function phaseLabel(phase: BuildPhase, error?: string | null): string {
     case "corridor_ensure":
     case "corridor_get":     return "Preparing offline corridor…";
     case "places_corridor":  return "Caching places…";
+    case "fuel_analysis":    return "Analysing fuel coverage…";
     case "traffic_poll":     return "Fetching traffic…";
     case "hazards_poll":     return "Fetching warnings…";
     case "bundle_build":     return "Packaging offline bundle…";
@@ -92,7 +97,8 @@ export function phaseLabel(phase: BuildPhase, error?: string | null): string {
 /**
  * Run the full offline bundle pipeline:
  *   route → corridor ensure → corridor get → places corridor →
- *   traffic poll → hazards poll → bundle build → download zip → save to IDB
+ *   fuel analysis → traffic poll → hazards poll → bundle build →
+ *   download zip → save to IDB
  *
  * Returns the NavPack + manifest + preview on success.
  * Throws on any failure (caller handles error UI).
@@ -152,12 +158,31 @@ export async function buildPlanBundle(args: BuildPlanBundleArgs): Promise<BuildP
 
   // ─── 4. Places corridor ──────────────────────────────────────────────
   emit("places_corridor");
-  await placesApi.corridor({
+  const placesPack = await placesApi.corridor({
     corridor_key: meta.corridor_key,
     geometry,
     buffer_km: places_buffer_km,
     limit: 8000,
   });
+
+  // ─── 4b. Fuel analysis (client-side, no network) ────────────────────
+  emit("fuel_analysis");
+  try {
+    const fuelProfile = await getVehicleFuelProfile();
+    const fuelResult = analyzeFuel(
+      geometry,
+      placesPack?.items ?? [],
+      fuelProfile,
+      route_key,
+    );
+    // Fire-and-forget save to IDB — will be available when trip boots
+    putPack(plan_id, "fuel_analysis", fuelResult).catch((e) => {
+      console.warn("[buildPlanBundle] Failed to save fuel analysis:", e);
+    });
+  } catch (e) {
+    // Fuel analysis failure is non-fatal — don't block the bundle
+    console.warn("[buildPlanBundle] Fuel analysis failed:", e);
+  }
 
   // ─── 5. Traffic poll ─────────────────────────────────────────────────
   emit("traffic_poll");

@@ -4,10 +4,11 @@
 import { idbDel, idbGet, idbPut, idbStores, idbWithTx } from "./idb";
 
 import type { OfflineBundleManifest } from "@/lib/types/bundle";
-import type { NavPack, CorridorGraphPack, TrafficOverlay, HazardOverlay } from "@/lib/types/navigation";
+import type { NavPack, CorridorGraphPack, TrafficOverlay, HazardOverlay, ElevationResponse } from "@/lib/types/navigation";
 import type { PlacesPack } from "@/lib/types/places";
+import type { FuelAnalysis } from "@/lib/types/fuel";
 
-export type PackKind = "manifest" | "navpack" | "corridor" | "places" | "traffic" | "hazards";
+export type PackKind = "manifest" | "navpack" | "corridor" | "places" | "traffic" | "hazards" | "fuel_analysis" | "elevation";
 
 export type StoredPack =
   | { k: string; plan_id: string; kind: "manifest"; saved_at: number; payload: OfflineBundleManifest }
@@ -15,7 +16,9 @@ export type StoredPack =
   | { k: string; plan_id: string; kind: "corridor"; saved_at: number; payload: CorridorGraphPack }
   | { k: string; plan_id: string; kind: "places"; saved_at: number; payload: PlacesPack }
   | { k: string; plan_id: string; kind: "traffic"; saved_at: number; payload: TrafficOverlay }
-  | { k: string; plan_id: string; kind: "hazards"; saved_at: number; payload: HazardOverlay };
+  | { k: string; plan_id: string; kind: "hazards"; saved_at: number; payload: HazardOverlay }
+  | { k: string; plan_id: string; kind: "fuel_analysis"; saved_at: number; payload: FuelAnalysis }
+  | { k: string; plan_id: string; kind: "elevation"; saved_at: number; payload: ElevationResponse };
 
 function k(planId: string, kind: PackKind) {
   return `${planId}:${kind}`;
@@ -59,19 +62,21 @@ export async function hasCorePacks(planId: string): Promise<boolean> {
 }
 
 export async function getAllPacks(planId: string) {
-  const [manifest, navpack, corridor, places, traffic, hazards] = await Promise.all([
+  const [manifest, navpack, corridor, places, traffic, hazards, fuel_analysis, elevation] = await Promise.all([
     getPack<OfflineBundleManifest>(planId, "manifest"),
     getPack<NavPack>(planId, "navpack"),
     getPack<CorridorGraphPack>(planId, "corridor"),
     getPack<PlacesPack>(planId, "places"),
     getPack<TrafficOverlay>(planId, "traffic"),
     getPack<HazardOverlay>(planId, "hazards"),
+    getPack<FuelAnalysis>(planId, "fuel_analysis"),
+    getPack<ElevationResponse>(planId, "elevation"),
   ]);
-  return { manifest, navpack, corridor, places, traffic, hazards };
+  return { manifest, navpack, corridor, places, traffic, hazards, fuel_analysis, elevation };
 }
 
 export async function deleteAllPacks(planId: string): Promise<void> {
-  const kinds: PackKind[] = ["manifest", "navpack", "corridor", "places", "traffic", "hazards"];
+  const kinds: PackKind[] = ["manifest", "navpack", "corridor", "places", "traffic", "hazards", "fuel_analysis", "elevation"];
   await Promise.all(kinds.map((kind) => idbDel(idbStores.packs, k(planId, kind))));
 }
 

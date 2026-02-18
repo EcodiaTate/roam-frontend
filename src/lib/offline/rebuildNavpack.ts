@@ -14,6 +14,12 @@ import {
   bboxFromStopsOrLine,
 } from "@/lib/offline/corridorRouter";
 
+// ── Fuel reanalysis (after reroute) ─────────────────────────────────────
+import { reanalyzeFuelForReroute } from "@/lib/nav/fuelAnalysis";
+import { getVehicleFuelProfile } from "@/lib/offline/fuelProfileStore";
+import { getPack } from "@/lib/offline/packsStore";
+import type { PlacesPack } from "@/lib/types/places";
+
 const DEFAULT_MAX_SNAP_M = 1500;
 
 function safeStopId(s: TripStop, idx: number) {
@@ -22,11 +28,15 @@ function safeStopId(s: TripStop, idx: number) {
   return `${s.type ?? "poi"}_${idx}`;
 }
 
+/**
+ * Existing sync function (kept for compatibility).
+ * It rebuilds the offline navpack using corridor A* routing.
+ */
 export function rebuildNavpackOffline(args: {
   prevNavpack: NavPack;
   corridor: CorridorGraphPack;
   stops: TripStop[];
-  route_key: string; //  must change when stops change
+  route_key: string; // must change when stops change
   max_snap_m?: number;
 }): NavPack {
   const prev = args.prevNavpack;
@@ -106,4 +116,53 @@ export function rebuildNavpackOffline(args: {
     primary,
     alternates: { alternates: [] },
   };
+}
+
+/**
+ * New async helper:
+ * - rebuilds navpack via A*
+ * - recomputes fuel analysis over the rerouted polyline using cached PlacesPack + vehicle profile
+ *
+ * This is the integration point you want whenever A* rerouting happens.
+ */
+export async function rebuildNavpackOfflineWithFuel(args: {
+  planId: string;
+  prevNavpack: NavPack;
+  corridor: CorridorGraphPack;
+  stops: TripStop[];
+  route_key: string;
+  max_snap_m?: number;
+
+  // Optional: override analysis reason label
+  reason?: string;
+}): Promise<{ navpack: NavPack; fuelAnalysis?: unknown }> {
+  const navpack = rebuildNavpackOffline({
+    prevNavpack: args.prevNavpack,
+    corridor: args.corridor,
+    stops: args.stops,
+    route_key: args.route_key,
+    max_snap_m: args.max_snap_m,
+  });
+
+  // ── Recompute fuel on rerouted path ──
+  try {
+    const cachedPlaces = await getPack<PlacesPack>(args.planId, "places");
+    if (cachedPlaces?.items?.length) {
+      const fuelProfile = await getVehicleFuelProfile();
+
+      const fuelAnalysis = reanalyzeFuelForReroute(
+        navpack.primary.geometry, // polyline6 for the FULL rerouted path
+        cachedPlaces.items,
+        fuelProfile,
+        args.reason ?? "reroute",
+      );
+
+      return { navpack, fuelAnalysis };
+    }
+  } catch (e) {
+    console.warn("[rebuildNavpackOfflineWithFuel] fuel reanalysis failed:", e);
+    // Non-fatal — nav still works
+  }
+
+  return { navpack };
 }

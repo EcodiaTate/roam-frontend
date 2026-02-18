@@ -7,9 +7,16 @@ import { updateOfflinePlanAtomic } from "@/lib/offline/plansStore";
 import type { TripStop } from "@/lib/types/trip";
 import type { NavPack, CorridorGraphPack, TrafficOverlay, HazardOverlay } from "@/lib/types/navigation";
 import type { PlacesPack, PlaceItem } from "@/lib/types/places";
+import type { FuelAnalysis } from "@/lib/types/fuel";
 
 import { putPack } from "@/lib/offline/packsStore";
-import { rebuildNavpackOffline } from "@/lib/offline/rebuildNavpack";
+
+// ✅ Use the async wrapper that recomputes fuel after A* reroute
+import { rebuildNavpackOfflineWithFuel } from "@/lib/offline/rebuildNavpack";
+
+// ✅ Online fuel analysis
+import { analyzeFuel } from "@/lib/nav/fuelAnalysis";
+import { getVehicleFuelProfile } from "@/lib/offline/fuelProfileStore";
 
 import { healthApi } from "@/lib/api/health";
 import { navApi } from "@/lib/api/nav";
@@ -67,8 +74,6 @@ async function onlineRebuild(args: {
 
   const nextCorr = await navApi.corridorGet(corridorKey);
 
-  // Pass route geometry so the backend searches along the actual road
-  // shape instead of a start-to-end bounding box
   let nextPlaces: PlacesPack | null = null;
   try {
     nextPlaces = await placesApi.corridor({
@@ -89,12 +94,29 @@ async function onlineRebuild(args: {
     try { nextHazards = await navApi.hazardsPoll({ bbox, sources: [] }); } catch { nextHazards = null; }
   }
 
+  // ── Fuel analysis on online rebuild ──
+  let fuelAnalysis: FuelAnalysis | null = null;
+  if (nextPlaces?.items?.length && geom) {
+    try {
+      const fuelProfile = await getVehicleFuelProfile();
+      fuelAnalysis = analyzeFuel(
+        geom,
+        nextPlaces.items,
+        fuelProfile,
+        nextNav.primary.route_key,
+      );
+    } catch (e) {
+      console.warn("[addToTrip] online fuel analysis failed:", e);
+    }
+  }
+
   await Promise.all([
     putPack(plan.plan_id, "navpack", nextNav),
     putPack(plan.plan_id, "corridor", nextCorr),
     nextPlaces ? putPack(plan.plan_id, "places", nextPlaces) : Promise.resolve(),
     nextTraffic ? putPack(plan.plan_id, "traffic", nextTraffic) : Promise.resolve(),
     nextHazards ? putPack(plan.plan_id, "hazards", nextHazards) : Promise.resolve(),
+    fuelAnalysis ? putPack(plan.plan_id, "fuel_analysis", fuelAnalysis) : Promise.resolve(),
   ]);
 
   await updateOfflinePlanAtomic(plan.plan_id, {
@@ -121,6 +143,7 @@ async function onlineRebuild(args: {
     places: nextPlaces as PlacesPack | null,
     traffic: nextTraffic,
     hazards: nextHazards,
+    fuelAnalysis,
   };
 }
 
@@ -135,9 +158,20 @@ async function offlineRebuild(args: {
   const stops = ensureStopIds(stopsRaw);
   const route_key = prevNavpack?.primary?.route_key ?? plan.route_key;
 
-  const rebuilt = rebuildNavpackOffline({ prevNavpack, corridor, stops, route_key });
+  // ✅ Rebuild + reanalyze fuel (uses cached PlacesPack + vehicle profile)
+  const { navpack: rebuilt, fuelAnalysis } = await rebuildNavpackOfflineWithFuel({
+    planId: plan.plan_id,
+    prevNavpack,
+    corridor,
+    stops,
+    route_key,
+    reason: "reroute",
+  });
 
   await putPack(plan.plan_id, "navpack", rebuilt);
+  if (fuelAnalysis) {
+    await putPack(plan.plan_id, "fuel_analysis", fuelAnalysis);
+  }
   await updateOfflinePlanAtomic(plan.plan_id, {
     route_key: rebuilt.primary.route_key,
     preview: {
@@ -152,7 +186,7 @@ async function offlineRebuild(args: {
 
   await planSync.enqueuePlanUpsert(plan.plan_id);
 
-  return { navpack: rebuilt as NavPack };
+  return { navpack: rebuilt as NavPack, fuelAnalysis };
 }
 
 async function rebuildFromStops(args: {

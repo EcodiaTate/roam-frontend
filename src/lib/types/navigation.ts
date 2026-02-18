@@ -11,13 +11,55 @@ export type NavRequest = {
   depart_at?: string | null; // ISO8601 UTC recommended
 };
 
+// ──────────────────────────────────────────────────────────────
+// Turn-by-turn maneuver + step types
+// ──────────────────────────────────────────────────────────────
+
+export type ManeuverType =
+  | "turn" | "depart" | "arrive"
+  | "merge" | "fork" | "on ramp" | "off ramp"
+  | "roundabout" | "rotary" | "exit roundabout"
+  | "new name" | "continue" | "end of road"
+  | "notification";
+
+export type ManeuverModifier =
+  | "left" | "right"
+  | "slight left" | "slight right"
+  | "sharp left" | "sharp right"
+  | "straight" | "uturn";
+
+export type NavManeuver = {
+  type: ManeuverType;
+  modifier?: ManeuverModifier | null;
+  location: [number, number];       // [lng, lat] — OSRM convention
+  bearing_before: number;
+  bearing_after: number;
+  exit?: number | null;              // roundabout exit number
+};
+
+export type NavStep = {
+  maneuver: NavManeuver;
+  name: string;                      // road name ("Bruce Highway", "")
+  ref?: string | null;               // route reference ("M1", "A1")
+  distance_m: number;
+  duration_s: number;
+  geometry: string;                  // polyline6 for this step's segment
+  mode: string;
+  pronunciation?: string | null;     // phonetic road name for TTS
+};
+
+// ──────────────────────────────────────────────────────────────
+// Core route models
+// ──────────────────────────────────────────────────────────────
+
 export type NavLeg = {
   idx: number;
   from_stop_id?: string | null;
   to_stop_id?: string | null;
   distance_m: number;
   duration_s: number;
-  geometry: string; // polyline6
+  geometry: string;                  // polyline6 (this leg only)
+  steps: NavStep[];                  // ← NEW — turn-by-turn steps
 };
 
 export type NavRoute = {
@@ -41,6 +83,46 @@ export type NavPack = {
   req: NavRequest;
   primary: NavRoute;
   alternates: RouteAlternates;
+};
+
+// ──────────────────────────────────────────────────────────────
+// Elevation types
+// ──────────────────────────────────────────────────────────────
+
+export type ElevationRequest = {
+  geometry: string;                  // polyline6
+  sample_interval_m?: number;        // default 500
+  route_key?: string | null;
+};
+
+export type ElevationSample = {
+  km_along: number;
+  elevation_m: number;
+  lat: number;
+  lng: number;
+};
+
+export type ElevationProfile = {
+  route_key?: string | null;
+  samples: ElevationSample[];
+  min_elevation_m: number;
+  max_elevation_m: number;
+  total_ascent_m: number;
+  total_descent_m: number;
+  created_at: string;
+};
+
+export type GradeSegment = {
+  from_km: number;
+  to_km: number;
+  avg_grade_pct: number;
+  elevation_change_m: number;
+  fuel_penalty_factor: number;
+};
+
+export type ElevationResponse = {
+  profile: ElevationProfile;
+  grade_segments: GradeSegment[];
 };
 
 // ──────────────────────────────────────────────────────────────

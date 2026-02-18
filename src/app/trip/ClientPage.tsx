@@ -1,8 +1,9 @@
-// src/app/trip/TripClientPage.tsx
+// src/app/trip/ClientPage.tsx
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import type { Map as MLMap } from "maplibre-gl";
 
 import { TripMap } from "@/components/trip/TripMap";
 import { TripView, type TripEditorRebuildMode } from "@/components/trip/TripView";
@@ -10,19 +11,40 @@ import type { AlertHighlightEvent } from "@/components/trip/TripAlertsPanel";
 import { SyncStatusBadge } from "@/components/ui/SyncStatusBadge";
 import { InviteCodeModal } from "@/components/plans/InviteCodeModal";
 import { BasemapDownloadCard } from "@/components/basemap/BasemapDownloadCard";
+import { FuelPressureIndicator } from "@/components/fuel/FuelPressureIndicator";
+import { FuelLastChanceToast } from "@/components/fuel/FuelLastChanceToast";
+import { VehicleFuelSettings } from "@/components/fuel/VehicleFuelSettings";
 
+// ── Active navigation components ──
+import { NavigationHUD } from "@/components/nav/NavigationHUD";
+import { NavigationBar } from "@/components/nav/NavigationBar";
+import { NavigationControls } from "@/components/nav/NavigationControls";
+import { OffRouteBanner } from "@/components/nav/OffRouteBanner";
+import { StartNavigationButton } from "@/components/nav/StartNavigationButton";
+import { ElevationStrip } from "@/components/nav/ElevationStrip";
+
+// ── Hooks ──
 import { useGeolocation } from "@/lib/native/geolocation";
 import { useKeepAwake } from "@/lib/native/keepAwake";
+import { useActiveNavigation } from "@/lib/hooks/useActiveNavigation";
+import { useMapNavigationMode } from "@/lib/hooks/useMapNavigationMode";
+
 import { haptic } from "@/lib/native/haptics";
 import { getCurrentPlanId, getOfflinePlan, type OfflinePlanRecord } from "@/lib/offline/plansStore";
 import { getAllPacks, hasCorePacks, putPack } from "@/lib/offline/packsStore";
 import { unpackAndStoreBundle } from "@/lib/offline/unpackBundle";
+import { getVehicleFuelProfile } from "@/lib/offline/fuelProfileStore";
 
 import { navApi } from "@/lib/api/nav";
 
-import type { NavPack, CorridorGraphPack, TrafficOverlay, HazardOverlay } from "@/lib/types/navigation";
+import { analyzeFuel, computeFuelTracking } from "@/lib/nav/fuelAnalysis";
+import { decodePolyline6 } from "@/lib/nav/polyline6";
+import { cumulativeKm, snapToPolyline } from "@/lib/nav/snapToRoute";
+
+import type { NavPack, CorridorGraphPack, TrafficOverlay, HazardOverlay, ElevationResponse } from "@/lib/types/navigation";
 import type { PlacesPack, PlaceItem } from "@/lib/types/places";
 import type { TripStop } from "@/lib/types/trip";
+import type { FuelAnalysis, FuelTrackingState, VehicleFuelProfile } from "@/lib/types/fuel";
 
 import { UserRound, Users, UserPlus, Compass, List, MapPinned } from "lucide-react";
 
@@ -67,6 +89,14 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   const [traffic, setTraffic] = useState<TrafficOverlay | null>(null);
   const [hazards, setHazards] = useState<HazardOverlay | null>(null);
 
+  // Fuel state
+  const [fuelAnalysis, setFuelAnalysis] = useState<FuelAnalysis | null>(null);
+  const [fuelTracking, setFuelTracking] = useState<FuelTrackingState | null>(null);
+  const [fuelSettingsOpen, setFuelSettingsOpen] = useState(false);
+
+  // Elevation state
+  const [elevation, setElevation] = useState<ElevationResponse | null>(null);
+
   // UI State
   const [focusedStopId, setFocusedStopId] = useState<string | null>(null);
   const [focusedPlaceId, setFocusedPlaceId] = useState<string | null>(null);
@@ -85,6 +115,32 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
 
   // Overlay polling ref
   const overlayTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ── MapLibre instance ref (shared between TripMap and useMapNavigationMode) ──
+  const mapInstanceRef = useRef<MLMap | null>(null);
+
+  // ── Active Navigation ──
+  const activeNav = useActiveNavigation(navpack);
+
+  // ── Map Navigation Mode (heading-up camera tracking) ──
+  const effectiveBbox = navpack?.primary?.bbox ?? plan?.preview?.bbox ?? null;
+  const mapNavMode = useMapNavigationMode({
+    mapRef: mapInstanceRef,
+    position: activeNav.isActive ? activeNav.lastPosition : null,
+    active: activeNav.isActive,
+    bbox: effectiveBbox,
+  });
+
+  // ── Sheet position when entering/exiting navigation ──
+  const prevActiveRef = useRef(false);
+  useEffect(() => {
+    if (activeNav.isActive && !prevActiveRef.current) {
+      // Entering navigation mode → collapse sheet to just the peek handle
+      setOffsetY(0);
+      setDragOffset(0);
+    }
+    prevActiveRef.current = activeNav.isActive;
+  }, [activeNav.isActive]);
 
   // ── Boot logic ──────────────────────────────────────────────────
   useEffect(() => {
@@ -114,6 +170,31 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         setPlaces(packs.places ?? null);
         setTraffic(packs.traffic ?? null);
         setHazards(packs.hazards ?? null);
+
+        // ── Elevation: load from IDB ──
+        if (packs.elevation) {
+          setElevation(packs.elevation);
+        }
+
+        // ── Fuel analysis: load from IDB or compute fresh ──
+        if (packs.fuel_analysis) {
+          setFuelAnalysis(packs.fuel_analysis);
+        } else if (packs.navpack?.primary?.geometry && packs.places?.items) {
+          try {
+            const fuelProfile = await getVehicleFuelProfile();
+            const analysis = analyzeFuel(
+              packs.navpack.primary.geometry,
+              packs.places.items,
+              fuelProfile,
+              packs.navpack.primary.route_key,
+            );
+            setFuelAnalysis(analysis);
+            putPack(rec.plan_id, "fuel_analysis", analysis).catch(() => {});
+          } catch (e) {
+            console.warn("[Trip] fuel analysis compute failed:", e);
+          }
+        }
+
         setPhase("ready");
       } catch (e: any) {
         if (cancelled) return;
@@ -143,6 +224,35 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       setOffsetY(Math.max(maxUp, Math.round(maxUp * 0.6)));
     }
   }, [focusPlaceFromUrl]);
+
+  // ── Live fuel tracking from GPS ──────────────────────────────────
+  // Use active nav position if navigating, else regular geo
+  const effectivePosition = activeNav.isActive ? activeNav.lastPosition : geo.position;
+
+  useEffect(() => {
+    if (!fuelAnalysis || !effectivePosition || !navpack?.primary?.geometry) return;
+
+    try {
+      const decoded = decodePolyline6(navpack.primary.geometry);
+      const cumKm = cumulativeKm(decoded);
+      const snap = snapToPolyline(
+        { lat: effectivePosition.lat, lng: effectivePosition.lng },
+        decoded,
+        cumKm,
+      );
+
+      // Only track if within 2km of the route
+      if (snap.distance_m > 2000) {
+        setFuelTracking(null);
+        return;
+      }
+
+      const tracking = computeFuelTracking(fuelAnalysis, snap.km, fuelAnalysis.profile);
+      setFuelTracking(tracking);
+    } catch {
+      // Non-fatal — just skip this update
+    }
+  }, [fuelAnalysis, effectivePosition, navpack]);
 
   // ── Overlay polling ─────────────────────────────────────────────
   const pollOverlays = useCallback(async () => {
@@ -195,6 +305,41 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     });
     setNavpack(result);
 
+    // Recompute fuel analysis for new route
+    if (places?.items && result?.primary?.geometry) {
+      try {
+        const fuelProfile = await getVehicleFuelProfile();
+        const analysis = analyzeFuel(
+          result.primary.geometry,
+          places.items,
+          fuelProfile,
+          result.primary.route_key,
+        );
+        setFuelAnalysis(analysis);
+        if (plan?.plan_id) {
+          putPack(plan.plan_id, "fuel_analysis", analysis).catch(() => {});
+        }
+      } catch (e) {
+        console.warn("[Trip] fuel recompute on rebuild failed:", e);
+      }
+    }
+
+    // Fetch elevation for new route
+    if (result?.primary?.geometry) {
+      try {
+        const elevRes = await navApi.elevation({
+          geometry: result.primary.geometry,
+          route_key: result.primary.route_key,
+        });
+        setElevation(elevRes);
+        if (plan?.plan_id) {
+          putPack(plan.plan_id, "elevation", elevRes).catch(() => {});
+        }
+      } catch (e) {
+        console.warn("[Trip] elevation fetch on rebuild failed:", e);
+      }
+    }
+
     if (result?.primary?.bbox) {
       try {
         const [t, h] = await Promise.allSettled([
@@ -211,7 +356,26 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         }
       } catch {}
     }
-  }, [navpack, plan]);
+  }, [navpack, plan, places]);
+
+  // ── Fuel settings saved handler ──────────────────────────────────
+  const handleFuelProfileSaved = useCallback(async (newProfile: VehicleFuelProfile) => {
+    if (!navpack?.primary?.geometry || !places?.items) return;
+    try {
+      const analysis = analyzeFuel(
+        navpack.primary.geometry,
+        places.items,
+        newProfile,
+        navpack.primary.route_key,
+      );
+      setFuelAnalysis(analysis);
+      if (plan?.plan_id) {
+        putPack(plan.plan_id, "fuel_analysis", analysis).catch(() => {});
+      }
+    } catch (e) {
+      console.warn("[Trip] fuel recompute on settings change failed:", e);
+    }
+  }, [navpack, places, plan]);
 
   // ── Guide navigation handler ────────────────────────────────────
   const handleNavigateToGuide = useCallback((placeId: string) => {
@@ -232,6 +396,41 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       highlightTimerRef.current = null;
     }, 4000);
   }, []);
+
+  // ── Off-route reroute handler ───────────────────────────────────
+  const handleOffRouteReroute = useCallback(async () => {
+    // TODO: implement corridor A* reroute from current position
+    // For now, rebuild the route from current position through remaining stops
+    if (!activeNav.lastPosition || !navpack) return;
+
+    const currentPos = activeNav.lastPosition;
+    const allStops = navpack.req.stops;
+
+    // Find which stops are still ahead (use kmAlongRoute from nav state)
+    // For simplicity: keep all stops but prepend current location
+    const remainingStops: TripStop[] = [
+      {
+        id: "__reroute_origin",
+        name: "Current Location",
+        type: "start" as any,
+        lat: currentPos.lat,
+        lng: currentPos.lng,
+      },
+      // Keep all non-start stops
+      ...allStops.filter((s) => s.type !== "start"),
+    ];
+
+    try {
+      const result = await navApi.route({
+        profile: navpack.primary.profile,
+        stops: remainingStops,
+      });
+      setNavpack(result);
+      activeNav.applyReroute(result);
+    } catch (e) {
+      console.warn("[Trip] reroute failed:", e);
+    }
+  }, [activeNav, navpack]);
 
   // ── Bottom Sheet Handlers ───────────────────────────────────────
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -260,11 +459,18 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
 
   // ── Derived values ─────────────────────────────────────────────
   const peekBase = `calc(100% - 180px - var(--roam-safe-bottom, 0px))`;
-  const sheetTransform = `translateY(clamp(0px, calc(${peekBase} + ${offsetY + dragOffset}px), ${peekBase}))`;
+  const sheetTransform = activeNav.isActive
+    ? `translateY(calc(100% - 60px))` // Collapsed to just the drag handle during navigation
+    : `translateY(clamp(0px, calc(${peekBase} + ${offsetY + dragOffset}px), ${peekBase}))`;
 
   const effectiveStops = navpack?.req?.stops ?? plan?.preview?.stops ?? [];
   const effectiveGeom = navpack?.primary?.geometry ?? plan?.preview?.geometry ?? null;
-  const effectiveBbox = navpack?.primary?.bbox ?? plan?.preview?.bbox ?? null;
+
+  // Current km along route for fuel tracking + elevation strip
+  const currentKm = useMemo(() => {
+    if (!fuelTracking) return 0;
+    return fuelTracking.km_since_last_fuel + (fuelTracking.last_passed_station?.km_along_route ?? 0);
+  }, [fuelTracking]);
 
   // ── Render gates ────────────────────────────────────────────────
   if (phase === "resolving" || phase === "no-plan") {
@@ -328,17 +534,77 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           hazards={hazards}
           onTrafficEventPress={(id) => { haptic.selection(); }}
           onHazardEventPress={(id) => { haptic.selection(); }}
-          userPosition={geo.position}
+          userPosition={activeNav.isActive ? activeNav.lastPosition : geo.position}
           planId={plan.plan_id}
           onNavigateToGuide={handleNavigateToGuide}
           highlightedAlertId={highlightedAlertId}
+          fuelStations={fuelAnalysis?.stations ?? null}
+          fuelTracking={fuelTracking}
+          navigationMode={activeNav.isActive}
+          mapInstanceRef={mapInstanceRef}
         />
       </div>
 
-      {/* Basemap download card — floats above map, below sheet */}
-      <div style={{ position: "absolute", top: 12, left: 12, right: 12, zIndex: 15, pointerEvents: "auto" }}>
-        <BasemapDownloadCard region="australia" compact />
-      </div>
+      {/* ── Active Navigation Overlays ── */}
+
+      {/* Turn-by-turn HUD — top of map */}
+      <NavigationHUD
+        nav={activeNav.nav}
+        visible={activeNav.isActive && activeNav.nav.status !== "off_route"}
+      />
+
+      {/* Off-route banner — replaces HUD when off route */}
+      <OffRouteBanner
+        visible={activeNav.nav.status === "off_route"}
+        distFromRoute_m={activeNav.nav.distFromRoute_m}
+        hasCorridorGraph={!!corridor}
+        onReroute={handleOffRouteReroute}
+      />
+
+      {/* Navigation controls — right side of map */}
+      <NavigationControls
+        visible={activeNav.isActive}
+        isMuted={activeNav.isMuted}
+        onToggleMute={activeNav.toggleMute}
+        onOverview={mapNavMode.showOverview}
+        onRecenter={mapNavMode.recenter}
+        onEnd={activeNav.stop}
+      />
+
+      {/* Navigation bar — bottom ETA/distance/fatigue */}
+      <NavigationBar
+        nav={activeNav.nav}
+        fuelTracking={fuelTracking}
+        visible={activeNav.isActive}
+        onTap={() => {
+          // Tapping the bar expands the sheet briefly to show trip details
+          if (sheetRef.current) {
+            const h = sheetRef.current.clientHeight;
+            setOffsetY(-(h - 300));
+            setTimeout(() => setOffsetY(0), 8000); // auto-collapse after 8s
+          }
+        }}
+      />
+
+      {/* Fuel pressure indicator — floating pill on map (hidden during active nav, bar shows fuel) */}
+      {!activeNav.isActive && <FuelPressureIndicator tracking={fuelTracking} />}
+
+      {/* Fuel last-chance toast */}
+      <FuelLastChanceToast tracking={fuelTracking} currentKm={currentKm} />
+
+      {/* Fuel settings modal */}
+      <VehicleFuelSettings
+        open={fuelSettingsOpen}
+        onClose={() => setFuelSettingsOpen(false)}
+        onSaved={handleFuelProfileSaved}
+      />
+
+      {/* Basemap download card — floats above map, below sheet (hidden during nav) */}
+      {!activeNav.isActive && (
+        <div style={{ position: "absolute", top: 12, left: 12, right: 12, zIndex: 15, pointerEvents: "auto" }}>
+          <BasemapDownloadCard region="australia" compact />
+        </div>
+      )}
 
       {/* Invite modal */}
       <InviteCodeModal
@@ -365,7 +631,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           display: "flex",
           flexDirection: "column",
           transform: sheetTransform,
-          transition: isDragging.current ? "none" : "transform 0.12s ease-out",
+          transition: isDragging.current ? "none" : "transform 0.25s cubic-bezier(0.4,0,0.2,1)",
           willChange: "transform",
         }}
       >
@@ -470,6 +736,33 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
               <MapPinned size={16} /> All Plans
             </button>
           </div>
+
+          {/* ── Start Navigation button (shown when NOT actively navigating) ── */}
+          {!activeNav.isActive && navpack && (
+            <div style={{ marginTop: 14 }}>
+              <StartNavigationButton
+                onStart={activeNav.start}
+                disabled={!navpack?.primary?.legs?.some((l) => l.steps && l.steps.length > 0)}
+              />
+              {!navpack?.primary?.legs?.some((l) => l.steps && l.steps.length > 0) && (
+                <div style={{ marginTop: 6, fontSize: 11, fontWeight: 700, color: "var(--roam-text-muted)", textAlign: "center" }}>
+                  Turn-by-turn data not available. Rebuild route to enable navigation.
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Elevation strip (shown below action bar) ── */}
+          {elevation?.profile && (
+            <div style={{ marginTop: 12 }}>
+              <ElevationStrip
+                profile={elevation.profile}
+                gradeSegments={elevation.grade_segments}
+                currentKm={activeNav.isActive ? activeNav.nav.kmAlongRoute : currentKm || null}
+                compact
+              />
+            </div>
+          )}
         </div>
 
         {/* Scrollable content */}
@@ -497,7 +790,9 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
               onRebuildRequested={handleRebuild}
               highlightedAlertId={highlightedAlertId}
               onHighlightAlert={handleHighlightAlert}
-              userPosition={geo.position}
+              userPosition={effectivePosition}
+              fuelAnalysis={fuelAnalysis}
+              onOpenFuelSettings={() => setFuelSettingsOpen(true)}
             />
           </div>
         </div>

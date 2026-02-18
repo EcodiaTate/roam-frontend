@@ -8,6 +8,8 @@ import type {
   CorridorGraphPack,
   TrafficOverlay,
   HazardOverlay,
+  ElevationRequest,
+  ElevationResponse,
 } from "@/lib/types/navigation";
 
 export type CorridorEnsureRequest = {
@@ -42,6 +44,10 @@ export const navApi = {
   // GET /nav/corridor/{corridor_key} -> CorridorGraphPack
   corridorGet: (corridor_key: string) =>
     api.get<CorridorGraphPack>(`/nav/corridor/${encodeURIComponent(corridor_key)}`),
+
+  // POST /nav/elevation -> ElevationResponse
+  elevation: (req: ElevationRequest) =>
+    api.post<ElevationResponse>("/nav/elevation", req),
 
   // POST /nav/traffic/poll -> TrafficOverlay
   trafficPoll: (req: OverlayPollRequest) => api.post<TrafficOverlay>("/nav/traffic/poll", req),

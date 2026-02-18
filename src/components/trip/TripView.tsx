@@ -6,6 +6,7 @@ import type { NavPack, CorridorGraphPack, TrafficOverlay, HazardOverlay } from "
 import type { TripStop } from "@/lib/types/trip";
 import type { PlacesPack, PlaceItem } from "@/lib/types/places";
 import type { RoamPosition } from "@/lib/native/geolocation";
+import type { FuelAnalysis } from "@/lib/types/fuel";
 import { haptic } from "@/lib/native/haptics";
 import { hideKeyboard } from "@/lib/native/keyboard";
 import { shortId } from "@/lib/utils/ids";
@@ -29,9 +30,11 @@ import {
   useAlerts,
   NextAlertBanner,
   LegAlertStrip,
+  RouteAssessment,
   type AlertHighlightEvent,
 } from "@/components/trip/TripAlertsPanel";
 import { TripSuggestionsPanel } from "@/components/trip/TripSuggestionsPanel";
+import { FuelSummaryCard } from "@/components/fuel/FuelSummaryCard";
 
 import s from "./Tripview.module.css";
 
@@ -110,6 +113,8 @@ export function TripView({
   highlightedAlertId,
   onHighlightAlert,
   userPosition,
+  fuelAnalysis,
+  onOpenFuelSettings,
 }: {
   planId: string;
   navpack: NavPack | null;
@@ -126,6 +131,8 @@ export function TripView({
   highlightedAlertId?: string | null;
   onHighlightAlert?: (ev: AlertHighlightEvent) => void;
   userPosition?: RoamPosition | null;
+  fuelAnalysis?: FuelAnalysis | null;
+  onOpenFuelSettings?: () => void;
 }) {
   /* ── Editor state ───────────────────────────────────────────────────── */
   const [stops, setStops] = useState<TripStop[]>(() => ensureStopIds(navpack?.req?.stops ?? []));
@@ -154,7 +161,21 @@ export function TripView({
     [stops],
   );
 
-  const alerts = useAlerts(traffic, hazards, routeGeometry, userPosition, stopsForProjection);
+  const {
+    all: allAlerts,
+    next: nextAlert,
+    routeBlockers,
+    alertsForLeg,
+    highCount,
+    totalCount,
+    staleness,
+    assessment,
+    hideBehind,
+    toggleHideBehind,
+    behindCount,
+    dismissAlert,
+    dismissedCount,
+  } = useAlerts(traffic, hazards, routeGeometry, userPosition, stopsForProjection);
 
   /* ── Stop editing ───────────────────────────────────────────────────── */
   const moveStop = useCallback(
@@ -277,16 +298,35 @@ export function TripView({
         )}
       </div>
 
-      {/* ── Next alert banner (always visible if alerts exist) ──────── */}
-      <NextAlertBanner
-        next={alerts.next}
-        totalCount={alerts.totalCount}
-        highCount={alerts.highCount}
-        allAlerts={alerts.all}
-        highlighted={highlightedAlertId}
+      {/* ── Route assessment (pre-departure safety summary) ────────── */}
+      <RouteAssessment
+        assessment={assessment}
+        staleness={staleness}
         onHighlight={onHighlightAlert}
       />
 
+      {/* ── Fuel summary card (between route summary and alerts) ────── */}
+      <FuelSummaryCard
+        analysis={fuelAnalysis ?? null}
+        onOpenSettings={onOpenFuelSettings}
+      />
+
+      <NextAlertBanner
+        next={nextAlert}
+        totalCount={totalCount}
+        highCount={highCount}
+        allAlerts={allAlerts}
+        routeBlockers={routeBlockers}
+        highlighted={highlightedAlertId}
+        onHighlight={onHighlightAlert}
+        onDismiss={dismissAlert}
+        onRebuildRequested={canRebuild ? rebuild : undefined}
+        staleness={staleness}
+        hideBehind={hideBehind}
+        onToggleHideBehind={toggleHideBehind}
+        behindCount={behindCount}
+        dismissedCount={dismissedCount}
+      />
       {/* ── Error ──────────────────────────────────────────────────────── */}
       {err && <div className={s.errorBox}>{err}</div>}
 
@@ -320,8 +360,7 @@ export function TripView({
             const isFocused = focusedStopId === stop.id;
             const locked = isLockedStop(stop);
             const legAlerts =
-              index < stops.length - 1 ? alerts.alertsForLeg(index, index + 1) : [];
-
+            index < stops.length - 1 ? alertsForLeg(index, index + 1) : [];
             return (
               <div key={stop.id ?? index} className={s.stopEntry}>
                 {/* Stop card */}
@@ -405,11 +444,12 @@ export function TripView({
 
                 {/* Inline leg alerts */}
                 {legAlerts.length > 0 && (
-                  <LegAlertStrip
-                    alerts={legAlerts}
-                    highlighted={highlightedAlertId}
-                    onHighlight={onHighlightAlert}
-                  />
+                 <LegAlertStrip
+                 alerts={legAlerts}
+                 highlighted={highlightedAlertId}
+                 onHighlight={onHighlightAlert}
+                 onDismiss={dismissAlert}
+               />
                 )}
 
                 {/* Connector line between stops */}
