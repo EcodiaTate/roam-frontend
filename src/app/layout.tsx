@@ -1,10 +1,8 @@
-// src/app/layout.tsx
 import "./globals.css";
 
-import type { Metadata, Viewport } from "next";
+import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 
-import { BottomTabBar } from "@/components/ui/BottomTabBar";
 import { AuthProvider } from "@/lib/supabase/auth";
 import { SyncBootstrap } from "@/components/auth/SyncBootstrap";
 import { NativeBootstrap } from "@/components/native/NativeBootstrap";
@@ -18,39 +16,56 @@ const outbackFont = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Roam",
-  description: "Offline-first outback routing and navigation",
-
-  //  Updated for static manifest
-  manifest: "/manifest.webmanifest",
-
-  // Ensures installable feel on mobile web too
-  applicationName: "Roam",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "Roam",
+  title: {
+    default: "Roam — Outback Navigation That Works Offline",
+    template: "%s | Roam",
   },
-
-  formatDetection: {
-    telephone: false,
+  description:
+    "Turn-by-turn navigation, fuel intelligence, and live hazard alerts for Australian road trips. Works without reception. Built for the outback.",
+  keywords: [
+    "outback navigation",
+    "offline maps australia",
+    "road trip planner australia",
+    "turn by turn offline",
+    "fuel planner outback",
+    "road closure alerts australia",
+    "offline navigation app",
+  ],
+  openGraph: {
+    type: "website",
+    locale: "en_AU",
+    url: "https://roamapp.com.au",
+    siteName: "Roam",
+    title: "Roam — Outback Navigation That Works Offline",
+    description:
+      "Turn-by-turn navigation, fuel intelligence, and live hazard alerts for Australian road trips. Works without reception.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Roam — Outback Navigation That Works Offline",
+    description:
+      "Navigation, fuel planning, and hazard alerts for Australian road trips. Works without signal.",
+  },
+  robots: { index: true, follow: true },
+  other: {
+    "apple-mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-status-bar-style": "black-translucent",
+    "mobile-web-app-capable": "yes",
+    "theme-color": "#120f0c",
   },
 };
 
-export const viewport: Viewport = {
+export const viewport = {
   width: "device-width",
-  height: "device-height", // Add this
   initialScale: 1,
-  maximumScale: 1,         // Add this to be extra safe
-  userScalable: false,
-  viewportFit: "cover",
+  maximumScale: 1,
+  themeColor: "#120f0c",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={outbackFont.variable}>
       <head>
-        {/* Ensures PWA + native splash tint alignment */}
         <meta name="theme-color" content="#0a0a0a" />
         <link rel="manifest" href="/manifest.webmanifest" />
       </head>
@@ -66,11 +81,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <NativeBootstrap />
           <SyncBootstrap />
           <BasemapBootstrap />
-
-          <div className="roam-shell">
-            <main className="roam-main">{children}</main>
-            <BottomTabBar />
-          </div>
+          {children}
         </AuthProvider>
       </body>
     </html>

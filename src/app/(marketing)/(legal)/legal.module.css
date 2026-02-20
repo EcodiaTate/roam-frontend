@@ -1,0 +1,263 @@
+/* Legal page shared styles — Roam Outback Native aesthetic */
+
+.pageTitle {
+  font-size: 28px;
+  font-weight: 700;
+  color: #e8ddd0;
+  margin: 0 0 6px;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.effectiveDate {
+  font-size: 13px;
+  color: rgba(232, 221, 208, 0.4);
+  margin: 0 0 32px;
+  font-weight: 400;
+}
+
+.section {
+  margin-bottom: 32px;
+}
+
+.sectionTitle {
+  font-size: 17px;
+  font-weight: 600;
+  color: #d4845a;
+  margin: 0 0 12px;
+  letter-spacing: -0.01em;
+}
+
+.subsectionTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(232, 221, 208, 0.85);
+  margin: 16px 0 8px;
+}
+
+.text {
+  font-size: 14px;
+  line-height: 1.7;
+  color: rgba(232, 221, 208, 0.7);
+  margin: 0 0 12px;
+}
+
+.list {
+  margin: 8px 0 16px;
+  padding-left: 20px;
+}
+
+.list li {
+  font-size: 14px;
+  line-height: 1.7;
+  color: rgba(232, 221, 208, 0.65);
+  margin-bottom: 6px;
+}
+
+.list li strong {
+  color: rgba(232, 221, 208, 0.85);
+  font-weight: 600;
+}
+
+.highlight {
+  background: rgba(212, 132, 90, 0.1);
+  border-left: 3px solid #d4845a;
+  padding: 12px 16px;
+  border-radius: 0 8px 8px 0;
+  margin: 16px 0;
+}
+
+.highlight p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.7;
+  color: rgba(232, 221, 208, 0.8);
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid rgba(232, 221, 208, 0.06);
+  margin: 32px 0;
+}
+
+.link {
+  color: #d4845a;
+  text-decoration: none;
+  font-weight: 500;
+  transition: opacity 0.15s ease;
+}
+
+.link:hover {
+  opacity: 0.8;
+}
+
+/* Table for data collection summary */
+.dataTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0 20px;
+  font-size: 13px;
+}
+
+.dataTable th {
+  text-align: left;
+  padding: 10px 12px;
+  background: rgba(232, 221, 208, 0.04);
+  color: rgba(232, 221, 208, 0.6);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid rgba(232, 221, 208, 0.08);
+}
+
+.dataTable td {
+  padding: 10px 12px;
+  color: rgba(232, 221, 208, 0.65);
+  border-bottom: 1px solid rgba(232, 221, 208, 0.04);
+  vertical-align: top;
+  line-height: 1.5;
+}
+
+.dataTable tr:last-child td {
+  border-bottom: none;
+}
+
+/* Contact form */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(232, 221, 208, 0.6);
+  letter-spacing: 0.02em;
+}
+
+.required {
+  color: #d4845a;
+  margin-left: 2px;
+}
+
+.input,
+.textarea,
+.select {
+  background: rgba(232, 221, 208, 0.05);
+  border: 1px solid rgba(232, 221, 208, 0.1);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 15px;
+  color: #e8ddd0;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s ease, background 0.2s ease;
+  -webkit-appearance: none;
+}
+
+.input:focus,
+.textarea:focus,
+.select:focus {
+  border-color: rgba(212, 132, 90, 0.5);
+  background: rgba(232, 221, 208, 0.07);
+}
+
+.input::placeholder,
+.textarea::placeholder {
+  color: rgba(232, 221, 208, 0.25);
+}
+
+.textarea {
+  min-height: 140px;
+  resize: vertical;
+  line-height: 1.6;
+}
+
+.select {
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%23d4845a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 36px;
+}
+
+.select option {
+  background: #1a1612;
+  color: #e8ddd0;
+}
+
+.submitBtn {
+  background: linear-gradient(135deg, #d4845a 0%, #b86d45 100%);
+  color: #1a1612;
+  border: none;
+  border-radius: 12px;
+  padding: 14px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: -0.01em;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+  -webkit-tap-highlight-color: transparent;
+  margin-top: 4px;
+}
+
+.submitBtn:hover {
+  opacity: 0.92;
+}
+
+.submitBtn:active {
+  transform: scale(0.98);
+}
+
+.submitBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.successMsg {
+  background: rgba(76, 175, 80, 0.1);
+  border: 1px solid rgba(76, 175, 80, 0.2);
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+  color: #81c784;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.contactMethods {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.contactCard {
+  background: rgba(232, 221, 208, 0.04);
+  border: 1px solid rgba(232, 221, 208, 0.06);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.contactCard h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(232, 221, 208, 0.85);
+  margin: 0 0 4px;
+}
+
+.contactCard p {
+  font-size: 13px;
+  color: rgba(232, 221, 208, 0.5);
+  margin: 0;
+  line-height: 1.5;
+}
