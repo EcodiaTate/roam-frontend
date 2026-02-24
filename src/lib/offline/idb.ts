@@ -18,7 +18,7 @@ let _dbPromise: Promise<IDBDatabase> | null = null;
 
 /**
  * Ensures all required object stores exist in the DB.
- * Called inside onupgradeneeded — safe to call at any version transition
+ * Called inside onupgradeneeded - safe to call at any version transition
  * because it only creates stores that are missing.
  */
 function ensureStores(db: IDBDatabase) {
@@ -59,7 +59,7 @@ function openAtVersion(version: number): Promise<IDBDatabase | null> {
       // Another tab has the DB open at an older version.
       // We can't force-close it, but we can tell the user.
       console.warn(
-        "[roam/idb] DB upgrade blocked — close other tabs with Roam open and retry.",
+        "[roam/idb] DB upgrade blocked - close other tabs with Roam open and retry.",
       );
       reject(
         new Error(
@@ -80,7 +80,7 @@ function openAtVersion(version: number): Promise<IDBDatabase | null> {
 
       const missing = REQUIRED_STORES.filter((s) => !db.objectStoreNames.contains(s));
       if (missing.length) {
-        // Stores still missing — close so caller can retry at a higher version
+        // Stores still missing - close so caller can retry at a higher version
         db.close();
         resolve(null);
         return;
@@ -95,7 +95,7 @@ function openAtVersion(version: number): Promise<IDBDatabase | null> {
 
 /**
  * Main entry point. Opens the DB, self-healing missing stores by bumping
- * the version if needed. Existing data is preserved — we only *add* stores.
+ * the version if needed. Existing data is preserved - we only *add* stores.
  */
 function openDb(): Promise<IDBDatabase> {
   if (_dbPromise) return _dbPromise;
@@ -105,7 +105,7 @@ function openDb(): Promise<IDBDatabase> {
     let db = await openAtVersion(DB_VERSION);
     if (db) return db;
 
-    // 2. Stores are missing — the DB already existed at DB_VERSION (or higher)
+    // 2. Stores are missing - the DB already existed at DB_VERSION (or higher)
     //    without all stores. We need to figure out the *current* version and
     //    bump past it to trigger onupgradeneeded.
     //    Open without a version argument to get the current version.
@@ -127,7 +127,7 @@ function openDb(): Promise<IDBDatabase> {
     db = await openAtVersion(healVersion);
     if (db) return db;
 
-    // 3. Should not happen — but if it does, give a clear error
+    // 3. Should not happen - but if it does, give a clear error
     throw new Error(
       `IndexedDB self-heal failed: stores still missing after upgrading to v${healVersion}. ` +
         `Try clearing site data for this origin.`,

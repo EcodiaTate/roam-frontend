@@ -163,7 +163,7 @@ export async function rebuildNavpackOfflineWithFuel(args: {
     }
   } catch (e) {
     console.warn("[rebuildNavpackOfflineWithFuel] fuel reanalysis failed:", e);
-    // Non-fatal — nav still works
+    // Non-fatal - nav still works
   }
 
   return { navpack };

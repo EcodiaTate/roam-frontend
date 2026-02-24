@@ -198,7 +198,7 @@ export default function ContactContent() {
       }
     } catch {
       setErrorMsg(
-        "Network error — you may be offline. Please email tate@ecodia.au directly.",
+        "Network error - you may be offline. Please email tate@ecodia.au directly.",
       );
       setStatus("error");
     }
@@ -572,7 +572,7 @@ export default function ContactContent() {
 const NAV_STYLES = `
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@800&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap');
 
-/* Content container — replaces the old layout main constraints */
+/* Content container - replaces the old layout main constraints */
 .rl-legal-content {
   max-width: 680px;
   width: 100%;

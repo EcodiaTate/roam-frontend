@@ -1,9 +1,9 @@
 // src/lib/offline/buildPlanBundle.ts
 //
 // Extracted bundle-build pipeline. Used by:
-//   1. /new page — fresh plan creation
-//   2. Invite redemption — building bundle for a shared plan stub
-//   3. /trip page — rebuilding stale/missing bundles
+//   1. /new page - fresh plan creation
+//   2. Invite redemption - building bundle for a shared plan stub
+//   3. /trip page - rebuilding stale/missing bundles
 //
 "use client";
 
@@ -39,7 +39,7 @@ export type BuildPhase =
 export type BuildPlanBundleArgs = {
   /** Plan ID (caller generates or reuses existing) */
   plan_id: string;
-  /** Ordered stops — must have ≥2 with start + end */
+  /** Ordered stops - must have ≥2 with start + end */
   stops: TripStop[];
   /** Routing profile (drive / walk / cycle) */
   profile: string;
@@ -59,7 +59,7 @@ export type BuildPlanBundleArgs = {
   max_edges?: number;
   /** Places search buffer in km */
   places_buffer_km?: number;
-  /** Progress callback — called on every phase change */
+  /** Progress callback - called on every phase change */
   onPhase?: (phase: BuildPhase) => void;
 };
 
@@ -175,12 +175,12 @@ export async function buildPlanBundle(args: BuildPlanBundleArgs): Promise<BuildP
       fuelProfile,
       route_key,
     );
-    // Fire-and-forget save to IDB — will be available when trip boots
+    // Fire-and-forget save to IDB - will be available when trip boots
     putPack(plan_id, "fuel_analysis", fuelResult).catch((e) => {
       console.warn("[buildPlanBundle] Failed to save fuel analysis:", e);
     });
   } catch (e) {
-    // Fuel analysis failure is non-fatal — don't block the bundle
+    // Fuel analysis failure is non-fatal - don't block the bundle
     console.warn("[buildPlanBundle] Fuel analysis failed:", e);
   }
 

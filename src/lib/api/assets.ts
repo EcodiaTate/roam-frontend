@@ -1,6 +1,6 @@
 // src/lib/api/assets.ts
 //
-// Roam Asset API (Hybrid — local tile server preferred, Supabase fallback)
+// Roam Asset API (Hybrid - local tile server preferred, Supabase fallback)
 //
 // Invariants:
 // - Styles are shipped inside the app bundle (static export): /public/offline/styles/*
@@ -62,7 +62,7 @@ function supaPublicObjectUrl(pathInBucket: string): string {
 
 export const assetsApi = {
   /**
-   * PMTiles URL — prefers local tile server, falls back to Supabase.
+   * PMTiles URL - prefers local tile server, falls back to Supabase.
    *
    * When tile server is running:
    *   → pmtiles://http://127.0.0.1:8765/tiles/australia.pmtiles
@@ -107,7 +107,7 @@ export const assetsApi = {
   },
 
   /**
-   * Glyphs URL template — local tile server when available, CDN fallback.
+   * Glyphs URL template - local tile server when available, CDN fallback.
    *
    * When local:  http://127.0.0.1:8765/glyphs/{fontstack}/{range}.pbf
    * When remote: https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf
@@ -117,7 +117,7 @@ export const assetsApi = {
   },
 
   /**
-   * Sprite URL — local tile server when available, undefined if none.
+   * Sprite URL - local tile server when available, undefined if none.
    * Returns the URL without file extension (MapLibre adds .json / .png).
    */
   spriteUrl(): string | undefined {

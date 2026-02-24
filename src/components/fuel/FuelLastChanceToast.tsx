@@ -144,7 +144,7 @@ export function FuelLastChanceToast({
           {station && (
             <div style={toastSub}>
               {station.name}
-              {" — "}
+              {" - "}
               {tracking && tracking.km_to_next_fuel !== null
                 ? `${Math.round(Math.abs(currentKm - station.km_along_route))}km ahead`
                 : "ahead"}

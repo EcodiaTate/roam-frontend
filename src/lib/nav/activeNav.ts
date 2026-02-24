@@ -319,7 +319,7 @@ export function updateActiveNav(
     };
   }
 
-  // 3. Find current step — the last flatStep whose start is ≤ our position
+  // 3. Find current step - the last flatStep whose start is ≤ our position
   let currentFlatIdx = 0;
   for (let i = flatSteps.length - 1; i >= 0; i--) {
     if (snap.distAlongLine_m >= flatSteps[i].distFromRouteStart_m) {

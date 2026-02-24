@@ -53,12 +53,12 @@ export async function initAppLifecycle(): Promise<void> {
         _emit(isActive ? "foreground" : "background");
       });
 
-      // Back button (Android) — prevent accidental exit
+      // Back button (Android) - prevent accidental exit
       await App.addListener("backButton", ({ canGoBack }) => {
         if (canGoBack) {
           window.history.back();
         }
-        // Don't exit app — user must use the system gesture
+        // Don't exit app - user must use the system gesture
       });
     } catch (e) {
       console.warn("[AppLifecycle] native init failed", e);

@@ -180,7 +180,7 @@ export function NewTripMap(props: {
   const headingFC = useMemo(() => headingGeoJSON(props.userPosition), [props.userPosition]);
 
   /**
-   * Full layer setup — called once on init and again on every style swap.
+   * Full layer setup - called once on init and again on every style swap.
    */
   const setupAllLayers = useCallback(async (map: MLMap) => {
     if (!mapReady(map)) return;
@@ -199,7 +199,7 @@ export function NewTripMap(props: {
     const protocol = new Protocol();
     maplibregl.addProtocol("pmtiles", protocol.tile.bind(protocol));
 
-    // Start with an empty style — we load + rewrite the real one async
+    // Start with an empty style - we load + rewrite the real one async
     const map = new maplibregl.Map({
       container: elRef.current,
       style: { version: 8, sources: {}, layers: [] } as any,

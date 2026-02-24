@@ -18,9 +18,9 @@ type Props = {
 
 function gradeColor(gradePct: number): string {
   const abs = Math.abs(gradePct);
-  if (abs < 2)  return "#4ade80"; // flat — green
-  if (abs < 5)  return "#fbbf24"; // moderate — amber
-  return "#ef4444";               // steep — red
+  if (abs < 2)  return "#4ade80"; // flat - green
+  if (abs < 5)  return "#fbbf24"; // moderate - amber
+  return "#ef4444";               // steep - red
 }
 
 /* ── Component ───────────────────────────────────────────────────── */
@@ -105,14 +105,14 @@ export function ElevationStrip({ profile, gradeSegments, currentKm, compact }: P
           />
         ))}
 
-        {/* Elevation fill — semi-transparent */}
+        {/* Elevation fill - semi-transparent */}
         <path
           d={path}
           fill="rgba(74,108,83,0.25)"
           stroke="none"
         />
 
-        {/* Elevation line — crisp outline */}
+        {/* Elevation line - crisp outline */}
         <path
           d={path.replace(/ L\d+[\d.]*,\d+[\d.]* L0,\d+[\d.]* Z/, "")} // strip the close path
           fill="none"

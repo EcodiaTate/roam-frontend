@@ -119,7 +119,7 @@ export function useMapNavigationMode({ mapRef, position, active, bbox }: Opts): 
     // If user manually panned, wait for cooldown
     const timeSinceManual = Date.now() - lastManualInteraction.current;
     if (timeSinceManual < MANUAL_PAN_COOLDOWN_MS) {
-      // Still in manual mode — just update the user-is-tracking flag
+      // Still in manual mode - just update the user-is-tracking flag
       // After cooldown expires, we'll resume tracking
       const remaining = MANUAL_PAN_COOLDOWN_MS - timeSinceManual;
       const timer = setTimeout(() => {

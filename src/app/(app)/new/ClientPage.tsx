@@ -19,6 +19,7 @@ import {
   type VectorTheme,
 } from "@/components/trips/new/MapStyleSwitcher";
 import { InviteCodeModal } from "@/components/plans/InviteCodeModal";
+import { Loader2 } from "lucide-react";
 
 function genPlanId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return (crypto as any).randomUUID();
@@ -222,9 +223,11 @@ export default function NewTripClientPage() {
               width: "100%",
               borderRadius: 14,
               padding: "12px 14px",
-              background: "rgba(0,0,0,0.55)",
+              background: "var(--overlay-bg)",
               backdropFilter: "blur(10px)",
-              color: "white",
+              WebkitBackdropFilter: "blur(10px)",
+              border: "1px solid var(--roam-border-strong)",
+              color: "var(--on-color)",
               fontSize: 13,
               fontWeight: 900,
               display: "flex",
@@ -234,8 +237,10 @@ export default function NewTripClientPage() {
             }}
           >
             <span style={{ opacity: 0.95 }}>{bundle.statusText}</span>
-            <span style={{ opacity: 0.75, fontWeight: 800 }}>
-              {bundle.building ? "…" : bundle.isReady ? "✓" : ""}
+            <span style={{ opacity: 0.75, fontWeight: 800, display: "flex", alignItems: "center" }}>
+              {bundle.building ? (
+                <Loader2 size={14} style={{ animation: "roam-spin 0.6s linear infinite" }} />
+              ) : bundle.isReady ? "✓" : ""}
             </span>
           </div>
         </div>

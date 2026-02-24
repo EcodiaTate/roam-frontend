@@ -76,7 +76,7 @@ export function useBundleBuilder() {
   );
 
   /**
-   * Cancel a running build (best-effort — network requests in flight
+   * Cancel a running build (best-effort - network requests in flight
    * will still complete, but state updates stop).
    */
   const cancel = useCallback(() => {

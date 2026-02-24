@@ -5,7 +5,7 @@ import { isNative, hasPlugin } from "./platform";
 
 /**
  * Lock screen to portrait orientation.
- * Mobile-first, one-handed UI — portrait is the only supported mode.
+ * Mobile-first, one-handed UI - portrait is the only supported mode.
  *
  * Call once at app boot.
  */

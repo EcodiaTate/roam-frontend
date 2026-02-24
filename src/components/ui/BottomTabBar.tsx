@@ -13,7 +13,7 @@ type Tab = {
   key: string;
   href: string;
   label: string;
-  /** Renders the icon — receives active state for filled/outlined swap */
+  /** Renders the icon - receives active state for filled/outlined swap */
   icon: (active: boolean) => ReactNode;
   /** Center raised button (Trip) */
   isCenter?: boolean;
@@ -33,7 +33,7 @@ function cx(...names: (string | false | null | undefined)[]): string {
    Kept as inline SVG for zero-bundle-cost + instant paint.
    ──────────────────────────────────────────────────────────────────── */
 
-/** Trip — map with fold lines (center tab, shown inside raised button) */
+/** Trip - map with fold lines (center tab, shown inside raised button) */
 function IconTrip(active: boolean) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -65,7 +65,7 @@ function IconTrip(active: boolean) {
   );
 }
 
-/** Explore — compass (discover places along route) */
+/** Explore - compass (discover places along route) */
 function IconGuide(active: boolean) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -93,7 +93,7 @@ function IconGuide(active: boolean) {
   );
 }
 
-/** SOS — shield with exclamation (emergency) */
+/** SOS - shield with exclamation (emergency) */
 function IconSos(active: boolean) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -123,10 +123,12 @@ function IconSos(active: boolean) {
   );
 }
 
-/* ── Tab definitions (spec: New | Plans | Trip | Explore | SOS) ───────── */
+/* ── Tab definitions (spec: Guide | Trip (center) | SOS) ───────────────
+   Note: /plans is now integrated as a drawer within /trip
+   ──────────────────────────────────────────────────────────────────── */
 
 const TABS: Tab[] = [
-  { key: "guide",     href: "/guide",     label: "Guide",     icon: IconGuide },
+  { key: "guide",   href: "/guide",   label: "Guide",   icon: IconGuide },
   { key: "trip",    href: "/trip",    label: "Trip",    icon: IconTrip, isCenter: true },
   { key: "sos",     href: "/sos",     label: "SOS",     icon: IconSos, emergency: true },
 ];

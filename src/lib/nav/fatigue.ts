@@ -109,7 +109,7 @@ export function updateFatigue(
     // was long enough to qualify as a "proper break"
     if (isResting) {
       if (currentRestDuration_s >= QUALIFIED_REST_DURATION_S) {
-        // Qualified rest — reset the fatigue timer
+        // Qualified rest - reset the fatigue timer
         lastRestAt = Date.now();
         timeSinceLastRest_s = 0;
       }
@@ -200,7 +200,7 @@ export function fatigueColor(level: FatigueWarningLevel): string {
 
 /**
  * Whether the fatigue state has crossed a new warning threshold
- * compared to a previous state — used to trigger one-time voice/haptic.
+ * compared to a previous state - used to trigger one-time voice/haptic.
  */
 export function fatigueEscalated(prev: FatigueState, next: FatigueState): boolean {
   const order: FatigueWarningLevel[] = ["none", "suggested", "recommended", "urgent"];

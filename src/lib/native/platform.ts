@@ -18,7 +18,7 @@ export const isIOS = platform === "ios";
 export const isAndroid = platform === "android";
 
 /**
- * Safe plugin check — returns false if plugin isn't available on this platform
+ * Safe plugin check - returns false if plugin isn't available on this platform
  * instead of throwing. Use before calling optional plugin APIs.
  */
 export function hasPlugin(name: string): boolean {

@@ -338,16 +338,24 @@ export default function GuideClientPage(props: {
           position: "sticky",
           top: 0,
           zIndex: 50,
-          padding: "16px 14px 12px",
-          background: "linear-gradient(to bottom, var(--roam-bg) 78%, rgba(0,0,0,0))",
+          padding: "16px 16px 12px",
+          background: "linear-gradient(to bottom, var(--roam-bg) 78%, transparent)",
           backdropFilter: "blur(10px)",
+          WebkitBackdropFilter: "blur(10px)",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-     
+          <div style={{
+            width: 32, height: 32, borderRadius: 8,
+            overflow: "hidden",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+            flexShrink: 0,
+          }}>
+            <img src="/roam-logo.png" alt="Roam" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          </div>
 
           <div style={{ minWidth: 0, flex: 1 }}>
-           
+
             <div
               className="trip-truncate"
               style={{
@@ -366,8 +374,8 @@ export default function GuideClientPage(props: {
               borderRadius: 999,
               fontSize: 12,
               fontWeight: 900,
-              background: isOnline ? "rgba(0,200,120,0.12)" : "rgba(255,180,0,0.12)",
-              color: isOnline ? "rgba(0,160,90,1)" : "rgba(200,130,0,1)",
+              background: isOnline ? "var(--accent-tint)" : "var(--bg-warn)",
+              color: isOnline ? "var(--roam-success)" : "var(--text-warn)",
               whiteSpace: "nowrap",
               display: "inline-flex",
               alignItems: "center",
@@ -398,8 +406,8 @@ export default function GuideClientPage(props: {
 
             <div
               style={{
-                height: 6,
-                borderRadius: 3,
+                height: 8,
+                borderRadius: 4,
                 background: "var(--roam-surface-hover)",
                 overflow: "hidden",
                 position: "relative",
@@ -412,8 +420,8 @@ export default function GuideClientPage(props: {
                   top: 0,
                   bottom: 0,
                   width: `${Math.min(100, (tripProgress.km_from_start / tripProgress.total_km) * 100)}%`,
-                  background: "var(--roam-accent)",
-                  borderRadius: 3,
+                  background: "linear-gradient(90deg, var(--roam-accent), var(--roam-success))",
+                  borderRadius: 4,
                   transition: "width 0.5s ease-out",
                 }}
               />
@@ -453,9 +461,9 @@ export default function GuideClientPage(props: {
                       position: "absolute",
                       left: `${Math.min(100, m.pct)}%`,
                       top: -1,
-                      width: 8,
-                      height: 8,
-                      borderRadius: 4,
+                      width: 10,
+                      height: 10,
+                      borderRadius: 5,
                       background: m.visited ? "var(--roam-accent)" : "var(--roam-surface)",
                       border: "2px solid var(--roam-surface-hover)",
                       transform: "translateX(-50%)",
@@ -490,7 +498,7 @@ export default function GuideClientPage(props: {
               marginTop: 8,
               fontSize: 11,
               fontWeight: 900,
-              color: "rgba(200,100,0,1)",
+              color: "var(--text-warn)",
               display: "inline-flex",
               alignItems: "center",
               gap: 6,
@@ -502,20 +510,7 @@ export default function GuideClientPage(props: {
         ) : null}
 
         {err ? (
-          <div
-            style={{
-              marginTop: 10,
-              padding: 12,
-              borderRadius: 14,
-              background: "rgba(255,0,0,0.08)",
-              color: "rgba(200,0,0,1)",
-              fontWeight: 850,
-              fontSize: 13,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
+          <div className="trip-err-box" style={{ marginTop: 10, display: "inline-flex", alignItems: "center", gap: 8 }}>
             <AlertTriangle size={16} />
             {err}
           </div>
@@ -525,7 +520,7 @@ export default function GuideClientPage(props: {
       {/* ── Content ─────────────────────────────────────────────── */}
       <div
         style={{
-          padding: "0 14px",
+          padding: "0 16px",
           paddingBottom: "calc(var(--bottom-nav-height, 80px) + 24px)",
         }}
       >

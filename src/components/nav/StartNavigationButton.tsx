@@ -15,7 +15,7 @@ export function StartNavigationButton({ onStart, disabled }: Props) {
 
   const handlePress = async () => {
     if (loading || disabled) return;
-    haptic.medium();
+    haptic.heavy();
     setLoading(true);
     try {
       await onStart();
@@ -46,11 +46,11 @@ export function StartNavigationButton({ onStart, disabled }: Props) {
         letterSpacing: "-0.3px",
         color: "white",
         background: loading || disabled
-          ? "rgba(74,108,83,0.5)"
-          : "linear-gradient(135deg, #4a6c53, #3d5a45)",
+          ? "var(--accent-tint)"
+          : "linear-gradient(135deg, var(--brand-eucalypt), var(--brand-eucalypt-dark))",
         boxShadow: loading || disabled
           ? "none"
-          : "0 4px 16px rgba(74,108,83,0.4), 0 1px 4px rgba(0,0,0,0.1)",
+          : "0 4px 16px rgba(51,120,74,0.35), 0 1px 4px rgba(0,0,0,0.1)",
         transition: "all 0.2s ease",
         opacity: disabled ? 0.5 : 1,
       }}
@@ -67,16 +67,11 @@ export function StartNavigationButton({ onStart, disabled }: Props) {
       }}
     >
       {loading ? (
-        <Loader2 size={20} style={{ animation: "spin 1s linear infinite" }} />
+        <Loader2 size={20} style={{ animation: "roam-spin 0.6s linear infinite" }} />
       ) : (
         <Navigation size={20} />
       )}
       {loading ? "Starting…" : "Start Navigation"}
-      <style>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
     </button>
   );
 }

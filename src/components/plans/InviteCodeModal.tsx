@@ -1,11 +1,13 @@
-// src/components/plans/InviteCodeModal.tsx
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { usePlanSync } from "@/lib/hooks/usePlanSync";
+import { X } from "lucide-react";
 import { useBundleBuilder } from "@/lib/hooks/useBundleBuilder";
 import { getOfflinePlan, setCurrentPlanId } from "@/lib/offline/plansStore";
+import { haptic } from "@/lib/native/haptics";
 
 type Props = {
   open: boolean;
@@ -16,10 +18,8 @@ type Props = {
 };
 
 /**
- * Modal for creating or redeeming plan invite codes.
- *
- * Create mode: generates a 6-char code for the given planId.
- * Redeem mode: accepts a code → joins plan → builds local bundle → navigates to /trip.
+ * Invite code modal - portalled to document.body so it always centres
+ * in the viewport regardless of parent CSS containment / transforms.
  */
 export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Props) {
   const router = useRouter();
@@ -31,7 +31,27 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /* ── Create flow ───────────────────────────────────────────────────── */
+  // Track whether we're mounted (needed for portal target)
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
+  // Reset state when modal opens/closes
+  useEffect(() => {
+    if (!open) {
+      setCode("");
+      setGeneratedCode(null);
+      setError(null);
+      setBusy(false);
+    }
+  }, [open]);
+
+  // Lock body scroll while open
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [open]);
 
   const handleCreate = useCallback(async () => {
     if (!planId) return;
@@ -43,6 +63,7 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
     setError(null);
     try {
       const c = await createInvite(planId);
+      haptic.success();
       setGeneratedCode(c);
     } catch (e: any) {
       setError(e?.message ?? "Failed to create invite");
@@ -50,8 +71,6 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
       setBusy(false);
     }
   }, [planId, createInvite, online]);
-
-  /* ── Redeem flow (join → build bundle → navigate) ──────────────────── */
 
   const handleRedeem = useCallback(async () => {
     const trimmed = code.trim().toUpperCase();
@@ -68,18 +87,13 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
     setError(null);
 
     try {
-      // 1. Join the plan via Supabase (adds membership + pulls definition to IDB)
       const joinedPlanId = await redeemInvite(trimmed);
-
-      // 2. Read the plan stub from IDB (planSync.pullRemote just wrote it)
       const stub = await getOfflinePlan(joinedPlanId);
 
       if (!stub?.preview?.stops?.length) {
         throw new Error("Joined plan has no route data. Ask the owner to re-share.");
       }
 
-      // 3. Build the full offline bundle from the plan definition
-      //    This runs the same pipeline as /new: route → corridor → places → bundle → zip
       await bundle.build({
         plan_id: joinedPlanId,
         stops: stub.preview.stops,
@@ -87,10 +101,9 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
         styleId: "roam-basemap-vector-bright",
       });
 
-      // 4. Set as current plan
       await setCurrentPlanId(joinedPlanId);
-
-      // 5. Notify parent + navigate
+      haptic.success();
+      
       onRedeemed?.(joinedPlanId);
       onClose();
       router.push(`/trip?plan_id=${encodeURIComponent(joinedPlanId)}`);
@@ -101,45 +114,83 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
     }
   }, [code, redeemInvite, online, bundle, onRedeemed, onClose, router]);
 
-  /* ── Copy code ─────────────────────────────────────────────────────── */
-
   const handleCopy = useCallback(() => {
     if (generatedCode) {
+      haptic.light();
       navigator.clipboard?.writeText(generatedCode).catch(() => {});
     }
   }, [generatedCode]);
 
-  if (!open) return null;
+  // ── Don't render until client-mounted, and not when closed ─────────
+  if (!open || !mounted) return null;
 
-  // Are we in the bundle-building phase of redemption?
   const isBuilding = bundle.building;
   const buildingOrBusy = busy || isBuilding;
 
-  return (
-    <div className="trip-modal-overlay" role="dialog" aria-modal="true" onClick={onClose}>
-      <div className="trip-modal" onClick={(e) => e.stopPropagation()}>
-        {/* ── Header ─────────────────────────────────────────────────── */}
-        <div className="trip-row-between">
-          <div className="trip-h2">
+  const modalContent = (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        backgroundColor: "rgba(0,0,0,0.6)",
+        backdropFilter: "blur(4px)",
+        WebkitBackdropFilter: "blur(4px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 100,
+        padding: 20,
+      }}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          backgroundColor: "var(--roam-surface, #1a1a1a)",
+          borderRadius: 20,
+          padding: 24,
+          width: "100%",
+          maxWidth: 400,
+          boxShadow: "0 20px 40px rgba(0,0,0,0.4)",
+          position: "relative",
+          /* Prevent the card from being pushed by virtual keyboard */
+          maxHeight: "calc(100dvh - 40px)",
+          overflowY: "auto",
+        }}
+      >
+        {/* ── Header ──────────────────────────────────────────────── */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0, color: "var(--roam-text, #eee)" }}>
             {mode === "create" ? "Share Plan" : "Join Plan"}
-          </div>
+          </h2>
           <button
             type="button"
             onClick={onClose}
-            className="trip-interactive trip-btn-icon"
-            aria-label="Close"
             disabled={isBuilding}
+            style={{
+              all: "unset",
+              cursor: "pointer",
+              padding: 8,
+              opacity: 0.5,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: 8,
+              color: "var(--roam-text, #eee)",
+            }}
           >
-            ✕
+            <X size={20} />
           </button>
         </div>
 
-        {/* ── Create mode ────────────────────────────────────────────── */}
+        {/* ── Create mode ─────────────────────────────────────────── */}
         {mode === "create" ? (
           <>
             {generatedCode ? (
               <div style={{ textAlign: "center", padding: "16px 0" }}>
-                <div style={{ fontSize: 13, color: "var(--roam-muted, #888)", marginBottom: 12 }}>
+                <div style={{ fontSize: 13, color: "var(--roam-text-muted)", marginBottom: 12 }}>
                   Share this code with your travel partner
                 </div>
                 <div
@@ -149,6 +200,7 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
                     letterSpacing: "0.2em",
                     fontFamily: "monospace",
                     padding: "12px 0",
+                    color: "var(--brand-sky, #3b82f6)",
                   }}
                 >
                   {generatedCode}
@@ -156,31 +208,40 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
                 <button
                   type="button"
                   onClick={handleCopy}
-                  className="trip-interactive trip-btn trip-btn-secondary"
-                  style={{ marginTop: 8 }}
+                  style={{
+                    width: "100%",
+                    padding: "12px",
+                    borderRadius: 12,
+                    border: "1px solid var(--roam-border)",
+                    background: "transparent",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    color: "var(--roam-text, #eee)",
+                  }}
                 >
                   Copy code
                 </button>
               </div>
             ) : (
               <div style={{ textAlign: "center", padding: "16px 0" }}>
-                <div style={{ fontSize: 13, color: "var(--roam-muted, #888)", marginBottom: 16 }}>
-                  Generate a 6-character code so your partner can view and edit this trip plan on
-                  their device.
+                <div style={{ fontSize: 13, color: "var(--roam-text-muted)", marginBottom: 16 }}>
+                  Generate a 6-character code so your partner can view and edit this trip plan on their device.
                 </div>
                 <button
                   type="button"
                   onClick={handleCreate}
                   disabled={busy}
-                  className="trip-interactive trip-btn"
                   style={{
-                    background: "var(--roam-accent, #3b82f6)",
+                    width: "100%",
+                    background: "var(--brand-sky, #3b82f6)",
                     color: "#fff",
                     border: "none",
-                    padding: "12px 24px",
-                    borderRadius: 8,
-                    fontSize: 14,
-                    fontWeight: 600,
+                    padding: "14px",
+                    borderRadius: 12,
+                    fontSize: 15,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    opacity: busy ? 0.6 : 1,
                   }}
                 >
                   {busy ? "Generating…" : "Generate invite code"}
@@ -189,33 +250,31 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
             )}
           </>
         ) : (
-          /* ── Redeem mode ───────────────────────────────────────────── */
+          /* ── Redeem mode ────────────────────────────────────────── */
           <div style={{ padding: "8px 0" }}>
-            {/* Bundle build progress replaces the input form */}
             {isBuilding ? (
               <div style={{ textAlign: "center", padding: "20px 0" }}>
-                {/* Spinner */}
                 <div
                   style={{
                     width: 40,
                     height: 40,
                     margin: "0 auto 16px",
                     border: "3px solid var(--roam-border, #333)",
-                    borderTop: "3px solid var(--roam-accent, #3b82f6)",
+                    borderTop: "3px solid var(--brand-sky, #3b82f6)",
                     borderRadius: "50%",
-                    animation: "roam-spin 0.8s linear infinite",
+                    animation: "roam-spin 0.6s linear infinite",
                   }}
                 />
-                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>
-                  Building your offline bundle…
+                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6, color: "var(--roam-text, #eee)" }}>
+                  Building offline bundle…
                 </div>
-                <div style={{ fontSize: 13, color: "var(--roam-muted, #888)" }}>
+                <div style={{ fontSize: 13, color: "var(--roam-text-muted)" }}>
                   {bundle.statusText}
                 </div>
               </div>
             ) : (
               <>
-                <div style={{ fontSize: 13, color: "var(--roam-muted, #888)", marginBottom: 12 }}>
+                <div style={{ fontSize: 13, color: "var(--roam-text-muted)", marginBottom: 12 }}>
                   Enter the 6-character code from your travel partner
                 </div>
                 <input
@@ -227,35 +286,36 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
                   disabled={buildingOrBusy}
                   style={{
                     width: "100%",
+                    boxSizing: "border-box",
                     textAlign: "center",
                     fontSize: 24,
                     fontWeight: 700,
                     letterSpacing: "0.2em",
                     fontFamily: "monospace",
-                    padding: "12px 14px",
-                    borderRadius: 8,
-                    border: "1px solid var(--roam-border, #333)",
-                    background: "var(--roam-surface, #1a1a1a)",
+                    padding: "14px",
+                    borderRadius: 12,
+                    border: "1.5px solid var(--roam-border, #333)",
+                    background: "var(--roam-surface-raised, #222)",
                     color: "var(--roam-text, #eee)",
-                    boxSizing: "border-box",
+                    outline: "none",
                   }}
                 />
                 <button
                   type="button"
                   onClick={handleRedeem}
                   disabled={buildingOrBusy || code.trim().length < 4}
-                  className="trip-interactive trip-btn"
                   style={{
                     width: "100%",
-                    marginTop: 12,
-                    background: "var(--roam-accent, #3b82f6)",
+                    marginTop: 16,
+                    background: "var(--brand-sky, #3b82f6)",
                     color: "#fff",
                     border: "none",
-                    padding: "12px 16px",
-                    borderRadius: 8,
-                    fontSize: 14,
-                    fontWeight: 600,
+                    padding: "14px",
+                    borderRadius: 12,
+                    fontSize: 15,
+                    fontWeight: 700,
                     opacity: buildingOrBusy || code.trim().length < 4 ? 0.5 : 1,
+                    cursor: "pointer",
                   }}
                 >
                   {busy && !isBuilding ? "Joining…" : "Join plan"}
@@ -265,30 +325,21 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
           </div>
         )}
 
-        {/* ── Error banner ───────────────────────────────────────────── */}
+        {/* ── Error ───────────────────────────────────────────────── */}
         {(error || bundle.error) && (
           <div
-            style={{
-              padding: "10px 12px",
-              borderRadius: 8,
-              background: "rgba(239,68,68,0.12)",
-              color: "#f87171",
-              fontSize: 13,
-              textAlign: "center",
-              marginTop: 8,
-            }}
+            className="trip-err-box"
+            style={{ marginTop: 16, textAlign: "center" }}
           >
             {error || bundle.error}
           </div>
         )}
       </div>
 
-      {/* Keyframe for spinner */}
-      <style>{`
-        @keyframes roam-spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
+      {/* Animations handled by roam-spin in globals.css */}
     </div>
   );
+
+  // Portal to document.body - escapes any ancestor transform/contain/filter
+  return createPortal(modalContent, document.body);
 }

@@ -49,7 +49,7 @@ type Props = {
   planId?: string | null;
   onNavigateToGuide?: (placeId: string) => void;
 
-  // Alert highlight — pulses the marker in-place without moving the camera
+  // Alert highlight - pulses the marker in-place without moving the camera
   highlightedAlertId?: string | null;
 
   fuelStations?: FuelStation[] | null;
@@ -84,6 +84,10 @@ const SUG_CLUSTER_COUNT = "roam-sug-cluster-count";
 const SUG_UNCLUSTERED = "roam-sug-unclustered";
 const SUG_ICON_LAYER = "roam-sug-icon";
 const SUG_LABEL_LAYER = "roam-sug-label";
+const SUG_FOCUS_SRC = "roam-sug-focus-src";
+const SUG_FOCUS_RING = "roam-sug-focus-ring";
+const SUG_FOCUS_PING = "roam-sug-focus-ping";
+const SUG_FOCUS_DOT = "roam-sug-focus-dot";
 
 const TRAFFIC_POINT_SRC = "roam-traffic-pt-src";
 const TRAFFIC_LINE_SRC = "roam-traffic-line-src";
@@ -117,7 +121,7 @@ const FUEL_ICON_LAYER = "roam-fuel-icon";
 const FUEL_LABEL_LAYER = "roam-fuel-label";
 
 /* ══════════════════════════════════════════════════════════════════════
-   SVG Icon System — clean vector icons, no emojis
+   SVG Icon System - clean vector icons, no emojis
    ══════════════════════════════════════════════════════════════════════ */
 
 function svgToDataUrl(svg: string): string {
@@ -142,7 +146,7 @@ function makeIconSVG(pathD: string, bgColor: string, sizePx: number, iconColor: 
   </svg>`;
 }
 
-/* ── Icon path data (24x24 viewBox) — clean Lucide-style strokes ──── */
+/* ── Icon path data (24x24 viewBox) - clean Lucide-style strokes ──── */
 
 const ICON_PATHS = {
   // ── Essential services ──
@@ -689,6 +693,7 @@ export function TripMap(props: Props) {
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const protocolRef = useRef<Protocol | null>(null);
   const accuracyAnimFrame = useRef<number | null>(null);
+  const sugFocusRaf = useRef<number | null>(null);
 
   const onNavToGuideRef = useRef(props.onNavigateToGuide);
   onNavToGuideRef.current = props.onNavigateToGuide;
@@ -887,10 +892,10 @@ export function TripMap(props: Props) {
          8. Alert highlight (ring → ping animation)
          ════════════════════════════════════════════════════════════════ */
 
-      /* ── 1. Route layers — warm outback amber/gold ─────────────────── */
+      /* ── 1. Route layers - warm outback amber/gold ─────────────────── */
       addOrUpdateGeoJsonSource(map, ROUTE_SRC, routeFC);
 
-      // Outer glow — warm amber haze
+      // Outer glow - warm amber haze
       if (!map.getLayer(ROUTE_GLOW)) {
         map.addLayer({
           id: ROUTE_GLOW,
@@ -906,7 +911,7 @@ export function TripMap(props: Props) {
         });
       }
 
-      // Dark casing — deep brown-black for contrast
+      // Dark casing - deep brown-black for contrast
       if (!map.getLayer(ROUTE_CASING)) {
         map.addLayer({
           id: ROUTE_CASING,
@@ -921,7 +926,7 @@ export function TripMap(props: Props) {
         });
       }
 
-      // Main route line — warm golden amber
+      // Main route line - warm golden amber
       if (!map.getLayer(ROUTE_LINE)) {
         map.addLayer({
           id: ROUTE_LINE,
@@ -1361,7 +1366,53 @@ export function TripMap(props: Props) {
       map.on("mouseenter", SUG_ICON_LAYER, () => (map.getCanvas().style.cursor = "pointer"));
       map.on("mouseleave", SUG_ICON_LAYER, () => (map.getCanvas().style.cursor = ""));
 
-      /* ── 5. Stop layers — beautiful themed markers ─────────────────── */
+      /* ── 4b. Suggestion focus highlight (pulsing ring for focused place) ─ */
+      addOrUpdateGeoJsonSource(map, SUG_FOCUS_SRC, { type: "FeatureCollection", features: [] });
+
+      if (!map.getLayer(SUG_FOCUS_PING)) {
+        map.addLayer({
+          id: SUG_FOCUS_PING,
+          type: "circle",
+          source: SUG_FOCUS_SRC,
+          paint: {
+            "circle-radius": 0,
+            "circle-color": "transparent",
+            "circle-stroke-color": "rgba(59,130,246,0.5)",
+            "circle-stroke-width": 2,
+            "circle-opacity": 1,
+          },
+        });
+      }
+
+      if (!map.getLayer(SUG_FOCUS_RING)) {
+        map.addLayer({
+          id: SUG_FOCUS_RING,
+          type: "circle",
+          source: SUG_FOCUS_SRC,
+          paint: {
+            "circle-radius": 22,
+            "circle-color": "rgba(59,130,246,0.08)",
+            "circle-stroke-color": "rgba(59,130,246,0.6)",
+            "circle-stroke-width": 2.5,
+          },
+        });
+      }
+
+      if (!map.getLayer(SUG_FOCUS_DOT)) {
+        map.addLayer({
+          id: SUG_FOCUS_DOT,
+          type: "circle",
+          source: SUG_FOCUS_SRC,
+          paint: {
+            "circle-radius": 8,
+            "circle-color": ["coalesce", ["get", "color"], "#3b82f6"],
+            "circle-stroke-color": "rgba(255,255,255,0.95)",
+            "circle-stroke-width": 3,
+          },
+        });
+      }
+
+      /* ── 5. Stop layers - beautiful themed markers ─────────────────── */
       addOrUpdateGeoJsonSource(map, STOPS_SRC, stopsFC);
 
       const stopColor = ["match", ["get", "type"], "start", "#16a34a", "end", "#dc2626", "via", "#9333ea", "#2563eb"] as any;
@@ -1382,7 +1433,7 @@ export function TripMap(props: Props) {
         });
       }
 
-      // Outer ring — white border with themed color
+      // Outer ring - white border with themed color
       if (!map.getLayer(STOPS_OUTER)) {
         map.addLayer({
           id: STOPS_OUTER,
@@ -1399,7 +1450,7 @@ export function TripMap(props: Props) {
         });
       }
 
-      // Inner filled circle — themed color
+      // Inner filled circle - themed color
       if (!map.getLayer(STOPS_INNER)) {
         map.addLayer({
           id: STOPS_INNER,
@@ -1470,7 +1521,7 @@ export function TripMap(props: Props) {
         });
       }
 
-      // Focus ring — animated outer highlight
+      // Focus ring - animated outer highlight
       if (!map.getLayer(STOP_FOCUS_RING)) {
         map.addLayer({
           id: STOP_FOCUS_RING,
@@ -1619,6 +1670,7 @@ export function TripMap(props: Props) {
 
     return () => {
       if (accuracyAnimFrame.current) cancelAnimationFrame(accuracyAnimFrame.current);
+      if (sugFocusRaf.current) cancelAnimationFrame(sugFocusRaf.current);
       try {
         popupRef.current?.remove();
       } catch {}
@@ -1678,6 +1730,33 @@ export function TripMap(props: Props) {
     s?.setData?.(sugFC);
   }, [sugFC]);
 
+  /* ── Update suggestion layer focus styling reactively ─────────────── */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const fid = props.focusedSuggestionId ?? "";
+    try {
+      if (map.getLayer(SUG_UNCLUSTERED)) {
+        map.setPaintProperty(SUG_UNCLUSTERED, "circle-stroke-color", [
+          "case", ["==", ["get", "id"], fid], "rgba(255,255,255,0.95)", "rgba(0,0,0,0.3)",
+        ]);
+        map.setPaintProperty(SUG_UNCLUSTERED, "circle-stroke-width", [
+          "case", ["==", ["get", "id"], fid], 3, 1.2,
+        ]);
+        // Make focused marker bigger
+        map.setPaintProperty(SUG_UNCLUSTERED, "circle-radius", [
+          "interpolate", ["linear"], ["zoom"],
+          8, ["case", ["==", ["get", "id"], fid], 10,
+            ["match", ["get", "sizeClass"], "lg", 6, "md", 4, 3]],
+          12, ["case", ["==", ["get", "id"], fid], 14,
+            ["match", ["get", "sizeClass"], "lg", 9, "md", 7, 5]],
+          16, ["case", ["==", ["get", "id"], fid], 18,
+            ["match", ["get", "sizeClass"], "lg", 12, "md", 10, 8]],
+        ]);
+      }
+    } catch {}
+  }, [props.focusedSuggestionId]);
+
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -1721,30 +1800,128 @@ export function TripMap(props: Props) {
     if (s) easeToCoord(map, [s.lng, s.lat], { zoom: Math.max(map.getZoom(), 12), duration: 420 });
   }, [props.focusedStopId, props.stops]);
 
-  /* ── Focus suggestion → zoom/focus ──────────────────────────────────── */
+  /* ── Focus suggestion → zoom/focus/popup/highlight ────────────────── */
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
+
+    const emptyFC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
     const id = props.focusedSuggestionId ?? null;
-    if (!id) return;
-    const p = (props.suggestions ?? []).find((x) => String(x.id) === String(id));
-    if (p) {
-      easeToCoord(map, [p.lng, p.lat], { zoom: Math.max(map.getZoom(), 13), duration: 420 });
+
+    // Clean up previous animation
+    if (sugFocusRaf.current != null) {
+      cancelAnimationFrame(sugFocusRaf.current);
+      sugFocusRaf.current = null;
+    }
+
+    if (!id) {
+      // Clear focus highlight
+      const src = map.getSource(SUG_FOCUS_SRC) as any;
+      if (src?.setData) src.setData(emptyFC);
+      popupRef.current?.remove();
       return;
     }
-    try {
-      const feats = map.querySourceFeatures(SUG_SRC);
-      for (const f of feats as any[]) {
-        if (f?.properties?.id && String(f.properties.id) === id) {
-          const coords = (f.geometry as any)?.coordinates;
-          if (Array.isArray(coords) && coords.length === 2) {
-            easeToCoord(map, [Number(coords[0]), Number(coords[1])], { zoom: Math.max(map.getZoom(), 13), duration: 420 });
-            break;
+
+    // Find the place in suggestions or query the source
+    let coord: [number, number] | null = null;
+    let name = "";
+    let category = "";
+    let color = "#3b82f6";
+
+    const p = (props.suggestions ?? []).find((x) => String(x.id) === String(id));
+    if (p) {
+      coord = [p.lng, p.lat];
+      name = p.name ?? "";
+      category = p.category ?? "";
+      color = getCatConfig(p.category).color;
+    } else {
+      try {
+        const feats = map.querySourceFeatures(SUG_SRC);
+        for (const f of feats as any[]) {
+          if (f?.properties?.id && String(f.properties.id) === id) {
+            const coords = (f.geometry as any)?.coordinates;
+            if (Array.isArray(coords) && coords.length === 2) {
+              coord = [Number(coords[0]), Number(coords[1])];
+              name = f.properties.name ?? "";
+              category = f.properties.category ?? "";
+              color = f.properties.color ?? "#3b82f6";
+              break;
+            }
           }
         }
+      } catch {}
+    }
+
+    if (!coord) {
+      const src = map.getSource(SUG_FOCUS_SRC) as any;
+      if (src?.setData) src.setData(emptyFC);
+      return;
+    }
+
+    // 1. Zoom close - 14.5 so the icon is clearly visible
+    easeToCoord(map, coord, { zoom: Math.max(map.getZoom(), 14.5), duration: 500 });
+
+    // 2. Set the focus highlight source
+    const focusFC: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: [{
+        type: "Feature",
+        geometry: { type: "Point", coordinates: coord },
+        properties: { color },
+      }],
+    };
+
+    const focusSrc = map.getSource(SUG_FOCUS_SRC) as any;
+    if (focusSrc?.setData) {
+      focusSrc.setData(focusFC);
+    } else {
+      try { map.addSource(SUG_FOCUS_SRC, { type: "geojson", data: focusFC }); } catch {}
+    }
+
+    // 3. Animate the pulsing ping ring
+    let frame = 0;
+    const animate = () => {
+      frame++;
+      const t = (frame % 60) / 60;
+      const radius = 22 + t * 28;
+      const opacity = 1 - t;
+      try {
+        map.setPaintProperty(SUG_FOCUS_PING, "circle-radius", radius);
+        map.setPaintProperty(SUG_FOCUS_PING, "circle-stroke-color", `rgba(59,130,246,${(0.5 * opacity).toFixed(2)})`);
+      } catch {}
+      sugFocusRaf.current = requestAnimationFrame(animate);
+    };
+    sugFocusRaf.current = requestAnimationFrame(animate);
+
+    // 4. Show a popup after a short delay (let the camera settle)
+    const popupTimer = setTimeout(() => {
+      try {
+        popupRef.current?.remove();
+        const html = buildSuggestionPopupHtml(name, category, id);
+        popupRef.current = new maplibregl.Popup({
+          closeButton: true,
+          closeOnClick: true,
+          className: "trip-map-popup",
+          maxWidth: "280px",
+          offset: [0, -16],
+        })
+          .setLngLat(coord!)
+          .setHTML(html)
+          .addTo(map);
+      } catch {}
+    }, 350);
+
+    // 5. Notify parent
+    onSugPressRef.current?.(id);
+
+    return () => {
+      if (sugFocusRaf.current != null) {
+        cancelAnimationFrame(sugFocusRaf.current);
+        sugFocusRaf.current = null;
       }
-    } catch {}
-  }, [props.focusedSuggestionId, props.suggestions]);
+      clearTimeout(popupTimer);
+    };
+  }, [props.focusedSuggestionId, props.suggestions, buildSuggestionPopupHtml]);
 
   /* ── Highlighted alert → in-place pulse ring (no camera move) ────────── */
   useEffect(() => {

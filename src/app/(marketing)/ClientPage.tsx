@@ -15,10 +15,11 @@ import {
   Compass,
   Menu,
   X,
+  Map,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
-/* Capacitor redirect — native shell goes straight to /trip            */
+/* Capacitor redirect - native shell goes straight to /trip            */
 /* ------------------------------------------------------------------ */
 function useNativeRedirect() {
   const router = useRouter();
@@ -96,7 +97,7 @@ function extProps(external: boolean) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Brand SVGs — Apple and Google Play logos                             */
+/* Brand SVGs - Apple and Google Play logos                             */
 /* ------------------------------------------------------------------ */
 function AppleSvg() {
   return (
@@ -216,20 +217,7 @@ export default function LandingPage() {
     <div className="rl">
       <style>{STYLES}</style>
 
-      {/* 01. Acknowledgement of Country */}
-      <section className="rl-aoc">
-        <div className="rl-inner">
-          <p>
-            We acknowledge the Traditional Custodians of the land on which we
-            live and work, the <strong>Gubbi Gubbi</strong> people. We pay our
-            respects to their Elders past and present and recognise their
-            continued connection to the land, waters, and culture of this
-            country.
-          </p>
-        </div>
-      </section>
-
-      {/* 02. Nav */}
+      {/* 01. Nav */}
       <nav className={`rl-nav ${scrolled ? "rl-nav-s" : ""}`}>
         <div className="rl-nav-bar">
           <a href="/" className="rl-nav-logo">
@@ -280,14 +268,14 @@ export default function LandingPage() {
         )}
       </nav>
 
-      {/* 03. Hero */}
+      {/* 02. Hero */}
       <section className="rl-hero">
         <div className="rl-hero-content">
           <h1 className="rl-hero-mega">ROAM</h1>
           <p className="rl-hero-tagline">
-            Road trip navigation that
+            Road trip navigation that works
             <br />
-            <strong>actually works</strong> out here.
+            <strong>way</strong> out here.
           </p>
           <div className="rl-hero-actions">
             <a
@@ -321,7 +309,7 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* 04. Problem */}
+      {/* 03. Problem */}
       <section className="rl-problem" id="problem">
         <div className="rl-inner">
           <div className="rl-problem-grid">
@@ -350,7 +338,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 05. Features */}
+      {/* 04. Features */}
       <section className="rl-features" id="features">
         <div className="rl-inner">
           <div className="rl-section-header">
@@ -375,7 +363,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 06. How it works */}
+      {/* 05. How it works */}
       <section className="rl-how" id="how">
         <div className="rl-inner">
           <div className="rl-how-grid">
@@ -402,7 +390,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 07. Download — platform-aware buttons */}
+      {/* 06. Download - platform-aware buttons */}
       <section className="rl-download" id="download">
         <div className="rl-inner">
           <div className="rl-download-card">
@@ -444,6 +432,22 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* 07. Acknowledgement of Country (Integrated Footer Version) */}
+      <section className="rl-aoc-footer">
+        <div className="rl-inner">
+          <div className="rl-aoc-content">
+            <Map className="rl-aoc-icon" size={20} strokeWidth={1.5} />
+            <p>
+              Roam was built on the lands of the <strong>Gubbi Gubbi</strong> people. 
+              We pay our respects to their Elders past and present. As you travel 
+              this wide country, we invite you to recognize that every track, 
+              highway, and river you cross has been cared for by Traditional 
+              Custodians for tens of thousands of years.
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* 08. Footer */}
       <footer className="rl-footer">
         <div className="rl-inner">
@@ -472,7 +476,7 @@ export default function LandingPage() {
         </div>
       </footer>
 
-      {/* Mobile sticky CTA — platform-aware */}
+      {/* Mobile sticky CTA - platform-aware */}
       <div className="rl-mobile-cta">
         <a
           href={cta.href}
@@ -526,21 +530,7 @@ const STYLES = `
   display: block; margin-bottom: 16px;
 }
 
-/* ---- 01. Acknowledgement of Country ---- */
-.rl-aoc {
-  background: var(--sand-dark);
-  padding: 48px 24px;
-  text-align: center;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-}
-.rl-aoc p {
-  max-width: 660px; margin: 0 auto;
-  font-size: 15px; line-height: 1.65;
-  color: var(--eucalypt);
-}
-.rl-aoc strong { font-weight: 800; }
-
-/* ---- 02. Nav ---- */
+/* ---- 01. Nav ---- */
 .rl-nav {
   position: sticky; top: 0; z-index: 1000;
   background: var(--sand);
@@ -636,7 +626,7 @@ const STYLES = `
   box-shadow: 0 3px 0 var(--burnt);
 }
 
-/* ---- 03. Hero ---- */
+/* ---- 02. Hero ---- */
 .rl-hero {
   min-height: 85vh; min-height: 85dvh;
   display: flex; flex-direction: column;
@@ -730,7 +720,7 @@ html, body {
   margin-left: 12px;
 }
 
-/* ---- 04. Problem ---- */
+/* ---- 03. Problem ---- */
 .rl-problem { padding: 120px 0; }
 .rl-problem-grid {
   display: grid; grid-template-columns: 1.1fr 0.9fr;
@@ -766,7 +756,7 @@ html, body {
   font-size: 14px; color: var(--text-muted); margin-top: 6px;
 }
 
-/* ---- 05. Features ---- */
+/* ---- 04. Features ---- */
 .rl-features { background: var(--sand-dark); padding: 120px 0; }
 .rl-section-header { text-align: center; margin-bottom: 56px; }
 .rl-section-header h2 {
@@ -804,7 +794,7 @@ html, body {
   color: var(--text-muted); line-height: 1.65; font-size: 15px;
 }
 
-/* ---- 06. How it works ---- */
+/* ---- 05. How it works ---- */
 .rl-how { padding: 120px 0; }
 .rl-how-grid {
   display: grid; grid-template-columns: 0.8fr 1.2fr; gap: 56px;
@@ -828,7 +818,7 @@ html, body {
   color: var(--text-muted); font-size: 16px; line-height: 1.7;
 }
 
-/* ---- 07. Download ---- */
+/* ---- 06. Download ---- */
 .rl-download { padding: 0 0 120px; }
 .rl-download-card {
   background: var(--burnt); color: var(--white);
@@ -884,10 +874,36 @@ html, body {
 }
 .rl-download-web:hover { color: rgba(255, 255, 255, 0.7); }
 
+/* ---- 07. Acknowledgement Footer ---- */
+.rl-aoc-footer {
+  padding: 80px 0;
+  background: var(--sand);
+  border-top: 1px solid var(--sand-dark);
+}
+.rl-aoc-content {
+  max-width: 720px;
+  margin: 0 auto;
+  text-align: center;
+}
+.rl-aoc-icon {
+  color: var(--ochre);
+  margin-bottom: 24px;
+  opacity: 0.6;
+}
+.rl-aoc-footer p {
+  font-size: 16px;
+  line-height: 1.8;
+  color: var(--text-muted);
+}
+.rl-aoc-footer strong {
+  color: var(--text);
+  font-weight: 800;
+}
+
 /* ---- 08. Footer ---- */
 .rl-footer {
-  padding: 72px 0 48px;
-  background: var(--white);
+  padding: 0 0 48px;
+  background: var(--sand);
 }
 @media (max-width: 968px) {
   .rl-footer { padding-bottom: 120px; }
@@ -994,5 +1010,6 @@ html, body {
   .rl-problem { padding: 80px 0; }
   .rl-features { padding: 80px 0; }
   .rl-how { padding: 80px 0; }
+  .rl-aoc-footer { padding: 60px 0; }
 }
 `;

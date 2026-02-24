@@ -1,7 +1,7 @@
 // src/components/native/BasemapBootstrap.tsx
 //
 // Runs once at app startup. Checks if the offline basemap is installed
-// and starts the local tile server if so. Silent — no UI.
+// and starts the local tile server if so. Silent - no UI.
 // Must be inside a client boundary.
 
 "use client";

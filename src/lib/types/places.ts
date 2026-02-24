@@ -1,7 +1,7 @@
 // src/lib/types/places.ts
 import type { BBox4, NavCoord } from "./geo";
 // ──────────────────────────────────────────────────────────────
-// PlaceCategory — replace the existing PlaceCategory type in
+// PlaceCategory - replace the existing PlaceCategory type in
 // src/lib/types/places.ts with this one.
 // Must match backend contracts.py exactly.
 // ──────────────────────────────────────────────────────────────
@@ -59,7 +59,7 @@ export type CorridorPlacesRequest = {
   corridor_key: string;
   categories?: PlaceCategory[];
   limit?: number; // default 8000
-  /** Polyline6 of the route — enables true corridor search along the road shape */
+  /** Polyline6 of the route - enables true corridor search along the road shape */
   geometry?: string;
   /** Corridor buffer radius in km (default 15) */
   buffer_km?: number;

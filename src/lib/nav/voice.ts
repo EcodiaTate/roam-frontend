@@ -55,9 +55,9 @@ const MIN_SPEAK_GAP_MS = 3000;
  * Decide whether to make a voice announcement this tick.
  *
  * 3-stage pattern per maneuver:
- *   1. PREPARATION — 2km before (highway) / 500m before (urban)
- *   2. APPROACH    — 500m before (highway) / 200m before (urban)
- *   3. ACTION      — 50m before
+ *   1. PREPARATION - 2km before (highway) / 500m before (urban)
+ *   2. APPROACH    - 500m before (highway) / 200m before (urban)
+ *   3. ACTION      - 50m before
  *
  * Also handles:
  *   - Arrival announcement
@@ -111,7 +111,7 @@ export function shouldSpeak(
     }
   }
 
-  // ── Next maneuver — determine which step to announce ──
+  // ── Next maneuver - determine which step to announce ──
   // We announce the NEXT step (the upcoming maneuver), not the current one.
   const announceStep = nav.nextStep ?? nav.currentStep;
   const dist = nav.distToNextManeuver_m;

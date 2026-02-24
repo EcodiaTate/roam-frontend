@@ -502,7 +502,7 @@ export async function guideSendMessage(args: {
   preferredCategories?: string[];
   maxSteps?: number;
   progress?: TripProgress | null;
-  /** Full corridor places from IDB — used for intent-based pre-filtering */
+  /** Full corridor places from IDB - used for intent-based pre-filtering */
   corridorPlaces?: PlaceItem[];
 }): Promise<{ pack: GuidePack; assistantText: string }> {
   const {

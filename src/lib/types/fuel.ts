@@ -1,6 +1,6 @@
 // src/lib/types/fuel.ts
 // ──────────────────────────────────────────────────────────────
-// Fuel Range Intelligence — Type Definitions
+// Fuel Range Intelligence - Type Definitions
 // Client-side only. No backend changes.
 // ──────────────────────────────────────────────────────────────
 
@@ -14,7 +14,7 @@ export interface VehicleFuelProfile {
 
 export type FuelType = "unleaded" | "diesel" | "lpg" | "ev";
 
-/** Default vehicle profile — sensible for a standard Australian car */
+/** Default vehicle profile - sensible for a standard Australian car */
 export const DEFAULT_FUEL_PROFILE: VehicleFuelProfile = {
   tank_range_km: 600,
   reserve_warn_km: 100,
@@ -44,7 +44,7 @@ export interface FuelLeg {
   from_station: FuelStation | null;  // null = route start
   to_station: FuelStation | null;    // null = route end
   distance_km: number;
-  gap_exceeds_range: boolean;        // true = DANGER — can't make it
+  gap_exceeds_range: boolean;        // true = DANGER - can't make it
   gap_exceeds_warn: boolean;         // true = tight but possible
 }
 
@@ -58,7 +58,7 @@ export interface FuelWarning {
   gap_km?: number;                   // the problematic distance
 }
 
-/** Full analysis result — stored in IDB per plan */
+/** Full analysis result - stored in IDB per plan */
 export interface FuelAnalysis {
   profile: VehicleFuelProfile;
   stations: FuelStation[];           // ordered by km_along_route

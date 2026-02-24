@@ -1,10 +1,11 @@
+// src/components/trip/PlanDrawer.tsx
 "use client";
 
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Check,
-  ChevronRight,
   Clock,
-  HardDrive,
   Link2,
   MapPin,
   Navigation,
@@ -17,8 +18,6 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { InviteCodeModal } from "@/components/plans/InviteCodeModal";
 import { haptic } from "@/lib/native/haptics";
@@ -33,14 +32,6 @@ import {
 
 /* ── Formatters ──────────────────────────────────────────────────────── */
 
-function fmtBytes(n?: number) {
-  if (!n || n <= 0) return " - ";
-  const kb = n / 1024;
-  if (kb < 1024) return `${kb.toFixed(0)} KB`;
-  const mb = kb / 1024;
-  if (mb < 1024) return `${mb.toFixed(1)} MB`;
-  return `${(mb / 1024).toFixed(2)} GB`;
-}
 
 function fmtKm(m?: number) {
   if (!m) return " - ";
@@ -57,29 +48,12 @@ function fmtDuration(s?: number) {
   return `${h}h ${m}m`;
 }
 
-function fmtRelativeTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return "Just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  if (days === 1) return "Yesterday";
-  if (days < 7) return `${days}d ago`;
-  return new Date(iso).toLocaleDateString([], {
-    month: "short",
-    day: "numeric",
-  });
-}
-
 function routeLabel(p: OfflinePlanRecord): string {
   const stops = p.preview?.stops;
   if (!stops || stops.length === 0) return "Unnamed route";
   const start = stops.find((s) => s.type === "start");
   const end = stops.find((s) => s.type === "end");
-  const startName =
-    start?.name?.replace(/^My location$/i, "Current location") || "?";
+  const startName = start?.name?.replace(/^My location$/i, "Current location") || "?";
   const endName = end?.name || "?";
   if (startName === endName) return startName;
   return `${startName} → ${endName}`;
@@ -153,7 +127,7 @@ function InlineRename({
       >
         <span
           style={{
-            fontSize: 15,
+            fontSize: 14,
             fontWeight: 700,
             color: "var(--roam-text)",
             overflow: "hidden",
@@ -164,7 +138,7 @@ function InlineRename({
           {currentLabel?.trim() || fallback}
         </span>
         <Pencil
-          size={13}
+          size={12}
           style={{
             flexShrink: 0,
             color: "var(--roam-text-muted)",
@@ -193,7 +167,7 @@ function InlineRename({
         placeholder="Trip name…"
         style={{
           flex: 1,
-          fontSize: 15,
+          fontSize: 14,
           fontWeight: 700,
           color: "var(--roam-text)",
           background: "var(--roam-surface-raised, var(--roam-surface))",
@@ -213,15 +187,15 @@ function InlineRename({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          width: 30,
-          height: 30,
-          borderRadius: 8,
-          background: "var(--brand-sky, #3b82f6)",
-          color: "white",
+          width: 28,
+          height: 28,
+          borderRadius: 6,
+          background: "var(--roam-accent)",
+          color: "var(--on-color)",
           flexShrink: 0,
         }}
       >
-        <Check size={16} />
+        <Check size={14} />
       </button>
       <button
         type="button"
@@ -232,16 +206,16 @@ function InlineRename({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          width: 30,
-          height: 30,
-          borderRadius: 8,
+          width: 28,
+          height: 28,
+          borderRadius: 6,
           background: "var(--roam-surface)",
           border: "1px solid var(--roam-border)",
           color: "var(--roam-text-muted)",
           flexShrink: 0,
         }}
       >
-        <X size={16} />
+        <X size={14} />
       </button>
     </div>
   );
@@ -252,17 +226,17 @@ function InlineRename({
 function StatusDot({ status }: { status?: string }) {
   const color =
     status === "ready"
-      ? "#22c55e"
+      ? "var(--roam-success, #22c55e)"
       : status === "error"
-        ? "#ef4444"
+        ? "var(--roam-danger, #ef4444)"
         : "var(--roam-text-muted)";
 
   return (
     <span
       style={{
         display: "inline-block",
-        width: 7,
-        height: 7,
+        width: 8,
+        height: 8,
         borderRadius: "50%",
         background: color,
         flexShrink: 0,
@@ -271,7 +245,7 @@ function StatusDot({ status }: { status?: string }) {
   );
 }
 
-/* ── Plan Card ───────────────────────────────────────────────────────── */
+/* ── Plan Card (Drawer variant - compact) ────────────────────────────── */
 
 function PlanCard({
   plan,
@@ -307,17 +281,28 @@ function PlanCard({
         transition: "border-color 0.2s, box-shadow 0.2s",
         boxShadow: isCurrent
           ? "0 0 0 3px rgba(59,130,246,0.12)"
-          : "0 1px 3px rgba(0,0,0,0.06)",
+          : "var(--shadow-soft, 0 1px 3px rgba(0,0,0,0.06))",
+        display: "flex",
       }}
     >
-      {/* ── Main content (tappable to open) ──────────────────── */}
+      {/* Accent stripe */}
+      <div
+        style={{
+          width: 4,
+          flexShrink: 0,
+          background: isCurrent ? "var(--brand-sky, #3b82f6)" : "var(--roam-border)",
+          borderRadius: "16px 0 0 16px",
+        }}
+      />
+      {/* ── Main content ──────────────────────────────── */}
+      <div style={{ flex: 1, minWidth: 0 }}>
       <div
         role="button"
         tabIndex={0}
         onClick={onOpen}
         onKeyDown={(e) => e.key === "Enter" && onOpen()}
         style={{
-          padding: "16px 16px 12px",
+          padding: "12px 14px",
           cursor: "pointer",
           WebkitTapHighlightColor: "transparent",
         }}
@@ -340,26 +325,23 @@ function PlanCard({
               onDone={onLabelChanged}
             />
           </div>
-          <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+          <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
             {plan.is_shared && (
               <span
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
-                  gap: 3,
-                  padding: "3px 7px",
-                  borderRadius: 6,
+                  gap: 2,
+                  padding: "2px 6px",
+                  borderRadius: 4,
                   background: "var(--accent-tint)",
                   color: "var(--brand-shared, #8540c8)",
-                  fontSize: 11,
+                  fontSize: 10,
                   fontWeight: 800,
-                  letterSpacing: 0.3,
-                  textTransform: "uppercase",
                   whiteSpace: "nowrap",
                 }}
               >
-                <Users size={9} />
-                Shared
+                <Users size={8} />
               </span>
             )}
             {isCurrent && (
@@ -367,78 +349,46 @@ function PlanCard({
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
-                  gap: 4,
-                  padding: "3px 8px",
-                  borderRadius: 6,
+                  gap: 2,
+                  padding: "2px 6px",
+                  borderRadius: 4,
                   background: "rgba(59,130,246,0.12)",
                   color: "var(--brand-sky, #3b82f6)",
-                  fontSize: 11,
+                  fontSize: 10,
                   fontWeight: 800,
-                  letterSpacing: 0.3,
-                  textTransform: "uppercase",
-                  whiteSpace: "nowrap",
                 }}
               >
-                <Star size={10} fill="currentColor" />
-                Active
+                <Star size={8} fill="currentColor" />
               </span>
             )}
           </div>
         </div>
-
-        {/* Route summary (when custom label is set) */}
-        {plan.label?.trim() ? (
-          <div
-            style={{
-              fontSize: 12,
-              color: "var(--roam-text-muted)",
-              marginBottom: 8,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {label}
-          </div>
-        ) : null}
 
         {/* Stats row */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 14,
-            fontSize: 12,
+            gap: 10,
+            fontSize: 11,
             color: "var(--roam-text-muted)",
-            fontWeight: 500,
+            fontWeight: 600,
           }}
         >
-          <span
-            style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
-          >
-            <Route size={12} />
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+            <Route size={11} />
             {fmtKm(plan.preview?.distance_m)}
           </span>
-          <span
-            style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
-          >
-            <Clock size={12} />
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+            <Clock size={11} />
             {fmtDuration(plan.preview?.duration_s)}
           </span>
           {stops > 0 && (
-            <span
-              style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
-            >
-              <MapPin size={12} />
-              {stops} stop{stops !== 1 ? "s" : ""}
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+              <MapPin size={11} />
+              {stops}
             </span>
           )}
-          <span
-            style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
-          >
-            <HardDrive size={12} />
-            {fmtBytes(plan.zip_bytes)}
-          </span>
         </div>
 
         {/* Bundle readiness row */}
@@ -446,43 +396,24 @@ function PlanCard({
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 10,
-            marginTop: 10,
-            fontSize: 11,
+            gap: 8,
+            marginTop: 8,
+            fontSize: 10,
             color: "var(--roam-text-muted)",
             fontWeight: 500,
           }}
         >
-          <span
-            style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
-          >
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
             <StatusDot status={plan.corridor_status} /> Corridor
           </span>
-          <span
-            style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
-          >
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
             <StatusDot status={plan.places_status} /> Places
-          </span>
-          <span
-            style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
-          >
-            <StatusDot status={plan.traffic_status} /> Traffic
-          </span>
-          <span
-            style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
-          >
-            <StatusDot status={plan.hazards_status} /> Hazards
-          </span>
-          <span style={{ marginLeft: "auto", opacity: 0.6, fontSize: 11 }}>
-            {fmtRelativeTime(plan.saved_at)}
           </span>
         </div>
       </div>
 
-      {/* ── Actions bar ──────────────────────────────────────── */}
-      <div
-        style={{ display: "flex", borderTop: "1px solid var(--roam-border)" }}
-      >
+      {/* ── Actions bar ──────────────────────────────── */}
+      <div style={{ display: "flex", borderTop: "1px solid var(--roam-border)" }} className="trip-interactive">
         {!isCurrent && (
           <button
             type="button"
@@ -497,9 +428,9 @@ function PlanCard({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              gap: 6,
-              padding: "11px 0",
-              fontSize: 13,
+              gap: 5,
+              padding: "12px 0",
+              fontSize: 12,
               fontWeight: 700,
               color: "var(--brand-sky, #3b82f6)",
               cursor: busy ? "default" : "pointer",
@@ -508,8 +439,8 @@ function PlanCard({
               WebkitTapHighlightColor: "transparent",
             }}
           >
-            <Star size={13} />
-            Set Active
+            <Star size={12} />
+            Active
           </button>
         )}
 
@@ -526,9 +457,9 @@ function PlanCard({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            gap: 6,
-            padding: "11px 0",
-            fontSize: 13,
+            gap: 4,
+            padding: "12px 0",
+            fontSize: 12,
             fontWeight: 700,
             color: "var(--roam-text)",
             cursor: busy ? "default" : "pointer",
@@ -537,12 +468,10 @@ function PlanCard({
             WebkitTapHighlightColor: "transparent",
           }}
         >
-          <Navigation size={13} />
+          <Navigation size={12} />
           Open
-          <ChevronRight size={14} style={{ opacity: 0.4 }} />
         </button>
 
-        {/* Share button */}
         <button
           type="button"
           disabled={busy}
@@ -556,8 +485,8 @@ function PlanCard({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            padding: "11px 14px",
-            fontSize: 13,
+            padding: "12px 12px",
+            fontSize: 12,
             fontWeight: 700,
             color: "var(--brand-shared, #8540c8)",
             cursor: busy ? "default" : "pointer",
@@ -566,7 +495,7 @@ function PlanCard({
             WebkitTapHighlightColor: "transparent",
           }}
         >
-          <Share2 size={14} />
+          <Share2 size={12} />
         </button>
 
         <button
@@ -582,8 +511,8 @@ function PlanCard({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            padding: "11px 16px",
-            fontSize: 13,
+            padding: "12px 12px",
+            fontSize: 12,
             fontWeight: 700,
             color: "var(--roam-danger, #ef4444)",
             cursor: busy ? "default" : "pointer",
@@ -591,23 +520,29 @@ function PlanCard({
             WebkitTapHighlightColor: "transparent",
           }}
         >
-          <Trash2 size={14} />
+          <Trash2 size={12} />
         </button>
+      </div>
       </div>
     </div>
   );
 }
 
-/* ── Main Page ───────────────────────────────────────────────────────── */
+/* ── Plan Drawer Component ──────────────────────────────────────────── */
 
-export function PlansClientPage() {
+export function PlanDrawer({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+  currentPlanId?: string | null;
+}) {
   const router = useRouter();
-
   const [plans, setPlans] = useState<OfflinePlanRecord[]>([]);
   const [currentId, setCurrentIdLocal] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [loaded, setLoaded] = useState(false);
 
   // Invite modal state
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -622,18 +557,16 @@ export function PlansClientPage() {
       ]);
       setPlans(p);
       setCurrentIdLocal(cur);
-    } catch (e: any) {
-      setErr(e?.message ?? "Failed to load plans");
-    } finally {
-      setLoaded(true);
+    } catch (e) {
+      const err = e instanceof Error ? e.message : String(e);
+      setErr(err || "Failed to load plans");
     }
   }, []);
 
   useEffect(() => {
+    if (!open) return;
     refresh();
-  }, [refresh]);
-
-  const hasPlans = plans.length > 0;
+  }, [open, refresh]);
 
   const sorted = useMemo(() => {
     const cur = currentId;
@@ -654,8 +587,9 @@ export function PlansClientPage() {
     try {
       await setCurrentPlanId(planId);
       setCurrentIdLocal(planId);
-    } catch (e: any) {
-      setErr(e?.message ?? "Failed to set active");
+    } catch (e) {
+      const err = e instanceof Error ? e.message : String(e);
+      setErr(err || "Failed to set active");
     } finally {
       setBusyId(null);
     }
@@ -663,12 +597,7 @@ export function PlansClientPage() {
 
   const handleDelete = useCallback(
     async (planId: string) => {
-      if (
-        !window.confirm(
-          "Delete this plan and all its offline data from this device?",
-        )
-      )
-        return;
+      if (!window.confirm("Delete this plan and all its offline data from this device?")) return;
       haptic.medium();
       setBusyId(planId);
       setErr(null);
@@ -676,8 +605,9 @@ export function PlansClientPage() {
         await deleteOfflinePlan(planId);
         haptic.success();
         await refresh();
-      } catch (e: any) {
-        setErr(e?.message ?? "Failed to delete");
+      } catch (e) {
+        const err = e instanceof Error ? e.message : String(e);
+        setErr(err || "Failed to delete");
         haptic.error();
       } finally {
         setBusyId(null);
@@ -689,9 +619,10 @@ export function PlansClientPage() {
   const handleOpen = useCallback(
     (planId: string) => {
       haptic.light();
+      onClose();
       router.push(`/trip?plan_id=${encodeURIComponent(planId)}`);
     },
-    [router],
+    [router, onClose],
   );
 
   const handleShare = useCallback((planId: string) => {
@@ -719,250 +650,206 @@ export function PlansClientPage() {
 
   return (
     <>
-      <div className="trip-app-container" style={{ overflowY: "auto" }}>
+      {/* Overlay */}
+      {open && (
         <div
           style={{
-            padding: "20px 16px",
-            paddingBottom: "calc(var(--bottom-nav-height, 80px) + 40px)",
-            maxWidth: 480,
-            margin: "0 auto",
-            display: "flex",
-            flexDirection: "column",
-            gap: 12,
+            position: "fixed",
+            inset: 0,
+            background: "var(--overlay-bg, rgba(0,0,0,0.3))",
+            zIndex: 39,
+            animation: "roam-fade-in 0.2s ease",
+            WebkitTapHighlightColor: "transparent",
+          }}
+          onClick={onClose}
+        />
+      )}
+
+      {/* Drawer */}
+      <div
+        style={{
+          position: "fixed",
+          top: 0,
+          right: 0,
+          bottom: 0,
+          width: "min(100%, 360px)",
+          background: "var(--roam-surface)",
+          zIndex: 40,
+          boxShadow: open ? "-4px 0 16px rgba(0,0,0,0.2)" : "none",
+          transform: open ? "translateX(0)" : "translateX(100%)",
+          transition: "transform 0.35s cubic-bezier(0.4,0,0.2,1)",
+          overflowY: "auto",
+          WebkitOverflowScrolling: "touch",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        {/* Header */}
+        <div
+          style={{
+            padding: "16px 16px 12px",
+            borderBottom: "1px solid var(--roam-border)",
+            background: "var(--roam-surface)",
+            flexShrink: 0,
           }}
         >
-          {/* ── Header ─────────────────────────────────────────── */}
           <div
             style={{
               display: "flex",
-              alignItems: "flex-end",
+              alignItems: "center",
               justifyContent: "space-between",
-              marginBottom: 4,
+              marginBottom: 12,
             }}
           >
-            <div>
-              <h1
-                style={{
-                  fontSize: 26,
-                  fontWeight: 900,
-                  color: "var(--roam-text)",
-                  margin: 0,
-                  letterSpacing: -0.5,
-                }}
-              >
-                Plans
-              </h1>
-              <p
-                style={{
-                  fontSize: 13,
-                  color: "var(--roam-text-muted)",
-                  margin: "4px 0 0",
-                  fontWeight: 500,
-                }}
-              >
-                {hasPlans
-                  ? `${plans.length} saved trip${plans.length !== 1 ? "s" : ""}`
-                  : "No offline plans yet"}
-              </p>
-            </div>
-
-            {/* Header action buttons */}
-            <div style={{ display: "flex", gap: 8 }}>
-              {/* Join Plan button */}
-              <button
-                type="button"
-                onClick={handleJoin}
-                aria-label="Join Plan"
-                style={{
-                  all: "unset",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 5,
-                  height: 40,
-                  padding: "0 14px",
-                  borderRadius: 12,
-                  background: "var(--roam-surface)",
-                  border: "1px solid var(--roam-border)",
-                  color: "var(--roam-text)",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  WebkitTapHighlightColor: "transparent",
-                  transition: "transform 0.1s",
-                }}
-              >
-                <Link2 size={15} />
-                Join
-              </button>
-
-              {/* New Plan button */}
-              <button
-                type="button"
-                onClick={() => {
-                  haptic.light();
-                  router.push("/new");
-                }}
-                aria-label="New Plan"
-                style={{
-                  all: "unset",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: 40,
-                  height: 40,
-                  borderRadius: 12,
-                  background: "var(--brand-sky, #3b82f6)",
-                  color: "white",
-                  boxShadow: "0 2px 8px rgba(59,130,246,0.3)",
-                  WebkitTapHighlightColor: "transparent",
-                  transition: "transform 0.1s",
-                }}
-              >
-                <Plus size={22} strokeWidth={2.5} />
-              </button>
-            </div>
-          </div>
-
-          {/* ── Error banner ───────────────────────────────────── */}
-          {err && (
-            <div
+            <h2
               style={{
-                padding: "10px 14px",
-                borderRadius: 10,
-                background: "rgba(239,68,68,0.08)",
-                border: "1px solid rgba(239,68,68,0.2)",
-                color: "var(--roam-danger, #ef4444)",
-                fontSize: 13,
-                fontWeight: 600,
+                fontSize: 18,
+                fontWeight: 900,
+                color: "var(--roam-text)",
+                margin: 0,
               }}
             >
-              {err}
-            </div>
-          )}
-
-          {/* ── Empty state ────────────────────────────────────── */}
-          {loaded && !hasPlans && (
-            <div
+              Plans
+            </h2>
+            <button
+              type="button"
+              onClick={onClose}
               style={{
+                all: "unset",
+                cursor: "pointer",
                 display: "flex",
-                flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                textAlign: "center",
-                padding: "48px 24px",
-                gap: 16,
+                width: 40,
+                height: 40,
+                borderRadius: 10,
+                background: "var(--roam-surface-hover)",
+                color: "var(--roam-text)",
+                WebkitTapHighlightColor: "transparent",
               }}
             >
+              <X size={18} />
+            </button>
+          </div>
+
+          {/* Join + New buttons */}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              type="button"
+              onClick={handleJoin}
+              style={{
+                all: "unset",
+                cursor: "pointer",
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 5,
+                height: 42,
+                borderRadius: 10,
+                background: "var(--roam-surface-hover)",
+                border: "1px solid var(--roam-border)",
+                color: "var(--roam-text)",
+                fontSize: 13,
+                fontWeight: 700,
+                WebkitTapHighlightColor: "transparent",
+              }}
+            >
+              <Link2 size={14} />
+              Join
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                haptic.light();
+                onClose();
+                router.push("/new");
+              }}
+              style={{
+                all: "unset",
+                cursor: "pointer",
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 5,
+                height: 42,
+                borderRadius: 10,
+                background: "var(--roam-accent)",
+                color: "var(--on-color)",
+                fontSize: 13,
+                fontWeight: 700,
+                boxShadow: "var(--shadow-button)",
+                WebkitTapHighlightColor: "transparent",
+              }}
+            >
+              <Plus size={16} />
+              New
+            </button>
+          </div>
+        </div>
+
+        {/* Error banner */}
+        {err && (
+          <div
+            className="trip-err-box"
+            style={{
+              margin: "12px 12px 0",
+            }}
+          >
+            {err}
+          </div>
+        )}
+
+        {/* Plans list */}
+        <div style={{ flex: 1, overflow: "hidden" }}>
+          <div
+            className="roam-scroll"
+            style={{
+              height: "100%",
+              overflowY: "auto",
+              padding: "12px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
+            }}
+          >
+            {sorted.length === 0 ? (
               <div
                 style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: 20,
-                  background: "var(--roam-surface)",
-                  border: "1px solid var(--roam-border)",
                   display: "flex",
+                  flexDirection: "column",
                   alignItems: "center",
                   justifyContent: "center",
+                  textAlign: "center",
+                  padding: "24px 12px",
+                  color: "var(--roam-text-muted)",
+                  fontSize: 13,
                 }}
               >
-                <Navigation
-                  size={28}
-                  style={{ color: "var(--roam-text-muted)", opacity: 0.5 }}
+                <Navigation size={28} style={{ opacity: 0.3, marginBottom: 8 }} />
+                No plans yet. Create one in New.
+              </div>
+            ) : (
+              sorted.map((p) => (
+                <PlanCard
+                  key={p.plan_id}
+                  plan={p}
+                  isCurrent={p.plan_id === currentId}
+                  busy={busyId === p.plan_id}
+                  onOpen={() => handleOpen(p.plan_id)}
+                  onSetActive={() => handleSetActive(p.plan_id)}
+                  onDelete={() => handleDelete(p.plan_id)}
+                  onShare={() => handleShare(p.plan_id)}
+                  onLabelChanged={(label) => handleLabelChanged(p.plan_id, label)}
                 />
-              </div>
-              <div>
-                <div
-                  style={{
-                    fontSize: 17,
-                    fontWeight: 700,
-                    color: "var(--roam-text)",
-                    marginBottom: 6,
-                  }}
-                >
-                  No trips saved yet
-                </div>
-                <div
-                  style={{
-                    fontSize: 13,
-                    color: "var(--roam-text-muted)",
-                    lineHeight: 1.5,
-                    maxWidth: 260,
-                  }}
-                >
-                  Build a route in <strong>New</strong>, then hit{" "}
-                  <strong>Build Offline</strong> to save it here. Or{" "}
-                  <strong>join a shared plan</strong> from your travel partner.
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: 10 }}>
-                <button
-                  type="button"
-                  onClick={() => router.push("/new")}
-                  style={{
-                    all: "unset",
-                    cursor: "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "10px 20px",
-                    borderRadius: 10,
-                    background: "var(--brand-sky, #3b82f6)",
-                    color: "white",
-                    fontSize: 14,
-                    fontWeight: 700,
-                    boxShadow: "0 2px 8px rgba(59,130,246,0.25)",
-                    WebkitTapHighlightColor: "transparent",
-                  }}
-                >
-                  <Plus size={16} />
-                  Plan a trip
-                </button>
-                <button
-                  type="button"
-                  onClick={handleJoin}
-                  style={{
-                    all: "unset",
-                    cursor: "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "10px 20px",
-                    borderRadius: 10,
-                    background: "var(--roam-surface)",
-                    border: "1px solid var(--roam-border)",
-                    color: "var(--roam-text)",
-                    fontSize: 14,
-                    fontWeight: 700,
-                    WebkitTapHighlightColor: "transparent",
-                  }}
-                >
-                  <Link2 size={16} />
-                  Join plan
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* ── Plans list ─────────────────────────────────────── */}
-          {sorted.map((p) => (
-            <PlanCard
-              key={p.plan_id}
-              plan={p}
-              isCurrent={p.plan_id === currentId}
-              busy={busyId === p.plan_id}
-              onOpen={() => handleOpen(p.plan_id)}
-              onSetActive={() => handleSetActive(p.plan_id)}
-              onDelete={() => handleDelete(p.plan_id)}
-              onShare={() => handleShare(p.plan_id)}
-              onLabelChanged={(label) => handleLabelChanged(p.plan_id, label)}
-            />
-          ))}
+              ))
+            )}
+          </div>
         </div>
       </div>
 
-      {/* ── Invite modal rendered at root level ──────────────────────────── */}
+      {/* Invite modal */}
       <InviteCodeModal
         open={inviteOpen}
         planId={invitePlanId}
@@ -971,12 +858,14 @@ export function PlansClientPage() {
           setInviteOpen(false);
           setInvitePlanId(null);
         }}
-        onRedeemed={(joinedPlanId) => {
+        onRedeemed={() => {
           setInviteOpen(false);
           setInvitePlanId(null);
           refresh();
         }}
       />
+
+      {/* fadeIn animation now handled by roam-fade-in in globals.css */}
     </>
   );
 }

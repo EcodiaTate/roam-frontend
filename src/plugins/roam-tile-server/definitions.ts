@@ -30,7 +30,7 @@ export interface ServerStatusResult {
 export interface DownloadOptions {
   /** Remote URL to download from (Supabase public URL) */
   url: string;
-  /** Region identifier (e.g. "australia") — used as subdirectory name */
+  /** Region identifier (e.g. "australia") - used as subdirectory name */
   region: string;
   /** Expected SHA-256 hex digest for verification (optional) */
   sha256?: string;

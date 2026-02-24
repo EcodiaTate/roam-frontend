@@ -23,6 +23,7 @@
   background: var(--roam-surface-hover);
   border-radius: 16px;
   box-shadow: var(--shadow-soft);
+  border-left: 4px solid var(--roam-accent);
 }
 
 .summaryRow {
@@ -75,6 +76,7 @@
   gap: 6px;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  scroll-padding-inline: 8px;
 }
 
 .tab {
@@ -149,7 +151,7 @@
   cursor: pointer;
   background: var(--roam-surface);
   box-shadow: var(--shadow-soft);
-  border: none;
+  border: 1px solid var(--roam-border);
   outline: 2.5px solid transparent;
   outline-offset: -2.5px;
   transition: box-shadow 150ms ease, outline-color 150ms ease;
@@ -166,7 +168,7 @@
   box-shadow: var(--shadow-medium);
 }
 
-/* Focus ring color per stop type — set via data attribute */
+/* Focus ring color per stop type - set via data attribute */
 .stopCard[data-stop-type="start"].stopCardFocused { outline-color: var(--brand-eucalypt); }
 .stopCard[data-stop-type="end"].stopCardFocused    { outline-color: var(--brand-ochre); }
 .stopCard[data-stop-type="via"].stopCardFocused    { outline-color: var(--brand-amber); }
@@ -309,7 +311,7 @@
 
 .connectorLine {
   width: 2px;
-  height: 10px;
+  height: 14px;
   background: var(--roam-border-strong);
   border-radius: 2px;
 }
@@ -320,7 +322,7 @@
   margin-top: 8px;
   padding: 12px 16px;
   border-radius: 14px;
-  border: 2px dashed var(--roam-border-strong);
+  border: 1.5px dashed var(--roam-border-strong);
   background: transparent;
   color: var(--roam-text-muted);
   font-size: 13px;
@@ -357,7 +359,7 @@
 
 .resetBtn {
   flex: 1;
-  padding: 12px 0;
+  padding: 14px 0;
   border-radius: 14px;
   border: 1px solid var(--roam-border-strong);
   background: transparent;
@@ -385,7 +387,7 @@
 
 .saveBtn {
   flex: 2;
-  padding: 12px 0;
+  padding: 14px 0;
   border-radius: 14px;
   border: none;
   background: var(--roam-accent);

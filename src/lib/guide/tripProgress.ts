@@ -30,7 +30,7 @@ export function haversineKm(
   return EARTH_R_KM * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-/** Proximity threshold in km — if user is within this distance of a stop, mark visited */
+/** Proximity threshold in km - if user is within this distance of a stop, mark visited */
 const VISIT_PROXIMITY_KM = 0.5; // 500m
 
 // ──────────────────────────────────────────────────────────────
@@ -145,7 +145,7 @@ function estimateKmFromStart(
 
 /**
  * Update the visited set: add any stop the user is within proximity of.
- * This is sticky — once visited, always visited.
+ * This is sticky - once visited, always visited.
  */
 function updateVisitedStops(
   userLat: number,

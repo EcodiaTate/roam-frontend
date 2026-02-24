@@ -10,6 +10,7 @@ import { TripView, type TripEditorRebuildMode } from "@/components/trip/TripView
 import type { AlertHighlightEvent } from "@/components/trip/TripAlertsPanel";
 import { SyncStatusBadge } from "@/components/ui/SyncStatusBadge";
 import { InviteCodeModal } from "@/components/plans/InviteCodeModal";
+import { PlanDrawer } from "@/components/trip/PlanDrawer";
 import { BasemapDownloadCard } from "@/components/basemap/BasemapDownloadCard";
 import { FuelPressureIndicator } from "@/components/fuel/FuelPressureIndicator";
 import { FuelLastChanceToast } from "@/components/fuel/FuelLastChanceToast";
@@ -46,7 +47,7 @@ import type { PlacesPack, PlaceItem } from "@/lib/types/places";
 import type { TripStop } from "@/lib/types/trip";
 import type { FuelAnalysis, FuelTrackingState, VehicleFuelProfile } from "@/lib/types/fuel";
 
-import { UserRound, Users, UserPlus, Compass, List, MapPinned } from "lucide-react";
+import { UserRound, Users, Compass, MapPinned } from "lucide-react";
 
 /* ── Constants ────────────────────────────────────────────────────────── */
 
@@ -106,6 +107,9 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteMode, setInviteMode] = useState<"create" | "redeem">("create");
 
+  // Plans drawer state
+  const [drawOpen, setDrawOpen] = useState(false);
+
   // Fluid Bottom Sheet Drag State
   const sheetRef = useRef<HTMLDivElement>(null);
   const [offsetY, setOffsetY] = useState(0);
@@ -141,6 +145,15 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     }
     prevActiveRef.current = activeNav.isActive;
   }, [activeNav.isActive]);
+
+  // ── Re-apply URL focus once places load (timing race fix) ─────────
+useEffect(() => {
+  const fp = sp.get("focus_place_id");
+  if (fp && places && places.items?.length > 0) {
+    // Only set if not already focused (avoid infinite loop)
+    setFocusedPlaceId((prev) => (prev === fp ? prev : fp));
+  }
+}, [places, sp]);
 
   // ── Boot logic ──────────────────────────────────────────────────
   useEffect(() => {
@@ -208,10 +221,10 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     return () => { cancelled = true; };
   }, [desiredPlanId]);
 
-  // Redirect if no plan
+  // Redirect if no plan — /plans is now a drawer; send to /new to create one
   useEffect(() => {
     if (phase !== "no-plan") return;
-    router.replace("/plans");
+    router.replace("/new");
   }, [phase, router]);
 
   // Focus place from URL
@@ -250,7 +263,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       const tracking = computeFuelTracking(fuelAnalysis, snap.km, fuelAnalysis.profile);
       setFuelTracking(tracking);
     } catch {
-      // Non-fatal — just skip this update
+      // Non-fatal - just skip this update
     }
   }, [fuelAnalysis, effectivePosition, navpack]);
 
@@ -463,6 +476,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     ? `translateY(calc(100% - 60px))` // Collapsed to just the drag handle during navigation
     : `translateY(clamp(0px, calc(${peekBase} + ${offsetY + dragOffset}px), ${peekBase}))`;
 
+  const sheetTransition = isDragging.current ? "none" : "transform 0.25s cubic-bezier(0.4,0,0.2,1)";
+
   const effectiveStops = navpack?.req?.stops ?? plan?.preview?.stops ?? [];
   const effectiveGeom = navpack?.primary?.geometry ?? plan?.preview?.geometry ?? null;
 
@@ -494,10 +509,10 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           <button
             type="button"
             className="trip-interactive"
-            style={{ borderRadius: 999, minHeight: 42, padding: "0 20px", fontWeight: 950, background: "var(--roam-accent)", color: "white", boxShadow: "var(--shadow-button)" }}
-            onClick={() => router.replace("/plans")}
+            style={{ borderRadius: 999, minHeight: 42, padding: "0 20px", fontWeight: 950, background: "var(--roam-accent)", color: "var(--on-color)", boxShadow: "var(--shadow-button)" }}
+            onClick={() => router.replace("/new")}
           >
-            Go to Plans
+            Build a Trip
           </button>
         </div>
       </div>
@@ -547,13 +562,13 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
 
       {/* ── Active Navigation Overlays ── */}
 
-      {/* Turn-by-turn HUD — top of map */}
+      {/* Turn-by-turn HUD - top of map */}
       <NavigationHUD
         nav={activeNav.nav}
         visible={activeNav.isActive && activeNav.nav.status !== "off_route"}
       />
 
-      {/* Off-route banner — replaces HUD when off route */}
+      {/* Off-route banner - replaces HUD when off route */}
       <OffRouteBanner
         visible={activeNav.nav.status === "off_route"}
         distFromRoute_m={activeNav.nav.distFromRoute_m}
@@ -561,7 +576,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         onReroute={handleOffRouteReroute}
       />
 
-      {/* Navigation controls — right side of map */}
+      {/* Navigation controls - right side of map */}
       <NavigationControls
         visible={activeNav.isActive}
         isMuted={activeNav.isMuted}
@@ -571,7 +586,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         onEnd={activeNav.stop}
       />
 
-      {/* Navigation bar — bottom ETA/distance/fatigue */}
+      {/* Navigation bar - bottom ETA/distance/fatigue */}
       <NavigationBar
         nav={activeNav.nav}
         fuelTracking={fuelTracking}
@@ -586,7 +601,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         }}
       />
 
-      {/* Fuel pressure indicator — floating pill on map (hidden during active nav, bar shows fuel) */}
+      {/* Fuel pressure indicator - floating pill on map (hidden during active nav, bar shows fuel) */}
       {!activeNav.isActive && <FuelPressureIndicator tracking={fuelTracking} />}
 
       {/* Fuel last-chance toast */}
@@ -599,12 +614,19 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         onSaved={handleFuelProfileSaved}
       />
 
-      {/* Basemap download card — floats above map, below sheet (hidden during nav) */}
+      {/* Basemap download card - floats above map, below sheet (hidden during nav) */}
       {!activeNav.isActive && (
         <div style={{ position: "absolute", top: 12, left: 12, right: 12, zIndex: 15, pointerEvents: "auto" }}>
           <BasemapDownloadCard region="australia" compact />
         </div>
       )}
+
+      {/* Plans drawer */}
+      <PlanDrawer
+        open={drawOpen}
+        onClose={() => setDrawOpen(false)}
+        currentPlanId={plan.plan_id}
+      />
 
       {/* Invite modal */}
       <InviteCodeModal
@@ -620,52 +642,40 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       {/* Bottom Sheet */}
       <div
         ref={sheetRef}
+        className="trip-bottom-sheet"
         style={{
           position: "absolute",
           bottom: 0, left: 0, right: 0,
-          height: "92vh",
+          height: "calc(100% - 80px)",
           zIndex: 20,
-          background: "var(--roam-surface)",
-          borderRadius: "var(--r-card) var(--r-card) 0 0",
-          boxShadow: "0 -12px 48px rgba(0,0,0,0.15)",
-          display: "flex",
-          flexDirection: "column",
           transform: sheetTransform,
-          transition: isDragging.current ? "none" : "transform 0.25s cubic-bezier(0.4,0,0.2,1)",
+          transition: sheetTransition,
           willChange: "transform",
         }}
       >
-        {/* Drag Handle */}
+        {/* Drag Handle — 48px touch target with 6px visual handle */}
         <div
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
           style={{
-            padding: "10px 20px 10px",
+            padding: "16px 20px 6px",
             touchAction: "none",
             cursor: "grab",
-            background: "var(--roam-surface)",
-            borderRadius: "var(--r-card) var(--r-card) 0 0",
           }}
         >
-          <div
-            className="trip-drag-handle"
-            style={{ width: 48, height: 6, borderRadius: 10, background: "var(--roam-surface-hover)", margin: "0 auto" }}
-          />
+          <div className="trip-drag-handle" />
         </div>
 
         {/* Header */}
-        <div
-          className="trip-sheet-header"
-          style={{ padding: "0 20px 12px", background: "var(--roam-surface)" }}
-        >
+        <div style={{ padding: "0 20px 12px" }}>
           {/* Title row */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
             <div style={{ minWidth: 0 }}>
               <div
                 style={{
-                  fontSize: 22, fontWeight: 950, margin: 0,
+                  fontSize: 20, fontWeight: 950, margin: 0,
                   display: "flex", alignItems: "center", gap: 10,
                   color: "var(--roam-text)", letterSpacing: "-0.3px",
                 }}
@@ -675,9 +685,6 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
                 </span>
                 <SyncStatusBadge />
               </div>
-              <div style={{ marginTop: 4, fontSize: 12, fontWeight: 850, color: "var(--roam-text-muted)" }}>
-                Itinerary
-              </div>
             </div>
 
             <button
@@ -686,60 +693,51 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
               aria-label="Account"
               onClick={() => { haptic.selection(); router.push("/login"); }}
               style={{
-                borderRadius: 999, width: 42, height: 42,
+                borderRadius: 999, width: 40, height: 40,
                 display: "grid", placeItems: "center",
-                background: "var(--roam-surface-hover)",
-                boxShadow: "var(--shadow-button)", flexShrink: 0,
+                background: "var(--roam-surface-hover)", flexShrink: 0,
               }}
             >
-              <UserRound size={18} />
+              <UserRound size={17} />
             </button>
           </div>
 
-          {/* Action row */}
-          <div style={{ display: "flex", gap: 10, marginTop: 12, alignItems: "center", overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
-            {[
-              { icon: <List size={16} />, label: "Peek", onClick: () => setOffsetY(0) },
-              { icon: <Compass size={16} />, label: "Guide", onClick: () => router.push(`/guide?plan_id=${encodeURIComponent(plan.plan_id)}`) },
-              { icon: <Users size={16} />, label: "Share", onClick: () => { setInviteMode("create"); setInviteOpen(true); } },
-              { icon: <UserPlus size={16} />, label: "Join", onClick: () => { setInviteMode("redeem"); setInviteOpen(true); } },
-            ].map((btn) => (
-              <button
-                key={btn.label}
-                type="button"
-                className="trip-btn-sm trip-interactive"
-                onClick={() => { haptic.selection(); btn.onClick(); }}
-                style={{
-                  borderRadius: 999, minHeight: 42, padding: "0 14px",
-                  fontWeight: 950, background: "var(--roam-surface-hover)",
-                  color: "var(--roam-text)", boxShadow: "var(--shadow-button)",
-                  whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 8,
-                  flexShrink: 0,
-                }}
-              >
-                {btn.icon} {btn.label}
-              </button>
-            ))}
+          {/* Action chips — horizontal row (saves ~100px vs stacked buttons) */}
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            <button
+              type="button"
+              className="trip-interactive trip-btn-sm"
+              onClick={() => { haptic.selection(); setInviteMode("create"); setInviteOpen(true); }}
+              style={{ flex: 1, justifyContent: "center" }}
+            >
+              <Users size={15} />
+              Invite
+            </button>
 
             <button
               type="button"
-              className="trip-btn-sm trip-interactive"
-              onClick={() => { haptic.selection(); router.push("/plans"); }}
-              style={{
-                marginLeft: "auto", borderRadius: 999, minHeight: 42, padding: "0 14px",
-                fontWeight: 950, background: "var(--roam-surface-hover)",
-                color: "var(--roam-text)", boxShadow: "var(--shadow-button)",
-                whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 8,
-                flexShrink: 0,
-              }}
+              className="trip-interactive trip-btn-sm"
+              onClick={() => { haptic.selection(); router.push(`/guide?plan_id=${encodeURIComponent(plan.plan_id)}`); }}
+              style={{ flex: 1, justifyContent: "center" }}
             >
-              <MapPinned size={16} /> All Plans
+              <Compass size={15} />
+              Guide
+            </button>
+
+            <button
+              type="button"
+              className="trip-interactive trip-btn-sm"
+              onClick={() => { haptic.selection(); setDrawOpen(true); }}
+              style={{ flex: 1, justifyContent: "center" }}
+            >
+              <MapPinned size={15} />
+              Plans
             </button>
           </div>
 
           {/* ── Start Navigation button (shown when NOT actively navigating) ── */}
           {!activeNav.isActive && navpack && (
-            <div style={{ marginTop: 14 }}>
+            <div style={{ marginTop: 12 }}>
               <StartNavigationButton
                 onStart={activeNav.start}
                 disabled={!navpack?.primary?.legs?.some((l) => l.steps && l.steps.length > 0)}
@@ -752,7 +750,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
             </div>
           )}
 
-          {/* ── Elevation strip (shown below action bar) ── */}
+          {/* ── Elevation strip ── */}
           {elevation?.profile && (
             <div style={{ marginTop: 12 }}>
               <ElevationStrip
@@ -768,12 +766,11 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         {/* Scrollable content */}
         <div style={{ flex: 1, overflow: "hidden" }}>
           <div
+            className="roam-scroll"
             style={{
               height: "100%",
               overflowY: "auto",
               padding: "0 20px calc(var(--bottom-nav-height) + 20px)",
-              WebkitOverflowScrolling: "touch",
-              overscrollBehavior: "contain",
             }}
           >
             <TripView

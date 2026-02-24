@@ -31,7 +31,7 @@ export type ManeuverModifier =
 export type NavManeuver = {
   type: ManeuverType;
   modifier?: ManeuverModifier | null;
-  location: [number, number];       // [lng, lat] — OSRM convention
+  location: [number, number];       // [lng, lat] - OSRM convention
   bearing_before: number;
   bearing_after: number;
   exit?: number | null;              // roundabout exit number
@@ -59,7 +59,7 @@ export type NavLeg = {
   distance_m: number;
   duration_s: number;
   geometry: string;                  // polyline6 (this leg only)
-  steps: NavStep[];                  // ← NEW — turn-by-turn steps
+  steps: NavStep[];                  // ← NEW - turn-by-turn steps
 };
 
 export type NavRoute = {

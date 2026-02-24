@@ -20,7 +20,7 @@ function formatBytes(bytes: number): string {
 type Props = {
   /** Region identifier (default "australia") */
   region?: string;
-  /** Compact mode — single line banner */
+  /** Compact mode - single line banner */
   compact?: boolean;
   /** Called when basemap becomes ready (server started) */
   onReady?: () => void;

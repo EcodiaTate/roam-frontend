@@ -102,7 +102,7 @@ export function NavigationControls({
         active={!isMuted}
       />
 
-      {/* Overview — zoom out to see full route */}
+      {/* Overview - zoom out to see full route */}
       <FloatingBtn
         icon={<Maximize2 size={20} />}
         label="Route overview"
@@ -116,7 +116,7 @@ export function NavigationControls({
         onClick={onRecenter}
       />
 
-      {/* End navigation — requires confirmation */}
+      {/* End navigation - requires confirmation */}
       {!confirmEnd ? (
         <FloatingBtn
           icon={<X size={20} />}

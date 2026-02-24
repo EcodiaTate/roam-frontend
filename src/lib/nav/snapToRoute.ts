@@ -3,7 +3,7 @@
 // Polyline geometry helpers for snapping points to routes
 // and computing distances along polylines.
 //
-// Pure functions — no side effects, no API calls. Works offline.
+// Pure functions - no side effects, no API calls. Works offline.
 // ──────────────────────────────────────────────────────────────
 
 const DEG_TO_RAD = Math.PI / 180;

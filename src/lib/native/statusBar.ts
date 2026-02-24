@@ -18,7 +18,7 @@ export async function configureStatusBar() {
     await StatusBar.setStyle({ style: Style.Dark });
 
     if (isAndroid) {
-      // Transparent status bar — content draws behind it
+      // Transparent status bar - content draws behind it
       await StatusBar.setBackgroundColor({ color: "#00000000" });
       await StatusBar.setOverlaysWebView({ overlay: true });
     }

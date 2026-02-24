@@ -194,7 +194,7 @@ export function formatInstruction(step: NavStep): string {
   const action = actionPhrase(step.maneuver);
   const road = roadDisplay(step);
 
-  // Arrive type — no "onto" suffix
+  // Arrive type - no "onto" suffix
   if (step.maneuver.type === "arrive") return action;
 
   // Roundabout with road name

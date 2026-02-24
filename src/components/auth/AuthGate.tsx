@@ -20,7 +20,7 @@ import { useAuth } from "@/lib/supabase/auth";
  * NOTE: Offline use still works because the Supabase session JWT is
  * persisted in localStorage. As long as the user signed in at least
  * once, AuthGate will pass them through even without network.
- * The JWT may be expired, but we don't block on that — the sync
+ * The JWT may be expired, but we don't block on that - the sync
  * layer handles token refresh when connectivity returns.
  */
 export function AuthGate({ children }: { children: ReactNode }) {

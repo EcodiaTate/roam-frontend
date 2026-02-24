@@ -189,7 +189,7 @@ export async function deleteOfflinePlan(planId: string): Promise<void> {
       try {
         await osDel(packsOs, packKey);
       } catch {
-        // Ignore missing keys — the pack may not have been saved
+        // Ignore missing keys - the pack may not have been saved
       }
     }
   });
@@ -198,7 +198,7 @@ export async function deleteOfflinePlan(planId: string): Promise<void> {
   try {
     await _deleteGuidePacks(planId);
   } catch {
-    // Guide packs are non-critical — don't fail the delete
+    // Guide packs are non-critical - don't fail the delete
   }
 
   // Notify planSync

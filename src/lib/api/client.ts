@@ -211,7 +211,7 @@ export class ApiClient {
         });
       }
 
-      // Log timing — warn if slow (>5s)
+      // Log timing - warn if slow (>5s)
       if (elapsed > 5_000) {
         console.warn(`${tag} → ${res.status} in ${elapsed}ms ⚠ SLOW`);
       } else {

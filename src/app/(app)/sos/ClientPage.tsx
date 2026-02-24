@@ -438,241 +438,6 @@ export default function EmergencyClientPage() {
     [user, isOnline, refresh, editingId, runAutoSync],
   );
 
-  // ==== UI (BIG, SOLID, OBVIOUS - MAPPED TO GLOBALS.CSS) ====
-  const S = {
-    page: {
-      height: "100dvh",
-      background: "var(--bg-sand)",
-      color: "var(--text-main)",
-      overflowY: "auto",
-      overflowX: "hidden",
-      WebkitOverflowScrolling: "touch",
-      padding: "calc(var(--roam-safe-top) + 16px) 16px calc(var(--bottom-nav-height, 80px) + 24px) 16px",
-      display: "grid",
-      alignContent: "start",
-      gap: "16px",
-      boxSizing: "border-box",
-    } as React.CSSProperties,
-
-    call000: {
-      width: "100%",
-      height: 120,
-      background: "var(--brand-ochre)",
-      color: "#ffffff",
-      borderRadius: "var(--radius-lg)",
-      fontWeight: 900,
-      fontSize: 40,
-      letterSpacing: "-0.5px",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 16,
-      border: "none",
-      boxShadow: "var(--shadow-heavy)",
-      textTransform: "uppercase",
-    } as React.CSSProperties,
-
-    locBlock: {
-      borderRadius: "var(--radius-lg)",
-      background: "var(--surface-card)",
-      padding: 20,
-      display: "flex",
-      flexDirection: "column",
-      gap: 12,
-      boxShadow: "var(--shadow-soft)",
-      minHeight: 100,
-      justifyContent: "center",
-    } as React.CSSProperties,
-    
-    locLabel: { fontSize: 14, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "1px" } as React.CSSProperties,
-    
-    locValue: {
-      fontSize: 24,
-      fontWeight: 800,
-      color: "var(--brand-ochre)",
-      lineHeight: 1.1,
-      wordBreak: "break-word",
-      display: "flex",
-      alignItems: "center",
-      gap: 12,
-    } as React.CSSProperties,
-
-    locWaitText: {
-      fontSize: 22,
-      fontWeight: 800,
-      color: "var(--brand-sky)", 
-      lineHeight: 1.2,
-      fontVariantNumeric: "tabular-nums", // Prevents the text from jittering
-      fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-    } as React.CSSProperties,
-
-    msgBtn: {
-      width: "100%",
-      height: 88,
-      background: "var(--brand-sky)",
-      color: "#ffffff",
-      borderRadius: "var(--radius-lg)",
-      fontWeight: 800,
-      fontSize: 20,
-      letterSpacing: "-0.3px",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 12,
-      border: "none",
-      boxShadow: "var(--shadow-button)",
-      textTransform: "uppercase",
-      transition: "opacity 0.2s var(--ease-out)",
-    } as React.CSSProperties,
-
-    err: {
-      padding: 16,
-      background: "var(--bg-error)",
-      color: "var(--text-error)",
-      borderRadius: "var(--radius-md)",
-      fontWeight: 700,
-      fontSize: 16,
-      lineHeight: 1.25,
-      boxShadow: "var(--shadow-soft)",
-    } as React.CSSProperties,
-
-    sectionTitle: {
-      fontSize: 22,
-      fontWeight: 800,
-      color: "var(--text-main)",
-      marginTop: 8,
-      marginBottom: 0,
-      letterSpacing: "-0.3px",
-    } as React.CSSProperties,
-
-    addBtn: {
-      width: "100%",
-      height: 64,
-      borderRadius: "var(--radius-md)",
-      background: "var(--surface-card)",
-      color: "var(--text-main)",
-      fontWeight: 800,
-      fontSize: 18,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 12,
-      border: "none",
-      boxShadow: "var(--shadow-button)",
-      textTransform: "uppercase",
-    } as React.CSSProperties,
-
-    contactRow: {
-      padding: 16,
-      borderRadius: "var(--radius-lg)",
-      background: "var(--surface-card)",
-      display: "flex",
-      flexDirection: "column",
-      gap: 16,
-      boxShadow: "var(--shadow-soft)",
-    } as React.CSSProperties,
-    
-    contactTop: { display: "flex", alignItems: "center", gap: 16 } as React.CSSProperties,
-    
-    selectBtn: (on: boolean): React.CSSProperties => ({
-      width: 56,
-      height: 56,
-      borderRadius: "var(--radius-md)",
-      background: on ? "var(--brand-eucalypt)" : "var(--surface-muted)",
-      color: on ? "#ffffff" : "var(--text-muted)",
-      fontWeight: 900,
-      fontSize: 24,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      border: "none",
-      boxShadow: on ? "var(--tab-center-glow)" : "none",
-      transition: "all 0.2s var(--spring)"
-    }),
-    
-    contactName: { fontWeight: 800, fontSize: 22, letterSpacing: "-0.3px", color: "var(--text-main)" } as React.CSSProperties,
-    contactMeta: { fontWeight: 600, fontSize: 16, color: "var(--text-muted)", marginTop: 4 } as React.CSSProperties,
-
-    actionGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 } as React.CSSProperties,
-    
-    actionBtn: (bg: string, color: string): React.CSSProperties => ({
-      height: 56,
-      borderRadius: "var(--radius-md)",
-      background: bg,
-      color: color,
-      fontWeight: 800,
-      fontSize: 16,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 8,
-      border: "none",
-      boxShadow: "var(--shadow-button)",
-      textTransform: "uppercase",
-    }),
-
-    editor: {
-      padding: 20,
-      borderRadius: "var(--radius-lg)",
-      background: "var(--surface-card)",
-      display: "flex",
-      flexDirection: "column",
-      gap: 16,
-      boxShadow: "var(--shadow-heavy)",
-    } as React.CSSProperties,
-    
-    label: { fontSize: 14, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" } as React.CSSProperties,
-    
-    input: {
-      height: 56,
-      borderRadius: "var(--radius-md)",
-      background: "var(--surface-muted)",
-      color: "var(--text-main)",
-      fontSize: 18,
-      fontWeight: 700,
-      padding: "0 16px",
-      border: "none",
-      outline: "none",
-    } as React.CSSProperties,
-    
-    textarea: {
-      borderRadius: "var(--radius-md)",
-      background: "var(--surface-muted)",
-      color: "var(--text-main)",
-      fontSize: 18,
-      fontWeight: 700,
-      padding: 16,
-      border: "none",
-      outline: "none",
-      resize: "vertical",
-    } as React.CSSProperties,
-    
-    editorActions: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 8 } as React.CSSProperties,
-    
-    saveBtn: {
-      height: 64,
-      borderRadius: "var(--radius-md)",
-      background: "var(--brand-eucalypt)",
-      color: "#ffffff",
-      fontWeight: 800,
-      fontSize: 18,
-      textTransform: "uppercase",
-      border: "none",
-      boxShadow: "var(--shadow-button)",
-    } as React.CSSProperties,
-    
-    cancelBtn: {
-      height: 64,
-      borderRadius: "var(--radius-md)",
-      background: "var(--surface-muted)",
-      color: "var(--text-main)",
-      fontWeight: 800,
-      fontSize: 18,
-      textTransform: "uppercase",
-      border: "none",
-    } as React.CSSProperties,
-  };
-
   const selectedCount = selectedContacts.length;
 
   // Dynamic coaching logic based on time elapsed
@@ -681,27 +446,26 @@ export default function EmergencyClientPage() {
   if (elapsedWait > 15) waitMessage = "Offline GPS cold lock (can take up to 2 mins)...";
 
   return (
-    <div style={S.page}>
-      {err ? <div style={S.err}>{err}</div> : null}
+    <div className="sos-page roam-scroll">
+      {err ? <div className="trip-err-box">{err}</div> : null}
 
-      {/* 1) TOP PRIORITY */}
-      <button type="button" className="trip-interactive" onClick={callEmergency} style={S.call000}>
+      {/* 1) TOP PRIORITY — CALL 000 */}
+      <button type="button" className="sos-call-000" onClick={callEmergency}>
         <PhoneCall size={40} />
         CALL 000
       </button>
 
       {/* 2) AUTO LOCATION (WITH UX TIMER) */}
-      <div style={S.locBlock}>
-        <div style={S.locLabel}>Your coordinates are:</div>
-        <div style={S.locValue}>
+      <div className="sos-location-block" data-locating={isLocating ? "true" : undefined}>
+        <div className="sos-loc-label">Your coordinates are:</div>
+        <div className="sos-loc-value">
           {isLocating ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <Satellite size={28} className="animate-pulse" color="var(--brand-sky)" />
-                {/* Fast UI DOM ref for the countdown */}
-                <span ref={timerDisplayRef} style={S.locWaitText}>02:00.000</span>
+                <Satellite size={28} className="animate-pulse" style={{ color: "var(--roam-info)" }} />
+                <span ref={timerDisplayRef} className="sos-loc-wait">02:00.000</span>
               </div>
-              <div style={{ fontSize: 14, color: "var(--text-muted)", fontWeight: 600 }}>
+              <div className="trip-muted">
                 {waitMessage}
               </div>
             </div>
@@ -719,10 +483,9 @@ export default function EmergencyClientPage() {
       {/* 3) BIG SECOND ACTION */}
       <button
         type="button"
-        className="trip-interactive"
+        className="sos-msg-btn"
         onClick={sendLocationToSelected}
         disabled={items.length === 0}
-        style={{ ...S.msgBtn, opacity: items.length === 0 ? 0.6 : 1 }}
         title={items.length === 0 ? "Add a contact first" : "Send location by SMS"}
       >
         <MessageSquareText size={28} />
@@ -730,68 +493,66 @@ export default function EmergencyClientPage() {
       </button>
 
       {/* CONTACTS (SECONDARY) */}
-      <div style={S.sectionTitle}>Contacts</div>
+      <div className="sos-section-title">Contacts</div>
 
-      <button type="button" className="trip-interactive" onClick={startNew} style={S.addBtn}>
+      <button type="button" className="trip-interactive sos-add-btn" onClick={startNew}>
         <Plus size={22} />
         Add Contact
       </button>
 
       {editingId ? (
-        <div style={S.editor}>
-          <div style={{ fontWeight: 800, fontSize: 20, color: "var(--text-main)" }}>
+        <div className="sos-editor">
+          <div style={{ fontWeight: 800, fontSize: 20 }}>
             {editingId === "__new__" ? "Add contact" : "Edit contact"}
           </div>
 
           <label style={{ display: "grid", gap: 6 }}>
-            <div style={S.label}>Name</div>
-            <input value={name} onChange={(e) => setName(e.target.value)} style={S.input} placeholder="Mum" />
+            <div className="sos-label">Name</div>
+            <input className="sos-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Mum" />
           </label>
 
           <label style={{ display: "grid", gap: 6 }}>
-            <div style={S.label}>Phone</div>
+            <div className="sos-label">Phone</div>
             <input
+              className="sos-input"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              style={S.input}
               placeholder="04xx xxx xxx"
               inputMode="tel"
             />
           </label>
 
           <label style={{ display: "grid", gap: 6 }}>
-            <div style={S.label}>Relationship (optional)</div>
+            <div className="sos-label">Relationship (optional)</div>
             <input
+              className="sos-input"
               value={relationship}
               onChange={(e) => setRelationship(e.target.value)}
-              style={S.input}
               placeholder="Partner / Friend"
             />
           </label>
 
           <label style={{ display: "grid", gap: 6 }}>
-            <div style={S.label}>Notes (optional)</div>
+            <div className="sos-label">Notes (optional)</div>
             <textarea
+              className="sos-textarea"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              style={S.textarea}
               rows={3}
-              placeholder="Any instructions…"
+              placeholder="Any instructions..."
             />
           </label>
 
-          <div style={S.editorActions}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 8 }}>
             <button
               type="button"
-              className="trip-interactive"
+              className="trip-btn trip-btn-primary"
               onClick={save}
               disabled={busy === "save" || !name.trim() || !phone.trim()}
-              style={{ ...S.saveBtn, opacity: busy === "save" || !name.trim() || !phone.trim() ? 0.7 : 1 }}
             >
               Save
             </button>
-
-            <button type="button" className="trip-interactive" onClick={cancelEdit} style={S.cancelBtn}>
+            <button type="button" className="trip-btn trip-btn-secondary" onClick={cancelEdit}>
               Cancel
             </button>
           </div>
@@ -799,37 +560,41 @@ export default function EmergencyClientPage() {
       ) : null}
 
       {items.length === 0 ? (
-        <div style={{ color: "var(--text-muted)", fontWeight: 700, fontSize: 16, textAlign: "center", padding: "20px 0" }}>
+        <div className="trip-muted" style={{ textAlign: "center", padding: "20px 0", fontSize: 16 }}>
           No contacts saved.
         </div>
       ) : (
         items.map((c) => {
           const sel = !!selectedIds[c.id];
           return (
-            <div key={c.id} style={S.contactRow}>
-              <div style={S.contactTop}>
+            <div key={c.id} className="sos-contact-card">
+              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                 <button
                   type="button"
-                  className="trip-interactive"
+                  className="trip-interactive sos-select-circle"
                   onClick={() => toggleSelected(c.id)}
-                  style={S.selectBtn(sel)}
+                  data-selected={sel ? "true" : "false"}
                   aria-pressed={sel}
                   title={sel ? "Selected" : "Tap to select"}
                 >
-                  {sel ? "✓" : "+"}
+                  {sel ? (
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                      <path d="M4 10.5l4 4 8-8.5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  ) : null}
                 </button>
 
                 <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={S.contactName}>{c.name}</div>
-                  <div style={S.contactMeta}>
+                  <div style={{ fontWeight: 800, fontSize: 20, letterSpacing: "-0.3px" }}>{c.name}</div>
+                  <div className="trip-muted" style={{ marginTop: 3 }}>
                     {c.phone}
-                    {c.relationship ? ` • ${c.relationship}` : ""}
-                    {c.notes ? ` • ${c.notes}` : ""}
+                    {c.relationship ? ` · ${c.relationship}` : ""}
+                    {c.notes ? ` · ${c.notes}` : ""}
                   </div>
                 </div>
               </div>
 
-              <div style={S.actionGrid}>
+              <div className="sos-action-grid">
                 <a
                   href={telHref(c.phone)}
                   onClick={(e) => {
@@ -838,16 +603,16 @@ export default function EmergencyClientPage() {
                     haptic.heavy();
                     window.location.href = telHref(c.phone);
                   }}
-                  className="trip-interactive"
-                  style={S.actionBtn("var(--brand-eucalypt)", "#ffffff")}
+                  className="trip-interactive sos-action-btn"
+                  style={{ background: "var(--roam-accent)", color: "var(--on-color)" }}
                 >
-                  <PhoneCall size={20} />
+                  <PhoneCall size={18} />
                   Call
                 </a>
 
                 <button
                   type="button"
-                  className="trip-interactive"
+                  className="trip-interactive sos-action-btn"
                   onClick={() => {
                     if (!lat || !lon) {
                       setErr("Location unavailable right now.");
@@ -867,33 +632,33 @@ export default function EmergencyClientPage() {
                     haptic.heavy();
                     window.location.href = smsHref([c.phone], msg);
                   }}
-                  style={S.actionBtn("var(--brand-sky)", "#ffffff")}
+                  style={{ background: "var(--roam-info)", color: "var(--on-color)" }}
                 >
-                  <MessageSquareText size={20} />
+                  <MessageSquareText size={18} />
                   Text
                 </button>
 
                 <button
                   type="button"
-                  className="trip-interactive"
+                  className="trip-interactive sos-action-btn"
                   onClick={() => {
                     haptic.selection();
                     setEditingId(c.id);
                   }}
-                  style={S.actionBtn("var(--surface-muted)", "var(--text-main)")}
+                  style={{ background: "var(--roam-surface-hover)", color: "var(--roam-text)" }}
                 >
-                  <Pencil size={18} />
+                  <Pencil size={16} />
                   Edit
                 </button>
 
                 <button
                   type="button"
-                  className="trip-interactive"
+                  className="trip-interactive sos-action-btn"
                   onClick={() => remove(c.id)}
                   disabled={busy === "delete"}
-                  style={{ ...S.actionBtn("var(--bg-error)", "var(--text-error)"), opacity: busy === "delete" ? 0.7 : 1 }}
+                  style={{ background: "var(--bg-error)", color: "var(--text-error)" }}
                 >
-                  <Trash2 size={18} />
+                  <Trash2 size={16} />
                   Delete
                 </button>
               </div>

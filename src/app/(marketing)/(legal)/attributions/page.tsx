@@ -2,7 +2,7 @@
 import AttributionsContent from "./AttributionsContent";
 
 export const metadata: Metadata = {
-  title: "Open Source Attributions — Roam",
+  title: "Open Source Attributions - Roam",
   description:
     "Open-source software used in Roam and their respective licences.",
 };

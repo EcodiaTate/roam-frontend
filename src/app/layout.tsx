@@ -17,7 +17,7 @@ const outbackFont = Plus_Jakarta_Sans({
 
 export const metadata: Metadata = {
   title: {
-    default: "Roam — Outback Navigation That Works Offline",
+    default: "Roam - Outback Navigation That Works Offline",
     template: "%s | Roam",
   },
   description:
@@ -36,13 +36,13 @@ export const metadata: Metadata = {
     locale: "en_AU",
     url: "https://roamapp.com.au",
     siteName: "Roam",
-    title: "Roam — Outback Navigation That Works Offline",
+    title: "Roam - Outback Navigation That Works Offline",
     description:
       "Turn-by-turn navigation, fuel intelligence, and live hazard alerts for Australian road trips. Works without reception.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Roam — Outback Navigation That Works Offline",
+    title: "Roam - Outback Navigation That Works Offline",
     description:
       "Navigation, fuel planning, and hazard alerts for Australian road trips. Works without signal.",
   },
@@ -74,7 +74,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         className={outbackFont.className}
         style={{
           overscrollBehavior: "none",
-          backgroundColor: "#0a0a0a",
         }}
       >
         <AuthProvider>

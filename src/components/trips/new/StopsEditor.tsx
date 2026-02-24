@@ -247,7 +247,7 @@ function BuildProgressView({
           {isError ? "Something went wrong" : isDone ? "You're all set!" : "Building your trip"}
         </div>
         <div style={{ fontSize: 13, color: "var(--roam-text-muted)", marginTop: 4, fontWeight: 500 }}>
-          {isError ? "Tap back to fix your stops and try again" : isDone ? "Your trip is saved and ready for offline" : "Hang tight — this takes a moment"}
+          {isError ? "Tap back to fix your stops and try again" : isDone ? "Your trip is saved and ready for offline" : "Hang tight - this takes a moment"}
         </div>
         {!isDone && !isError && (
           <div style={{ marginTop: 6 }}>
@@ -477,7 +477,7 @@ export function StopsEditor(props: {
   };
 
   const peekOffsetStr = `calc(100% - 260px - var(--roam-safe-bottom))`;
-  const baseTransform = snapState === "peek" ? peekOffsetStr : "0px";
+  const baseTransform = snapState === "peek" ? peekOffsetStr : "12px";
   const finalTransform = `translateY(calc(${baseTransform} + ${dragOffset}px))`;
 
   const canSave = props.canBuildRoute && !props.savingOffline;

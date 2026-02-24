@@ -89,52 +89,85 @@ export default function LoginPage() {
 
   if (loading) {
     return (
-      <div style={styles.page}>
-        <div style={{ color: "var(--roam-muted, #888)" }}>Loading…</div>
+      <div className="trip-wrap-center">
+        <span className="trip-muted">Loading…</span>
       </div>
     );
   }
 
   return (
-    <div style={styles.page}>
-      <div style={styles.card}>
-        <div style={styles.title}>Roam</div>
-        <div style={styles.subtitle}>Navigate anywhere. Even offline.</div>
+    <div className="trip-wrap-center">
+      <div className="trip-card" style={{ gap: 16 }}>
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 8 }}>
+          <img
+            src="/roam-logo.png"
+            alt="Roam"
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: "16px",
+              objectFit: "contain",
+            }}
+          />
+        </div>
+        <div className="trip-muted" style={{ textAlign: "center", marginBottom: 4 }}>
+          Navigate anywhere. Even offline.
+        </div>
 
-        {/* Apple (native only, true in-app system UI) */}
+        {/* Apple Sign-In (native only — true system UI, must be black bg per Apple HIG) */}
         {isNative && (
           <button
             type="button"
             onClick={handleApple}
             disabled={busy}
+            className="trip-interactive"
             style={{
-              ...styles.appleBtn,
-              ...(busy ? styles.btnDisabled : null),
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 10,
+              width: "100%",
+              minHeight: 52,
+              padding: "0 16px",
+              borderRadius: "var(--r-btn)",
+              border: "none",
+              background: "#000",
+              color: "#fff",
+              fontSize: 16,
+              fontWeight: 700,
+              opacity: busy ? 0.55 : 1,
+              fontFamily:
+                '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif',
+              letterSpacing: "-0.01em",
+              cursor: "pointer",
+              WebkitTapHighlightColor: "transparent",
+              userSelect: "none",
             }}
           >
             <AppleMark />
-            <span style={styles.appleBtnText}>Sign in with Apple</span>
+            <span style={{ lineHeight: 1, transform: "translateY(0.5px)" }}>
+              Sign in with Apple
+            </span>
           </button>
         )}
 
-        {/* Google OAuth (browser-based) */}
+        {/* Google OAuth */}
         <button
           type="button"
           onClick={handleGoogle}
           disabled={busy}
-          style={{
-            ...styles.googleBtn,
-            ...(busy ? styles.btnDisabled : null),
-          }}
+          className="trip-btn trip-btn-secondary"
+          style={{ opacity: busy ? 0.55 : 1 }}
         >
           <GoogleG />
           <span>Continue with Google</span>
         </button>
 
-        <div style={styles.divider}>
-          <div style={styles.dividerLine} />
-          <span style={styles.dividerText}>or</span>
-          <div style={styles.dividerLine} />
+        {/* Divider */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ flex: 1, height: 1, background: "var(--roam-border)" }} />
+          <span className="trip-muted-small">or</span>
+          <div style={{ flex: 1, height: 1, background: "var(--roam-border)" }} />
         </div>
 
         <form onSubmit={handleEmailSubmit} style={{ display: "contents" }}>
@@ -145,7 +178,22 @@ export default function LoginPage() {
             placeholder="Email"
             autoComplete="email"
             inputMode="email"
-            style={styles.input}
+            style={{
+              width: "100%",
+              height: 52,
+              padding: "0 16px",
+              borderRadius: "var(--r-btn)",
+              border: "none",
+              background: "var(--roam-surface-hover)",
+              color: "var(--roam-text)",
+              fontSize: 15,
+              fontWeight: 600,
+              outline: "none",
+              boxSizing: "border-box",
+              transition: "box-shadow 0.15s ease",
+            }}
+            onFocus={(e) => { e.currentTarget.style.boxShadow = "inset 0 0 0 2px var(--roam-info)"; }}
+            onBlur={(e) => { e.currentTarget.style.boxShadow = "none"; }}
             disabled={busy}
           />
           <input
@@ -154,25 +202,49 @@ export default function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
             autoComplete={mode === "signup" ? "new-password" : "current-password"}
-            style={styles.input}
+            style={{
+              width: "100%",
+              height: 52,
+              padding: "0 16px",
+              borderRadius: "var(--r-btn)",
+              border: "none",
+              background: "var(--roam-surface-hover)",
+              color: "var(--roam-text)",
+              fontSize: 15,
+              fontWeight: 600,
+              outline: "none",
+              boxSizing: "border-box",
+              transition: "box-shadow 0.15s ease",
+            }}
+            onFocus={(e) => { e.currentTarget.style.boxShadow = "inset 0 0 0 2px var(--roam-info)"; }}
+            onBlur={(e) => { e.currentTarget.style.boxShadow = "none"; }}
             disabled={busy}
           />
-
           <button
             type="submit"
             disabled={busy}
-            style={{
-              ...styles.primaryBtn,
-              ...(busy ? styles.btnDisabled : null),
-            }}
+            className="trip-btn trip-btn-primary"
+            style={{ opacity: busy ? 0.55 : 1 }}
           >
             {busy ? "…" : mode === "login" ? "Sign in" : "Create account"}
           </button>
         </form>
 
-        {error && <div style={styles.error}>{error}</div>}
+        {error && <div className="trip-err-box">{error}</div>}
+
         {signupSuccess && (
-          <div style={styles.success}>
+          <div
+            style={{
+              padding: "12px 14px",
+              borderRadius: "var(--r-btn)",
+              background: "var(--accent-tint)",
+              color: "var(--roam-accent)",
+              fontSize: "0.875rem",
+              fontWeight: 700,
+              textAlign: "center",
+              lineHeight: 1.4,
+            }}
+          >
             Check your email for a confirmation link, then sign in.
           </div>
         )}
@@ -184,7 +256,18 @@ export default function LoginPage() {
             setError(null);
             setSignupSuccess(false);
           }}
-          style={styles.toggleBtn}
+          className="trip-interactive"
+          style={{
+            background: "none",
+            border: "none",
+            color: "var(--roam-accent)",
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: "pointer",
+            textAlign: "center",
+            padding: "8px 0",
+            width: "100%",
+          }}
           disabled={busy}
         >
           {mode === "login"
@@ -193,7 +276,7 @@ export default function LoginPage() {
         </button>
 
         {!isNative && (
-          <div style={styles.note}>
+          <div className="trip-muted-small" style={{ textAlign: "center" }}>
             Apple Sign-In is available in the installed iOS app.
           </div>
         )}
@@ -209,7 +292,7 @@ function AppleMark() {
       height="18"
       viewBox="0 0 24 24"
       aria-hidden="true"
-      style={{ marginRight: 10, flexShrink: 0 }}
+      style={{ flexShrink: 0 }}
     >
       <path
         fill="currentColor"
@@ -226,7 +309,7 @@ function GoogleG() {
       height="18"
       viewBox="0 0 24 24"
       aria-hidden="true"
-      style={{ marginRight: 10, flexShrink: 0 }}
+      style={{ flexShrink: 0 }}
     >
       <path
         d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
@@ -247,165 +330,3 @@ function GoogleG() {
     </svg>
   );
 }
-
-/* ── Inline styles ─────────────────────── */
-
-const styles: Record<string, React.CSSProperties> = {
-  page: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: "100vh",
-    padding: 20,
-    background: "var(--roam-bg, #0b0d10)",
-  },
-  card: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 12,
-    width: "100%",
-    maxWidth: 360,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 800,
-    textAlign: "center",
-    letterSpacing: "-0.02em",
-    color: "var(--roam-text, #fff)",
-  },
-  subtitle: {
-    fontSize: 14,
-    textAlign: "center",
-    color: "var(--roam-muted, #9aa0a6)",
-    marginBottom: 8,
-  },
-
-  // Apple: match native “Sign in with Apple” feel
-  appleBtn: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    width: "100%",
-    height: 44, // iOS standard control height
-    padding: "0 16px",
-    borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "#000000",
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: 700,
-    cursor: "pointer",
-    WebkitTapHighlightColor: "transparent",
-    fontFamily:
-      '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif',
-    letterSpacing: "-0.01em",
-    userSelect: "none",
-  },
-  appleBtnText: {
-    lineHeight: 1,
-    transform: "translateY(0.5px)", // tiny optical alignment with mark
-  },
-
-  googleBtn: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    width: "100%",
-    height: 44,
-    padding: "0 16px",
-    borderRadius: 10,
-    border: "1px solid var(--roam-border, rgba(255,255,255,0.12))",
-    background: "var(--roam-surface, rgba(255,255,255,0.06))",
-    color: "var(--roam-text, #eee)",
-    fontSize: 15,
-    fontWeight: 600,
-    cursor: "pointer",
-    WebkitTapHighlightColor: "transparent",
-    userSelect: "none",
-  },
-
-  btnDisabled: {
-    opacity: 0.6,
-    cursor: "not-allowed",
-  },
-
-  divider: {
-    display: "flex",
-    alignItems: "center",
-    gap: 12,
-    margin: "6px 0",
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    background: "var(--roam-border, rgba(255,255,255,0.12))",
-  },
-  dividerText: {
-    fontSize: 12,
-    color: "var(--roam-muted, #9aa0a6)",
-  },
-
-  input: {
-    width: "100%",
-    height: 44,
-    padding: "0 14px",
-    borderRadius: 10,
-    border: "1px solid var(--roam-border, rgba(255,255,255,0.12))",
-    background: "var(--roam-surface, rgba(255,255,255,0.06))",
-    color: "var(--roam-text, #eee)",
-    fontSize: 15,
-    outline: "none",
-    boxSizing: "border-box",
-  },
-
-  primaryBtn: {
-    width: "100%",
-    height: 44,
-    padding: "0 16px",
-    borderRadius: 10,
-    border: "none",
-    background: "var(--roam-accent, #3b82f6)",
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: 800,
-    cursor: "pointer",
-    WebkitTapHighlightColor: "transparent",
-    userSelect: "none",
-  },
-
-  error: {
-    padding: "10px 12px",
-    borderRadius: 10,
-    background: "rgba(239,68,68,0.14)",
-    color: "#ff9aa0",
-    fontSize: 13,
-    textAlign: "center",
-    border: "1px solid rgba(239,68,68,0.22)",
-  },
-  success: {
-    padding: "10px 12px",
-    borderRadius: 10,
-    background: "rgba(34,197,94,0.14)",
-    color: "#7CFFB0",
-    fontSize: 13,
-    textAlign: "center",
-    border: "1px solid rgba(34,197,94,0.22)",
-  },
-
-  toggleBtn: {
-    background: "none",
-    border: "none",
-    color: "var(--roam-accent, #3b82f6)",
-    fontSize: 13,
-    cursor: "pointer",
-    textAlign: "center",
-    padding: "8px 0",
-  },
-
-  note: {
-    marginTop: 4,
-    fontSize: 12,
-    color: "var(--roam-muted, #9aa0a6)",
-    textAlign: "center",
-  },
-};

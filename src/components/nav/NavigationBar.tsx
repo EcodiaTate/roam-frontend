@@ -64,7 +64,7 @@ export function NavigationBar({ nav, fuelTracking, visible, onTap }: Props) {
             gap: 12,
           }}
         >
-          {/* ETA — prominent */}
+          {/* ETA - prominent */}
           <div>
             <div
               style={{

@@ -35,7 +35,7 @@ export type ErrorCallback = (err: any) => void;
  * On iOS, this keeps GPS alive in the background if Info.plist
  * is configured correctly.
  *
- * Safe to call multiple times — if already tracking, does nothing.
+ * Safe to call multiple times - if already tracking, does nothing.
  */
 export async function startBackgroundTracking(
   onPosition: PositionCallback,
@@ -101,7 +101,7 @@ export async function stopBackgroundTracking(): Promise<void> {
     try {
       await Geolocation.clearWatch({ id: watchId });
     } catch {
-      // ignore — watch may already be cleared
+      // ignore - watch may already be cleared
     }
     watchId = null;
   }

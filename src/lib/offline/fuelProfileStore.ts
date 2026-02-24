@@ -1,6 +1,6 @@
 // src/lib/offline/fuelProfileStore.ts
 // ──────────────────────────────────────────────────────────────
-// Vehicle Fuel Profile — IDB meta store helpers
+// Vehicle Fuel Profile - IDB meta store helpers
 //
 // Stores/retrieves the user's vehicle fuel profile from the
 // IDB "meta" store. One profile applies to all plans.
@@ -23,7 +23,7 @@ export async function getVehicleFuelProfile(): Promise<VehicleFuelProfile> {
       return { ...DEFAULT_FUEL_PROFILE, ...stored };
     }
   } catch {
-    // IDB failure — return default
+    // IDB failure - return default
   }
   return { ...DEFAULT_FUEL_PROFILE };
 }

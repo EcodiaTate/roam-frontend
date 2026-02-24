@@ -57,7 +57,7 @@ export function NativeBootstrap() {
       onAppStateChange((state) => {
         if (state === "foreground") {
           // Recheck network and drain sync queue
-          networkMonitor.start(); // idempotent — will re-poll health
+          networkMonitor.start(); // idempotent - will re-poll health
           planSync.drainQueue();
         }
       });

@@ -136,7 +136,7 @@ export default function TermsContent() {
           Fuel range calculations, fuel station availability, and fuel gap
           warnings are estimates only. Actual fuel consumption varies depending
           on vehicle condition, load, driving style, terrain, weather, and other
-          factors. Fuel station data may be outdated — stations may be
+          factors. Fuel station data may be outdated - stations may be
           permanently closed, temporarily unavailable, or have limited fuel
           types. Always carry sufficient fuel reserves when travelling in remote
           areas, and never rely solely on Roam for fuel planning.
@@ -539,7 +539,7 @@ export default function TermsContent() {
             </a>
           </li>
           <li>
-            <strong>Entity:</strong> Ecodia Pty Ltd, Brisbane, Queensland,
+            <strong>Entity:</strong> Ecodia Pty Ltd, Sunshine Coast, Queensland,
             Australia
           </li>
         </ul>

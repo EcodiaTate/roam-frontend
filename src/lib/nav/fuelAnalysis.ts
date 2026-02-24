@@ -1,8 +1,8 @@
 // src/lib/nav/fuelAnalysis.ts
 // ──────────────────────────────────────────────────────────────
-// Fuel Range Intelligence — Core Analysis Engine
+// Fuel Range Intelligence - Core Analysis Engine
 //
-// Pure functions — no side effects, no API calls. Works offline.
+// Pure functions - no side effects, no API calls. Works offline.
 // Operates on data already on-device (polyline + PlacesPack).
 // ──────────────────────────────────────────────────────────────
 
@@ -137,7 +137,7 @@ export function reanalyzeFuelForReroute(
   profile: VehicleFuelProfile,
   routeKey: string,
 ): FuelAnalysis {
-  // Same logic — just a different polyline source
+  // Same logic - just a different polyline source
   return analyzeFuel(reroutePolyline6, cachedPlaces, profile, routeKey);
 }
 
@@ -241,7 +241,7 @@ function emptyAnalysis(profile: VehicleFuelProfile, routeKey: string): FuelAnaly
   };
 }
 
-/** Remove stations within 0.5 km of each other — keep the one closer to route */
+/** Remove stations within 0.5 km of each other - keep the one closer to route */
 function deduplicateStations(stations: FuelStation[]): FuelStation[] {
   if (stations.length <= 1) return stations;
   const out: FuelStation[] = [stations[0]];
@@ -367,7 +367,7 @@ function generateWarnings(
       warnings.push({
         type: "long_stretch",
         severity: margin < profile.reserve_critical_km ? "warn" : "info",
-        message: `${Math.round(leg.distance_km)}km between ${fromName} and ${toName} — margin ${Math.round(margin)}km`,
+        message: `${Math.round(leg.distance_km)}km between ${fromName} and ${toName} - margin ${Math.round(margin)}km`,
         at_km: leg.from_station?.km_along_route ?? 0,
         station: leg.from_station ?? undefined,
         gap_km: leg.distance_km,
@@ -442,7 +442,7 @@ function computePressure(
     return Math.min(0.3, consumedFraction * 0.5);
   }
 
-  // No next station — pressure based purely on distance since last
+  // No next station - pressure based purely on distance since last
   const fraction = kmSinceLast / range;
   return Math.min(1.0, fraction);
 }

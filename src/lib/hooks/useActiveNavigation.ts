@@ -49,9 +49,9 @@ export type ActiveNavigationHook = {
   isActive: boolean;
   /** Whether voice is muted */
   isMuted: boolean;
-  /** Start active navigation — requests background GPS permission */
+  /** Start active navigation - requests background GPS permission */
   start: () => Promise<void>;
-  /** Stop active navigation — clears GPS watch */
+  /** Stop active navigation - clears GPS watch */
   stop: () => void;
   /** Toggle voice mute */
   toggleMute: () => void;
@@ -94,7 +94,7 @@ export function useActiveNavigation(
   const routeData = useMemo(() => {
     if (!navpack?.primary?.geometry) return { pts: [] as [number, number][], totalM: 0 };
     const decoded = decodePolyline6(navpack.primary.geometry);
-    // decodePolyline6 returns [lng, lat][] for GeoJSON compat — we need [lat, lng][] for activeNav
+    // decodePolyline6 returns [lng, lat][] for GeoJSON compat - we need [lat, lng][] for activeNav
     const pts: [number, number][] = decoded.map((p) => [p.lat, p.lng]);
     let totalM = 0;
     for (let i = 1; i < pts.length; i++) {
@@ -169,7 +169,7 @@ export function useActiveNavigation(
     }
 
     setNav(newNav);
-  }, []); // No deps — everything accessed via refs
+  }, []); // No deps - everything accessed via refs
 
   // ── Start ──
   const start = useCallback(async () => {

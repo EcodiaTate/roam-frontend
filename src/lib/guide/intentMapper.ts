@@ -251,7 +251,7 @@ export type ExtractedIntent = {
 
 /**
  * Extract intent from user text. Returns matched categories and metadata.
- * Uses substring matching — fast and good enough for mobile input.
+ * Uses substring matching - fast and good enough for mobile input.
  */
 export function extractIntent(text: string): ExtractedIntent {
   const lower = text.toLowerCase().trim();
@@ -361,7 +361,7 @@ export function filterAndRankPlaces(
     const catSet = new Set(intent.categories);
     filtered = items.filter((p) => catSet.has(p.category));
   } else {
-    // No specific intent — return a diverse sample
+    // No specific intent - return a diverse sample
     filtered = items;
   }
 
@@ -415,7 +415,7 @@ export function filterAndRankPlaces(
     );
   }
 
-  // Step 4: Sort — ahead first, then by distance
+  // Step 4: Sort - ahead first, then by distance
   candidates.sort((a, b) => {
     // Ahead places first
     if (a.ahead && !b.ahead) return -1;

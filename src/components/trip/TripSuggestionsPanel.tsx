@@ -48,7 +48,7 @@ function fmtCat(c: PlaceCategory) {
 }
 
 // ──────────────────────────────────────────────────────────────
-// All categories — matches backend _CORRIDOR_DEFAULT_CATS exactly.
+// All categories - matches backend _CORRIDOR_DEFAULT_CATS exactly.
 // Organised: safety → supplies → food → accommodation →
 // nature → family → culture → geocoding
 // ──────────────────────────────────────────────────────────────
@@ -74,7 +74,7 @@ const ALL_CATS: PlaceCategory[] = [
 ];
 
 // ──────────────────────────────────────────────────────────────
-// Chip config — icon + label for the filter bar
+// Chip config - icon + label for the filter bar
 // ──────────────────────────────────────────────────────────────
 
 type ChipDef = { key: PlaceCategory | "all"; label: string; Icon: LucideIcon };
@@ -296,7 +296,7 @@ export function TripSuggestionsPanel(props: {
         )}
       </div>
 
-      {/* Categories Row (Horizontal Scroll) — full set with icons */}
+      {/* Categories Row (Horizontal Scroll) - full set with icons */}
       <div
         style={{
           display: "flex",

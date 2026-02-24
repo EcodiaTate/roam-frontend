@@ -1,5 +1,5 @@
 // src/lib/utils/haptics.ts
-// Compatibility shim — delegates to the native Capacitor haptics module.
+// Compatibility shim - delegates to the native Capacitor haptics module.
 // Existing code that imports { haptics } from "@/lib/utils/haptics" keeps working.
 
 import { haptic } from "@/lib/native/haptics";

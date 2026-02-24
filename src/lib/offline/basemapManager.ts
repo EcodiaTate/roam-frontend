@@ -119,7 +119,7 @@ export async function getBasemapStatus(region: string = DEFAULT_REGION): Promise
     try {
       const info = await RoamTileServer.getBasemapInfo({ region });
       if (!info.installed) {
-        // Files were deleted externally — reset status
+        // Files were deleted externally - reset status
         const reset = defaultStatus(region);
         await saveStatus(reset);
         return reset;
@@ -127,7 +127,7 @@ export async function getBasemapStatus(region: string = DEFAULT_REGION): Promise
       // Update size in case it changed
       status.sizeBytes = info.sizeBytes;
     } catch {
-      // Plugin call failed — trust IDB status
+      // Plugin call failed - trust IDB status
     }
   }
 
@@ -267,7 +267,7 @@ export async function downloadBasemap(
       sha256: options?.sha256,
     });
 
-    // Download complete — update status
+    // Download complete - update status
     const final = await loadStatus(region);
     final.state = "installed";
     final.sizeBytes = result.bytes;
@@ -410,7 +410,7 @@ export async function initBasemap(region: string = DEFAULT_REGION): Promise<Base
  * Rewrite a MapLibre style JSON to use local tile server URLs
  * when the server is running. Falls back to original URLs if not.
  *
- * This is the key integration point — call this before passing
+ * This is the key integration point - call this before passing
  * style JSON to map.setStyle().
  */
 export function rewriteStyleForLocalServer(style: any): any {

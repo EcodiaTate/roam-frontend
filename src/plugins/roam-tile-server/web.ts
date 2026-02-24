@@ -20,7 +20,7 @@ import type {
 
 export class RoamTileServerWeb extends WebPlugin implements RoamTileServerPlugin {
   async startServer(_options: StartServerOptions): Promise<StartServerResult> {
-    // No local server on web — MapLibre loads tiles from remote URLs
+    // No local server on web - MapLibre loads tiles from remote URLs
     console.info("[RoamTileServer/web] startServer no-op (browser mode)");
     return { url: "", port: 0 };
   }

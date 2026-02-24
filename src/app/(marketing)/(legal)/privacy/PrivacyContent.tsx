@@ -29,7 +29,7 @@ export default function PrivacyContent() {
         <div className={s.highlight}>
           <p>
             <strong>Roam is built offline-first.</strong> The vast majority of
-            your data — routes, maps, trip plans, fuel calculations — is stored
+            your data - routes, maps, trip plans, fuel calculations - is stored
             locally on your device and never transmitted to our servers unless
             you explicitly choose to sync or share.
           </p>
@@ -97,7 +97,7 @@ export default function PrivacyContent() {
           </li>
           <li>We do not record audio from voice guidance sessions.</li>
           <li>
-            We do not collect financial information — there are no in-app
+            We do not collect financial information - there are no in-app
             purchases. If we introduce paid features in the future, payment
             processing will be handled by Apple/Google and we will not receive
             your card details.
@@ -130,43 +130,43 @@ export default function PrivacyContent() {
                 <td>GPS position (live)</td>
                 <td>Device only</td>
                 <td>Turn-by-turn navigation, fatigue tracking</td>
-                <td>APP 3.3 — necessary for service</td>
+                <td>APP 3.3 - necessary for service</td>
               </tr>
               <tr>
                 <td>Trip plans</td>
                 <td>Device + optional cloud sync</td>
                 <td>Route planning, offline navigation</td>
-                <td>APP 3.3 — core functionality</td>
+                <td>APP 3.3 - core functionality</td>
               </tr>
               <tr>
                 <td>Route requests</td>
                 <td>Server (transient)</td>
                 <td>Generate navigation route via OSRM</td>
-                <td>APP 3.3 — necessary for service</td>
+                <td>APP 3.3 - necessary for service</td>
               </tr>
               <tr>
                 <td>Account email</td>
                 <td>Server (Supabase Auth)</td>
                 <td>Authentication, plan sharing</td>
-                <td>APP 3.3 — account functionality</td>
+                <td>APP 3.3 - account functionality</td>
               </tr>
               <tr>
                 <td>Device info</td>
                 <td>Server (crash reporting)</td>
                 <td>Bug fixing, stability</td>
-                <td>APP 3.3 — service improvement</td>
+                <td>APP 3.3 - service improvement</td>
               </tr>
               <tr>
                 <td>Aggregate analytics</td>
                 <td>Server (anonymised)</td>
                 <td>Feature prioritisation</td>
-                <td>APP 3.3 — legitimate interest</td>
+                <td>APP 3.3 - legitimate interest</td>
               </tr>
               <tr>
                 <td>Contact form submissions</td>
                 <td>Email (FormSubmit)</td>
                 <td>Support &amp; enquiries</td>
-                <td>APP 3.3 — you initiated contact</td>
+                <td>APP 3.3 - you initiated contact</td>
               </tr>
             </tbody>
           </table>
@@ -177,7 +177,7 @@ export default function PrivacyContent() {
 
       {/* ── 3  Location Data ───────────────────────── */}
       <section className={s.section}>
-        <h2 className={s.sectionTitle}>3. Location Data — Detailed Handling</h2>
+        <h2 className={s.sectionTitle}>3. Location Data - Detailed Handling</h2>
         <p className={s.text}>
           Location data is central to Roam&apos;s navigation functionality. We
           treat it with the highest level of care.
@@ -400,7 +400,7 @@ export default function PrivacyContent() {
             is protected by your device&apos;s operating system security.
           </li>
           <li>
-            User authentication tokens are derived server-side — user identity
+            User authentication tokens are derived server-side - user identity
             is never transmitted in API payloads.
           </li>
         </ul>
@@ -432,7 +432,7 @@ export default function PrivacyContent() {
             when deleted by the owner.
           </li>
           <li>
-            <strong>Route requests:</strong> Transient — processed and discarded
+            <strong>Route requests:</strong> Transient - processed and discarded
             after the route is generated. We do not store a log of your
             requested routes.
           </li>
@@ -556,7 +556,7 @@ export default function PrivacyContent() {
             page
           </li>
           <li>
-            <strong>Privacy Officer:</strong> Tate, Ecodia Pty Ltd, Brisbane
+            <strong>Privacy Officer:</strong> Tate, Ecodia Pty Ltd, Sunshine Coast
             QLD, Australia
           </li>
         </ul>

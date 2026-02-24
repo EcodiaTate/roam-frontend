@@ -93,7 +93,7 @@ export type GuideContext = {
   route_key?: string | null;
   corridor_key?: string | null;
 
-  geometry?: string | null; // polyline6 — kept for tool repair, never sent to LLM raw
+  geometry?: string | null; // polyline6 - kept for tool repair, never sent to LLM raw
   bbox?: any | null;
 
   stops?: TripStop[];

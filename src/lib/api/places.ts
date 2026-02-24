@@ -14,7 +14,7 @@ export const placesApi = {
 
   // POST /places/corridor -> PlacesPack
   // This endpoint is heavy: Overpass queries + Supa bulk upserts.
-  // 30s default timeout is not enough — use 120s.
+  // 30s default timeout is not enough - use 120s.
   corridor: (req: CorridorPlacesRequest) =>
     api.post<PlacesPack>("/places/corridor", req, { timeoutMs: 120_000 }),
 

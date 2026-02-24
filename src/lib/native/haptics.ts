@@ -69,7 +69,7 @@ async function selectionTick(fallback: VibratePattern) {
  * (plus a couple of legacy aliases so old callsites don't crash)
  */
 export const haptic = {
-  /** Light tap — tab press, list item selection, button confirm */
+  /** Light tap - tab press, list item selection, button confirm */
   async tap() {
     await impact("Light", 10);
   },
@@ -79,22 +79,22 @@ export const haptic = {
     await impact("Light", 10);
   },
 
-  /** Medium impact — map marker placed, stop added */
+  /** Medium impact - map marker placed, stop added */
   async medium() {
     await impact("Medium", 20);
   },
 
-  /** Heavy impact — long press confirmed, major action */
+  /** Heavy impact - long press confirmed, major action */
   async heavy() {
     await impact("Heavy", 40);
   },
 
-  /** Success — route calculated, bundle ready, sync complete */
+  /** Success - route calculated, bundle ready, sync complete */
   async success() {
     await notify("Success", [10, 50, 20]);
   },
 
-  /** Warning — hazard nearby, entering dead zone */
+  /** Warning - hazard nearby, entering dead zone */
   async warning() {
     await notify("Warning", [15, 30, 15]);
   },
@@ -104,12 +104,12 @@ export const haptic = {
     await notify("Warning", [15, 30, 15]);
   },
 
-  /** Error — permission denied, offline with no bundle */
+  /** Error - permission denied, offline with no bundle */
   async error() {
     await notify("Error", [20, 40, 20, 40, 20]);
   },
 
-  /** Selection tick — drag reorder, toggle switch, filter chip */
+  /** Selection tick - drag reorder, toggle switch, filter chip */
   async selection() {
     await selectionTick(5);
   },

@@ -38,7 +38,7 @@ type SupaPlanRow = {
 
 /**
  * Extract the lightweight cloud-safe subset of a local plan.
- * No zip blobs, no huge pack payloads — just the "recipe".
+ * No zip blobs, no huge pack payloads - just the "recipe".
  */
 function localToCloud(rec: OfflinePlanRecord, userId: string): Partial<SupaPlanRow> {
   return {
@@ -175,7 +175,7 @@ class PlanSyncManager {
 
   /**
    * Enqueue a plan_upsert sync op for the given plan and drain if online.
-   * Safe to call multiple times — deduplicates against the queue.
+   * Safe to call multiple times - deduplicates against the queue.
    */
   async enqueuePlanUpsert(planId: string): Promise<void> {
     const already = await hasQueuedUpsert(planId);
@@ -286,7 +286,7 @@ class PlanSyncManager {
 
         if (!local) {
           // Plan exists in cloud but not locally → create local stub
-          // (no zip blob — user's device will need to build bundle)
+          // (no zip blob - user's device will need to build bundle)
           const newRec: OfflinePlanRecord = {
             ...cloudToLocal(row),
             plan_id: row.plan_id,
@@ -310,7 +310,7 @@ class PlanSyncManager {
             };
             await _putPlanRecordRaw(merged);
           }
-          // If local is newer, do nothing — drain will push it
+          // If local is newer, do nothing - drain will push it
         }
       }
 
@@ -430,7 +430,7 @@ class PlanSyncManager {
       case "plan_upsert": {
         const rec = await getOfflinePlan(op.plan_id);
         if (!rec) {
-          // Plan was deleted locally before sync drained — skip silently
+          // Plan was deleted locally before sync drained - skip silently
           return;
         }
         const row = localToCloud(rec, this._userId);
@@ -503,7 +503,7 @@ class PlanSyncManager {
             return;
           }
 
-          // INSERT or UPDATE — check if we're a member
+          // INSERT or UPDATE - check if we're a member
           const { data: membership } = await supabase
             .from("roam_plan_members")
             .select("plan_id")
@@ -518,7 +518,7 @@ class PlanSyncManager {
           const remoteRow = payload.new as SupaPlanRow;
 
           if (!local) {
-            // New plan from a share — create local stub
+            // New plan from a share - create local stub
             const newRec: OfflinePlanRecord = {
               ...cloudToLocal(remoteRow),
               plan_id: remoteRow.plan_id,
@@ -574,5 +574,5 @@ class PlanSyncManager {
   }
 }
 
-/** Singleton — imported by usePlanSync hook and SyncBootstrap */
+/** Singleton - imported by usePlanSync hook and SyncBootstrap */
 export const planSync = new PlanSyncManager();
