@@ -633,7 +633,7 @@ const STYLES = `
   align-items: center; justify-content: center;
   text-align: center; position: relative;
   padding: 60px 24px 80px;
-  background: linear-gradient(to bottom, #bae6fd22, var(--sand));
+  background: var(--burnt);
 }
 .rl-hero-content {
   max-width: 800px;
@@ -650,7 +650,7 @@ const STYLES = `
   font-size: clamp(72px, 10vw, 220px);
   line-height: 0.82;
   letter-spacing: -0.05em;
-  color: var(--burnt);
+  color: var(--white);
   user-select: none;
   white-space: nowrap;
   max-width: 100%;
@@ -662,6 +662,7 @@ html, body {
   font-size: clamp(20px, 3.5vw, 32px);
   font-weight: 400; line-height: 1.3;
   max-width: 600px; margin: 0 auto;
+  color: var(--sand);
 }
 .rl-hero-tagline strong { font-weight: 800; }
 .rl-hero-actions {
@@ -671,30 +672,31 @@ html, body {
 }
 .rl-btn-hero {
   display: inline-flex; align-items: center; gap: 12px;
-  background: var(--ochre); color: var(--white);
+  background: var(--sand); color: var(--burnt);
   padding: 20px 40px; border-radius: 18px;
   font-size: 18px; font-weight: 800;
-  box-shadow: 0 8px 0 var(--burnt);
-  transition: transform 0.12s, box-shadow 0.12s;
+  box-shadow: 0 8px 0 rgba(0, 0, 0, 0.25);
+  transition: transform 0.12s, box-shadow 0.12s, background 0.2s;
 }
 .rl-btn-hero:hover {
+  background: var(--sand-dark);
   transform: translateY(-2px);
-  box-shadow: 0 10px 0 var(--burnt);
+  box-shadow: 0 10px 0 rgba(0, 0, 0, 0.3);
 }
 .rl-btn-hero:active {
   transform: translateY(4px);
-  box-shadow: 0 4px 0 var(--burnt);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.2);
 }
 .rl-btn-hero-alt {
-  font-size: 14px; color: var(--text-muted);
+  font-size: 14px; color: var(--sand);
   text-decoration: underline;
   text-underline-offset: 3px;
-  transition: color 0.2s;
+  transition: color 0.2s, opacity 0.2s;
 }
-.rl-btn-hero-alt:hover { color: var(--text); }
+.rl-btn-hero-alt:hover { color: var(--white); opacity: 0.9; }
 .rl-hero-scroll {
   position: absolute; bottom: 32px;
-  color: var(--text); opacity: 0.25;
+  color: var(--white); opacity: 0.5;
   animation: rl-bounce 2s infinite;
 }
 
