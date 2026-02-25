@@ -1,6 +1,7 @@
-import { redirect } from "next/navigation";
+import LandingPage from "./ClientPage";
 
-export default function RootPage() {
-  // Route to marketing landing page
-  redirect("/(marketing)");
+export const revalidate = 0;
+
+export default function Page() {
+  return <LandingPage />;
 }
