@@ -62,7 +62,11 @@ export const viewport = {
   themeColor: "#120f0c",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en" className={outbackFont.variable}>
       <head>
