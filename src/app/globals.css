@@ -205,6 +205,23 @@
 /* ==========================================================================
    2. GLOBAL RESETS & NATIVE SHELL
    ========================================================================== */
+/* Landing page overrides the native shell lock */
+html.roam-landing {
+  overflow: auto !important;
+  position: relative !important;
+  height: auto !important;
+}
+html.roam-landing body {
+  overflow: auto !important;
+  position: relative !important;
+  height: auto !important;
+}
+html.roam-landing body * {
+  overflow: visible;
+  position: relative;
+  height: auto;
+}
+
 html, body {
   height: 100%;
   width: 100%;

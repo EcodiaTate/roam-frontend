@@ -210,6 +210,12 @@ export default function LandingPage() {
     return () => window.removeEventListener("resize", close);
   }, []);
 
+  // Re-enable scroll for the landing page (globals.css locks html/body for the native shell)
+  useEffect(() => {
+    document.documentElement.classList.add("roam-landing");
+    return () => document.documentElement.classList.remove("roam-landing");
+  }, []);
+
   // Don't render anything while checking native / if native (redirecting)
   if (isNative === null || isNative === true) return null;
 
@@ -227,16 +233,18 @@ export default function LandingPage() {
 
           {/* Desktop links */}
           <div className="rl-nav-links">
-            <a href="#features" className="rl-nav-link">Features</a>
-            <a href="#how" className="rl-nav-link">How It Works</a>
-            <a href="/contact" className="rl-nav-link">Contact</a>
+            <a href="#features" className="rl-nav-link">
+              Features
+            </a>
+            <a href="#how" className="rl-nav-link">
+              How It Works
+            </a>
+            <a href="/contact" className="rl-nav-link">
+              Contact
+            </a>
           </div>
 
-          <a
-            href={cta.href}
-            className="rl-nav-cta"
-            {...extProps(cta.external)}
-          >
+          <a href={cta.href} className="rl-nav-cta" {...extProps(cta.external)}>
             {cta.navLabel}
           </a>
 
@@ -253,9 +261,27 @@ export default function LandingPage() {
         {/* Mobile dropdown */}
         {menuOpen && (
           <div className="rl-nav-mobile">
-            <a href="#features" className="rl-nav-mobile-link" onClick={() => setMenuOpen(false)}>Features</a>
-            <a href="#how" className="rl-nav-mobile-link" onClick={() => setMenuOpen(false)}>How It Works</a>
-            <a href="/contact" className="rl-nav-mobile-link" onClick={() => setMenuOpen(false)}>Contact</a>
+            <a
+              href="#features"
+              className="rl-nav-mobile-link"
+              onClick={() => setMenuOpen(false)}
+            >
+              Features
+            </a>
+            <a
+              href="#how"
+              className="rl-nav-mobile-link"
+              onClick={() => setMenuOpen(false)}
+            >
+              How It Works
+            </a>
+            <a
+              href="/contact"
+              className="rl-nav-mobile-link"
+              onClick={() => setMenuOpen(false)}
+            >
+              Contact
+            </a>
             <a
               href={cta.href}
               className="rl-nav-mobile-cta"
@@ -317,10 +343,9 @@ export default function LandingPage() {
               <span className="rl-label">The Signal Void</span>
               <h2>Google Maps quits 50km out of town.</h2>
               <p>
-                You're past Longreach. Fuel light's on. 180km to the next
-                servo. Your phone says{" "}
-                <strong>&ldquo;No connection&rdquo;</strong> and the map is a
-                grey void.
+                You're past Longreach. Fuel light's on. 180km to the next servo.
+                Your phone says <strong>&ldquo;No connection&rdquo;</strong> and
+                the map is a grey void.
               </p>
               <p>
                 Most nav apps need the cloud. Roam downloads everything to your
@@ -438,11 +463,11 @@ export default function LandingPage() {
           <div className="rl-aoc-content">
             <Map className="rl-aoc-icon" size={20} strokeWidth={1.5} />
             <p>
-              Roam was built on the lands of the <strong>Gubbi Gubbi</strong> people. 
-              We pay our respects to their Elders past and present. As you travel 
-              this wide country, we invite you to recognize that every track, 
-              highway, and river you cross has been cared for by Traditional 
-              Custodians for tens of thousands of years.
+              Roam was built on the lands of the <strong>Gubbi Gubbi</strong>{" "}
+              people. We pay our respects to their Elders past and present. As
+              you travel this wide country, we invite you to recognize that
+              every track, highway, and river you cross has been cared for by
+              Traditional Custodians for tens of thousands of years.
             </p>
           </div>
         </div>
@@ -655,9 +680,6 @@ const STYLES = `
   white-space: nowrap;
   max-width: 100%;
 }
-html, body {
-  overflow-x: hidden;
-}
 .rl-hero-tagline {
   font-size: clamp(20px, 3.5vw, 32px);
   font-weight: 400; line-height: 1.3;
@@ -730,7 +752,7 @@ html, body {
 }
 .rl-problem-text h2 {
   font-size: clamp(30px, 4.5vw, 52px);
-  font-weight: 800; line-height: 1.08; margin-bottom: 28px;
+  font-weight: 800; line-height: 1.08; margin-bottom: 28px; color: var(--text);
 }
 .rl-problem-text p {
   font-size: 17px; color: var(--text-muted);
@@ -752,7 +774,7 @@ html, body {
 .rl-visual-card h3 {
   font-family: 'Syne', sans-serif;
   font-weight: 800; font-size: 28px;
-  margin-top: 14px; letter-spacing: 0.1em;
+  margin-top: 14px; letter-spacing: 0.1em; color: var(--text);
 }
 .rl-visual-card p {
   font-size: 14px; color: var(--text-muted); margin-top: 6px;
@@ -762,7 +784,7 @@ html, body {
 .rl-features { background: var(--sand-dark); padding: 120px 0; }
 .rl-section-header { text-align: center; margin-bottom: 56px; }
 .rl-section-header h2 {
-  font-size: clamp(32px, 4vw, 48px); font-weight: 800;
+  font-size: clamp(32px, 4vw, 48px); font-weight: 800; color: var(--text);
 }
 .rl-features-grid {
   display: grid;
@@ -790,7 +812,7 @@ html, body {
 }
 .rl-feat-icon { color: var(--ochre); }
 .rl-feat-card h3 {
-  font-size: 20px; font-weight: 800; margin-bottom: 10px;
+  font-size: 20px; font-weight: 800; margin-bottom: 10px; color: var(--text);
 }
 .rl-feat-card p {
   color: var(--text-muted); line-height: 1.65; font-size: 15px;
@@ -803,7 +825,7 @@ html, body {
 }
 .rl-how-header h2 {
   font-size: clamp(36px, 5vw, 56px);
-  font-weight: 800; line-height: 1.0;
+  font-weight: 800; line-height: 1.0; color: var(--text);
 }
 .rl-how-steps { display: flex; flex-direction: column; gap: 36px; }
 .rl-step { display: flex; gap: 24px; align-items: flex-start; }
@@ -814,7 +836,7 @@ html, body {
   min-width: 48px;
 }
 .rl-step-content h3 {
-  font-size: 22px; font-weight: 800; margin-bottom: 6px;
+  font-size: 22px; font-weight: 800; margin-bottom: 6px; color: var(--text);
 }
 .rl-step-content p {
   color: var(--text-muted); font-size: 16px; line-height: 1.7;
