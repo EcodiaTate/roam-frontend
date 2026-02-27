@@ -266,7 +266,7 @@ input, textarea, [contenteditable] {
 }
 :focus:not(:focus-visible) { outline: none; }
 
-/* App shell — absolute fill, safe-area padding (except bottom, handled by fixed tab bar) */
+/* App shell — absolute fill, safe-area padding (except bottom, handled by absolute tab bar) */
 .roam-shell {
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
@@ -276,6 +276,7 @@ input, textarea, [contenteditable] {
   padding-top: var(--roam-safe-top);
   padding-left: var(--roam-safe-left);
   padding-right: var(--roam-safe-right);
+  padding-bottom: 0;
 }
 
 
@@ -397,8 +398,13 @@ input, textarea, [contenteditable] {
    4. APP LAYOUT PRIMITIVES
    ========================================================================== */
 .trip-app-container {
-  position: relative;
-  width: 100vw; height: 100vh;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
   background: var(--roam-bg);
   color: var(--roam-text);
@@ -845,7 +851,10 @@ input, textarea, [contenteditable] {
    ========================================================================== */
 .trip-modal-overlay {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: var(--overlay-bg);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
@@ -854,18 +863,23 @@ input, textarea, [contenteditable] {
   flex-direction: column;
   justify-content: flex-end;
   animation: roam-fadeIn var(--dur-normal) ease-out forwards;
+  overflow: hidden;
+  height: 100dvh;
+  width: 100vw;
 }
 
 .trip-modal {
   background: var(--roam-bg);
   border-radius: var(--r-card) var(--r-card) 0 0;
   padding: 24px 20px calc(var(--bottom-nav-height) + 20px) 20px;
-  height: 88vh;
+  max-height: 88dvh;
   display: flex;
   flex-direction: column;
   gap: 16px;
   box-shadow: var(--shadow-heavy);
   animation: roam-slideUp var(--dur-slow) var(--spring) forwards;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 
@@ -1011,7 +1025,7 @@ input, textarea, [contenteditable] {
 
 /* ── Fixed tab bar (glass morphism, overlays content) ──────────────── */
 .roam-tabs-wrap {
-  position: fixed;
+  position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
@@ -1055,8 +1069,7 @@ input, textarea, [contenteditable] {
   flex: 1;
   min-height: 0;
   position: relative;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  overflow: hidden;
   background-color: var(--roam-bg);
 }
 

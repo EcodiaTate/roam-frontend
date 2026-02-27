@@ -8,6 +8,7 @@ import { X } from "lucide-react";
 import { useBundleBuilder } from "@/lib/hooks/useBundleBuilder";
 import { getOfflinePlan, setCurrentPlanId } from "@/lib/offline/plansStore";
 import { haptic } from "@/lib/native/haptics";
+import { hideKeyboard } from "@/lib/native/keyboard";
 
 type Props = {
   open: boolean;
@@ -45,12 +46,19 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
     }
   }, [open]);
 
-  // Lock body scroll while open
+  // Lock body scroll and hide keyboard while open
   useEffect(() => {
     if (!open) return;
+
+    // Hide the keyboard to prevent viewport resize pushing modal up
+    hideKeyboard().catch(() => {});
+
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
+
+    return () => {
+      document.body.style.overflow = prev;
+    };
   }, [open]);
 
   const handleCreate = useCallback(async () => {
@@ -132,7 +140,10 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
       onClick={onClose}
       style={{
         position: "fixed",
-        inset: 0,
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
         backgroundColor: "rgba(0,0,0,0.6)",
         backdropFilter: "blur(4px)",
         WebkitBackdropFilter: "blur(4px)",
@@ -141,6 +152,10 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
         justifyContent: "center",
         zIndex: 100,
         padding: 20,
+        /* Use dvh to handle virtual keyboard correctly */
+        height: "100dvh",
+        width: "100vw",
+        overflow: "hidden",
       }}
       role="dialog"
       aria-modal="true"
@@ -155,9 +170,10 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
           maxWidth: 400,
           boxShadow: "0 20px 40px rgba(0,0,0,0.4)",
           position: "relative",
-          /* Prevent the card from being pushed by virtual keyboard */
-          maxHeight: "calc(100dvh - 40px)",
+          /* Constrain height to prevent overflow and keyboard push */
+          maxHeight: "90dvh",
           overflowY: "auto",
+          flexShrink: 0,
         }}
       >
         {/* ── Header ──────────────────────────────────────────────── */}
