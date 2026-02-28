@@ -414,7 +414,11 @@ input, textarea, [contenteditable] {
 .trip-wrap-center {
   display: grid;
   place-items: center;
-  height: 100vh;
+  /* Use 100% (fill flex parent roam-main) rather than 100vh.
+     100vh on iOS native exceeds the actual usable area inside the fixed shell,
+     causing the content to overflow and appear pushed down. */
+  height: 100%;
+  min-height: 0;
   padding: 20px;
   background: var(--roam-bg);
 }
@@ -754,8 +758,11 @@ input, textarea, [contenteditable] {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  /* Contain overscroll so dragging past bounds doesn't propagate to body/map container */
   overscroll-behavior: contain;
   overscroll-behavior-y: contain;
+  /* Allow vertical pan inside the sheet scroller; parent has touch-action:none for drag capture */
+  touch-action: pan-y;
 }
 
 .trip-drag-handle {
@@ -864,15 +871,18 @@ input, textarea, [contenteditable] {
   justify-content: flex-end;
   animation: roam-fadeIn var(--dur-normal) ease-out forwards;
   overflow: hidden;
-  height: 100dvh;
-  width: 100vw;
+  /* Do NOT use height: 100dvh — it uses the "large" (pre-keyboard) viewport on iOS
+     and won't shrink when KeyboardResize.Body resizes the WKWebView.
+     top/bottom/left/right: 0 already fills the resized viewport correctly. */
 }
 
 .trip-modal {
   background: var(--roam-bg);
   border-radius: var(--r-card) var(--r-card) 0 0;
   padding: 24px 20px calc(var(--bottom-nav-height) + 20px) 20px;
-  max-height: 88dvh;
+  /* Use % of the overlay (which is already sized to keyboard-adjusted viewport) rather
+     than a fixed dvh value, so the modal correctly fits the remaining space on keyboard open */
+  max-height: 88%;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -880,6 +890,9 @@ input, textarea, [contenteditable] {
   animation: roam-slideUp var(--dur-slow) var(--spring) forwards;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  /* Allow native vertical pan in the scrollable modal content */
+  touch-action: pan-y;
 }
 
 
@@ -1334,6 +1347,8 @@ input, textarea, [contenteditable] {
 .roam-scroll {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  /* Allow vertical pan so iOS/WKWebView scrolls natively rather than bubbling */
+  touch-action: pan-y;
 }
 
 /* Glass morphism surface */

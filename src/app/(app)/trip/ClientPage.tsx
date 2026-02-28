@@ -763,8 +763,9 @@ useEffect(() => {
           )}
         </div>
 
-        {/* Scrollable content */}
-        <div style={{ flex: 1, overflow: "hidden" }}>
+        {/* Scrollable content — touch-action:pan-y overrides parent sheet's touch-action:none
+             so iOS/WKWebView handles vertical scroll natively here */}
+        <div style={{ flex: 1, overflow: "hidden", touchAction: "pan-y" }}>
           <div
             className="roam-scroll"
             style={{
