@@ -51,7 +51,7 @@ const config: CapacitorConfig = {
 
   // capacitor.config.ts
   ios: {
-    contentInset: "always", // Changed from automatic to ensure safe areas are consistent
+    contentInset: "never", // Let StatusBar.overlaysWebView handle safe areas via CSS env(safe-area-inset-*)
     backgroundColor: "#0a0a0a",
     preferredContentMode: "mobile",
     allowsLinkPreview: false,
