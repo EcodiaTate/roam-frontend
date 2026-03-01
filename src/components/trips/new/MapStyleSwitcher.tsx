@@ -105,7 +105,7 @@ export function MapStyleSwitcher(props: {
       aria-label="Map style"
       style={{
         position: "absolute",
-        top: 12,
+        top: "calc(env(safe-area-inset-top, 0px) + 16px)",
         right: 12,
         zIndex: 30,
         display: "flex",

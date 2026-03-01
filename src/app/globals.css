@@ -125,7 +125,7 @@
 
   /* ── Sizing ────────────────────────────────────────────── */
   --tap-target: 48px;
-  --roam-tab-h: 68px;
+  --roam-tab-h: 80px;
   --bottom-nav-height: calc(var(--roam-tab-h) + var(--roam-safe-bottom));
 
   /* ── Motion ────────────────────────────────────────────── */
