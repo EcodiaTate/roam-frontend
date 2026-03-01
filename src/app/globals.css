@@ -398,15 +398,14 @@ input, textarea, [contenteditable] {
    4. APP LAYOUT PRIMITIVES
    ========================================================================== */
 .trip-app-container {
-  position: absolute;
-  /* Pull up into the safe area so the map fills under the status bar like a native app.
-     Overlay controls use var(--roam-safe-top) internally to stay below the notch. */
-  top: calc(-1 * var(--roam-safe-top));
+  /* Fixed to viewport so the map fills under the status bar like a native app,
+     escaping the shell's padding-top safe area. Overlay controls use
+     var(--roam-safe-top) internally to position themselves below the notch. */
+  position: fixed;
+  top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  width: 100%;
-  height: calc(100% + var(--roam-safe-top));
   overflow: hidden;
   background: var(--roam-bg);
   color: var(--roam-text);
