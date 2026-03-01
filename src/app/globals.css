@@ -399,12 +399,14 @@ input, textarea, [contenteditable] {
    ========================================================================== */
 .trip-app-container {
   position: absolute;
-  top: 0;
+  /* Pull up into the safe area so the map fills under the status bar like a native app.
+     Overlay controls use var(--roam-safe-top) internally to stay below the notch. */
+  top: calc(-1 * var(--roam-safe-top));
   left: 0;
   right: 0;
   bottom: 0;
   width: 100%;
-  height: 100%;
+  height: calc(100% + var(--roam-safe-top));
   overflow: hidden;
   background: var(--roam-bg);
   color: var(--roam-text);
