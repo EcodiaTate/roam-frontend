@@ -655,7 +655,7 @@ input, textarea, [contenteditable] {
 
 .trip-map-switcher {
   position: absolute;
-  top: calc(var(--roam-safe-top) + 14px);
+  top: calc(var(--roam-safe-top) + 24px);
   right: 14px;
   z-index: 10;
   background: var(--roam-surface);
