@@ -1,31 +1,45 @@
 // capacitor.config.ts
 import type { CapacitorConfig } from "@capacitor/cli";
-import { KeyboardResize } from "@capacitor/keyboard";
 
 const isDev = process.env.NODE_ENV === "development";
 
+/**
+ * DEV WRAPPER URL
+ * - Android emulator: http://10.0.2.2:3000
+ * - Physical device: http://<your-lan-ip>:3000
+ * - iOS simulator: http://localhost:3000 (or LAN IP)
+ *
+ * Set CAP_SERVER_URL to whichever you need.
+ */
+const devServerUrl =
+  process.env.CAP_SERVER_URL ||
+  (process.env.CAP_ANDROID_EMULATOR === "1"
+    ? "http://10.0.2.2:3000"
+    : "http://localhost:3000");
+
 const config: CapacitorConfig = {
-  //  Correct, stable bundle identity
-  appId: "com.ecodia.roam",
+  appId: "au.ecodia.roam",
   appName: "Roam Nav",
 
-  //  Static export output folder (Next output: export)
+  // PROD (and fallback): serve the bundled static web build (Next export)
   webDir: "out",
 
-  //  Dev-only live reload server. In prod, Capacitor serves the static bundle from /out.
+  // DEV: wrap a running web server (live reload) for fast iteration
   ...(isDev
     ? {
         server: {
-          url: "http://localhost:3000",
-          cleartext: true,
-          androidScheme: "http",
+          url: devServerUrl,
+          cleartext: devServerUrl.startsWith("http://"),
+          androidScheme: devServerUrl.startsWith("http://") ? "http" : "https",
+
+          // Allow navigation to your backend/CDN domains while wrapped
+          allowNavigation: ["*.ecodia.au", "*.supabase.co", "*.supabase.in"],
         },
       }
     : {}),
 
   plugins: {
     SplashScreen: {
-      // Keep splash visible until we call hide() manually
       launchAutoHide: false,
       launchShowDuration: 0,
       backgroundColor: "#0a0a0a",
@@ -37,36 +51,19 @@ const config: CapacitorConfig = {
       backgroundColor: "#00000000",
       overlaysWebView: true,
     },
-
-    Keyboard: {
-      resize: KeyboardResize.None,
-      resizeOnFullScreen: true,
-    },
-
-    LocalNotifications: {
-      smallIcon: "ic_notification",
-      iconColor: "#3b82f6",
-    },
   },
 
-  // capacitor.config.ts
   ios: {
-    contentInset: "never", // Let StatusBar.overlaysWebView handle safe areas via CSS env(safe-area-inset-*)
+    contentInset: "never",
     backgroundColor: "#0a0a0a",
     preferredContentMode: "mobile",
     allowsLinkPreview: false,
-    scrollEnabled: false, // THIS stops the whole window from scrolling/bouncing
+    scrollEnabled: true, // safer for any search/login inputs
   },
 
   android: {
     backgroundColor: "#0a0a0a",
-
-    // You’re loading remote resources (Supabase PMTiles, optional satellite),
-    // so mixed content can matter depending on what’s embedded.
-    allowMixedContent: true,
-
-    // Keeps input handling stable for gesture-heavy map UIs
-    captureInput: true,
+    allowMixedContent: isDev, // keep prod HTTPS-only
   },
 };
 
