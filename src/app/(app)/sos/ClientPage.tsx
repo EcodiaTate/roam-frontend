@@ -61,15 +61,65 @@ function mapsLink(lat: number, lon: number) {
   return `https://maps.google.com/?q=${encodeURIComponent(`${lat},${lon}`)}`;
 }
 
-async function getPositionNative(timeoutMs = 120_000): Promise<{ lat: number; lon: number; accuracy_m: number | null }> {
-  // Try Capacitor plugin dynamically (native)
+type GeoResult = { lat: number; lon: number; accuracy_m: number | null };
+
+async function getPositionNative(timeoutMs = 120_000): Promise<GeoResult> {
+  // Try Capacitor Geolocation plugin (native iOS/Android — most reliable)
   try {
     const mod: any = await import("@capacitor/geolocation");
-    if (mod?.Geolocation?.getCurrentPosition) {
-      const res = await mod.Geolocation.getCurrentPosition({
+    const geo = mod?.Geolocation;
+    if (geo?.watchPosition) {
+      // watchPosition gives first fix faster than getCurrentPosition on cold start
+      return await new Promise<GeoResult>((resolve, reject) => {
+        let settled = false;
+        let watchId: string | null = null;
+
+        const stop = () => {
+          if (watchId != null) geo.clearWatch({ id: watchId }).catch(() => {});
+        };
+
+        const timer = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          stop();
+          reject(new Error("Location timeout — move to open sky and retry."));
+        }, timeoutMs);
+
+        // watchIdPromise resolves asynchronously; store it so we can clean up
+        const watchIdPromise: Promise<string> = geo.watchPosition(
+          { enableHighAccuracy: true, maximumAge: 10_000 },
+          (pos: any, err: any) => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            // watchId may or may not be set yet; chain on the promise to be safe
+            watchIdPromise.then((id) => geo.clearWatch({ id }).catch(() => {})).catch(() => {});
+            if (err) {
+              reject(new Error(err?.message || "Location error."));
+              return;
+            }
+            resolve({
+              lat: pos.coords.latitude,
+              lon: pos.coords.longitude,
+              accuracy_m: typeof pos.coords.accuracy === "number" ? pos.coords.accuracy : null,
+            });
+          },
+        );
+
+        watchIdPromise.then((id) => { watchId = id; }).catch((e: unknown) => {
+          if (!settled) {
+            settled = true;
+            clearTimeout(timer);
+            reject(new Error("Failed to start location watch."));
+          }
+        });
+      });
+    }
+    if (geo?.getCurrentPosition) {
+      const res = await geo.getCurrentPosition({
         enableHighAccuracy: true,
         timeout: timeoutMs,
-        maximumAge: 5_000,
+        maximumAge: 10_000,
       });
       return {
         lat: res.coords.latitude,
@@ -78,34 +128,40 @@ async function getPositionNative(timeoutMs = 120_000): Promise<{ lat: number; lo
       };
     }
   } catch {
-    // ignore
+    // Fall through to browser API
   }
 
-  // Fallback: browser geolocation
+  // Fallback: browser navigator.geolocation (web / simulator)
   if (typeof navigator === "undefined" || !navigator.geolocation) {
     throw new Error("Geolocation not available on this device.");
   }
 
-  const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-    const t = setTimeout(() => reject(new Error("Location timeout.")), timeoutMs);
-    navigator.geolocation.getCurrentPosition(
-      (p) => {
-        clearTimeout(t);
-        resolve(p);
+  return new Promise<GeoResult>((resolve, reject) => {
+    let watchId: number | null = null;
+    const timer = setTimeout(() => {
+      if (watchId != null) navigator.geolocation.clearWatch(watchId);
+      reject(new Error("Location timeout — move to open sky and retry."));
+    }, timeoutMs);
+
+    // watchPosition gets first fix faster than getCurrentPosition
+    watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        clearTimeout(timer);
+        navigator.geolocation.clearWatch(watchId!);
+        resolve({
+          lat: pos.coords.latitude,
+          lon: pos.coords.longitude,
+          accuracy_m: typeof pos.coords.accuracy === "number" ? pos.coords.accuracy : null,
+        });
       },
       (e) => {
-        clearTimeout(t);
+        clearTimeout(timer);
+        if (watchId != null) navigator.geolocation.clearWatch(watchId);
         reject(new Error(e?.message || "Could not get location."));
       },
-      { enableHighAccuracy: true, maximumAge: 5_000, timeout: timeoutMs },
+      { enableHighAccuracy: true, maximumAge: 10_000 },
     );
   });
-
-  return {
-    lat: pos.coords.latitude,
-    lon: pos.coords.longitude,
-    accuracy_m: typeof pos.coords.accuracy === "number" ? pos.coords.accuracy : null,
-  };
 }
 
 export default function EmergencyClientPage() {
@@ -278,6 +334,11 @@ export default function EmergencyClientPage() {
     return () => clearInterval(t);
   }, [user, isOnline, runAutoSync]);
 
+  // Initial location fetch (runs once on mount, independent of boot)
+  useEffect(() => {
+    fetchLocationAuto();
+  }, [fetchLocationAuto]);
+
   // Auto-refresh location periodically
   useEffect(() => {
     const t = setInterval(() => {
@@ -330,8 +391,7 @@ export default function EmergencyClientPage() {
 
     if (useLat == null || useLon == null) {
       setErr(null);
-      setBusy("loc"); // Trigger the UI waiting state so they know it's working
-      setElapsedWait(0);
+      setLocating(true);
       try {
         haptic.medium();
         const p = await getPositionNative(120_000); // 2 full minutes here too
@@ -344,10 +404,10 @@ export default function EmergencyClientPage() {
       } catch (e: any) {
         haptic.error();
         setErr(e?.message ?? String(e));
-        setBusy(null);
+        setLocating(false);
         return;
       }
-      setBusy(null);
+      setLocating(false);
     }
 
     const coords = `${fmt5(useLat!)}, ${fmt5(useLon!)}${acc ? ` (±${Math.round(acc)}m)` : ""}`;
