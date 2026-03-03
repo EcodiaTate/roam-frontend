@@ -50,5 +50,16 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>au.ecodia.roam</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>au.ecodia.roam</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

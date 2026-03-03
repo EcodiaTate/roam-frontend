@@ -91,14 +91,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [session?.user?.id]);
 
   const signInWithGoogle = useCallback(async () => {
-    const redirectTo =
-      typeof window !== "undefined"
-        ? `${window.location.origin}/auth/callback`
-        : undefined;
-
-    // On native: get the OAuth URL without auto-navigating, then open it in
-    // the Capacitor in-app browser so the redirect lands back in the WebView.
     if (Capacitor.isNativePlatform()) {
+      // Use the custom URL scheme so iOS intercepts the redirect and closes
+      // the in-app browser, routing the session back into the app.
+      // This URL must also be allowlisted in Supabase → Auth → Redirect URLs.
+      const redirectTo = "au.ecodia.roam://auth/callback";
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: { redirectTo, skipBrowserRedirect: true },
@@ -112,6 +109,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // Web: normal redirect flow
+    const redirectTo =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/auth/callback`
+        : undefined;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo },
@@ -157,7 +158,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       return { error };
     } catch (e: any) {
-      return { error: asAuthError(e?.message ?? "Apple Sign-In failed.") };
+      // 1001 = ASAuthorizationErrorCanceled — user dismissed the sheet, not an error
+      const msg: string = e?.message ?? "";
+      if (msg.includes("1001") || msg.toLowerCase().includes("cancel")) {
+        return { error: null };
+      }
+      return { error: asAuthError(msg || "Apple Sign-In failed.") };
     }
   }, []);
 
