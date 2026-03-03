@@ -92,18 +92,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = useCallback(async () => {
     if (Capacitor.isNativePlatform()) {
-      // Use the custom URL scheme so iOS intercepts the redirect and closes
-      // the in-app browser, routing the session back into the app.
-      // This URL must also be allowlisted in Supabase → Auth → Redirect URLs.
-      const redirectTo = "au.ecodia.roam://auth/callback";
+      // Get the OAuth URL without auto-navigating, then drive the WebView to it.
+      // When Google redirects back to au.ecodia.roam://auth/callback, iOS
+      // intercepts the custom scheme and Capacitor routes it back into the app.
+      // SFSafariViewController (openInAppBrowser) cannot handle custom schemes,
+      // so we navigate the WebView directly instead.
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo, skipBrowserRedirect: true },
+        options: {
+          redirectTo: "au.ecodia.roam://auth/callback",
+          skipBrowserRedirect: true,
+        },
       });
       if (error) return { error };
       if (data?.url) {
-        const { openInAppBrowser } = await import("@/lib/native/browser");
-        await openInAppBrowser(data.url);
+        window.location.href = data.url;
       }
       return { error: null };
     }
@@ -135,11 +138,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const nonce = randomNonce(32);
       const nonceHash = await sha256Base64Url(nonce);
 
-      // On native iOS the plugin uses ASAuthorizationAppleIDProvider directly.
-      // clientId MUST be the iOS Bundle ID (not the Services ID used for web).
+      // clientId is ignored by the native iOS plugin (ASAuthorizationAppleIDProvider
+      // has no client ID concept) — Apple always sets aud = Bundle ID in the JWT.
+      // Supabase must have au.ecodia.roam listed under Apple provider → Authorized Client IDs.
       const result = await SignInWithApple.authorize({
         clientId: "au.ecodia.roam",
-        redirectURI: "https://roam.ecodia.au/auth/callback", // required by plugin typing; unused on native
+        redirectURI: "https://roam.ecodia.au/auth/callback", // unused on native, required by plugin types
         scopes: "email name",
         state: `roam-${Date.now()}`,
         nonce: nonceHash,
