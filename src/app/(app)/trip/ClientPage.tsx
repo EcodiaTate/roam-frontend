@@ -529,10 +529,7 @@ useEffect(() => {
 
   // ── Ready ──────────────────────────────────────────────────────
   return (
-    <div
-      className="trip-app-container"
-      style={{ position: "relative", width: "100%", height: "100dvh", overflow: "hidden", background: "var(--roam-bg)", color: "var(--roam-text)" }}
-    >
+    <div className="trip-app-container">
       {/* Map Layer */}
       <div style={{ position: "absolute", inset: 0, zIndex: 1 }}>
         <TripMap

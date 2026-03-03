@@ -54,54 +54,54 @@ const PIPELINE_STEPS: PipelineStep[] = [
     id: "route",
     phases: ["routing"],
     icon: <Route size={18} />,
-    label: "Build route",
+    label: "Plan your route",
     activeLabel: "Finding the best route…",
-    doneLabel: "Route locked in",
+    doneLabel: "Route sorted",
     color: "#3b82f6",
   },
   {
     id: "corridor",
     phases: ["corridor_ensure", "corridor_get"],
     icon: <Map size={18} />,
-    label: "Offline corridor",
-    activeLabel: "Mapping your offline zone…",
-    doneLabel: "Corridor ready",
+    label: "Save maps offline",
+    activeLabel: "Downloading maps along your route…",
+    doneLabel: "Maps downloaded",
     color: "#8b5cf6",
   },
   {
     id: "places",
     phases: ["places_corridor"],
     icon: <MapPin size={18} />,
-    label: "Cache places",
-    activeLabel: "Saving fuel, food & rest stops…",
-    doneLabel: "Places cached",
+    label: "Find stops along the way",
+    activeLabel: "Finding fuel, food & rest stops…",
+    doneLabel: "Stops saved",
     color: "#f59e0b",
   },
   {
     id: "traffic",
     phases: ["traffic_poll"],
     icon: <Cloud size={18} />,
-    label: "Traffic snapshot",
-    activeLabel: "Grabbing live traffic…",
-    doneLabel: "Traffic saved",
+    label: "Check live traffic",
+    activeLabel: "Checking current traffic…",
+    doneLabel: "Traffic checked",
     color: "#06b6d4",
   },
   {
     id: "hazards",
     phases: ["hazards_poll"],
     icon: <AlertTriangle size={18} />,
-    label: "Hazard warnings",
-    activeLabel: "Checking road warnings…",
-    doneLabel: "Warnings loaded",
+    label: "Check road hazards",
+    activeLabel: "Looking for road warnings…",
+    doneLabel: "All clear",
     color: "#ef4444",
   },
   {
     id: "bundle",
     phases: ["bundle_build"],
     icon: <Package size={18} />,
-    label: "Package bundle",
-    activeLabel: "Packaging everything for offline…",
-    doneLabel: "Bundle ready",
+    label: "Pack it all up",
+    activeLabel: "Getting everything ready to go…",
+    doneLabel: "Ready to roll",
     color: "#22c55e",
   },
 ];
@@ -247,7 +247,7 @@ function BuildProgressView({
           {isError ? "Something went wrong" : isDone ? "You're all set!" : "Building your trip"}
         </div>
         <div style={{ fontSize: 13, color: "var(--roam-text-muted)", marginTop: 4, fontWeight: 500 }}>
-          {isError ? "Tap back to fix your stops and try again" : isDone ? "Your trip is saved and ready for offline" : "Hang tight - this takes a moment"}
+          {isError ? "Go back, check your stops, and try again" : isDone ? "Your trip is saved and works without internet" : "This only takes a moment"}
         </div>
         {!isDone && !isError && (
           <div style={{ marginTop: 6 }}>
@@ -512,7 +512,7 @@ export function StopsEditor(props: {
             <div>
               <h1 className="trip-h1">{isBuilding ? "Building Trip" : "Plan Trip"}</h1>
               <div className="trip-muted" style={{ marginTop: 2 }}>
-                {isBuilding ? "Preparing your offline bundle" : "Add stops. Tap save. Done."}
+                {isBuilding ? "Getting your trip ready for the road" : "Add stops. Tap save. Done."}
               </div>
             </div>
 
