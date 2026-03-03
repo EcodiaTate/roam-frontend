@@ -115,7 +115,8 @@ export default function EmergencyClientPage() {
   const [items, setItems] = useState<EmergencyContactLocal[]>([]);
   const [selectedIds, setSelectedIds] = useState<Record<string, boolean>>({});
 
-  const [busy, setBusy] = useState<null | "boot" | "save" | "delete" | "sync" | "loc">(null);
+  const [busy, setBusy] = useState<null | "boot" | "save" | "delete" | "sync">(null);
+  const [locating, setLocating] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [elapsedWait, setElapsedWait] = useState(0); // Tracks seconds spent waiting for coaching msgs
 
@@ -136,7 +137,7 @@ export default function EmergencyClientPage() {
   const locInFlightRef = useRef(false);
   const timerDisplayRef = useRef<HTMLSpanElement>(null); // Fast DOM update ref
 
-  const isLocating = lat == null || lon == null ? (busy === "boot" || busy === "loc") : false;
+  const isLocating = locating && (lat == null || lon == null);
 
   // High-performance countdown timer & elapsed tracker
   useEffect(() => {
@@ -224,8 +225,7 @@ export default function EmergencyClientPage() {
   const fetchLocationAuto = useCallback(async () => {
     if (locInFlightRef.current) return;
     locInFlightRef.current = true;
-
-    setBusy((b) => (b ? b : "loc"));
+    setLocating(true);
     setErr(null);
     try {
       const p = await getPositionNative(120_000); // 2 full minutes to allow hardware cold lock
@@ -236,11 +236,11 @@ export default function EmergencyClientPage() {
       setErr(e?.message ?? String(e));
     } finally {
       locInFlightRef.current = false;
-      setBusy((b) => (b === "loc" ? null : b));
+      setLocating(false);
     }
   }, []);
 
-  // Boot: contacts + sync + location
+  // Boot: contacts + sync (location runs independently via its own effect)
   useEffect(() => {
     let cancelled = false;
 
@@ -254,10 +254,6 @@ export default function EmergencyClientPage() {
         await refresh();
         if (cancelled) return;
         await runAutoSync();
-        if (cancelled) return;
-
-        // Immediate location fetch on load
-        await fetchLocationAuto();
       } catch (e: any) {
         setErr(e?.message ?? String(e));
       } finally {
@@ -269,7 +265,7 @@ export default function EmergencyClientPage() {
     return () => {
       cancelled = true;
     };
-  }, [refresh, runAutoSync, fetchLocationAuto]);
+  }, [refresh, runAutoSync]);
 
   // Autosync loop
   useEffect(() => {

@@ -38,7 +38,7 @@ export default function NewTripClientPage() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTargetStopId, setSearchTargetStopId] = useState<string | null>(null);
 
-  const [baseMode, setBaseMode] = useState<MapBaseMode>("vector");
+  const [baseMode, setBaseMode] = useState<MapBaseMode>("hybrid");
   const [vectorTheme, setVectorTheme] = useState<VectorTheme>("bright");
 
   // Invite modal
