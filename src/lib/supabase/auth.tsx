@@ -40,15 +40,12 @@ function randomNonce(len = 32): string {
     .join("");
 }
 
-async function sha256Base64Url(input: string): Promise<string> {
+async function sha256Hex(input: string): Promise<string> {
   const enc = new TextEncoder().encode(input);
   const buf = await crypto.subtle.digest("SHA-256", enc);
-  const bytes = new Uint8Array(buf);
-
-  let binary = "";
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-  const b64 = btoa(binary);
-  return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 function asAuthError(message: string): AuthError {
@@ -91,31 +88,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [session?.user?.id]);
 
   const signInWithGoogle = useCallback(async () => {
-    if (Capacitor.isNativePlatform()) {
-      // Get the OAuth URL without auto-navigating, then drive the WebView to it.
-      // When Google redirects back to au.ecodia.roam://auth/callback, iOS
-      // intercepts the custom scheme and Capacitor routes it back into the app.
-      // SFSafariViewController (openInAppBrowser) cannot handle custom schemes,
-      // so we navigate the WebView directly instead.
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: "au.ecodia.roam://auth/callback",
-          skipBrowserRedirect: true,
-        },
-      });
-      if (error) return { error };
-      if (data?.url) {
-        window.location.href = data.url;
-      }
-      return { error: null };
-    }
-
-    // Web: normal redirect flow
-    const redirectTo =
-      typeof window !== "undefined"
-        ? `${window.location.origin}/auth/callback`
-        : undefined;
+    // Both web and native web-wrapper use the same https redirect.
+    // The Capacitor WebView wraps roam.ecodia.au, so when Google redirects
+    // back to /auth/callback it lands in the WebView — no custom scheme needed.
+    const redirectTo = "https://roam.ecodia.au/auth/callback";
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo },
@@ -136,7 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Raw nonce for Supabase, hashed nonce for Apple request
       const nonce = randomNonce(32);
-      const nonceHash = await sha256Base64Url(nonce);
+      const nonceHash = await sha256Hex(nonce);
 
       // clientId is ignored by the native iOS plugin (ASAuthorizationAppleIDProvider
       // has no client ID concept) — Apple always sets aud = Bundle ID in the JWT.
