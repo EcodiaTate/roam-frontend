@@ -88,10 +88,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [session?.user?.id]);
 
   const signInWithGoogle = useCallback(async () => {
-    // Both web and native web-wrapper use the same https redirect.
-    // The Capacitor WebView wraps roam.ecodia.au, so when Google redirects
-    // back to /auth/callback it lands in the WebView — no custom scheme needed.
     const redirectTo = "https://roam.ecodia.au/auth/callback";
+
+    if (Capacitor.isNativePlatform()) {
+      // skipBrowserRedirect prevents Supabase from calling window.location.href,
+      // which would navigate the WebView off roam.ecodia.au into Safari.
+      // Instead we open the OAuth URL in SFSafariViewController (in-app sheet).
+      // After Google auth, Supabase redirects to /auth/callback which loads inside
+      // the sheet — that page calls Browser.close() and the main WebView's
+      // onAuthStateChange fires via shared localStorage.
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo, skipBrowserRedirect: true },
+      });
+      if (error) return { error };
+      if (data?.url) {
+        const { Browser } = await import("@capacitor/browser");
+        await Browser.open({ url: data.url, presentationStyle: "popover" });
+      }
+      return { error: null };
+    }
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo },

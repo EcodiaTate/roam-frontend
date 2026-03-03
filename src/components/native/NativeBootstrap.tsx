@@ -16,6 +16,7 @@ import {
   requestNotificationPermission,
   onNotificationTap,
 } from "@/lib/native";
+import { App } from "@capacitor/app";
 import { networkMonitor } from "@/lib/offline/networkMonitor";
 import { planSync } from "@/lib/offline/planSync";
 
@@ -76,7 +77,18 @@ export function NativeBootstrap() {
         }
       });
 
-      // 6. Hide splash (everything is ready)
+      // 6. Handle deep links (e.g. OAuth callback via custom URL scheme)
+      App.addListener("appUrlOpen", ({ url }) => {
+        // au.ecodia.roam://auth/callback?code=... → /auth/callback?code=...
+        try {
+          const parsed = new URL(url);
+          if (parsed.pathname === "/auth/callback") {
+            router.replace("/auth/callback" + parsed.search + parsed.hash);
+          }
+        } catch {}
+      });
+
+      // 7. Hide splash (everything is ready)
       //    Small delay ensures the first paint has happened
       setTimeout(() => hideSplash(), 150);
     })();
