@@ -2,21 +2,9 @@
 const nextConfig = {
   reactStrictMode: true,
 
-  // Static export (writes to /out on build)
-  output: "export",
-
-  // Required for file-based routing: /trip -> /trip/index.html
-  trailingSlash: true,
-
-  // No Next image optimizer in static export
-  images: {
-    unoptimized: true,
-  },
-
-  //  No rewrites (tiles/styles no longer proxied through Next)
-  async rewrites() {
-    return [];
-  },
+  // Server-rendered for Vercel deployment (web wrapper mode).
+  // The Capacitor app loads https://roam.ecodia.au directly — no static bundle.
+  // To switch back to static bundle: restore output:"export", trailingSlash:true.
 };
 
 module.exports = nextConfig;
