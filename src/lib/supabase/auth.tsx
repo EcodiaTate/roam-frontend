@@ -91,14 +91,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [session?.user?.id]);
 
   const signInWithGoogle = useCallback(async () => {
+    const redirectTo =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/auth/callback`
+        : undefined;
+
+    // On native: get the OAuth URL without auto-navigating, then open it in
+    // the Capacitor in-app browser so the redirect lands back in the WebView.
+    if (Capacitor.isNativePlatform()) {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo, skipBrowserRedirect: true },
+      });
+      if (error) return { error };
+      if (data?.url) {
+        const { openInAppBrowser } = await import("@/lib/native/browser");
+        await openInAppBrowser(data.url);
+      }
+      return { error: null };
+    }
+
+    // Web: normal redirect flow
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: {
-        redirectTo:
-          typeof window !== "undefined"
-            ? `${window.location.origin}/auth/callback`
-            : undefined,
-      },
+      options: { redirectTo },
     });
     return { error };
   }, []);
@@ -118,12 +134,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const nonce = randomNonce(32);
       const nonceHash = await sha256Base64Url(nonce);
 
-      // IMPORTANT:
-      // The plugin API wants these fields even on iOS (per its README). :contentReference[oaicite:3]{index=3}
-      // clientId should be your Apple Services ID (the one you configured for Supabase Apple provider).
+      // On native iOS the plugin uses ASAuthorizationAppleIDProvider directly.
+      // clientId MUST be the iOS Bundle ID (not the Services ID used for web).
       const result = await SignInWithApple.authorize({
-        clientId: "com.ecodia.roam", // <-- REPLACE with your Apple Services ID if different
-        redirectURI: "https://localhost", // not used for native iOS UI, but required by plugin typing
+        clientId: "au.ecodia.roam",
+        redirectURI: "https://roam.ecodia.au/auth/callback", // required by plugin typing; unused on native
         scopes: "email name",
         state: `roam-${Date.now()}`,
         nonce: nonceHash,
