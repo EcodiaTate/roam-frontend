@@ -6,16 +6,36 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 
 /**
- * OAuth redirect landing page (web + native WebView).
+ * OAuth redirect landing page.
  *
- * On native: NativeBootstrap listens for appUrlOpen (au.ecodia.roam://auth/callback?code=...)
- * and navigates the main WebView here with the code params. Supabase exchanges
- * the code via detectSessionInUrl, onAuthStateChange fires, we go to /trip.
+ * Runs in two contexts:
+ *
+ * A) Inside SFSafariViewController (native Google OAuth sheet):
+ *    window.Capacitor is absent. We immediately forward the full URL to the
+ *    custom scheme — iOS intercepts it, closes the sheet, fires appUrlOpen
+ *    in the main WebView, NativeBootstrap navigates back here with the code.
+ *
+ * B) Main WebView (web or after deep-link handoff from A):
+ *    window.Capacitor is present (or we're on web). Supabase exchanges the
+ *    code via detectSessionInUrl, onAuthStateChange fires → /trip.
  */
 export default function AuthCallbackPage() {
   const router = useRouter();
 
   useEffect(() => {
+    // If Capacitor is absent we're inside the SFSafariViewController sheet.
+    // Forward to the custom scheme so iOS closes the sheet and hands the
+    // code to the main WebView via appUrlOpen.
+    const hasCapacitor = !!(window as any).Capacitor;
+    if (!hasCapacitor && (window.location.search || window.location.hash)) {
+      window.location.href =
+        "au.ecodia.roam://auth/callback" +
+        window.location.search +
+        window.location.hash;
+      return;
+    }
+
+    // Main WebView: exchange code → session → navigate
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session) {
         router.replace("/trip");
