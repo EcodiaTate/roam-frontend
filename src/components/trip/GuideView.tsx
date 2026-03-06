@@ -329,7 +329,7 @@ function ActionPill({
   muted?: boolean;
   color?: string;
 }) {
-  const accentColor = color ?? "var(--brand-sky, #3b82f6)";
+  const accentColor = color ?? "var(--brand-sky)";
   const baseStyle: React.CSSProperties = {
     borderRadius: 10,
     minHeight: 34,
@@ -531,7 +531,7 @@ function renderInline(nodes: InlineNode[], keyPrefix: string, inLink = false) {
           const p = parts[pi];
           const maybe = normalizeUrl(p);
           if (maybe) {
-            out.push(<a key={`${k}_u_${pi}`} href={maybe} target="_blank" rel="noopener noreferrer" style={{ color: "var(--brand-sky, #3b82f6)", textDecoration: "underline", textUnderlineOffset: 2 }} onClick={(e) => e.stopPropagation()}>{p}</a>);
+            out.push(<a key={`${k}_u_${pi}`} href={maybe} target="_blank" rel="noopener noreferrer" style={{ color: "var(--brand-sky)", textDecoration: "underline", textUnderlineOffset: 2 }} onClick={(e) => e.stopPropagation()}>{p}</a>);
           } else { out.push(<span key={`${k}_t_${pi}`}>{p}</span>); }
         }
       } else { out.push(<span key={k}>{n.s}</span>); }
@@ -542,7 +542,7 @@ function renderInline(nodes: InlineNode[], keyPrefix: string, inLink = false) {
     } else if (n.t === "em") {
       out.push(<em key={k} style={{ fontStyle: "italic" }}>{renderInline(n.c, k, inLink)}</em>);
     } else if (n.t === "link") {
-      out.push(<a key={k} href={normalizeUrl(n.href) ?? n.href} target="_blank" rel="noopener noreferrer" style={{ color: "var(--brand-sky, #3b82f6)", textDecoration: "underline", textUnderlineOffset: 2 }} onClick={(e) => e.stopPropagation()}>{renderInline(n.c, k, true)}</a>);
+      out.push(<a key={k} href={normalizeUrl(n.href) ?? n.href} target="_blank" rel="noopener noreferrer" style={{ color: "var(--brand-sky)", textDecoration: "underline", textUnderlineOffset: 2 }} onClick={(e) => e.stopPropagation()}>{renderInline(n.c, k, true)}</a>);
     }
   }
   return out;
@@ -637,7 +637,7 @@ function TypingDots() {
             width: 7,
             height: 7,
             borderRadius: "50%",
-            background: "var(--brand-sky, #3b82f6)",
+            background: "var(--brand-sky)",
             opacity: 0.5,
             animation: `guideTyping 1.2s ease-in-out ${i * 0.2}s infinite`,
           }}
@@ -801,7 +801,7 @@ function PlaceCard({
                 borderRadius: 10, minHeight: 34, padding: "0 12px",
                 fontWeight: 700, fontSize: 12,
                 border: `1px solid var(--roam-border, rgba(255,255,255,0.08))`,
-                background: "transparent", color: "var(--brand-sky, #3b82f6)", cursor: "pointer",
+                background: "transparent", color: "var(--brand-sky)", cursor: "pointer",
                 display: "inline-flex", alignItems: "center", gap: 5,
               }}
             >
@@ -1004,7 +1004,7 @@ export function GuideView({
               style={{
                 flex: 1, borderRadius: 11, border: "none", padding: "10px 8px",
                 fontSize: 13, fontWeight: 700,
-                background: active ? "var(--brand-sky, #3b82f6)" : "transparent",
+                background: active ? "var(--brand-sky)" : "transparent",
                 color: active ? "white" : "var(--roam-text-muted)",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                 cursor: "pointer", transition: "all 0.15s ease",
@@ -1015,7 +1015,7 @@ export function GuideView({
               {tab.label}
               {tab.badge != null ? (
                 <span style={{
-                  fontSize: 10, fontWeight: 800, background: active ? "rgba(255,255,255,0.25)" : "var(--brand-sky, #3b82f6)",
+                  fontSize: 10, fontWeight: 800, background: active ? "rgba(255,255,255,0.25)" : "var(--brand-sky)",
                   color: "white", borderRadius: 999, padding: "1px 6px", minWidth: 18, textAlign: "center",
                 }}>
                   {tab.badge}
@@ -1114,7 +1114,7 @@ export function GuideView({
                     <div key={`${m.role}_${idx}`} style={{ display: "flex", justifyContent: "flex-end", animation: "guideFadeIn 0.2s ease" }}>
                       <div style={{
                         maxWidth: "85%", padding: "10px 14px", borderRadius: "16px 16px 4px 16px",
-                        background: "var(--brand-sky, #3b82f6)", color: "white",
+                        background: "var(--brand-sky)", color: "white",
                         fontSize: 14, fontWeight: 600, lineHeight: 1.4,
                         boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
                       }}>
@@ -1161,7 +1161,7 @@ export function GuideView({
                           marginTop: 6, marginLeft: 36, padding: "6px 12px",
                           borderRadius: 10, border: "1px solid rgba(59,130,246,0.15)",
                           background: "rgba(59,130,246,0.06)",
-                          color: "var(--brand-sky, #3b82f6)",
+                          color: "var(--brand-sky)",
                           fontSize: 12, fontWeight: 700, cursor: "pointer",
                           display: "inline-flex", alignItems: "center", gap: 6,
                           animation: "guideFadeIn 0.3s ease",
@@ -1225,7 +1225,7 @@ export function GuideView({
                 disabled={!guideReady || chatBusy || !chatInput.trim()}
                 style={{
                   width: 36, height: 36, borderRadius: 10, border: "none",
-                  background: chatInput.trim() ? "var(--brand-sky, #3b82f6)" : "transparent",
+                  background: chatInput.trim() ? "var(--brand-sky)" : "transparent",
                   color: chatInput.trim() ? "white" : "var(--roam-text-muted)",
                   cursor: chatInput.trim() ? "pointer" : "default",
                   display: "grid", placeItems: "center",
@@ -1279,7 +1279,7 @@ export function GuideView({
             }}>
               <div style={{
                 width: 52, height: 52, borderRadius: 14, margin: "0 auto 14px",
-                background: "rgba(59,130,246,0.08)", color: "var(--brand-sky, #3b82f6)",
+                background: "rgba(59,130,246,0.08)", color: "var(--brand-sky)",
                 display: "grid", placeItems: "center",
               }}>
                 <Search size={24} />
@@ -1296,7 +1296,7 @@ export function GuideView({
                 style={{
                   marginTop: 16, borderRadius: 12, border: "none", padding: "10px 20px",
                   fontSize: 14, fontWeight: 700,
-                  background: "var(--brand-sky, #3b82f6)", color: "white", cursor: "pointer",
+                  background: "var(--brand-sky)", color: "white", cursor: "pointer",
                   display: "inline-flex", alignItems: "center", gap: 8,
                   boxShadow: "0 2px 8px rgba(59,130,246,0.25)",
                 }}
@@ -1327,7 +1327,7 @@ export function GuideView({
                   style={{
                     borderRadius: 10, border: "1px solid var(--roam-border, rgba(255,255,255,0.08))",
                     padding: "7px 12px", fontSize: 12, fontWeight: 700,
-                    background: "transparent", color: "var(--brand-sky, #3b82f6)",
+                    background: "transparent", color: "var(--brand-sky)",
                     cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6,
                   }}
                 >
@@ -1377,7 +1377,7 @@ export function GuideView({
             {CHIPS.map((c) => {
               const active = chip === c.key;
               const CI = c.Icon;
-              const cc = c.key === "all" ? { bg: "transparent", fg: "var(--roam-text)", accent: "var(--brand-sky, #3b82f6)" } : catColor(c.key);
+              const cc = c.key === "all" ? { bg: "transparent", fg: "var(--roam-text)", accent: "var(--brand-sky)" } : catColor(c.key);
               return (
                 <button
                   key={c.key} type="button"
@@ -1386,7 +1386,7 @@ export function GuideView({
                     flex: "0 0 auto", borderRadius: 10, padding: "7px 11px",
                     fontSize: 12, fontWeight: 700,
                     border: active ? `1.5px solid ${cc.accent}` : "1px solid var(--roam-border, rgba(255,255,255,0.06))",
-                    background: active ? (c.key === "all" ? "var(--brand-sky, #3b82f6)" : cc.bg) : "var(--roam-surface)",
+                    background: active ? (c.key === "all" ? "var(--brand-sky)" : cc.bg) : "var(--roam-surface)",
                     color: active ? (c.key === "all" ? "white" : cc.fg) : "var(--roam-text-muted)",
                     display: "flex", gap: 5, alignItems: "center", cursor: "pointer",
                     transition: "all 0.12s ease",

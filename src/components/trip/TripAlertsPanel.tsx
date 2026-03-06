@@ -91,18 +91,18 @@ export type EnrichedAlert = {
    ══════════════════════════════════════════════════════════════════════ */
 
 const T_SEV: Record<TrafficSeverity, { color: string; bg: string; label: string; order: number }> = {
-  major:    { color: "#ef4444", bg: "rgba(239,68,68,0.12)",   label: "Major",    order: 0 },
-  moderate: { color: "#f59e0b", bg: "rgba(245,158,11,0.10)",  label: "Moderate", order: 1 },
-  minor:    { color: "#3b82f6", bg: "rgba(59,130,246,0.10)",  label: "Minor",    order: 2 },
-  info:     { color: "#64748b", bg: "rgba(100,116,139,0.08)", label: "Info",     order: 3 },
-  unknown:  { color: "#64748b", bg: "rgba(100,116,139,0.08)", label: "Unknown",  order: 4 },
+  major:    { color: "var(--severity-major)",    bg: "var(--severity-major-tint)",    label: "Major",    order: 0 },
+  moderate: { color: "var(--severity-moderate)",  bg: "var(--severity-moderate-tint)", label: "Moderate", order: 1 },
+  minor:    { color: "var(--roam-info)",          bg: "var(--info-tint)",              label: "Minor",    order: 2 },
+  info:     { color: "var(--roam-text-muted)",    bg: "var(--roam-surface-hover)",     label: "Info",     order: 3 },
+  unknown:  { color: "var(--roam-text-muted)",    bg: "var(--roam-surface-hover)",     label: "Unknown",  order: 4 },
 };
 
 const H_SEV: Record<HazardSeverity, { color: string; bg: string; label: string; order: number }> = {
-  high:    { color: "#dc2626", bg: "rgba(220,38,38,0.12)",   label: "High",    order: 0 },
-  medium:  { color: "#ea580c", bg: "rgba(234,88,12,0.10)",   label: "Medium",  order: 1 },
-  low:     { color: "#2563eb", bg: "rgba(37,99,235,0.10)",   label: "Low",     order: 2 },
-  unknown: { color: "#64748b", bg: "rgba(100,116,139,0.08)", label: "Unknown", order: 3 },
+  high:    { color: "var(--severity-major)",    bg: "var(--severity-major-tint)",    label: "High",    order: 0 },
+  medium:  { color: "var(--severity-moderate)",  bg: "var(--severity-moderate-tint)", label: "Medium",  order: 1 },
+  low:     { color: "var(--roam-info)",          bg: "var(--info-tint)",              label: "Low",     order: 2 },
+  unknown: { color: "var(--roam-text-muted)",    bg: "var(--roam-surface-hover)",     label: "Unknown", order: 3 },
 };
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -110,10 +110,10 @@ const H_SEV: Record<HazardSeverity, { color: string; bg: string; label: string; 
    ══════════════════════════════════════════════════════════════════════ */
 
 const IMPACT_CONFIG: Record<RouteImpact, { label: string; color: string; bg: string; order: number }> = {
-  blocks_route:  { label: "Route blocked", color: "#dc2626", bg: "rgba(220,38,38,0.14)", order: 0 },
-  affects_route: { label: "On route",      color: "#ea580c", bg: "rgba(234,88,12,0.12)", order: 1 },
-  nearby:        { label: "Nearby",        color: "#f59e0b", bg: "rgba(245,158,11,0.10)", order: 2 },
-  informational: { label: "In region",     color: "#64748b", bg: "rgba(100,116,139,0.06)", order: 3 },
+  blocks_route:  { label: "Route blocked", color: "var(--roam-danger)",       bg: "var(--danger-tint)",           order: 0 },
+  affects_route: { label: "On route",      color: "var(--severity-moderate)", bg: "var(--severity-moderate-tint)", order: 1 },
+  nearby:        { label: "Nearby",        color: "var(--severity-minor)",    bg: "var(--severity-minor-tint)",    order: 2 },
+  informational: { label: "In region",     color: "var(--roam-text-muted)",   bg: "var(--roam-surface-hover)",     order: 3 },
 };
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -152,22 +152,22 @@ const LUCIDE_ICONS: Record<string, React.ComponentType<{ size?: number; strokeWi
 };
 
 const ICON_COLORS: Record<string, string> = {
-  closure: "#ef4444",
-  flooding: "#3b82f6",
-  congestion: "#f59e0b",
-  roadworks: "#f97316",
-  hazard: "#eab308",
-  incident: "#ef4444",
-  unknown: "#64748b",
-  flood: "#3b82f6",
-  cyclone: "#7c3aed",
-  storm: "#6366f1",
-  fire: "#ef4444",
-  wind: "#64748b",
-  heat: "#ea580c",
-  marine: "#0ea5e9",
-  weather_warning: "#eab308",
-  h_unknown: "#64748b",
+  closure: "var(--roam-danger)",
+  flooding: "var(--roam-info)",
+  congestion: "var(--roam-warn)",
+  roadworks: "var(--severity-moderate)",
+  hazard: "var(--roam-warn)",
+  incident: "var(--roam-danger)",
+  unknown: "var(--roam-text-muted)",
+  flood: "var(--roam-info)",
+  cyclone: "var(--brand-shared)",
+  storm: "var(--brand-shared)",
+  fire: "var(--roam-danger)",
+  wind: "var(--roam-text-muted)",
+  heat: "var(--severity-moderate)",
+  marine: "var(--roam-info)",
+  weather_warning: "var(--roam-warn)",
+  h_unknown: "var(--roam-text-muted)",
 };
 
 function AlertIcon({ iconKey, size = 16 }: { iconKey: string; size?: number }) {
@@ -574,18 +574,18 @@ function overlayStaleness(createdAt: string | null | undefined): {
   color: string;
   minutesAgo: number;
 } {
-  if (!createdAt) return { level: "expired", label: "No data", color: "#64748b", minutesAgo: Infinity };
+  if (!createdAt) return { level: "expired", label: "No data", color: "var(--roam-text-muted)", minutesAgo: Infinity };
   try {
     const diff = Date.now() - new Date(createdAt).getTime();
     const mins = Math.floor(diff / 60000);
-    if (mins < 5) return { level: "fresh", label: `Updated ${mins < 1 ? "just now" : `${mins}m ago`}`, color: "#22c55e", minutesAgo: mins };
-    if (mins < 30) return { level: "fresh", label: `Updated ${mins}m ago`, color: "#22c55e", minutesAgo: mins };
-    if (mins < 180) return { level: "stale", label: `Updated ${Math.floor(mins / 60)}h ${mins % 60}m ago`, color: "#f59e0b", minutesAgo: mins };
+    if (mins < 5) return { level: "fresh", label: `Updated ${mins < 1 ? "just now" : `${mins}m ago`}`, color: "var(--roam-success)", minutesAgo: mins };
+    if (mins < 30) return { level: "fresh", label: `Updated ${mins}m ago`, color: "var(--roam-success)", minutesAgo: mins };
+    if (mins < 180) return { level: "stale", label: `Updated ${Math.floor(mins / 60)}h ${mins % 60}m ago`, color: "var(--roam-warn)", minutesAgo: mins };
     const hours = Math.floor(mins / 60);
-    if (hours < 24) return { level: "stale", label: `Updated ${hours}h ago - connect to refresh`, color: "#ef4444", minutesAgo: mins };
-    return { level: "expired", label: `Updated ${Math.floor(hours / 24)}d ago - data may be outdated`, color: "#ef4444", minutesAgo: mins };
+    if (hours < 24) return { level: "stale", label: `Updated ${hours}h ago - connect to refresh`, color: "var(--roam-danger)", minutesAgo: mins };
+    return { level: "expired", label: `Updated ${Math.floor(hours / 24)}d ago - data may be outdated`, color: "var(--roam-danger)", minutesAgo: mins };
   } catch {
-    return { level: "expired", label: "Unknown age", color: "#64748b", minutesAgo: Infinity };
+    return { level: "expired", label: "Unknown age", color: "var(--roam-text-muted)", minutesAgo: Infinity };
   }
 }
 
@@ -735,7 +735,7 @@ export function StalenessBar({
     <div style={{
       display: "flex", alignItems: "center", gap: 6,
       padding: "5px 10px", borderRadius: 8,
-      background: worst.level === "expired" ? "rgba(239,68,68,0.06)" : worst.level === "stale" ? "rgba(245,158,11,0.06)" : "transparent",
+      background: worst.level === "expired" ? "var(--danger-tint)" : worst.level === "stale" ? "var(--severity-minor-tint)" : "transparent",
     }}>
       <Clock size={11} color={worst.color} strokeWidth={2.5} />
       <span style={{ fontSize: 10, fontWeight: 800, color: worst.color, letterSpacing: "0.15px" }}>
@@ -775,8 +775,8 @@ export function AlertFiltersBar({
           style={{
             display: "flex", alignItems: "center", gap: 4,
             padding: "4px 10px", borderRadius: 8, border: "none",
-            background: hideBehind ? "rgba(37,99,235,0.12)" : "var(--roam-surface-hover)",
-            color: hideBehind ? "#2563eb" : "var(--roam-text-muted)",
+            background: hideBehind ? "var(--info-tint)" : "var(--roam-surface-hover)",
+            color: hideBehind ? "var(--roam-info)" : "var(--roam-text-muted)",
             fontSize: 10, fontWeight: 900, cursor: "pointer",
             transition: "all 0.12s ease",
           }}
@@ -827,24 +827,24 @@ export function RouteBlockedBanner({
       }}
       style={{
         padding: "12px 14px", borderRadius: 16, cursor: "pointer",
-        background: "linear-gradient(135deg, rgba(220,38,38,0.14) 0%, rgba(239,68,68,0.08) 100%)",
-        border: "2px solid rgba(220,38,38,0.35)",
-        boxShadow: "0 2px 12px rgba(220,38,38,0.15), inset 0 1px 0 rgba(255,255,255,0.05)",
+        background: "var(--danger-tint)",
+        border: "2px solid var(--roam-border-strong)",
+        boxShadow: "var(--shadow-soft)",
         transition: "all 0.15s ease",
       }}
     >
       <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
         <div style={{
           width: 40, height: 40, borderRadius: 12,
-          background: "rgba(220,38,38,0.18)", border: "2px solid rgba(220,38,38,0.3)",
+          background: "var(--danger-tint)", border: "2px solid var(--roam-border-strong)",
           display: "grid", placeItems: "center", flexShrink: 0,
           animation: "roam-pulse-glow 2s ease-in-out infinite",
         }}>
-          <Ban size={20} color="#dc2626" strokeWidth={2.5} />
+          <Ban size={20} color="var(--roam-danger)" strokeWidth={2.5} />
         </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 950, color: "#dc2626", letterSpacing: "-0.2px", lineHeight: 1.2 }}>
+          <div style={{ fontSize: 14, fontWeight: 950, color: "var(--roam-danger)", letterSpacing: "-0.2px", lineHeight: 1.2 }}>
             ⛔ Route blocked ahead
           </div>
           <div style={{ fontSize: 12, fontWeight: 700, color: "var(--roam-text)", marginTop: 3, lineHeight: 1.4 }}>
@@ -854,7 +854,7 @@ export function RouteBlockedBanner({
             {primary.contextLabel && <span>{primary.contextLabel.replace(/⛔ Route blocked ?·? ?/g, "")}</span>}
             {primary.source && <span>· {primary.source}</span>}
             {primary.timestamp && <span>· {timeAgo(primary.timestamp)}</span>}
-            {additionalCount > 0 && <span style={{ color: "#dc2626", fontWeight: 950 }}>+ {additionalCount} more</span>}
+            {additionalCount > 0 && <span style={{ color: "var(--roam-danger)", fontWeight: 950 }}>+ {additionalCount} more</span>}
           </div>
 
           {onRebuildRequested && (
@@ -864,10 +864,10 @@ export function RouteBlockedBanner({
               style={{
                 marginTop: 8, padding: "7px 14px", borderRadius: 10,
                 border: "none", cursor: "pointer",
-                background: "#dc2626", color: "#fff",
+                background: "var(--roam-danger)", color: "var(--on-color)",
                 fontSize: 11, fontWeight: 950, letterSpacing: "0.2px",
                 display: "flex", alignItems: "center", gap: 6,
-                boxShadow: "0 2px 8px rgba(220,38,38,0.3)", transition: "opacity 0.1s",
+                boxShadow: "var(--shadow-soft)", transition: "opacity 0.1s",
               }}
             >
               <Route size={12} strokeWidth={2.5} />
@@ -911,10 +911,10 @@ export function RouteAssessment({
   onHighlight?: (ev: AlertHighlightEvent) => void;
 }) {
   const statusConfig = {
-    clear:   { icon: ShieldCheck, color: "#22c55e", bg: "rgba(34,197,94,0.08)",  border: "rgba(34,197,94,0.12)",  label: "Route clear",           description: "No alerts affecting your route" },
-    caution: { icon: ShieldAlert, color: "#f59e0b", bg: "rgba(245,158,11,0.08)", border: "rgba(245,158,11,0.12)", label: "Proceed with caution",   description: `${assessment.nearbyCount} alert${assessment.nearbyCount !== 1 ? "s" : ""} near your route` },
-    warning: { icon: TriangleAlert, color: "#ea580c", bg: "rgba(234,88,12,0.10)", border: "rgba(234,88,12,0.15)", label: "Alerts on route",         description: `${assessment.onRouteCount} alert${assessment.onRouteCount !== 1 ? "s" : ""} affecting your route` },
-    blocked: { icon: OctagonAlert, color: "#dc2626", bg: "rgba(220,38,38,0.10)", border: "rgba(220,38,38,0.18)", label: "Route blocked",           description: `${assessment.blockerCount} closure${assessment.blockerCount !== 1 ? "s" : ""} blocking your route` },
+    clear:   { icon: ShieldCheck, color: "var(--roam-success)",       bg: "var(--accent-tint)",            border: "var(--roam-border)",            label: "Route clear",           description: "No alerts affecting your route" },
+    caution: { icon: ShieldAlert, color: "var(--roam-warn)",          bg: "var(--severity-minor-tint)",    border: "var(--roam-border)",            label: "Proceed with caution",   description: `${assessment.nearbyCount} alert${assessment.nearbyCount !== 1 ? "s" : ""} near your route` },
+    warning: { icon: TriangleAlert, color: "var(--severity-moderate)", bg: "var(--severity-moderate-tint)", border: "var(--roam-border-strong)",     label: "Alerts on route",         description: `${assessment.onRouteCount} alert${assessment.onRouteCount !== 1 ? "s" : ""} affecting your route` },
+    blocked: { icon: OctagonAlert, color: "var(--roam-danger)",       bg: "var(--danger-tint)",            border: "var(--roam-border-strong)",     label: "Route blocked",           description: `${assessment.blockerCount} closure${assessment.blockerCount !== 1 ? "s" : ""} blocking your route` },
   };
 
   const cfg = statusConfig[assessment.status];
@@ -939,9 +939,9 @@ export function RouteAssessment({
 
       {assessment.totalCount > 0 && (
         <div style={{ padding: "0 14px 10px", display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {assessment.blockerCount > 0 && <span style={{ fontSize: 10, fontWeight: 950, color: "#dc2626", background: "rgba(220,38,38,0.10)", padding: "3px 8px", borderRadius: 6 }}>{assessment.blockerCount} blocking</span>}
-          {assessment.onRouteCount > 0 && <span style={{ fontSize: 10, fontWeight: 950, color: "#ea580c", background: "rgba(234,88,12,0.10)", padding: "3px 8px", borderRadius: 6 }}>{assessment.onRouteCount} on route</span>}
-          {assessment.nearbyCount > 0 && <span style={{ fontSize: 10, fontWeight: 950, color: "#f59e0b", background: "rgba(245,158,11,0.08)", padding: "3px 8px", borderRadius: 6 }}>{assessment.nearbyCount} nearby</span>}
+          {assessment.blockerCount > 0 && <span style={{ fontSize: 10, fontWeight: 950, color: "var(--roam-danger)", background: "var(--danger-tint)", padding: "3px 8px", borderRadius: 6 }}>{assessment.blockerCount} blocking</span>}
+          {assessment.onRouteCount > 0 && <span style={{ fontSize: 10, fontWeight: 950, color: "var(--severity-moderate)", background: "var(--severity-moderate-tint)", padding: "3px 8px", borderRadius: 6 }}>{assessment.onRouteCount} on route</span>}
+          {assessment.nearbyCount > 0 && <span style={{ fontSize: 10, fontWeight: 950, color: "var(--roam-warn)", background: "var(--severity-minor-tint)", padding: "3px 8px", borderRadius: 6 }}>{assessment.nearbyCount} nearby</span>}
         </div>
       )}
 
@@ -953,11 +953,11 @@ export function RouteAssessment({
               onClick={() => { haptic.selection(); if (b.coord && onHighlight) onHighlight({ id: b.id, kind: b.alertKind, lat: b.coord.lat, lng: b.coord.lng }); }}
               style={{
                 padding: "6px 10px", borderRadius: 10, cursor: "pointer",
-                background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.12)",
+                background: "var(--danger-tint)", border: "1px solid var(--roam-border)",
                 display: "flex", alignItems: "center", gap: 8,
               }}
             >
-              <Ban size={13} color="#dc2626" strokeWidth={2.5} />
+              <Ban size={13} color="var(--roam-danger)" strokeWidth={2.5} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 11, fontWeight: 900, color: "var(--roam-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.headline}</div>
                 <div style={{ fontSize: 9, fontWeight: 700, color: "var(--roam-text-muted)", marginTop: 1 }}>
@@ -971,7 +971,7 @@ export function RouteAssessment({
       )}
 
       {staleness.worst.level !== "fresh" && (
-        <div style={{ padding: "6px 14px 10px", borderTop: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", gap: 5 }}>
+        <div style={{ padding: "6px 14px 10px", borderTop: "1px solid var(--roam-border)", display: "flex", alignItems: "center", gap: 5 }}>
           <Clock size={10} color={staleness.worst.color} strokeWidth={2.5} />
           <span style={{ fontSize: 9, fontWeight: 800, color: staleness.worst.color }}>{staleness.worst.label}</span>
         </div>
@@ -1012,10 +1012,10 @@ export function AlertCard({
   };
 
   const cardBg = isBlocker
-    ? highlighted ? "rgba(220,38,38,0.18)" : "rgba(220,38,38,0.10)"
+    ? highlighted ? "var(--danger-tint)" : "var(--danger-tint)"
     : highlighted ? `color-mix(in srgb, ${alert.sevColor} 18%, var(--roam-surface))` : alert.sevBg;
   const cardBorder = isBlocker
-    ? highlighted ? "#dc2626" : "rgba(220,38,38,0.25)"
+    ? highlighted ? "var(--roam-danger)" : "var(--roam-border-strong)"
     : highlighted ? alert.sevColor : `color-mix(in srgb, ${alert.sevColor} 18%, transparent)`;
 
   return (
@@ -1032,18 +1032,18 @@ export function AlertCard({
       <div style={{ display: "flex", alignItems: "flex-start", gap: compact ? 8 : 10 }}>
         <div style={{
           width: compact ? 30 : 34, height: compact ? 30 : 34, borderRadius: compact ? 9 : 10,
-          background: isBlocker ? "rgba(220,38,38,0.15)" : `color-mix(in srgb, ${alert.sevColor} 12%, var(--roam-surface))`,
-          border: `1px solid ${isBlocker ? "rgba(220,38,38,0.20)" : `color-mix(in srgb, ${alert.sevColor} 15%, transparent)`}`,
+          background: isBlocker ? "var(--danger-tint)" : `color-mix(in srgb, ${alert.sevColor} 12%, var(--roam-surface))`,
+          border: `1px solid ${isBlocker ? "var(--roam-border-strong)" : `color-mix(in srgb, ${alert.sevColor} 15%, transparent)`}`,
           display: "grid", placeItems: "center", flexShrink: 0,
         }}>
-          {isBlocker ? <Ban size={compact ? 14 : 16} color="#dc2626" strokeWidth={2.5} /> : <AlertIcon iconKey={alert.iconKey} size={compact ? 14 : 16} />}
+          {isBlocker ? <Ban size={compact ? 14 : 16} color="var(--roam-danger)" strokeWidth={2.5} /> : <AlertIcon iconKey={alert.iconKey} size={compact ? 14 : 16} />}
         </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>
           {alert.contextLabel && (
             <div style={{
               fontSize: compact ? 10 : 11, fontWeight: 950,
-              color: isBlocker ? "#dc2626" : alert.sevColor,
+              color: isBlocker ? "var(--roam-danger)" : alert.sevColor,
               marginBottom: 2, letterSpacing: "0.15px",
             }}>
               {alert.contextLabel}
@@ -1102,7 +1102,7 @@ export function AlertCard({
               onClick={(e) => { e.stopPropagation(); onDismiss(alert.id); }}
               style={{
                 width: 18, height: 18, borderRadius: 9,
-                background: "rgba(100,116,139,0.10)",
+                background: "var(--roam-surface-hover)",
                 display: "grid", placeItems: "center", cursor: "pointer",
                 transition: "background 0.12s ease",
               }}
@@ -1113,9 +1113,9 @@ export function AlertCard({
           {alert.coord && !compact && (
             <div style={{
               width: 7, height: 7, borderRadius: 7,
-              background: highlighted ? (isBlocker ? "#dc2626" : alert.sevColor) : `color-mix(in srgb, ${isBlocker ? "#dc2626" : alert.sevColor} 35%, transparent)`,
+              background: highlighted ? (isBlocker ? "var(--roam-danger)" : alert.sevColor) : `color-mix(in srgb, ${isBlocker ? "var(--roam-danger)" : alert.sevColor} 35%, transparent)`,
               transition: "background 0.2s ease",
-              boxShadow: highlighted ? `0 0 6px ${isBlocker ? "#dc2626" : alert.sevColor}` : "none",
+              boxShadow: highlighted ? `0 0 6px ${isBlocker ? "var(--roam-danger)" : alert.sevColor}` : "none",
             }} />
           )}
           {alert.description && (
@@ -1175,15 +1175,15 @@ export function NextAlertBanner({
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         <div style={{
           padding: "10px 14px", borderRadius: 14,
-          background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.12)",
+          background: "var(--accent-tint)", border: "1px solid var(--roam-border)",
           display: "flex", alignItems: "center", gap: 10,
         }}>
           <div style={{
             width: 30, height: 30, borderRadius: 10,
-            background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.10)",
+            background: "var(--accent-tint)", border: "1px solid var(--roam-border)",
             display: "grid", placeItems: "center", flexShrink: 0,
           }}>
-            <ShieldCheck size={15} color="#22c55e" strokeWidth={2.5} />
+            <ShieldCheck size={15} color="var(--roam-success)" strokeWidth={2.5} />
           </div>
           <div>
             <div style={{ fontSize: 13, fontWeight: 950, color: "var(--roam-text)" }}>Clear ahead</div>
@@ -1211,23 +1211,23 @@ export function NextAlertBanner({
       ) : !next && blockers.length === 0 ? (
         <div style={{
           padding: "10px 14px", borderRadius: 14,
-          background: highCount > 0 ? "rgba(239,68,68,0.08)" : "rgba(245,158,11,0.08)",
-          border: `1px solid ${highCount > 0 ? "rgba(239,68,68,0.15)" : "rgba(245,158,11,0.15)"}`,
+          background: highCount > 0 ? "var(--danger-tint)" : "var(--severity-minor-tint)",
+          border: `1px solid var(--roam-border-strong)`,
           display: "flex", alignItems: "center", gap: 10,
         }}>
           <div style={{
             width: 30, height: 30, borderRadius: 10,
-            background: highCount > 0 ? "rgba(239,68,68,0.12)" : "rgba(245,158,11,0.10)",
-            border: `1px solid ${highCount > 0 ? "rgba(239,68,68,0.10)" : "rgba(245,158,11,0.10)"}`,
+            background: highCount > 0 ? "var(--danger-tint)" : "var(--severity-minor-tint)",
+            border: `1px solid var(--roam-border)`,
             display: "grid", placeItems: "center", flexShrink: 0,
           }}>
-            {highCount > 0 ? <Siren size={15} color="#ef4444" strokeWidth={2.5} /> : <TriangleAlert size={15} color="#f59e0b" strokeWidth={2.5} />}
+            {highCount > 0 ? <Siren size={15} color="var(--roam-danger)" strokeWidth={2.5} /> : <TriangleAlert size={15} color="var(--roam-warn)" strokeWidth={2.5} />}
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 13, fontWeight: 950, color: "var(--roam-text)" }}>
               {totalCount} alert{totalCount !== 1 ? "s" : ""} on route
             </div>
-            {highCount > 0 && <div style={{ fontSize: 10, fontWeight: 800, color: "#ef4444", marginTop: 1 }}>{highCount} critical</div>}
+            {highCount > 0 && <div style={{ fontSize: 10, fontWeight: 800, color: "var(--roam-danger)", marginTop: 1 }}>{highCount} critical</div>}
           </div>
         </div>
       ) : null}
@@ -1297,7 +1297,7 @@ export function LegAlertStrip({
 
   const hasBlocker = alerts.some((a) => a.routeImpact === "blocks_route");
   const worst = alerts.reduce((a, b) => (a.sevOrder < b.sevOrder ? a : b));
-  const displayColor = hasBlocker ? "#dc2626" : worst.sevColor;
+  const displayColor = hasBlocker ? "var(--roam-danger)" : worst.sevColor;
 
   if (alerts.length === 1) {
     return (
@@ -1322,12 +1322,12 @@ export function LegAlertStrip({
         onClick={() => { haptic.selection(); setExpanded((v) => !v); }}
         style={{
           padding: "8px 12px", borderRadius: 11, cursor: "pointer",
-          background: hasBlocker ? "rgba(220,38,38,0.10)" : worst.sevBg,
+          background: hasBlocker ? "var(--danger-tint)" : worst.sevBg,
           border: `1.5px solid color-mix(in srgb, ${displayColor} 20%, transparent)`,
           display: "flex", alignItems: "center", gap: 8, transition: "all 0.12s ease",
         }}
       >
-        {hasBlocker ? <Ban size={14} color="#dc2626" strokeWidth={2.5} /> : <AlertIcon iconKey={worst.iconKey} size={14} />}
+        {hasBlocker ? <Ban size={14} color="var(--roam-danger)" strokeWidth={2.5} /> : <AlertIcon iconKey={worst.iconKey} size={14} />}
         <span style={{ fontSize: 11, fontWeight: 950, color: displayColor, flex: 1 }}>
           {alerts.length} alerts on this stretch{hasBlocker && " - route blocked"}
         </span>

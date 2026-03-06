@@ -171,7 +171,7 @@ function InlineRename({
           fontWeight: 700,
           color: "var(--roam-text)",
           background: "var(--roam-surface-raised, var(--roam-surface))",
-          border: "1.5px solid var(--brand-sky, #3b82f6)",
+          border: "1.5px solid var(--brand-sky)",
           borderRadius: 8,
           padding: "6px 10px",
           outline: "none",
@@ -226,9 +226,9 @@ function InlineRename({
 function StatusDot({ status }: { status?: string }) {
   const color =
     status === "ready"
-      ? "var(--roam-success, #22c55e)"
+      ? "var(--roam-success)"
       : status === "error"
-        ? "var(--roam-danger, #ef4444)"
+        ? "var(--roam-danger)"
         : "var(--roam-text-muted)";
 
   return (
@@ -275,7 +275,7 @@ function PlanCard({
         background: "var(--roam-card-bg, var(--roam-surface))",
         borderRadius: 16,
         border: isCurrent
-          ? "2px solid var(--brand-sky, #3b82f6)"
+          ? "2px solid var(--brand-sky)"
           : "1px solid var(--roam-border)",
         overflow: "hidden",
         transition: "border-color 0.2s, box-shadow 0.2s",
@@ -290,7 +290,7 @@ function PlanCard({
         style={{
           width: 4,
           flexShrink: 0,
-          background: isCurrent ? "var(--brand-sky, #3b82f6)" : "var(--roam-border)",
+          background: isCurrent ? "var(--brand-sky)" : "var(--roam-border)",
           borderRadius: "16px 0 0 16px",
         }}
       />
@@ -335,7 +335,7 @@ function PlanCard({
                   padding: "2px 6px",
                   borderRadius: 4,
                   background: "var(--accent-tint)",
-                  color: "var(--brand-shared, #8540c8)",
+                  color: "var(--brand-shared)",
                   fontSize: 10,
                   fontWeight: 800,
                   whiteSpace: "nowrap",
@@ -353,7 +353,7 @@ function PlanCard({
                   padding: "2px 6px",
                   borderRadius: 4,
                   background: "rgba(59,130,246,0.12)",
-                  color: "var(--brand-sky, #3b82f6)",
+                  color: "var(--brand-sky)",
                   fontSize: 10,
                   fontWeight: 800,
                 }}
@@ -432,7 +432,7 @@ function PlanCard({
               padding: "12px 0",
               fontSize: 12,
               fontWeight: 700,
-              color: "var(--brand-sky, #3b82f6)",
+              color: "var(--brand-sky)",
               cursor: busy ? "default" : "pointer",
               opacity: busy ? 0.4 : 1,
               borderRight: "1px solid var(--roam-border)",
@@ -488,7 +488,7 @@ function PlanCard({
             padding: "12px 12px",
             fontSize: 12,
             fontWeight: 700,
-            color: "var(--brand-shared, #8540c8)",
+            color: "var(--brand-shared)",
             cursor: busy ? "default" : "pointer",
             opacity: busy ? 0.4 : 1,
             borderRight: "1px solid var(--roam-border)",
@@ -514,7 +514,7 @@ function PlanCard({
             padding: "12px 12px",
             fontSize: 12,
             fontWeight: 700,
-            color: "var(--roam-danger, #ef4444)",
+            color: "var(--roam-danger)",
             cursor: busy ? "default" : "pointer",
             opacity: busy ? 0.4 : 1,
             WebkitTapHighlightColor: "transparent",

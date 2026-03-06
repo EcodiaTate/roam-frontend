@@ -45,6 +45,10 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Roam uses your location to show your position on the map and navigate along your route.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Roam uses your location in the background to continue navigation when the app is minimised.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>

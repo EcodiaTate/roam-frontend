@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import React from "react";
 
@@ -9,6 +10,12 @@ export default function LegalLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+
+  // Enable scroll for legal/marketing pages
+  useEffect(() => {
+    document.documentElement.classList.add("roam-landing");
+    return () => document.documentElement.classList.remove("roam-landing");
+  }, []);
 
   return (
     <div style={styles.wrapper}>
@@ -28,8 +35,8 @@ export default function LegalLayout({
 const styles: Record<string, React.CSSProperties> = {
   wrapper: {
     minHeight: "100dvh",
-    background: "#1a1612",
-    color: "#e8ddd0",
+    background: "var(--bg-sand)",
+    color: "var(--text-main)",
     fontFamily:
       '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
     display: "flex",
@@ -43,13 +50,14 @@ const styles: Record<string, React.CSSProperties> = {
   },
   footer: {
     padding: "24px 20px",
-    borderTop: "1px solid rgba(232, 221, 208, 0.06)",
+    borderTop: "1px solid var(--roam-border)",
     textAlign: "center" as const,
   },
   footerText: {
-    color: "rgba(232, 221, 208, 0.3)",
+    color: "var(--roam-text-muted)",
     fontSize: "12px",
     lineHeight: 1.6,
     margin: 0,
+    opacity: 0.5,
   },
 };

@@ -69,7 +69,7 @@ export function BasemapDownloadCard({ region = "australia", compact = false, onR
       <div className={className} style={styles.card}>
         <div style={styles.row}>
           <div style={styles.iconCircleGreen}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M20 6 9 17l-5-5" />
             </svg>
           </div>
@@ -92,7 +92,7 @@ export function BasemapDownloadCard({ region = "australia", compact = false, onR
       <div className={className} style={styles.card}>
         <div style={styles.row}>
           <div style={styles.iconCircleAmber}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 5v14M19 12l-7 7-7-7" />
             </svg>
           </div>
@@ -126,13 +126,13 @@ export function BasemapDownloadCard({ region = "australia", compact = false, onR
       <div className={className} style={styles.card}>
         <div style={styles.row}>
           <div style={styles.iconCircleRed}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 6 6 18M6 6l12 12" />
             </svg>
           </div>
           <div style={{ flex: 1 }}>
             <div style={styles.title}>Download failed</div>
-            <div style={{ ...styles.subtitle, color: "rgba(239,68,68,0.9)" }}>
+            <div style={{ ...styles.subtitle, color: "var(--roam-danger)" }}>
               {status.error ?? "Unknown error"}
             </div>
           </div>

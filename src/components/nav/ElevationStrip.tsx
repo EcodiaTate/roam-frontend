@@ -182,10 +182,10 @@ export function ElevationStrip({ profile, gradeSegments, currentKm, compact }: P
             {formatDistance(totalKm * 1000)}
           </span>
           <div style={{ display: "flex", gap: 8 }}>
-            <span style={{ fontSize: 10, fontWeight: 800, color: "#4ade80" }}>
+            <span style={{ fontSize: 10, fontWeight: 800, color: "var(--roam-success)" }}>
               ↑ {Math.round(profile.total_ascent_m)}m
             </span>
-            <span style={{ fontSize: 10, fontWeight: 800, color: "#f87171" }}>
+            <span style={{ fontSize: 10, fontWeight: 800, color: "var(--roam-danger)" }}>
               ↓ {Math.round(profile.total_descent_m)}m
             </span>
           </div>

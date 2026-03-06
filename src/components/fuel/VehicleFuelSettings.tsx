@@ -260,7 +260,7 @@ export function VehicleFuelSettings({
         <div style={{ ...sliderGroup, marginTop: 10 }}>
           <div style={sliderLabel}>
             <span>Critical threshold</span>
-            <span style={{ ...sliderValue, color: "#ef4444" }}>{profile.reserve_critical_km} km</span>
+            <span style={{ ...sliderValue, color: "var(--roam-danger)" }}>{profile.reserve_critical_km} km</span>
           </div>
           <input
             type="range"

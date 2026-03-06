@@ -97,7 +97,6 @@ export default function LoginPage() {
 
   return (
     <div className="trip-wrap-center">
-      <div style={{ position: "fixed", top: 12, right: 12, width: 18, height: 18, borderRadius: "50%", background: "hotpink", zIndex: 9999 }} />
       <div className="trip-card" style={{ gap: 16 }}>
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 8 }}>
           <img

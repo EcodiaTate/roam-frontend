@@ -222,12 +222,12 @@ function BuildProgressView({
           </svg>
           <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
             {isError ? (
-              <X size={26} style={{ color: "#ef4444" }} />
+              <X size={26} style={{ color: "var(--roam-danger)" }} />
             ) : isDone ? (
               <Check
                 size={26}
                 style={{
-                  color: "#22c55e",
+                  color: "var(--roam-success)",
                   animation: "roam-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)",
                 }}
               />

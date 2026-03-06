@@ -320,10 +320,10 @@ export function FuelSummaryCard({
           marginTop: 8,
           padding: "8px 12px",
           borderRadius: 10,
-          background: "rgba(239,68,68,0.06)",
-          border: "1px solid rgba(239,68,68,0.15)",
+          background: "var(--danger-tint)",
+          border: "1px solid var(--roam-border-strong)",
         }}>
-          <div style={{ fontSize: 11, fontWeight: 900, color: "#ef4444", marginBottom: 2 }}>
+          <div style={{ fontSize: 11, fontWeight: 900, color: "var(--roam-danger)", marginBottom: 2 }}>
             Recommendation
           </div>
           <div style={{ fontSize: 12, fontWeight: 700, color: "var(--roam-text-muted)", lineHeight: "1.4" }}>
