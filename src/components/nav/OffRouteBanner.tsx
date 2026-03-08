@@ -82,9 +82,9 @@ export function OffRouteBanner({ visible, distFromRoute_m, hasCorridorGraph, onR
                 cursor: "pointer",
                 fontSize: 12,
                 fontWeight: 950,
-                color: "#dc2626",
-                background: "white",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+                color: "var(--roam-danger)",
+                background: "var(--roam-surface)",
+                boxShadow: "var(--shadow-soft)",
               }}
               onPointerDown={(e) => {
                 (e.currentTarget as HTMLElement).style.transform = "scale(0.95)";

@@ -23,9 +23,10 @@ function usePlatform(): Platform {
   return p;
 }
 
-const APP_STORE = "https://apps.apple.com/au/app/roam/id000000000";
+// TODO: Replace with real App Store ID after first submission
+const APP_STORE = "https://apps.apple.com/au/app/roam-nav/id000000000";
 const PLAY_STORE =
-  "https://play.google.com/store/apps/details?id=com.roamapp.au";
+  "https://play.google.com/store/apps/details?id=au.ecodia.roam";
 
 function useCtaConfig(platform: Platform) {
   return useMemo(() => {
@@ -327,7 +328,7 @@ export default function ContactContent() {
                   border: "1px solid rgba(255,255,255,0.2)",
                   borderRadius: "8px",
                   padding: "8px 16px",
-                  color: "#81c784",
+                  color: "var(--roam-success)",
                   fontSize: "14px",
                   cursor: "pointer",
                 }}
@@ -468,11 +469,11 @@ export default function ContactContent() {
               {status === "error" && errorMsg && (
                 <div
                   style={{
-                    background: "rgba(244, 67, 54, 0.1)",
-                    border: "1px solid rgba(244, 67, 54, 0.2)",
+                    background: "var(--danger-tint)",
+                    border: "1px solid var(--roam-border-strong)",
                     borderRadius: "10px",
                     padding: "12px 16px",
-                    color: "#ef9a9a",
+                    color: "var(--roam-danger)",
                     fontSize: "14px",
                   }}
                 >

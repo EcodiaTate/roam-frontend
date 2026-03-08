@@ -585,7 +585,7 @@ function PlanCard({
             padding: "11px 16px",
             fontSize: 13,
             fontWeight: 700,
-            color: "var(--roam-danger, #ef4444)",
+            color: "var(--roam-danger)",
             cursor: busy ? "default" : "pointer",
             opacity: busy ? 0.4 : 1,
             WebkitTapHighlightColor: "transparent",
@@ -833,7 +833,7 @@ export function PlansClientPage() {
                 borderRadius: 10,
                 background: "rgba(239,68,68,0.08)",
                 border: "1px solid rgba(239,68,68,0.2)",
-                color: "var(--roam-danger, #ef4444)",
+                color: "var(--roam-danger)",
                 fontSize: 13,
                 fontWeight: 600,
               }}

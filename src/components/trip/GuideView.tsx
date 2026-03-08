@@ -784,7 +784,7 @@ function PlaceCard({
                 borderRadius: 10, minHeight: 34, padding: "0 12px",
                 fontWeight: 700, fontSize: 12, gap: 5,
                 border: `1px solid var(--roam-border, rgba(255,255,255,0.08))`,
-                background: "transparent", color: "#10b981",
+                background: "transparent", color: "var(--roam-success)",
               }}
             >
               <Phone size={13} />

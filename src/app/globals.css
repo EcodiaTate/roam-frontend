@@ -244,28 +244,9 @@
 /* ==========================================================================
    2. GLOBAL RESETS & NATIVE SHELL
    ========================================================================== */
-/* Landing page overrides the native shell lock */
-html.roam-landing {
-  overflow: auto !important;
-  position: relative !important;
-  height: auto !important;
-}
-html.roam-landing body {
-  overflow: auto !important;
-  position: relative !important;
-  height: auto !important;
-}
-html.roam-landing body * {
-  overflow: visible;
-  position: relative;
-  height: auto;
-}
-
 html, body {
   height: 100%;
   width: 100%;
-  overflow: hidden;
-  position: fixed;
   color-scheme: light dark;
 
   background-color: var(--roam-bg);
@@ -277,6 +258,18 @@ html, body {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
+}
+
+/* Native app shell lock — applied by (app) layout only, not marketing pages */
+html.roam-shell {
+  overflow: hidden;
+  position: fixed;
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
+}
+html.roam-shell body {
+  overflow: hidden;
+  position: fixed;
   overscroll-behavior: none;
   overscroll-behavior-y: none;
 }

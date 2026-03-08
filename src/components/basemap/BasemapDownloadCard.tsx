@@ -302,11 +302,11 @@ const styles: Record<string, React.CSSProperties> = {
     flexShrink: 0,
   },
   retryBtn: {
-    background: "rgba(239,68,68,0.2)",
+    background: "var(--danger-tint)",
     border: "none",
     borderRadius: 8,
     padding: "6px 14px",
-    color: "#fca5a5",
+    color: "var(--roam-danger)",
     fontSize: 12,
     fontWeight: 800,
     cursor: "pointer",

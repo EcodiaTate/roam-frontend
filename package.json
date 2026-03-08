@@ -5,8 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "export": "next export -o out",
-    "build:static": "next build && next export -o out",
+    "build:static": "ROAM_STATIC=1 next build",
     "start": "next start",
     "cap:copy": "npx cap copy",
     "cap:build": "npm run build:static && npm run cap:copy",
@@ -36,7 +35,6 @@
     "@supabase/supabase-js": "^2.95.3",
     "@what3words/api": "^5.4.0",
     "fflate": "^0.8.2",
-    "i": "^0.3.7",
     "idb": "^8.0.3",
     "lucide-react": "^0.564.0",
     "maplibre-gl": "^5.18.0",

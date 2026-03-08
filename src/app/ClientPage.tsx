@@ -51,9 +51,10 @@ function usePlatform(): Platform {
   return p;
 }
 
-const APP_STORE = "https://apps.apple.com/au/app/roam/id000000000";
+// TODO: Replace with real App Store ID after first submission
+const APP_STORE = "https://apps.apple.com/au/app/roam-nav/id000000000";
 const PLAY_STORE =
-  "https://play.google.com/store/apps/details?id=com.roamapp.au";
+  "https://play.google.com/store/apps/details?id=au.ecodia.roam";
 
 /* ------------------------------------------------------------------ */
 /* Platform-aware CTA config                                           */
@@ -210,11 +211,6 @@ export default function LandingPage() {
     return () => window.removeEventListener("resize", close);
   }, []);
 
-  // Re-enable scroll for the landing page (globals.css locks html/body for the native shell)
-  useEffect(() => {
-    document.documentElement.classList.add("roam-landing");
-    return () => document.documentElement.classList.remove("roam-landing");
-  }, []);
 
   // Don't render anything while checking native / if native (redirecting)
   if (isNative === null || isNative === true) return null;
