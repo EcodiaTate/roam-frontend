@@ -1,0 +1,546 @@
+// android/app/src/main/java/com/ecodia/roam/plugins/RoamTileServerPlugin.kt
+//
+// Capacitor plugin: RoamTileServer (Android)
+// Manages a local HTTP file server with Range/206 support
+// and handles large file downloads to device storage.
+//
+// Place in: android/app/src/main/java/com/ecodia/roam/plugins/
+
+package com.ecodia.roam.plugins
+
+import android.app.DownloadManager
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import com.getcapacitor.JSObject
+import com.getcapacitor.Plugin
+import com.getcapacitor.PluginCall
+import com.getcapacitor.PluginMethod
+import com.getcapacitor.annotation.CapacitorPlugin
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.io.InputStream
+import java.net.HttpURLConnection
+import java.net.InetAddress
+import java.net.ServerSocket
+import java.net.Socket
+import java.net.URL
+import java.security.MessageDigest
+import kotlin.concurrent.thread
+
+@CapacitorPlugin(name = "RoamTileServer")
+class RoamTileServerPlugin : Plugin() {
+
+    private var fileServer: LocalFileServer? = null
+    private val activeDownloads = mutableMapOf<String, Thread>()
+    @Volatile private var cancelledRegions = mutableSetOf<String>()
+
+    private val basemapsRoot: File
+        get() {
+            val dir = File(context.filesDir, "roam/basemaps")
+            dir.mkdirs()
+            return dir
+        }
+
+    // ── Server lifecycle ──────────────────────────────────────────────
+
+    @PluginMethod
+    fun startServer(call: PluginCall) {
+        val rootPath = call.getString("rootPath") ?: basemapsRoot.absolutePath
+        val port = call.getInt("port") ?: 8765
+        val rootDir = File(rootPath)
+
+        if (!rootDir.exists() || !rootDir.isDirectory) {
+            call.reject("Root path does not exist: $rootPath")
+            return
+        }
+
+        // Stop existing server
+        fileServer?.stop()
+
+        val server = LocalFileServer(rootDir, port)
+        try {
+            val actualPort = server.start()
+            fileServer = server
+            val url = "http://127.0.0.1:$actualPort"
+            val result = JSObject()
+            result.put("url", url)
+            result.put("port", actualPort)
+            call.resolve(result)
+        } catch (e: Exception) {
+            call.reject("Failed to start server: ${e.message}")
+        }
+    }
+
+    @PluginMethod
+    fun stopServer(call: PluginCall) {
+        fileServer?.stop()
+        fileServer = null
+        call.resolve()
+    }
+
+    @PluginMethod
+    fun getServerStatus(call: PluginCall) {
+        val running = fileServer?.isRunning == true
+        val port = fileServer?.actualPort ?: 0
+        val result = JSObject()
+        result.put("running", running)
+        result.put("url", if (running) "http://127.0.0.1:$port" else null)
+        result.put("port", port)
+        call.resolve(result)
+    }
+
+    // ── File download ─────────────────────────────────────────────────
+
+    @PluginMethod
+    fun downloadFile(call: PluginCall) {
+        val urlString = call.getString("url") ?: run {
+            call.reject("Missing download URL")
+            return
+        }
+        val region = call.getString("region") ?: "australia"
+        val filename = call.getString("filename") ?: urlString.substringAfterLast("/")
+        val sha256Expected = call.getString("sha256")
+
+        val regionDir = File(basemapsRoot, region)
+        regionDir.mkdirs()
+        val destFile = File(regionDir, filename)
+
+        // Remove existing
+        destFile.delete()
+
+        cancelledRegions.remove(region)
+
+        val downloadThread = thread(name = "roam-download-$region") {
+            try {
+                val url = URL(urlString)
+                val conn = url.openConnection() as HttpURLConnection
+                conn.connectTimeout = 30_000
+                conn.readTimeout = 60_000
+                conn.requestMethod = "GET"
+
+                val responseCode = conn.responseCode
+                if (responseCode !in 200..299) {
+                    activity?.runOnUiThread {
+                        call.reject("HTTP $responseCode from download URL")
+                    }
+                    return@thread
+                }
+
+                val totalBytes = conn.contentLengthLong
+                val input: InputStream = conn.inputStream
+                val output = FileOutputStream(destFile)
+                val buffer = ByteArray(256 * 1024) // 256KB chunks
+                var bytesReceived: Long = 0
+                var lastProgressReport: Long = 0
+
+                while (true) {
+                    if (cancelledRegions.contains(region)) {
+                        input.close()
+                        output.close()
+                        destFile.delete()
+                        return@thread
+                    }
+
+                    val read = input.read(buffer)
+                    if (read == -1) break
+
+                    output.write(buffer, 0, read)
+                    bytesReceived += read
+
+                    // Report progress every 500KB
+                    if (bytesReceived - lastProgressReport >= 512 * 1024) {
+                        lastProgressReport = bytesReceived
+                        val progress = if (totalBytes > 0) bytesReceived.toDouble() / totalBytes else -1.0
+                        val event = JSObject()
+                        event.put("region", region)
+                        event.put("bytesReceived", bytesReceived)
+                        event.put("bytesTotal", totalBytes)
+                        event.put("progress", progress)
+                        notifyListeners("downloadProgress", event)
+                    }
+                }
+
+                output.flush()
+                output.close()
+                input.close()
+                conn.disconnect()
+
+                // Verify SHA-256
+                var verified: Boolean? = null
+                if (!sha256Expected.isNullOrEmpty()) {
+                    val actual = sha256OfFile(destFile)
+                    verified = actual.equals(sha256Expected, ignoreCase = true)
+                    if (verified == false) {
+                        destFile.delete()
+                        activity?.runOnUiThread {
+                            call.reject("SHA-256 mismatch: expected $sha256Expected, got $actual")
+                        }
+                        return@thread
+                    }
+                }
+
+                val result = JSObject()
+                result.put("path", destFile.absolutePath)
+                result.put("bytes", destFile.length().toInt())
+                result.put("verified", verified)
+
+                activity?.runOnUiThread {
+                    call.resolve(result)
+                }
+
+            } catch (e: Exception) {
+                if (!cancelledRegions.contains(region)) {
+                    activity?.runOnUiThread {
+                        call.reject("Download failed: ${e.message}")
+                    }
+                }
+            } finally {
+                activeDownloads.remove(region)
+            }
+        }
+
+        activeDownloads[region] = downloadThread
+    }
+
+    @PluginMethod
+    fun cancelDownload(call: PluginCall) {
+        val region = call.getString("region") ?: "australia"
+        cancelledRegions.add(region)
+        activeDownloads[region]?.interrupt()
+        activeDownloads.remove(region)
+        call.resolve()
+    }
+
+    // ── Basemap info ──────────────────────────────────────────────────
+
+    @PluginMethod
+    fun getBasemapInfo(call: PluginCall) {
+        val region = call.getString("region") ?: "australia"
+        val regionDir = File(basemapsRoot, region)
+
+        val result = JSObject()
+        if (!regionDir.exists() || !regionDir.isDirectory) {
+            result.put("installed", false)
+            result.put("path", regionDir.absolutePath)
+            result.put("sizeBytes", 0)
+            result.put("files", emptyArray<String>())
+            call.resolve(result)
+            return
+        }
+
+        val files = regionDir.listFiles()?.filter { it.isFile }?.map { it.name } ?: emptyList()
+        val totalSize = regionDir.listFiles()?.filter { it.isFile }?.sumOf { it.length() } ?: 0L
+        val installed = files.any { it.endsWith(".pmtiles") }
+
+        result.put("installed", installed)
+        result.put("path", regionDir.absolutePath)
+        result.put("sizeBytes", totalSize)
+        // Convert to JSArray
+        val filesArray = com.getcapacitor.JSArray()
+        files.forEach { filesArray.put(it) }
+        result.put("files", filesArray)
+        call.resolve(result)
+    }
+
+    @PluginMethod
+    fun deleteBasemap(call: PluginCall) {
+        val region = call.getString("region") ?: "australia"
+        val regionDir = File(basemapsRoot, region)
+
+        // Cancel any active download
+        cancelledRegions.add(region)
+        activeDownloads[region]?.interrupt()
+        activeDownloads.remove(region)
+
+        if (regionDir.exists()) {
+            regionDir.deleteRecursively()
+        }
+        call.resolve()
+    }
+
+    @PluginMethod
+    fun getBasemapsRoot(call: PluginCall) {
+        basemapsRoot.mkdirs()
+        val result = JSObject()
+        result.put("path", basemapsRoot.absolutePath)
+        call.resolve(result)
+    }
+
+    // ── SHA-256 helper ────────────────────────────────────────────────
+
+    private fun sha256OfFile(file: File): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        FileInputStream(file).use { input ->
+            val buffer = ByteArray(1024 * 1024) // 1MB
+            while (true) {
+                val read = input.read(buffer)
+                if (read == -1) break
+                digest.update(buffer, 0, read)
+            }
+        }
+        return digest.digest().joinToString("") { "%02x".format(it) }
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// Embedded Local File Server (HTTP with Range/206 support)
+// ══════════════════════════════════════════════════════════════════════
+
+class LocalFileServer(
+    private val rootDir: File,
+    private val port: Int = 8765
+) {
+    private var serverSocket: ServerSocket? = null
+    private var serverThread: Thread? = null
+
+    @Volatile
+    var isRunning = false
+        private set
+
+    var actualPort = 0
+        private set
+
+    fun start(): Int {
+        stop()
+
+        val socket = ServerSocket(port, 50, InetAddress.getByName("127.0.0.1"))
+        serverSocket = socket
+        actualPort = socket.localPort
+        isRunning = true
+
+        serverThread = thread(name = "roam-file-server", isDaemon = true) {
+            println("[LocalFileServer] ✅ Listening on http://127.0.0.1:$actualPort")
+            while (isRunning) {
+                try {
+                    val client = socket.accept()
+                    thread(name = "roam-client", isDaemon = true) {
+                        handleClient(client)
+                    }
+                } catch (e: Exception) {
+                    if (isRunning) {
+                        println("[LocalFileServer] Accept error: ${e.message}")
+                    }
+                }
+            }
+        }
+
+        return actualPort
+    }
+
+    fun stop() {
+        isRunning = false
+        try { serverSocket?.close() } catch (_: Exception) {}
+        serverSocket = null
+        serverThread = null
+        actualPort = 0
+    }
+
+    private fun handleClient(client: Socket) {
+        try {
+            client.soTimeout = 30_000
+            val input = client.getInputStream().bufferedReader()
+            val output = client.getOutputStream()
+
+            // Read request line
+            val requestLine = input.readLine() ?: return
+            val parts = requestLine.split(" ", limit = 3)
+            if (parts.size < 2) {
+                sendError(output, 400, "Bad Request")
+                return
+            }
+
+            val method = parts[0]
+            val rawPath = parts[1]
+
+            // Read headers
+            val headers = mutableMapOf<String, String>()
+            while (true) {
+                val line = input.readLine() ?: break
+                if (line.isEmpty()) break
+                val colonIdx = line.indexOf(':')
+                if (colonIdx > 0) {
+                    headers[line.substring(0, colonIdx).trim().lowercase()] =
+                        line.substring(colonIdx + 1).trim()
+                }
+            }
+
+            // Handle OPTIONS
+            if (method == "OPTIONS") {
+                sendCORSPreflight(output)
+                return
+            }
+
+            if (method != "GET" && method != "HEAD") {
+                sendError(output, 405, "Method Not Allowed")
+                return
+            }
+
+            // Parse path
+            val path = rawPath.split("?")[0]
+            val decoded = java.net.URLDecoder.decode(path, "UTF-8")
+            val file = File(rootDir, decoded).canonicalFile
+
+            // Security check
+            if (!file.canonicalPath.startsWith(rootDir.canonicalPath)) {
+                sendError(output, 403, "Forbidden")
+                return
+            }
+
+            if (!file.exists() || !file.isFile) {
+                sendError(output, 404, "Not Found")
+                return
+            }
+
+            val fileSize = file.length()
+            val contentType = mimeType(file.extension)
+
+            if (method == "HEAD") {
+                val header = buildString {
+                    append("HTTP/1.1 200 OK\r\n")
+                    append("Content-Type: $contentType\r\n")
+                    append("Content-Length: $fileSize\r\n")
+                    append("Accept-Ranges: bytes\r\n")
+                    appendCORSHeaders()
+                    append("Connection: close\r\n")
+                    append("\r\n")
+                }
+                output.write(header.toByteArray())
+                output.flush()
+                return
+            }
+
+            // Parse Range header
+            val rangeHeader = headers["range"]
+            val range = parseRange(rangeHeader, fileSize)
+
+            if (range != null) {
+                // 206 Partial Content
+                val length = range.second - range.first + 1
+                val header = buildString {
+                    append("HTTP/1.1 206 Partial Content\r\n")
+                    append("Content-Type: $contentType\r\n")
+                    append("Content-Length: $length\r\n")
+                    append("Content-Range: bytes ${range.first}-${range.second}/$fileSize\r\n")
+                    append("Accept-Ranges: bytes\r\n")
+                    appendCORSHeaders()
+                    append("Cache-Control: public, max-age=86400\r\n")
+                    append("Connection: close\r\n")
+                    append("\r\n")
+                }
+                output.write(header.toByteArray())
+
+                FileInputStream(file).use { fis ->
+                    fis.skip(range.first)
+                    val buffer = ByteArray(256 * 1024)
+                    var remaining = length
+                    while (remaining > 0) {
+                        val toRead = minOf(buffer.size.toLong(), remaining).toInt()
+                        val read = fis.read(buffer, 0, toRead)
+                        if (read == -1) break
+                        output.write(buffer, 0, read)
+                        remaining -= read
+                    }
+                }
+            } else {
+                // 200 OK — full file
+                val header = buildString {
+                    append("HTTP/1.1 200 OK\r\n")
+                    append("Content-Type: $contentType\r\n")
+                    append("Content-Length: $fileSize\r\n")
+                    append("Accept-Ranges: bytes\r\n")
+                    appendCORSHeaders()
+                    append("Cache-Control: public, max-age=86400\r\n")
+                    append("Connection: close\r\n")
+                    append("\r\n")
+                }
+                output.write(header.toByteArray())
+
+                FileInputStream(file).use { fis ->
+                    val buffer = ByteArray(256 * 1024)
+                    while (true) {
+                        val read = fis.read(buffer)
+                        if (read == -1) break
+                        output.write(buffer, 0, read)
+                    }
+                }
+            }
+
+            output.flush()
+        } catch (_: Exception) {
+            // Client disconnect or other error — ignore
+        } finally {
+            try { client.close() } catch (_: Exception) {}
+        }
+    }
+
+    private fun parseRange(header: String?, fileSize: Long): Pair<Long, Long>? {
+        if (header == null || !header.startsWith("bytes=")) return null
+        val spec = header.removePrefix("bytes=").trim()
+        val parts = spec.split("-", limit = 2)
+        if (parts.isEmpty()) return null
+
+        val start = parts[0].trim().toLongOrNull() ?: return null
+        val end = if (parts.size > 1 && parts[1].isNotBlank()) {
+            minOf(parts[1].trim().toLongOrNull() ?: (fileSize - 1), fileSize - 1)
+        } else {
+            fileSize - 1
+        }
+
+        if (start > end || start >= fileSize) return null
+        return Pair(start, end)
+    }
+
+    private fun StringBuilder.appendCORSHeaders() {
+        append("Access-Control-Allow-Origin: *\r\n")
+        append("Access-Control-Allow-Methods: GET, HEAD, OPTIONS\r\n")
+        append("Access-Control-Allow-Headers: Range\r\n")
+        append("Access-Control-Expose-Headers: Content-Range, Content-Length, Accept-Ranges\r\n")
+    }
+
+    private fun sendCORSPreflight(output: java.io.OutputStream) {
+        val header = buildString {
+            append("HTTP/1.1 204 No Content\r\n")
+            appendCORSHeaders()
+            append("Access-Control-Max-Age: 86400\r\n")
+            append("Connection: close\r\n")
+            append("\r\n")
+        }
+        output.write(header.toByteArray())
+        output.flush()
+    }
+
+    private fun sendError(output: java.io.OutputStream, code: Int, message: String) {
+        val body = """{"error":"$message"}"""
+        val header = buildString {
+            append("HTTP/1.1 $code $message\r\n")
+            append("Content-Type: application/json\r\n")
+            append("Content-Length: ${body.length}\r\n")
+            appendCORSHeaders()
+            append("Connection: close\r\n")
+            append("\r\n")
+        }
+        output.write(header.toByteArray())
+        output.write(body.toByteArray())
+        output.flush()
+    }
+
+    private fun mimeType(ext: String): String = when (ext.lowercase()) {
+        "pmtiles" -> "application/octet-stream"
+        "pbf" -> "application/x-protobuf"
+        "json", "geojson" -> "application/json"
+        "png" -> "image/png"
+        "jpg", "jpeg" -> "image/jpeg"
+        "webp" -> "image/webp"
+        "svg" -> "image/svg+xml"
+        "css" -> "text/css"
+        "js" -> "application/javascript"
+        "html", "htm" -> "text/html"
+        else -> "application/octet-stream"
+    }
+}

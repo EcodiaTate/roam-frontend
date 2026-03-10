@@ -1,0 +1,1391 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   ROAM - Australian Road Trip Navigation
+   Design System: "Outback Native"
+   
+   Palette story:
+     Sand dunes at golden hour → backgrounds
+     Sun-bleached canvas       → card surfaces
+     Eucalyptus canopy         → primary actions, success
+     Red Centre earth          → danger, SOS, active tab
+     Clear outback sky         → info, GPS, water
+     Golden hour light         → warnings, highlights
+
+   Native philosophy:
+     System fonts (SF Pro / Roboto) - this is a Capacitor app, not a website
+     Warm brown shadows - never cool gray
+     Spring physics - organic, not mechanical
+     Heavy weights - chunky, confident, readable at a glance while driving
+     Restraint - the theme is in the warmth, not in decoration
+   ========================================================================== */
+
+
+/* ==========================================================================
+   1. THEME TOKENS - LIGHT MODE
+   ========================================================================== */
+:root {
+  /* ── Core surfaces ─────────────────────────────────────────
+     Hierarchy: bg (ground) → card (elevated) → muted (recessed in card)
+     Every surface has a warm undertone - no cold grays anywhere. */
+  --bg-sand: #dcd3c1;          /* Golden sand - the ground everything sits on */
+  --surface-card: #f4efe6;     /* Bleached canvas - primary reading surface */
+  --surface-muted: #e3dccf;    /* Dusty wash - inputs, chips, recessed wells */
+  --surface-raised: #faf8f3;   /* Bright float - tooltips, dropdowns, popovers */
+
+  /* ── Text ──────────────────────────────────────────────────
+     Main on card: ~14.5:1 contrast ✓✓✓
+     Muted on card: ~5.1:1 contrast ✓ (AA normal text) */
+  --text-main: #1a1613;        /* Warm charcoal - body text, headings */
+  --text-muted: #7a7067;       /* Stone dust - secondary, captions */
+
+  /* ── Brand accents ─────────────────────────────────────────
+     Each chosen for: thematic resonance + white text readability (≥4.5:1) */
+  --brand-eucalypt: #2d6e40;   /* Deep gum leaf - primary, go, confirm */
+  --brand-eucalypt-dark: #1f5236; /* Dark gum leaf - nav button gradient end */
+  --brand-ochre: #c85a3a;      /* Red Centre ochre - danger, SOS, active state */
+  --brand-sky: #1a6fa6;        /* Deep outback sky - info, GPS, water features */
+  --brand-amber: #b8872a;      /* Golden hour - warnings, highlights, stars */
+  --brand-shared: #7a3d99;     /* Wattle flower - shared/collaborative plans */
+
+  /* ── On-color text ─────────────────────────────────────────
+     Warm white for text ON any accent-colored surface.
+     Fixes the dark-mode bug where color: var(--surface-card) was illegible. */
+  --on-color: #faf6ef;
+
+  /* ── Semantic mapping ──────────────────────────────────────
+     Components reference these, never raw palette tokens. */
+  --roam-bg: var(--bg-sand);
+  --roam-surface: var(--surface-card);
+  --roam-surface-hover: var(--surface-muted);
+  --roam-surface-raised: var(--surface-raised);
+
+  --roam-text: var(--text-main);
+  --roam-text-muted: var(--text-muted);
+
+  --roam-accent: var(--brand-eucalypt);
+  --roam-danger: var(--brand-ochre);
+  --roam-success: var(--brand-eucalypt);
+  --roam-info: var(--brand-sky);
+  --roam-warn: var(--brand-amber);
+
+  /* ── Borders & dividers (warm, subtle) ─────────────────── */
+  --roam-border: rgba(26, 22, 19, 0.08);
+  --roam-border-strong: rgba(26, 22, 19, 0.15);
+
+  /* ── State & utility colors ────────────────────────────── */
+  --bg-error: #fae5e2;
+  --text-error: #922018;
+  --bg-warn: #faf0dc;
+  --text-warn: #7a5c12;
+  --danger-tint: rgba(191, 74, 48, 0.10);
+  --accent-tint: rgba(51, 120, 74, 0.10);
+  --info-tint: rgba(44, 124, 181, 0.10);
+  --info-pulse-active: rgba(44, 124, 181, 0.40);
+  --info-pulse-clear: rgba(44, 124, 181, 0);
+  --overlay-bg: rgba(26, 22, 19, 0.45);
+  --spinner-track: rgba(26, 22, 19, 0.10);
+  --spinner-head: var(--brand-eucalypt);
+
+  /* ── Tab bar ───────────────────────────────────────────── */
+  --tab-bar-bg: var(--surface-card);
+  --tab-active-color: var(--brand-ochre);
+  --tab-inactive-color: #a89878;       /* Warm desert sand - outback aesthetic */
+  --tab-center-bg: var(--brand-eucalypt);
+  --tab-center-icon: var(--on-color);
+  --tab-center-glow: 0 6px 20px rgba(45, 110, 64, 0.35);
+
+  --tab-glass-bg: rgba(244, 239, 230, 0.80);
+  --tab-glass-border: rgba(26, 22, 19, 0.05);
+  --tab-glass-shadow: 0 -6px 24px rgba(26, 22, 19, 0.06);
+
+  /* ── Warm shadows ──────────────────────────────────────── 
+     All shadows use warm brown - never neutral/cool gray. */
+  --shadow-soft: 0 2px 12px rgba(40, 32, 20, 0.06);
+  --shadow-medium: 0 4px 20px rgba(40, 32, 20, 0.09);
+  --shadow-heavy: 0 12px 40px rgba(40, 32, 20, 0.13);
+  --shadow-button: 0 3px 0 rgba(40, 32, 20, 0.10);
+  --shadow-fab: 0 3px 10px rgba(40, 32, 20, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --shadow-sheet: 0 -8px 32px rgba(40, 32, 20, 0.10);
+
+  /* ── Native chrome ─────────────────────────────────────── */
+  --roam-keyboard-h: 0px;
+  --roam-safe-top: env(safe-area-inset-top, 0px);
+  --roam-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --roam-safe-left: env(safe-area-inset-left, 0px);
+  --roam-safe-right: env(safe-area-inset-right, 0px);
+
+  /* ── Radii ─────────────────────────────────────────────── */
+  --r-card: 24px;
+  --r-btn: 14px;
+  --r-pill: 999px;
+  --radius-lg: var(--r-card);
+  --radius-md: var(--r-btn);
+  --radius-sm: 10px;
+
+  /* ── Sizing ────────────────────────────────────────────── */
+  --tap-target: 48px;
+  --roam-tab-h: 80px;
+  --bottom-nav-height: calc(var(--roam-tab-h) + var(--roam-safe-bottom));
+
+  /* ── Typography scale ───────────────────────────────────
+     System font stack (SF Pro / Roboto) at heavy weights for
+     glanceability while driving. Sizes clamp for small screens. */
+  --font-h1: 1.5rem;       /* 24px - page titles */
+  --font-h2: 1.125rem;     /* 18px - section headings */
+  --font-title: 1rem;      /* 16px - card titles, bold labels */
+  --font-body: 0.9375rem;  /* 15px - primary reading text */
+  --font-sm: 0.8125rem;    /* 13px - secondary text, buttons */
+  --font-xs: 0.75rem;      /* 12px - captions, badges, metadata */
+  --font-xxs: 0.6875rem;   /* 11px - micro labels, coords */
+
+  /* ── Spacing scale ────────────────────────────────────── */
+  --space-xxs: 2px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 20px;
+  --space-2xl: 24px;
+  --space-3xl: 32px;
+
+  /* ── Alert severity tints ───────────────────────────────
+     For inline alerts (traffic, hazards, route blockers).
+     Each has a tint (background) and solid (text/icon) variant. */
+  --severity-major: var(--brand-ochre);
+  --severity-major-tint: rgba(200, 90, 58, 0.10);
+  --severity-moderate: #d97706;
+  --severity-moderate-tint: rgba(234, 88, 12, 0.10);
+  --severity-minor: var(--brand-amber);
+  --severity-minor-tint: rgba(184, 135, 42, 0.08);
+
+  /* ── Motion ────────────────────────────────────────────── */
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --dur-fast: 120ms;
+  --dur-normal: 200ms;
+  --dur-slow: 350ms;
+}
+
+
+/* ==========================================================================
+   1b. THEME TOKENS - DARK MODE
+   ========================================================================== */
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* ── Core surfaces ───────────────────────────────────── */
+    --bg-sand: #0f0f0f;          /* Soft black - neutral, clean, easy on eyes */
+    --surface-card: #1a1a1a;     /* Dark card - elevated surface, neutral */
+    --surface-muted: #262626;    /* Neutral recess - inputs, wells */
+    --surface-raised: #313131;   /* Neutral float - popovers, tooltips */
+
+    /* ── Text ────────────────────────────────────────────── */
+    --text-main: #efe9e0;        /* Warm parchment - NOT pure white */
+    --text-muted: #908780;       /* Dusty stone */
+
+    /* ── Brand accents (outback-optimized for dark backgrounds) ───── */
+    --brand-eucalypt: #42b159;   /* Bright gum leaf - outback green */
+    --brand-eucalypt-dark: #357844; /* Dark gum leaf - nav button gradient end */
+    --brand-ochre: #e07856;      /* Warm ochre - Red Centre earth */
+    --brand-sky: #4db8f0;        /* Outback sky blue */
+    --brand-amber: #e8b84d;      /* Desert gold - bright and warm */
+    --brand-shared: #b087db;     /* Wattle flower - softer for dark mode */
+
+    /* on-color stays warm white - works in both modes */
+    --on-color: #faf6ef;
+
+    /* ── Borders ─────────────────────────────────────────── */
+    --roam-border: rgba(255, 255, 255, 0.06);
+    --roam-border-strong: rgba(255, 255, 255, 0.12);
+
+    /* ── State colors ────────────────────────────────────── */
+    --bg-error: #301714;
+    --text-error: #ffb8a8;
+    --bg-warn: #2a2210;
+    --text-warn: #f0c860;
+    --danger-tint: rgba(222, 88, 64, 0.14);
+    --accent-tint: rgba(72, 168, 102, 0.12);
+    --info-tint: rgba(82, 166, 222, 0.12);
+    --info-pulse-active: rgba(82, 166, 222, 0.40);
+    --info-pulse-clear: rgba(82, 166, 222, 0);
+    --overlay-bg: rgba(0, 0, 0, 0.60);
+    --spinner-track: rgba(255, 255, 255, 0.08);
+    --spinner-head: var(--brand-eucalypt);
+
+    /* ── Tab bar ─────────────────────────────────────────── */
+    --tab-bar-bg: #1a1a1a;
+    --tab-inactive-color: #7a6f65;      /* Warm sand in dark mode */
+    --tab-center-glow: 0 6px 20px rgba(66, 177, 89, 0.25);
+
+    --tab-glass-bg: rgba(15, 15, 15, 0.85);
+    --tab-glass-border: rgba(255, 255, 255, 0.06);
+    --tab-glass-shadow: 0 -6px 24px rgba(0, 0, 0, 0.40);
+
+    /* ── Alert severity tints (dark) ──────────────────────── */
+    --severity-major: var(--brand-ochre);
+    --severity-major-tint: rgba(224, 120, 86, 0.14);
+    --severity-moderate: #f59e0b;
+    --severity-moderate-tint: rgba(245, 158, 11, 0.12);
+    --severity-minor: var(--brand-amber);
+    --severity-minor-tint: rgba(232, 184, 77, 0.10);
+
+    /* ── Dark shadows ────────────────────────────────────── */
+    --shadow-soft: 0 2px 12px rgba(0, 0, 0, 0.40);
+    --shadow-medium: 0 4px 20px rgba(0, 0, 0, 0.50);
+    --shadow-heavy: 0 12px 40px rgba(0, 0, 0, 0.60);
+    --shadow-button: 0 3px 0 rgba(0, 0, 0, 0.45);
+    --shadow-fab: 0 3px 10px rgba(0, 0, 0, 0.50), 0 0 0 1px rgba(255, 255, 255, 0.08);
+    --shadow-sheet: 0 -8px 32px rgba(0, 0, 0, 0.50);
+  }
+}
+
+
+/* ==========================================================================
+   2. GLOBAL RESETS & NATIVE SHELL
+   ========================================================================== */
+html, body {
+  height: 100%;
+  width: 100%;
+  color-scheme: light dark;
+
+  background-color: var(--roam-bg);
+  color: var(--roam-text);
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Native app shell lock — applied by (app) layout only, not marketing pages */
+html.roam-shell {
+  overflow: hidden;
+  position: fixed;
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
+}
+html.roam-shell body {
+  overflow: hidden;
+  position: fixed;
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
+}
+
+/* Let text fields be selectable */
+input, textarea, [contenteditable] {
+  -webkit-user-select: auto;
+  user-select: auto;
+}
+
+/* Text selection color - warm, on-brand */
+::selection {
+  background: var(--accent-tint);
+  color: var(--roam-text);
+}
+
+/* Hide scrollbars everywhere (native feel) */
+::-webkit-scrollbar { display: none; }
+* { scrollbar-width: none; }
+
+/* Accessible focus ring - only on keyboard nav */
+:focus-visible {
+  outline: 2.5px solid var(--roam-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+:focus:not(:focus-visible) { outline: none; }
+
+/* App shell — absolute fill, safe-area padding (except bottom, handled by absolute tab bar) */
+.roam-shell {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-top: var(--roam-safe-top);
+  padding-left: var(--roam-safe-left);
+  padding-right: var(--roam-safe-right);
+  padding-bottom: 0;
+}
+
+
+.roam-shell button,
+.roam-shell [role="button"] {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* ── Individual tab items ─────────────────────────────────── */
+.roam-tab, .roam-tab-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  height: 100%;
+  color: var(--tab-inactive-color);
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  transition: color var(--dur-normal) ease;
+  padding: 6px 0;
+  gap: 2px;
+}
+
+.roam-tab:active,
+.roam-tab-item:active {
+  transform: scale(0.90);
+  transition: transform 60ms ease-out;
+}
+
+.roam-tab[data-active="true"],
+.roam-tab-active {
+  color: var(--tab-active-color);
+}
+
+.roam-tab-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  transition: transform var(--dur-normal) var(--ease-spring);
+}
+.roam-tab-icon svg { width: 100%; height: 100%; }
+
+.roam-tab[data-active="true"] .roam-tab-icon,
+.roam-tab-active .roam-tab-icon {
+  transform: translateY(-1px) scale(1.05);
+}
+
+.roam-tab-label {
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.3px;
+}
+
+/* ── Center "Trip" raised button ──────────────────────────── */
+.roam-tab.roam-tab-center {
+  position: relative;
+}
+.roam-tab.roam-tab-center:active .roam-tab-inner {
+  transform: scale(0.90);
+  transition: transform 60ms ease-out;
+}
+
+.roam-tab-bump {
+  display: none;
+}
+
+.roam-tab-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px; height: 48px;
+  border-radius: 14px;
+  background-color: var(--tab-center-bg);
+  color: var(--tab-center-icon);
+  box-shadow: var(--tab-center-glow);
+  transition: transform var(--dur-normal) var(--ease-spring),
+              box-shadow var(--dur-normal) ease;
+}
+
+.roam-tab.roam-tab-center .roam-tab-icon {
+  color: var(--tab-center-icon);
+  width: 24px; height: 24px;
+}
+.roam-tab.roam-tab-center .roam-tab-label {
+  color: var(--tab-inactive-color);
+}
+.roam-tab.roam-tab-center[data-active="true"] .roam-tab-label {
+  color: var(--tab-active-color);
+}
+
+/* ── SOS tab emphasis ─────────────────────────────────────── */
+.roam-tab-sos { color: var(--roam-danger); }
+.roam-tab-sos.roam-tab-active { color: var(--roam-danger); }
+.roam-tab-sos .roam-tab-icon {
+  background: var(--danger-tint);
+  border-radius: 8px;
+  padding: 2px;
+}
+
+/* ── Keyboard open: hide tab bar ──────────────────────────── */
+.keyboard-open .roam-tab-bar,
+.keyboard-open .roam-tabs-wrap {
+  transform: translateY(100%);
+  pointer-events: none;
+  opacity: 0;
+  transition: transform var(--dur-normal) ease, opacity var(--dur-fast) ease;
+}
+.keyboard-open .roam-main { padding-bottom: 0 !important; }
+
+
+/* ==========================================================================
+   4. APP LAYOUT PRIMITIVES
+   ========================================================================== */
+.trip-app-container {
+  /* Fixed to viewport so the map fills under the status bar like a native app,
+     escaping the shell's padding-top safe area. Overlay controls use
+     var(--roam-safe-top) internally to position themselves below the notch. */
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  background: var(--roam-bg);
+  color: var(--roam-text);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.trip-wrap-center {
+  display: grid;
+  place-items: center;
+  /* Use 100% (fill flex parent roam-main) rather than 100vh.
+     100vh on iOS native exceeds the actual usable area inside the fixed shell,
+     causing the content to overflow and appear pushed down. */
+  height: 100%;
+  min-height: 0;
+  padding: 20px;
+  background: var(--roam-bg);
+}
+
+.trip-card {
+  background: var(--roam-surface);
+  border-radius: var(--r-card);
+  padding: 24px;
+  box-shadow: var(--shadow-heavy);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 400px;
+}
+
+
+/* ==========================================================================
+   5. TYPOGRAPHY
+   ========================================================================== */
+.trip-h1 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: -0.5px;
+  line-height: 1.2;
+}
+.trip-h2 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.2px;
+  line-height: 1.25;
+}
+.trip-title {
+  font-size: 1.0rem;
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: -0.1px;
+  line-height: 1.3;
+}
+.trip-muted {
+  font-size: 0.875rem;
+  color: var(--roam-text-muted);
+  font-weight: 600;
+  line-height: 1.4;
+}
+.trip-muted-small {
+  font-size: 0.78rem;
+  color: var(--roam-text-muted);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+
+/* ==========================================================================
+   6. BUTTONS & TACTILE INTERACTIONS
+   ========================================================================== */
+
+/* ── Interactive card / row press ─────────────────────────── */
+.trip-interactive {
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--dur-fast) var(--spring),
+              opacity var(--dur-fast) ease;
+}
+
+.trip-interactive:active {
+  transform: scale(0.97);
+  opacity: 0.85;
+}
+
+/* Cancel parent press when a child control is the real target */
+.trip-interactive:has(
+  button:active, a:active, input:active,
+  textarea:active, select:active, [role="button"]:active
+) {
+  transform: none !important;
+  opacity: 1 !important;
+}
+.trip-interactive:has(
+  button:focus-visible, a:focus-visible,
+  input:focus-visible, [role="button"]:focus-visible
+) {
+  transform: none !important;
+  opacity: 1 !important;
+}
+
+/* ── Primary button (chunky, tactile) ─────────────────────── */
+.trip-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px 18px;
+  border-radius: var(--r-btn);
+  font-weight: 800;
+  font-size: 0.95rem;
+  border: none;
+  min-height: 52px;
+  box-shadow: var(--shadow-button);
+  transform: translateY(0);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 80ms ease, box-shadow 80ms ease, opacity var(--dur-fast) ease;
+}
+.trip-btn:active:not(:disabled) {
+  box-shadow: 0 0 0 rgba(0,0,0,0);
+  transform: translateY(3px) scale(0.98);
+  opacity: 0.88;
+}
+.trip-btn:disabled {
+  opacity: 0.45;
+  pointer-events: none;
+  box-shadow: none;
+  transform: translateY(3px);
+}
+
+/* Color variants - uses --on-color for legible text in BOTH light/dark */
+.trip-btn-primary {
+  background: var(--roam-accent);
+  color: var(--on-color);
+}
+.trip-btn-secondary {
+  background: var(--roam-surface-hover);
+  color: var(--roam-text);
+}
+.trip-btn-danger {
+  background: var(--roam-surface-hover);
+  color: var(--roam-danger);
+}
+
+/* ── Small button ─────────────────────────────────────────── */
+.trip-btn-sm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 12px;
+  background: var(--roam-surface-hover);
+  color: var(--roam-text);
+  padding: 0 14px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  min-height: 42px;
+  box-shadow: 0 2px 0 rgba(40, 32, 20, 0.08);
+  border: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 80ms ease, box-shadow 80ms ease;
+}
+.trip-btn-sm:active:not(:disabled) {
+  box-shadow: none;
+  transform: translateY(2px) scale(0.97);
+}
+.trip-btn-sm:disabled {
+  opacity: 0.45;
+  pointer-events: none;
+  box-shadow: none;
+  transform: translateY(2px);
+}
+
+/* ── Icon button (square, minimal) ────────────────────────── */
+.trip-btn-icon {
+  background: var(--roam-surface-hover);
+  border: none;
+  display: grid;
+  place-items: center;
+  width: 44px; height: 44px;
+  border-radius: 13px;
+  color: var(--roam-text);
+  font-size: 1.1rem;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 80ms ease;
+}
+.trip-btn-icon:active:not(:disabled) {
+  transform: scale(0.88);
+}
+
+
+/* ==========================================================================
+   7. INPUTS & FORMS
+   ========================================================================== */
+.trip-input, .trip-search {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--roam-text);
+  padding: 8px 0;
+}
+.trip-input::placeholder,
+.trip-search::placeholder {
+  color: var(--roam-text-muted);
+  opacity: 0.55;
+}
+
+.trip-select {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-weight: 800;
+  color: var(--roam-text);
+  font-size: 0.95rem;
+}
+
+.trip-search-box {
+  background: var(--roam-surface);
+  box-shadow: var(--shadow-soft);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  height: 52px;
+  gap: 10px;
+}
+
+
+/* ==========================================================================
+   8. MAP LAYERS, SWITCHERS & FABs
+   ========================================================================== */
+.trip-map-fullscreen {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 0;
+}
+.trip-map-inner { width: 100%; height: 100%; }
+
+.trip-map-switcher {
+  position: absolute;
+  top: calc(var(--roam-safe-top) + 24px);
+  right: 14px;
+  z-index: 10;
+  background: var(--roam-surface);
+  border-radius: var(--r-pill);
+  padding: 4px;
+  box-shadow: var(--shadow-heavy);
+}
+
+.trip-pill-btn {
+  background: transparent;
+  border: none;
+  padding: 9px 16px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  border-radius: var(--r-pill);
+  color: var(--roam-text-muted);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background var(--dur-fast) ease, color var(--dur-fast) ease;
+}
+.trip-pill-btn[data-active="true"] {
+  background: var(--roam-surface-hover);
+  color: var(--roam-text);
+  box-shadow: var(--shadow-soft);
+}
+
+/* ── Floating action buttons ──────────────────────────────── */
+.trip-fab {
+  position: absolute;
+  z-index: 20;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-fab);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 80ms ease;
+}
+.trip-fab:active { transform: scale(0.88); }
+
+.trip-fab-locate {
+  bottom: calc(220px + var(--roam-safe-bottom) + 12px);
+  right: 12px;
+  background: var(--roam-surface);
+  color: var(--roam-info);
+}
+
+/* ── Map blue dot pulse ───────────────────────────────────── */
+@keyframes roam-blue-dot-pulse {
+  0%  { box-shadow: 0 0 0 0 var(--info-pulse-active); }
+  70% { box-shadow: 0 0 0 12px var(--info-pulse-clear); }
+  100%{ box-shadow: 0 0 0 0 var(--info-pulse-clear); }
+}
+
+
+/* ==========================================================================
+   9. DRAGGABLE BOTTOM SHEET
+   ========================================================================== */
+   .trip-bottom-sheet-wrap {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    height: calc(100% - 80px);
+    pointer-events: none;
+  }
+
+.trip-bottom-sheet {
+  height: 100%;
+  background: var(--roam-surface);
+  border-radius: 28px 28px 0 0;
+  box-shadow: var(--shadow-sheet);
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  transform: translateZ(0);
+  touch-action: none;
+  contain: layout style;
+}
+
+.trip-sheet-header {
+  padding: 16px 20px 10px 20px;
+  touch-action: none;
+  flex-shrink: 0;
+  background: var(--roam-surface);
+  border-radius: 28px 28px 0 0;
+}
+
+.trip-sheet-content,
+.trip-list-container,
+.trip-sheet-body {
+  flex: 1;
+  padding: 0 20px calc(var(--bottom-nav-height) + 16px) 20px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  /* Contain overscroll so dragging past bounds doesn't propagate to body/map container */
+  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
+  /* Allow vertical pan inside the sheet scroller; parent has touch-action:none for drag capture */
+  touch-action: pan-y;
+}
+
+.trip-drag-handle {
+  width: 40px; height: 5px;
+  background: var(--roam-surface-hover);
+  border-radius: 10px;
+  margin: 0 auto 10px auto;
+  padding: 14px 0;
+  background-clip: content-box;
+  opacity: 0.7;
+}
+
+
+/* ==========================================================================
+   10. LISTS, ROWS & STOP CARDS
+   ========================================================================== */
+.trip-stop-row, .trip-editor-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+  background: var(--roam-surface);
+  box-shadow: var(--shadow-soft);
+  border-radius: 18px;
+  padding: 12px 14px;
+  transition: transform var(--dur-fast) var(--spring), outline 80ms;
+}
+.trip-editor-row[data-focused="true"] {
+  outline: 2.5px solid var(--roam-info);
+  outline-offset: -2.5px;
+}
+.trip-stop-row:active {
+  transform: scale(0.98);
+}
+
+/* Borderless list rows (plans list, search results) */
+.trip-list-row {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px solid var(--roam-border);
+  padding: 16px 0;
+  text-align: left;
+}
+.trip-list-row:last-child { border-bottom: none; }
+.trip-list-row[data-focused="true"] {
+  background: var(--roam-surface-hover);
+  border-radius: 14px;
+  border-bottom: none;
+  padding: 16px 14px;
+}
+
+/* Horizontal scroll row (categories, chips) */
+.trip-cat-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 0 6px 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+
+/* ==========================================================================
+   11. BADGES & CHIPS
+   ========================================================================== */
+.trip-badge {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 7px 11px;
+  border-radius: var(--r-pill);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  line-height: 1;
+}
+.trip-badge-blue { background: var(--roam-info); color: var(--on-color); }
+.trip-badge-soft { background: var(--roam-surface-hover); color: var(--roam-text); }
+.trip-badge-ok   { background: var(--roam-success); color: var(--on-color); }
+.trip-badge-bad  { background: var(--roam-danger); color: var(--on-color); }
+.trip-badge-warn { background: var(--roam-warn); color: var(--on-color); }
+
+
+/* ==========================================================================
+   12. MODALS & OVERLAYS
+   ========================================================================== */
+.trip-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--overlay-bg);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  animation: roam-fadeIn var(--dur-normal) ease-out forwards;
+  overflow: hidden;
+  /* Do NOT use height: 100dvh — it uses the "large" (pre-keyboard) viewport on iOS
+     and won't shrink when KeyboardResize.Body resizes the WKWebView.
+     top/bottom/left/right: 0 already fills the resized viewport correctly. */
+}
+
+.trip-modal {
+  background: var(--roam-bg);
+  border-radius: var(--r-card) var(--r-card) 0 0;
+  padding: 24px 20px calc(var(--bottom-nav-height) + 20px) 20px;
+  /* Use % of the overlay (which is already sized to keyboard-adjusted viewport) rather
+     than a fixed dvh value, so the modal correctly fits the remaining space on keyboard open */
+  max-height: 88%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: var(--shadow-heavy);
+  animation: roam-slideUp var(--dur-slow) var(--spring) forwards;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  /* Allow native vertical pan in the scrollable modal content */
+  touch-action: pan-y;
+}
+
+
+/* ==========================================================================
+   13. DATA DISPLAY - Panels, KV rows, Errors
+   ========================================================================== */
+.trip-err-box {
+  padding: 14px 16px;
+  background: var(--bg-error);
+  color: var(--text-error);
+  border-radius: 14px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  white-space: pre-wrap;
+  line-height: 1.4;
+}
+
+.trip-warn-box {
+  padding: 14px 16px;
+  background: var(--bg-warn);
+  color: var(--text-warn);
+  border-radius: 14px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  white-space: pre-wrap;
+  line-height: 1.4;
+}
+
+.trip-panel {
+  background: var(--roam-surface-hover);
+  padding: 18px;
+  border-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.trip-kv-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  background: var(--roam-surface-hover);
+  padding: 14px;
+  border-radius: 14px;
+}
+.trip-kv { display: flex; flex-direction: column; }
+.trip-kv-k {
+  color: var(--roam-text-muted);
+  text-transform: uppercase;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  margin-bottom: 3px;
+  font-size: 0.72rem;
+}
+.trip-kv-v {
+  color: var(--roam-text);
+  font-weight: 800;
+  font-family: ui-monospace, "SF Mono", "Cascadia Mono", "Segoe UI Mono", Menlo, monospace;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
+/* ==========================================================================
+   14. ANIMATIONS & MOTION
+   ========================================================================== */
+
+/* Page entrance */
+.trip-page-transition {
+  animation: roam-pageIn var(--dur-slow) cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Spinner */
+.trip-spinner {
+  width: 20px; height: 20px;
+  border: 2.5px solid var(--spinner-track);
+  border-radius: 50%;
+  border-top-color: var(--spinner-head);
+  animation: roam-spin 0.75s ease-in-out infinite;
+  display: inline-block;
+}
+
+/* Keyframes (prefixed with roam- to avoid collisions) */
+@keyframes roam-slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+@keyframes roam-fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes roam-pageIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.997); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes roam-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes roam-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ── Reduced motion ───────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .trip-interactive:active { transform: none; }
+  .trip-btn:active:not(:disabled) { transform: none; }
+}
+
+
+/* ==========================================================================
+   15. LAYOUT UTILITIES
+   ========================================================================== */
+.trip-row-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.trip-flex-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.trip-actions {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+}
+.trip-truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
+/* ── Fixed tab bar (glass morphism, overlays content) ──────────────── */
+.roam-tabs-wrap {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background-color: transparent;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.roam-tabs {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
+  pointer-events: auto;
+  height: var(--roam-tab-h);
+  border-radius: 24px 24px 0 0;
+  background-color: var(--tab-glass-bg);
+  backdrop-filter: blur(20px) saturate(170%);
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
+  border-top: 1px solid var(--tab-glass-border);
+  box-shadow: var(--tab-glass-shadow);
+}
+
+/* Safe-area leg — extends glass effect into bottom safe area */
+.roam-tabs::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: var(--roam-safe-bottom);
+  background-color: var(--tab-glass-bg);
+  backdrop-filter: blur(20px) saturate(170%);
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
+}
+
+/* Main content area */
+.roam-main {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  background-color: var(--roam-bg);
+}
+
+
+/* ==========================================================================
+   16. SOS / EMERGENCY PAGE
+   ========================================================================== */
+
+.sos-page {
+  height: 100dvh;
+  background: var(--roam-bg);
+  color: var(--roam-text);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: calc(var(--roam-safe-top) + 16px) 16px calc(var(--bottom-nav-height) + 24px) 16px;
+  display: grid;
+  align-content: start;
+  gap: 16px;
+}
+
+.sos-call-000 {
+  width: 100%;
+  height: 120px;
+  background: var(--roam-danger);
+  color: var(--on-color);
+  border-radius: var(--r-card);
+  font-weight: 900;
+  font-size: 40px;
+  letter-spacing: -0.5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  border: none;
+  box-shadow: var(--shadow-heavy);
+  text-transform: uppercase;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 80ms ease, box-shadow 80ms ease;
+}
+.sos-call-000:active {
+  transform: scale(0.97);
+  box-shadow: none;
+}
+
+.sos-location-block {
+  border-radius: var(--r-card);
+  background: var(--roam-surface);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: var(--shadow-soft);
+  min-height: 100px;
+  justify-content: center;
+}
+.sos-location-block[data-locating="true"] {
+  border: 2px solid var(--roam-info);
+  animation: sos-pulse-border 2s ease-in-out infinite;
+}
+@keyframes sos-pulse-border {
+  0%, 100% { border-color: var(--roam-info); }
+  50% { border-color: transparent; }
+}
+
+.sos-loc-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--roam-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.sos-loc-value {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--roam-danger);
+  line-height: 1.1;
+  word-break: break-word;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sos-loc-wait {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--roam-info);
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.sos-msg-btn {
+  width: 100%;
+  height: 88px;
+  background: var(--roam-info);
+  color: var(--on-color);
+  border-radius: var(--r-card);
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: -0.3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border: none;
+  box-shadow: var(--shadow-button);
+  text-transform: uppercase;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 80ms ease, opacity var(--dur-fast) ease;
+}
+.sos-msg-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.sos-msg-btn:disabled { opacity: 0.55; pointer-events: none; }
+
+.sos-section-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--roam-text);
+  margin-top: 8px;
+  letter-spacing: -0.3px;
+}
+
+.sos-add-btn {
+  width: 100%;
+  min-height: 64px;
+  border-radius: var(--r-btn);
+  background: var(--roam-surface);
+  color: var(--roam-text);
+  font-weight: 800;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border: none;
+  box-shadow: var(--shadow-button);
+  text-transform: uppercase;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── Contact card ──────────────────────────────────────────────────── */
+.sos-contact-card {
+  padding: 16px;
+  border-radius: var(--r-card);
+  background: var(--roam-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: var(--shadow-soft);
+}
+
+.sos-select-circle {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  background: var(--roam-surface-hover);
+  color: var(--roam-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2.5px solid var(--roam-border-strong);
+  flex-shrink: 0;
+  transition: all var(--dur-normal) var(--spring);
+}
+.sos-select-circle[data-selected="true"] {
+  background: var(--roam-accent);
+  color: var(--on-color);
+  border-color: var(--roam-accent);
+  box-shadow: var(--tab-center-glow);
+}
+
+.sos-action-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.sos-action-btn {
+  min-height: 52px;
+  border-radius: var(--r-btn);
+  font-weight: 800;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  box-shadow: var(--shadow-button);
+  text-transform: uppercase;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 80ms ease, box-shadow 80ms ease;
+}
+.sos-action-btn:active:not(:disabled) {
+  box-shadow: none;
+  transform: translateY(3px) scale(0.97);
+}
+
+/* ── Contact editor ────────────────────────────────────────────────── */
+.sos-editor {
+  padding: 20px;
+  border-radius: var(--r-card);
+  background: var(--roam-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: var(--shadow-heavy);
+}
+
+.sos-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--roam-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sos-input {
+  height: 52px;
+  border-radius: var(--r-btn);
+  background: var(--roam-surface-hover);
+  color: var(--roam-text);
+  font-size: 17px;
+  font-weight: 700;
+  padding: 0 16px;
+  border: none;
+  outline: none;
+  width: 100%;
+}
+.sos-input:focus {
+  box-shadow: inset 0 0 0 2px var(--roam-info);
+}
+
+.sos-textarea {
+  border-radius: var(--r-btn);
+  background: var(--roam-surface-hover);
+  color: var(--roam-text);
+  font-size: 17px;
+  font-weight: 700;
+  padding: 14px 16px;
+  border: none;
+  outline: none;
+  resize: vertical;
+  width: 100%;
+  font-family: inherit;
+}
+.sos-textarea:focus {
+  box-shadow: inset 0 0 0 2px var(--roam-info);
+}
+
+
+/* ==========================================================================
+   17. UTILITY CLASSES
+   ========================================================================== */
+
+/* Native-feel scroll container */
+.roam-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  /* Allow vertical pan so iOS/WKWebView scrolls natively rather than bubbling */
+  touch-action: pan-y;
+}
+
+/* Glass morphism surface */
+.roam-glass {
+  backdrop-filter: blur(20px) saturate(170%);
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
+}
