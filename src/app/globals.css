@@ -577,6 +577,11 @@ input, textarea, [contenteditable] {
 .trip-btn-primary {
   background: var(--roam-accent);
   color: var(--on-color);
+}/* Color variants - uses --on-color for legible text in BOTH light/dark */
+
+.trip-btn-secondary {
+  background: var(--brand-ochre);
+  color: var(--on-color);
 }
 
 .trip-btn-danger {
@@ -797,10 +802,10 @@ input, textarea, [contenteditable] {
 
 .trip-drag-handle {
   width: 40px; height: 5px;
-  background: var(--roam-surface-hover);
+  background: white;
+  opacity:0.5;
   border-radius: 10px;
   margin: 0 auto 10px auto;
-  padding: 14px 0;
   background-clip: content-box;
   opacity: 0.7;
 }
