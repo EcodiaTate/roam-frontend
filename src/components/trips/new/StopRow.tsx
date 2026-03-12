@@ -22,8 +22,8 @@ function badgeForType(type?: string) {
   }
 }
 
-// Intercepts default names so they don't act as user-typed text
-function getDisplayValue(name?: string, type?: string) {
+// FIXED: Accept string | null to match the TripStop type
+function getDisplayValue(name?: string | null, type?: string) {
   if (!name) return "";
   if (type === "start" && name === "Start") return "";
   if (type === "end" && name === "End") return "";
@@ -119,6 +119,7 @@ export function StopRow(props: {
     setQ(it.name);
     setIsFocused(false);
   };
+
   const handleUseMyLocation = async () => {
     setLocating(true);
     try {
