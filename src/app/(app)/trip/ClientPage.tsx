@@ -595,7 +595,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
 
       {!activeNav.isActive && (
         <div style={{ position: "absolute", top: 12, left: 12, right: 12, zIndex: 15, pointerEvents: "auto" }}>
-          <BasemapDownloadCard region="australia" compact />
+          <BasemapDownloadCard region="australia"/>
         </div>
       )}
 
