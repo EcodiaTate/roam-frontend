@@ -61,8 +61,8 @@ export function BasemapDownloadCard({ region = "australia", onReady, className }
         </div>
       )}
 
-      {/* 5. Not Installed state */}
-      {(status.state === "none" || !status.state) && (
+      {/* 5. Not Installed state - FIXED FROM "none" to "not_installed" */}
+      {(status.state === "not_installed" || !status.state) && (
         <div style={styles.container}>
           <button onClick={handleDownload} style={styles.pill}>
             <CloudDownload size={16} style={{ opacity: 0.7 }} />
