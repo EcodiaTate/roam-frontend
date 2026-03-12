@@ -291,7 +291,10 @@ export default function LandingPage() {
       {/* 02. Hero */}
       <section className="rl-hero">
         <div className="rl-hero-content">
-          <h1 className="rl-hero-mega">ROAM</h1>
+          <h1 className="rl-hero-mega">
+            <Compass strokeWidth={2} className="rl-hero-compass" />
+            ROAM
+          </h1>
           <p className="rl-hero-tagline">
             Road trip navigation that works
             <br />
@@ -686,12 +689,31 @@ const STYLES = `
   min-height: 85vh; min-height: 85dvh;
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
-  text-align: center; position: relative;
+  text-align: center;
+  position: relative; /* Crucial so the texture stays contained */
   padding: 60px 24px 80px;
   background-color: var(--burnt);
-  background-image: url('/img/paper-texture.png'); /* Tactile block texture */
+  /* We removed the background image from here! */
+}
+
+/* 1. We apply the texture to an invisible layer that sits over the background color */
+.rl-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0; /* Stretches to fill the hero */
+  background-image: url('/img/paper-texture.png');
   background-size: cover;
-  background-blend-mode: multiply;
+  mix-blend-mode: multiply; /* Blends with the var(--burnt) underneath */
+  opacity: 0.4; /* <--- BOOM. Change this to whatever you want! */
+  pointer-events: none; /* Ensures the texture doesn't block you from clicking buttons */
+  z-index: 0;
+}
+
+/* 2. We make sure your text and buttons sit on top of the texture */
+.rl-hero-content,
+.rl-hero-scroll {
+  position: relative;
+  z-index: 1;
 }
 .rl-hero-content {
   max-width: 800px;
@@ -702,7 +724,10 @@ const STYLES = `
 .rl-hero-mega {
   font-family: 'Syne', sans-serif;
   width: auto;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
   margin: 0 auto 28px;
   text-align: center;
   font-size: clamp(72px, 10vw, 220px);
@@ -710,8 +735,17 @@ const STYLES = `
   letter-spacing: -0.05em;
   color: var(--white);
   user-select: none;
-  white-space: nowrap;
   max-width: 100%;
+}
+.rl-hero-compass {
+  color: var(--white);
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
+  animation: rl-spin-subtle 8s linear infinite;
+}
+.rl {
+  overflow-x: clip;
 }
 .rl-hero-tagline {
   font-size: clamp(20px, 3.5vw, 32px);
@@ -874,25 +908,45 @@ const STYLES = `
 .rl-step-content p {
   color: var(--text-muted); font-size: 16px; line-height: 1.7;
 }
-
 /* ---- 06. Download ---- */
 .rl-download { padding: 0 0 120px; }
 .rl-download-card {
-  background-color: var(--burnt); color: var(--white);
-  background-image: url('/img/paper-texture.png'); /* Tactile block texture */
-  background-size: cover;
-  background-blend-mode: multiply;
+  background-color: var(--burnt);
+  color: var(--white);
+  /* Removed the background image from the main div */
   padding: 72px 40px; border-radius: 32px;
   text-align: center;
   position: relative; overflow: hidden;
 }
+
+/* Layer 1: The glowing gradients (Your existing code) */
 .rl-download-card::before {
   content: ''; position: absolute; inset: 0;
   background:
     radial-gradient(ellipse 50% 60% at 80% 20%, rgba(255,255,255,0.06), transparent),
     radial-gradient(ellipse 40% 50% at 10% 80%, rgba(255,255,255,0.04), transparent);
   pointer-events: none;
+  z-index: 0;
 }
+
+/* Layer 2: The paper texture */
+.rl-download-card::after {
+  content: ''; position: absolute; inset: 0;
+  background-image: url('/img/paper-texture.png');
+  background-size: cover;
+  mix-blend-mode: multiply;
+  opacity: 0.2; /* <--- Control your texture opacity here */
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Layer 3: Ensure all text and buttons sit on top of the texture and gradients */
+.rl-download-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+
 .rl-download-card h2 {
   position: relative;
   font-family: 'Syne', sans-serif;
@@ -1035,6 +1089,9 @@ const STYLES = `
   40% { transform: translateY(-8px); }
   60% { transform: translateY(-4px); }
 }
+@keyframes rl-spin-subtle {
+  to { transform: rotate(360deg); }
+}
 
 /* ---- Responsive ---- */
 @media (max-width: 968px) {
@@ -1072,4 +1129,4 @@ const STYLES = `
   .rl-how { padding: 80px 0; }
   .rl-aoc-footer { padding: 60px 0; }
 }
-`;
+`
