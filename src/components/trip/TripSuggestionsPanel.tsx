@@ -441,7 +441,7 @@ export function TripSuggestionsPanel(props: {
                 {props.onAddStopFromPlace && (
                   <button
                     type="button"
-                    className="trip-btn-xs trip-btn-secondary"
+                    className="trip-btn-sm trip-btn-secondary"
                     onClick={(e) => {
                       e.stopPropagation();
                       haptic.tap();

@@ -10,67 +10,84 @@ import type { FuelAnalysis, FuelWarning } from "@/lib/types/fuel";
 /* ── Styles ────────────────────────────────────────────────────────────── */
 
 const card: React.CSSProperties = {
-  background: "var(--roam-surface-hover)",
+  background: "var(--roam-surface)",
   borderRadius: "var(--r-card, 16px)",
-  padding: "14px 16px",
+  padding: "16px",
   marginBottom: 10,
+  border: "1px solid var(--roam-border)",
 };
 
 const headerRow: React.CSSProperties = {
   display: "flex",
-  alignItems: "center",
+  alignItems: "flex-start",
   justifyContent: "space-between",
-  gap: 10,
+  gap: 12,
 };
 
 const titleGroup: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
-  gap: 8,
+  gap: 10,
   minWidth: 0,
 };
 
 const titleText: React.CSSProperties = {
-  fontSize: 14,
+  fontSize: 16,
   fontWeight: 900,
   color: "var(--roam-text)",
   letterSpacing: "-0.2px",
 };
 
 const subtitleText: React.CSSProperties = {
-  fontSize: 12,
+  fontSize: 13,
   fontWeight: 700,
   color: "var(--roam-text-muted)",
-  marginTop: 4,
+  marginTop: 2,
 };
 
 const statsRow: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
-  gap: 12,
-  marginTop: 10,
+  gap: 8,
+  marginTop: 14,
   flexWrap: "wrap",
 };
 
 const statPill: React.CSSProperties = {
-  fontSize: 11,
+  fontSize: 12,
   fontWeight: 800,
-  padding: "3px 10px",
+  padding: "4px 12px",
   borderRadius: 999,
   whiteSpace: "nowrap" as const,
 };
 
+const settingsBtn: React.CSSProperties = {
+  background: "rgba(0,0,0,0.06)",
+  border: "none",
+  padding: "6px 12px",
+  borderRadius: 999,
+  display: "flex",
+  alignItems: "center",
+  gap: 6,
+  cursor: "pointer",
+  color: "var(--roam-text)",
+  fontSize: 12,
+  fontWeight: 800,
+  flexShrink: 0,
+  transition: "background 0.2s",
+};
+
 const warningBox: React.CSSProperties = {
-  marginTop: 10,
-  padding: "10px 12px",
+  marginTop: 12,
+  padding: "12px",
   borderRadius: 12,
   display: "flex",
   alignItems: "flex-start",
-  gap: 8,
+  gap: 10,
 };
 
 const warningText: React.CSSProperties = {
-  fontSize: 12,
+  fontSize: 13,
   fontWeight: 700,
   lineHeight: "1.4",
 };
@@ -78,20 +95,19 @@ const warningText: React.CSSProperties = {
 const expandBtn: React.CSSProperties = {
   background: "none",
   border: "none",
-  padding: "2px 6px",
-  borderRadius: 8,
+  padding: "8px 0 0",
   display: "inline-flex",
   alignItems: "center",
   gap: 4,
-  fontSize: 11,
+  fontSize: 12,
   fontWeight: 800,
-  color: "var(--roam-text-muted)",
+  color: "var(--brand-ochre, #d46e3a)",
   cursor: "pointer",
 };
 
 const fuelStripContainer: React.CSSProperties = {
-  marginTop: 10,
-  padding: "6px 0",
+  marginTop: 16,
+  marginBottom: 4,
 };
 
 const fuelStripBar: React.CSSProperties = {
@@ -99,29 +115,18 @@ const fuelStripBar: React.CSSProperties = {
   height: 8,
   borderRadius: 4,
   overflow: "hidden",
-  background: "rgba(0,0,0,0.15)",
+  background: "rgba(0,0,0,0.1)",
 };
 
 const stationDot: React.CSSProperties = {
   width: 6,
   height: 6,
   borderRadius: 3,
-  border: "1.5px solid rgba(255,255,255,0.8)",
+  border: "1.5px solid var(--roam-surface)",
   position: "absolute" as const,
   top: 1,
   transform: "translateX(-3px)",
-};
-
-const settingsBtn: React.CSSProperties = {
-  background: "none",
-  border: "none",
-  padding: 6,
-  borderRadius: 8,
-  display: "grid",
-  placeItems: "center",
-  cursor: "pointer",
-  color: "var(--roam-text-muted)",
-  flexShrink: 0,
+  background: "var(--roam-text)",
 };
 
 /* ── Color helpers ────────────────────────────────────────────────────── */
@@ -129,30 +134,30 @@ const settingsBtn: React.CSSProperties = {
 function severityColor(severity: string): { bg: string; text: string; icon: string } {
   switch (severity) {
     case "critical":
-      return { bg: "rgba(239,68,68,0.12)", text: "#ef4444", icon: "#ef4444" };
+      return { bg: "var(--bg-error, rgba(239,68,68,0.1))", text: "var(--text-error, #ef4444)", icon: "var(--text-error, #ef4444)" };
     case "warn":
-      return { bg: "rgba(245,158,11,0.12)", text: "#d97706", icon: "#f59e0b" };
+      return { bg: "rgba(245,158,11,0.1)", text: "#b45309", icon: "#f59e0b" };
     default:
-      return { bg: "rgba(59,130,246,0.1)", text: "#3b82f6", icon: "#3b82f6" };
+      return { bg: "var(--roam-surface-hover)", text: "var(--roam-text)", icon: "var(--roam-info, #3b82f6)" };
   }
 }
 
 function legColor(leg: { gap_exceeds_range: boolean; gap_exceeds_warn: boolean }): string {
-  if (leg.gap_exceeds_range) return "#ef4444";
+  if (leg.gap_exceeds_range) return "var(--bg-error, #ef4444)";
   if (leg.gap_exceeds_warn) return "#f59e0b";
   return "#22c55e";
 }
 
 function rangeStatusColor(analysis: FuelAnalysis): string {
-  if (analysis.has_critical_gaps) return "#ef4444";
+  if (analysis.has_critical_gaps) return "var(--text-error, #ef4444)";
   if (analysis.warnings.some((w) => w.severity === "warn")) return "#f59e0b";
   return "#22c55e";
 }
 
 function rangeStatusLabel(analysis: FuelAnalysis): string {
-  if (analysis.has_critical_gaps) return "FUEL GAP";
-  if (analysis.warnings.some((w) => w.severity === "warn")) return "Tight";
-  return "Range OK";
+  if (analysis.has_critical_gaps) return "Critical Gap";
+  if (analysis.warnings.some((w) => w.severity === "warn")) return "Tight Margins";
+  return "Coverage OK";
 }
 
 /* ── Component ────────────────────────────────────────────────────────── */
@@ -200,50 +205,52 @@ export function FuelSummaryCard({
       {/* Header */}
       <div style={headerRow}>
         <div style={titleGroup}>
-          <Fuel size={16} strokeWidth={2.5} style={{ color: statusColor, flexShrink: 0 }} />
+          <div style={{ background: `${statusColor}20`, padding: 8, borderRadius: 10 }}>
+            <Fuel size={20} strokeWidth={2.5} style={{ color: statusColor, display: "block" }} />
+          </div>
           <div>
             <div style={titleText}>Fuel Coverage</div>
             <div style={subtitleText}>
-              {stations.length} station{stations.length !== 1 ? "s" : ""} along route
-              {max_gap_km > 0 && ` · Longest gap ${Math.round(max_gap_km)}km`}
+              {stations.length} station{stations.length !== 1 ? "s" : ""} on route
             </div>
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          {onOpenSettings && (
-            <button
-              type="button"
-              style={settingsBtn}
-              onClick={(e) => { e.stopPropagation(); haptic.selection(); onOpenSettings(); }}
-              aria-label="Fuel settings"
-            >
-              <Settings2 size={15} strokeWidth={2.5} />
-            </button>
-          )}
-        </div>
+
+        {onOpenSettings && (
+          <button
+            type="button"
+            className="trip-interactive"
+            style={settingsBtn}
+            onClick={(e) => { e.stopPropagation(); haptic.selection(); onOpenSettings(); }}
+            aria-label="Edit Vehicle"
+          >
+            <Settings2 size={14} strokeWidth={2.5} />
+            Settings
+          </button>
+        )}
       </div>
 
       {/* Status pills */}
       <div style={statsRow}>
         <span style={{
           ...statPill,
-          background: `${statusColor}18`,
+          background: `${statusColor}15`,
           color: statusColor,
         }}>
           {statusLabel}
         </span>
         <span style={{
           ...statPill,
-          background: "rgba(0,0,0,0.08)",
-          color: "var(--roam-text-muted)",
+          background: "rgba(0,0,0,0.06)",
+          color: "var(--roam-text)",
         }}>
-          Range {profile.tank_range_km}km
+          Range: {profile.tank_range_km}km
         </span>
         {profile.fuel_type !== "unleaded" && (
           <span style={{
             ...statPill,
-            background: "rgba(0,0,0,0.08)",
-            color: "var(--roam-text-muted)",
+            background: "rgba(0,0,0,0.06)",
+            color: "var(--roam-text)",
           }}>
             {profile.fuel_type.toUpperCase()}
           </span>
@@ -261,9 +268,9 @@ export function FuelSummaryCard({
                   style={{
                     flex: leg.distance_km / totalKm,
                     background: legColor(leg),
-                    opacity: 0.7,
+                    opacity: 0.85,
                     minWidth: 2,
-                    borderRight: i < legs.length - 1 ? "1px solid rgba(255,255,255,0.3)" : undefined,
+                    borderRight: i < legs.length - 1 ? "1px solid rgba(255,255,255,0.4)" : undefined,
                   }}
                 />
               ))}
@@ -277,7 +284,6 @@ export function FuelSummaryCard({
                   style={{
                     ...stationDot,
                     left: `${pct}%`,
-                    background: "#fff",
                   }}
                   title={st.name}
                 />
@@ -285,8 +291,8 @@ export function FuelSummaryCard({
             })}
           </div>
           {worstGap && max_gap_km > profile.reserve_warn_km && (
-            <div style={{ fontSize: 10, fontWeight: 700, color: "var(--roam-text-muted)", marginTop: 4, textAlign: "center" as const }}>
-              {worstGap.from} → {worstGap.to}: {Math.round(worstGap.km)}km
+            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--roam-text-muted)", marginTop: 6, textAlign: "center" as const }}>
+              Longest gap: {Math.round(worstGap.km)}km ({worstGap.from} → {worstGap.to})
             </div>
           )}
         </div>
@@ -294,39 +300,41 @@ export function FuelSummaryCard({
 
       {/* Top warnings */}
       {topWarnings.length > 0 && (
-        <>
-          {topWarnings.slice(0, expanded ? undefined : 2).map((w, i) => {
+        <div style={{ marginTop: 8 }}>
+          {topWarnings.slice(0, expanded ? undefined : 1).map((w, i) => {
             const clr = severityColor(w.severity);
             return (
               <div key={i} style={{ ...warningBox, background: clr.bg }}>
-                <AlertTriangle size={14} strokeWidth={2.5} style={{ color: clr.icon, flexShrink: 0, marginTop: 1 }} />
+                <AlertTriangle size={16} strokeWidth={2.5} style={{ color: clr.icon, flexShrink: 0, marginTop: 1 }} />
                 <div style={{ ...warningText, color: clr.text }}>{w.message}</div>
               </div>
             );
           })}
 
-          {topWarnings.length > 2 && (
-            <button type="button" style={expandBtn} onClick={toggleExpanded}>
-              {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-              {expanded ? "Less" : `${topWarnings.length - 2} more`}
-            </button>
+          {topWarnings.length > 1 && (
+            <div style={{ textAlign: "center" }}>
+              <button type="button" style={expandBtn} onClick={toggleExpanded}>
+                {expanded ? "Show Less" : `View ${topWarnings.length - 1} More Warning${topWarnings.length > 2 ? "s" : ""}`}
+                {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </button>
+            </div>
           )}
-        </>
+        </div>
       )}
 
       {/* Critical gap recommendation */}
-      {has_critical_gaps && worstGap && (
+      {has_critical_gaps && worstGap && expanded && (
         <div style={{
-          marginTop: 8,
-          padding: "8px 12px",
-          borderRadius: 10,
-          background: "var(--danger-tint)",
-          border: "1px solid var(--roam-border-strong)",
+          marginTop: 12,
+          padding: "12px",
+          borderRadius: 12,
+          background: "var(--bg-error, rgba(239,68,68,0.1))",
+          border: "1px dashed var(--text-error, #ef4444)",
         }}>
-          <div style={{ fontSize: 11, fontWeight: 900, color: "var(--roam-danger)", marginBottom: 2 }}>
+          <div style={{ fontSize: 12, fontWeight: 900, color: "var(--text-error, #ef4444)", marginBottom: 4 }}>
             Recommendation
           </div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--roam-text-muted)", lineHeight: "1.4" }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--roam-text)", lineHeight: "1.4" }}>
             Fill up and carry a 20L jerry can from {worstGap.from}. The {Math.round(worstGap.km)}km gap
             {worstGap.km > profile.tank_range_km
               ? ` exceeds your ${profile.tank_range_km}km range.`

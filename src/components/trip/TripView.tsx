@@ -24,13 +24,14 @@ import {
   Loader2,
   Route,
   Map as MapIcon,
+  Navigation,
+  Clock
 } from "lucide-react";
 
 import {
   useAlerts,
   NextAlertBanner,
   LegAlertStrip,
-  RouteAssessment,
   type AlertHighlightEvent,
 } from "@/components/trip/TripAlertsPanel";
 import { TripSuggestionsPanel } from "@/components/trip/TripSuggestionsPanel";
@@ -169,7 +170,6 @@ export function TripView({
     highCount,
     totalCount,
     staleness,
-    assessment,
     hideBehind,
     toggleHideBehind,
     behindCount,
@@ -282,30 +282,7 @@ export function TripView({
 
   return (
     <div className={s.root}>
-      {/* ── Route summary ──────────────────────────────────────────────── */}
-      <div className={s.summaryCard}>
-        <div className={s.summaryRow}>
-          <div className={s.summaryLabel}>Route Overview</div>
-          <div className={s.summaryStats}>
-            {formatDist(distance)} · {formatDur(duration)}
-          </div>
-        </div>
-        {dirty && (
-          <div className={s.dirtyBanner}>
-            <Save size={12} strokeWidth={2.5} />
-            Unsaved route changes
-          </div>
-        )}
-      </div>
-
-      {/* ── Route assessment (pre-departure safety summary) ────────── */}
-      <RouteAssessment
-        assessment={assessment}
-        staleness={staleness}
-        onHighlight={onHighlightAlert}
-      />
-
-      {/* ── Fuel summary card (between route summary and alerts) ────── */}
+      {/* ── Fuel summary card ────── */}
       <FuelSummaryCard
         analysis={fuelAnalysis ?? null}
         onOpenSettings={onOpenFuelSettings}
@@ -354,161 +331,202 @@ export function TripView({
 
       {/* ══ Route section ═══════════════════════════════════════════════ */}
       {activeSection === "route" && (
-        <div className={s.stopList}>
-          {stops.map((stop, index) => {
-            const type = resolveType(stop);
-            const isFocused = focusedStopId === stop.id;
-            const locked = isLockedStop(stop);
-            const legAlerts =
-            index < stops.length - 1 ? alertsForLeg(index, index + 1) : [];
-            return (
-              <div key={stop.id ?? index} className={s.stopEntry}>
-                {/* Stop card */}
-                <div
-                  className={cx(s.stopCard, isFocused && s.stopCardFocused)}
-                  data-stop-type={type}
-                  onClick={() => {
-                    haptic.selection();
-                    onFocusStop(stop.id ?? null);
-                  }}
-                >
-                  {/* Marker icon */}
-                  <div className={s.stopMarker} data-type={type}>
-                    <StopIcon type={type} />
-                    <div className={s.indexBadge} data-type={type}>
-                      {index + 1}
-                    </div>
-                  </div>
+        <>
+          {/* Subtle Route Meta Row */}
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0 4px 16px",
+            color: "var(--roam-text-muted)",
+            fontSize: 12,
+            fontWeight: 700
+          }}>
+            <div style={{ display: "flex", gap: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <Navigation size={13} strokeWidth={2.5} />
+                {formatDist(distance)}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <Clock size={13} strokeWidth={2.5} />
+                {formatDur(duration)}
+              </div>
+            </div>
 
-                  {/* Name + meta */}
-                  <div className={s.stopContent}>
-                    <div className={s.stopName}>{stopLabel(stop, index)}</div>
-                    <div className={s.stopMeta}>
-                      {typeof stop.lat === "number" && typeof stop.lng === "number" && (
-                        <span className={s.stopCoords}>
-                          {stop.lat.toFixed(4)}, {stop.lng.toFixed(4)}
+            {dirty && (
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                color: "var(--roam-warn)",
+                background: "var(--severity-minor-tint)",
+                padding: "2px 8px",
+                borderRadius: 8,
+                fontSize: 10,
+                fontWeight: 900
+              }}>
+                <Save size={11} strokeWidth={2.5} />
+                Unsaved
+              </div>
+            )}
+          </div>
+
+          <div className={s.stopList}>
+            {stops.map((stop, index) => {
+              const type = resolveType(stop);
+              const isFocused = focusedStopId === stop.id;
+              const locked = isLockedStop(stop);
+              const legAlerts =
+              index < stops.length - 1 ? alertsForLeg(index, index + 1) : [];
+              return (
+                <div key={stop.id ?? index} className={s.stopEntry}>
+                  {/* Stop card */}
+                  <div
+                    className={cx(s.stopCard, isFocused && s.stopCardFocused)}
+                    data-stop-type={type}
+                    onClick={() => {
+                      haptic.selection();
+                      onFocusStop(stop.id ?? null);
+                    }}
+                  >
+                    {/* Marker icon */}
+                    <div className={s.stopMarker} data-type={type}>
+                      <StopIcon type={type} />
+                      <div className={s.indexBadge} data-type={type}>
+                        {index + 1}
+                      </div>
+                    </div>
+
+                    {/* Name + meta */}
+                    <div className={s.stopContent}>
+                      <div className={s.stopName}>{stopLabel(stop, index)}</div>
+                      <div className={s.stopMeta}>
+                        {typeof stop.lat === "number" && typeof stop.lng === "number" && (
+                          <span className={s.stopCoords}>
+                            {stop.lat.toFixed(4)}, {stop.lng.toFixed(4)}
+                          </span>
+                        )}
+                        <span className={s.stopTypeBadge} data-type={type}>
+                          {type}
                         </span>
-                      )}
-                      <span className={s.stopTypeBadge} data-type={type}>
-                        {type}
-                      </span>
+                      </div>
                     </div>
+
+                    {/* Edit controls */}
+                    {!locked && (
+                      <div className={s.stopControls}>
+                        {index > 1 && (
+                          <button
+                            type="button"
+                            className={s.controlBtn}
+                            disabled={!!busy}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              moveStop(index, -1);
+                            }}
+                            aria-label="Move up"
+                          >
+                            <ChevronUp size={14} strokeWidth={2.5} />
+                          </button>
+                        )}
+                        {index < stops.length - 2 && (
+                          <button
+                            type="button"
+                            className={s.controlBtn}
+                            disabled={!!busy}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              moveStop(index, 1);
+                            }}
+                            aria-label="Move down"
+                          >
+                            <ChevronDown size={14} strokeWidth={2.5} />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className={s.controlBtnDanger}
+                          disabled={!!busy}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeStop(stop.id);
+                          }}
+                          aria-label="Remove stop"
+                        >
+                          <X size={14} strokeWidth={2.5} />
+                        </button>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Edit controls */}
-                  {!locked && (
-                    <div className={s.stopControls}>
-                      {index > 1 && (
-                        <button
-                          type="button"
-                          className={s.controlBtn}
-                          disabled={!!busy}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            moveStop(index, -1);
-                          }}
-                          aria-label="Move up"
-                        >
-                          <ChevronUp size={14} strokeWidth={2.5} />
-                        </button>
-                      )}
-                      {index < stops.length - 2 && (
-                        <button
-                          type="button"
-                          className={s.controlBtn}
-                          disabled={!!busy}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            moveStop(index, 1);
-                          }}
-                          aria-label="Move down"
-                        >
-                          <ChevronDown size={14} strokeWidth={2.5} />
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        className={s.controlBtnDanger}
-                        disabled={!!busy}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeStop(stop.id);
-                        }}
-                        aria-label="Remove stop"
-                      >
-                        <X size={14} strokeWidth={2.5} />
-                      </button>
+                  {/* Inline leg alerts */}
+                  {legAlerts.length > 0 && (
+                  <LegAlertStrip
+                  alerts={legAlerts}
+                  highlighted={highlightedAlertId}
+                  onHighlight={onHighlightAlert}
+                  onDismiss={dismissAlert}
+                />
+                  )}
+
+                  {/* Connector line between stops */}
+                  {index < stops.length - 1 && legAlerts.length === 0 && (
+                    <div className={s.connector}>
+                      <div className={s.connectorLine} />
                     </div>
                   )}
                 </div>
+              );
+            })}
 
-                {/* Inline leg alerts */}
-                {legAlerts.length > 0 && (
-                 <LegAlertStrip
-                 alerts={legAlerts}
-                 highlighted={highlightedAlertId}
-                 onHighlight={onHighlightAlert}
-                 onDismiss={dismissAlert}
-               />
-                )}
+            {/* Add stop button */}
+            <button
+              type="button"
+              className={s.addStopBtn}
+              disabled={!!busy}
+              onClick={() => {
+                haptic.tap();
+                setActiveSection("places");
+              }}
+            >
+              <Plus size={15} strokeWidth={2.5} />
+              Add Stop from Places
+            </button>
 
-                {/* Connector line between stops */}
-                {index < stops.length - 1 && legAlerts.length === 0 && (
-                  <div className={s.connector}>
-                    <div className={s.connectorLine} />
-                  </div>
-                )}
+            {/* Save / Reset footer */}
+            {dirty && (
+              <div className={s.footer}>
+                <button
+                  type="button"
+                  className={s.resetBtn}
+                  disabled={!!busy}
+                  onClick={reset}
+                >
+                  <RotateCcw size={13} strokeWidth={2.5} />
+                  Reset
+                </button>
+                <button
+                  type="button"
+                  className={cx(s.saveBtn, (!canRebuild || !!busy) && s.saveBtnDisabled)}
+                  disabled={!!busy || !canRebuild}
+                  onClick={rebuild}
+                >
+                  {busy ? (
+                    <>
+                      <Loader2 size={14} strokeWidth={2.5} className={s.spinner} />
+                      Saving…
+                    </>
+                  ) : (
+                    <>
+                      <Save size={14} strokeWidth={2.5} />
+                      Save Route
+                    </>
+                  )}
+                </button>
               </div>
-            );
-          })}
-
-          {/* Add stop button */}
-          <button
-            type="button"
-            className={s.addStopBtn}
-            disabled={!!busy}
-            onClick={() => {
-              haptic.tap();
-              setActiveSection("places");
-            }}
-          >
-            <Plus size={15} strokeWidth={2.5} />
-            Add Stop from Places
-          </button>
-
-          {/* Save / Reset footer */}
-          {dirty && (
-            <div className={s.footer}>
-              <button
-                type="button"
-                className={s.resetBtn}
-                disabled={!!busy}
-                onClick={reset}
-              >
-                <RotateCcw size={13} strokeWidth={2.5} />
-                Reset
-              </button>
-              <button
-                type="button"
-                className={cx(s.saveBtn, (!canRebuild || !!busy) && s.saveBtnDisabled)}
-                disabled={!!busy || !canRebuild}
-                onClick={rebuild}
-              >
-                {busy ? (
-                  <>
-                    <Loader2 size={14} strokeWidth={2.5} className={s.spinner} />
-                    Saving…
-                  </>
-                ) : (
-                  <>
-                    <Save size={14} strokeWidth={2.5} />
-                    Save Route
-                  </>
-                )}
-              </button>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        </>
       )}
 
       {/* ══ Places section ══════════════════════════════════════════════ */}

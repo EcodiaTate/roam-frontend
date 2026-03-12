@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState } from "react";
 import type { TripStop, TripStopType } from "@/lib/types/trip";
 import { shortId } from "@/lib/utils/ids";
 import type { NavCoord } from "@/lib/types/geo";
+import { getCurrentPosition } from "@/lib/native/geolocation";
 
 type StopPatch = Partial<Pick<TripStop, "type" | "name" | "lat" | "lng">>;
 
@@ -13,8 +14,9 @@ function ensureStartEnd(stops: TripStop[]): TripStop[] {
   const hasStart = out.some((s) => s.type === "start");
   const hasEnd = out.some((s) => s.type === "end");
 
-  if (!hasStart) out = [{ id: shortId(), type: "start", name: "Start", lat: -27.4705, lng: 153.0260 }, ...out];
-  if (!hasEnd) out = [...out, { id: shortId(), type: "end", name: "End", lat: -27.4698, lng: 153.0251 }];
+  // Changed name from "Start" and "End" to "" so the input shows true placeholders
+  if (!hasStart) out = [{ id: shortId(), type: "start", name: "", lat: -27.4705, lng: 153.0260 }, ...out];
+  if (!hasEnd) out = [...out, { id: shortId(), type: "end", name: "", lat: -27.4698, lng: 153.0251 }];
   return out;
 }
 
@@ -32,6 +34,9 @@ export function useNewTripDraft() {
 
   const [mapCenter, setMapCenter] = useState<NavCoord | null>(null);
 
+  // Track locating state natively in the draft
+  const [isLocating, setIsLocating] = useState(false);
+
   const updateStop = useCallback((id: string, patch: StopPatch) => {
     setStops((prev) =>
       prev.map((s) => (s.id === id ? { ...s, ...patch } : s)),
@@ -42,7 +47,7 @@ export function useNewTripDraft() {
     setStops((prev) => {
       const id = shortId();
       const center = mapCenter ?? { lat: prev[0]?.lat ?? -27.47, lng: prev[0]?.lng ?? 153.02 };
-      const next: TripStop = { id, type, name: type === "poi" ? "Stop" : type, lat: center.lat, lng: center.lng };
+      const next: TripStop = { id, type, name: type === "poi" ? "" : type, lat: center.lat, lng: center.lng };
 
       // insert before end if exists
       const endIdx = prev.findIndex((s) => s.type === "end");
@@ -88,22 +93,22 @@ export function useNewTripDraft() {
     const start = stops.find((s) => s.type === "start");
     if (!start?.id) return;
 
-    if (!("geolocation" in navigator)) return;
+    setIsLocating(true);
+    try {
+      const pos = await getCurrentPosition();
 
-    const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy: true,
-        timeout: 8000,
-        maximumAge: 5000,
+      updateStop(start.id, {
+        lat: pos.lat,
+        lng: pos.lng,
+        name: "My Location",
       });
-    });
-
-    updateStop(start.id, {
-      lat: pos.coords.latitude,
-      lng: pos.coords.longitude,
-      name: "My location",
-    });
-    setMapCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      setMapCenter({ lat: pos.lat, lng: pos.lng });
+    } catch (error) {
+      console.warn("Failed to get location:", error);
+      throw error;
+    } finally {
+      setIsLocating(false);
+    }
   }, [stops, updateStop]);
 
   const stopSummary = useMemo(() => {
@@ -129,7 +134,9 @@ export function useNewTripDraft() {
     removeStop,
     reorderStop,
     updateStop,
+
     useMyLocationForStart,
+    isLocating,
 
     stopSummary,
   };

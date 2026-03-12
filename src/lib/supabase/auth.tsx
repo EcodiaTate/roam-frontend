@@ -95,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // which would navigate the WebView off roam.ecodia.au into Safari.
       // Instead we open the OAuth URL in SFSafariViewController (in-app sheet).
       // After Google auth, Supabase redirects to /auth/callback which loads inside
-      // the sheet — that page calls Browser.close() and the main WebView's
+      // the sheet - that page calls Browser.close() and the main WebView's
       // onAuthStateChange fires via shared localStorage.
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -132,7 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const nonceHash = await sha256Hex(nonce);
 
       // clientId is ignored by the native iOS plugin (ASAuthorizationAppleIDProvider
-      // has no client ID concept) — Apple always sets aud = Bundle ID in the JWT.
+      // has no client ID concept) - Apple always sets aud = Bundle ID in the JWT.
       // Supabase must have au.ecodia.roam listed under Apple provider → Authorized Client IDs.
       const result = await SignInWithApple.authorize({
         clientId: "au.ecodia.roam",
@@ -155,7 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       return { error };
     } catch (e: any) {
-      // 1001 = ASAuthorizationErrorCanceled — user dismissed the sheet, not an error
+      // 1001 = ASAuthorizationErrorCanceled - user dismissed the sheet, not an error
       const msg: string = e?.message ?? "";
       if (msg.includes("1001") || msg.toLowerCase().includes("cancel")) {
         return { error: null };

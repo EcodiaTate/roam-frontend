@@ -47,7 +47,8 @@ import type { PlacesPack, PlaceItem } from "@/lib/types/places";
 import type { TripStop } from "@/lib/types/trip";
 import type { FuelAnalysis, FuelTrackingState, VehicleFuelProfile } from "@/lib/types/fuel";
 
-import { UserRound, Users, Compass, MapPinned } from "lucide-react";
+// Updated icons here
+import { UserRound, UserPlus, Library } from "lucide-react";
 
 /* ── Constants ────────────────────────────────────────────────────────── */
 
@@ -147,13 +148,13 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   }, [activeNav.isActive]);
 
   // ── Re-apply URL focus once places load (timing race fix) ─────────
-useEffect(() => {
-  const fp = sp.get("focus_place_id");
-  if (fp && places && places.items?.length > 0) {
-    // Only set if not already focused (avoid infinite loop)
-    setFocusedPlaceId((prev) => (prev === fp ? prev : fp));
-  }
-}, [places, sp]);
+  useEffect(() => {
+    const fp = sp.get("focus_place_id");
+    if (fp && places && places.items?.length > 0) {
+      // Only set if not already focused (avoid infinite loop)
+      setFocusedPlaceId((prev) => (prev === fp ? prev : fp));
+    }
+  }, [places, sp]);
 
   // ── Boot logic ──────────────────────────────────────────────────
   useEffect(() => {
@@ -221,7 +222,7 @@ useEffect(() => {
     return () => { cancelled = true; };
   }, [desiredPlanId]);
 
-  // Redirect if no plan — /plans is now a drawer; send to /new to create one
+  // Redirect if no plan - /plans is now a drawer; send to /new to create one
   useEffect(() => {
     if (phase !== "no-plan") return;
     router.replace("/new");
@@ -412,15 +413,11 @@ useEffect(() => {
 
   // ── Off-route reroute handler ───────────────────────────────────
   const handleOffRouteReroute = useCallback(async () => {
-    // TODO: implement corridor A* reroute from current position
-    // For now, rebuild the route from current position through remaining stops
     if (!activeNav.lastPosition || !navpack) return;
 
     const currentPos = activeNav.lastPosition;
     const allStops = navpack.req.stops;
 
-    // Find which stops are still ahead (use kmAlongRoute from nav state)
-    // For simplicity: keep all stops but prepend current location
     const remainingStops: TripStop[] = [
       {
         id: "__reroute_origin",
@@ -429,7 +426,6 @@ useEffect(() => {
         lat: currentPos.lat,
         lng: currentPos.lng,
       },
-      // Keep all non-start stops
       ...allStops.filter((s) => s.type !== "start"),
     ];
 
@@ -558,22 +554,16 @@ useEffect(() => {
       </div>
 
       {/* ── Active Navigation Overlays ── */}
-
-      {/* Turn-by-turn HUD - top of map */}
       <NavigationHUD
         nav={activeNav.nav}
         visible={activeNav.isActive && activeNav.nav.status !== "off_route"}
       />
-
-      {/* Off-route banner - replaces HUD when off route */}
       <OffRouteBanner
         visible={activeNav.nav.status === "off_route"}
         distFromRoute_m={activeNav.nav.distFromRoute_m}
         hasCorridorGraph={!!corridor}
         onReroute={handleOffRouteReroute}
       />
-
-      {/* Navigation controls - right side of map */}
       <NavigationControls
         visible={activeNav.isActive}
         isMuted={activeNav.isMuted}
@@ -582,50 +572,39 @@ useEffect(() => {
         onRecenter={mapNavMode.recenter}
         onEnd={activeNav.stop}
       />
-
-      {/* Navigation bar - bottom ETA/distance/fatigue */}
       <NavigationBar
         nav={activeNav.nav}
         fuelTracking={fuelTracking}
         visible={activeNav.isActive}
         onTap={() => {
-          // Tapping the bar expands the sheet briefly to show trip details
           if (sheetRef.current) {
             const h = sheetRef.current.clientHeight;
             setOffsetY(-(h - 300));
-            setTimeout(() => setOffsetY(0), 8000); // auto-collapse after 8s
+            setTimeout(() => setOffsetY(0), 8000);
           }
         }}
       />
 
-      {/* Fuel pressure indicator - floating pill on map (hidden during active nav, bar shows fuel) */}
       {!activeNav.isActive && <FuelPressureIndicator tracking={fuelTracking} />}
-
-      {/* Fuel last-chance toast */}
       <FuelLastChanceToast tracking={fuelTracking} currentKm={currentKm} />
-
-      {/* Fuel settings modal */}
       <VehicleFuelSettings
         open={fuelSettingsOpen}
         onClose={() => setFuelSettingsOpen(false)}
         onSaved={handleFuelProfileSaved}
       />
 
-      {/* Basemap download card - floats above map, below sheet (hidden during nav) */}
       {!activeNav.isActive && (
         <div style={{ position: "absolute", top: 12, left: 12, right: 12, zIndex: 15, pointerEvents: "auto" }}>
           <BasemapDownloadCard region="australia" compact />
         </div>
       )}
 
-      {/* Plans drawer */}
       <PlanDrawer
         open={drawOpen}
         onClose={() => setDrawOpen(false)}
         currentPlanId={plan.plan_id}
       />
 
-      {/* Invite modal */}
       <InviteCodeModal
         open={inviteOpen}
         planId={plan.plan_id}
@@ -650,7 +629,6 @@ useEffect(() => {
           willChange: "transform",
         }}
       >
-        {/* Drag Handle — 48px touch target with 6px visual handle */}
         <div
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
@@ -667,9 +645,9 @@ useEffect(() => {
 
         {/* Header */}
         <div style={{ padding: "0 20px 12px" }}>
-          {/* Title row */}
+          {/* Top Row: Title + Icon Buttons */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-            <div style={{ minWidth: 0 }}>
+            <div style={{ minWidth: 0, flex: 1 }}>
               <div
                 style={{
                   fontSize: 20, fontWeight: 950, margin: 0,
@@ -684,52 +662,50 @@ useEffect(() => {
               </div>
             </div>
 
-            <button
-              type="button"
-              className="trip-interactive trip-btn-icon"
-              aria-label="Account"
-              onClick={() => { haptic.selection(); router.push("/login"); }}
-              style={{
-                borderRadius: 999, width: 40, height: 40,
-                display: "grid", placeItems: "center",
-                background: "var(--roam-surface-hover)", flexShrink: 0,
-              }}
-            >
-              <UserRound size={17} />
-            </button>
-          </div>
+            {/* Circular Action Buttons */}
+            <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+              <button
+                type="button"
+                className="trip-interactive trip-btn-icon"
+                aria-label="Plans"
+                onClick={() => { haptic.selection(); setDrawOpen(true); }}
+                style={{
+                  borderRadius: 999, width: 40, height: 40,
+                  display: "grid", placeItems: "center",
+                  background: "rgba(0, 0, 0, 0.08)", color: "var(--roam-text)",
+                }}
+              >
+                <Library size={18} />
+              </button>
 
-          {/* Action chips — horizontal row (saves ~100px vs stacked buttons) */}
-          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-            <button
-              type="button"
-              className="trip-interactive trip-btn-sm"
-              onClick={() => { haptic.selection(); setInviteMode("create"); setInviteOpen(true); }}
-              style={{ flex: 1, justifyContent: "center" }}
-            >
-              <Users size={15} />
-              Invite
-            </button>
+              <button
+                type="button"
+                className="trip-interactive trip-btn-icon"
+                aria-label="Invite"
+                onClick={() => { haptic.selection(); setInviteMode("create"); setInviteOpen(true); }}
+                style={{
+                  borderRadius: 999, width: 40, height: 40,
+                  display: "grid", placeItems: "center",
+                  background: "rgba(0, 0, 0, 0.08)", color: "var(--roam-text)",
+                }}
+              >
+                <UserPlus size={18} />
+              </button>
 
-            <button
-              type="button"
-              className="trip-interactive trip-btn-sm"
-              onClick={() => { haptic.selection(); router.push(`/guide?plan_id=${encodeURIComponent(plan.plan_id)}`); }}
-              style={{ flex: 1, justifyContent: "center" }}
-            >
-              <Compass size={15} />
-              Guide
-            </button>
-
-            <button
-              type="button"
-              className="trip-interactive trip-btn-sm"
-              onClick={() => { haptic.selection(); setDrawOpen(true); }}
-              style={{ flex: 1, justifyContent: "center" }}
-            >
-              <MapPinned size={15} />
-              Plans
-            </button>
+              <button
+                type="button"
+                className="trip-interactive trip-btn-icon"
+                aria-label="Account"
+                onClick={() => { haptic.selection(); router.push("/login"); }}
+                style={{
+                  borderRadius: 999, width: 40, height: 40,
+                  display: "grid", placeItems: "center",
+                  background: "var(--brand-ochre)", color: "#fff",
+                }}
+              >
+                <UserRound size={18} />
+              </button>
+            </div>
           </div>
 
           {/* ── Start Navigation button (shown when NOT actively navigating) ── */}
@@ -760,8 +736,7 @@ useEffect(() => {
           )}
         </div>
 
-        {/* Scrollable content — touch-action:pan-y overrides parent sheet's touch-action:none
-             so iOS/WKWebView handles vertical scroll natively here */}
+        {/* Scrollable content */}
         <div style={{ flex: 1, overflow: "hidden", touchAction: "pan-y" }}>
           <div
             className="roam-scroll"

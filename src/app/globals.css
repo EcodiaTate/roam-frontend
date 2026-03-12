@@ -3,7 +3,7 @@
 /* ==========================================================================
    ROAM - Australian Road Trip Navigation
    Design System: "Outback Native"
-   
+
    Palette story:
      Sand dunes at golden hour → backgrounds
      Sun-bleached canvas       → card surfaces
@@ -91,7 +91,7 @@
   --tab-bar-bg: var(--surface-card);
   --tab-active-color: var(--brand-ochre);
   --tab-inactive-color: #a89878;       /* Warm desert sand - outback aesthetic */
-  --tab-center-bg: var(--brand-eucalypt);
+  --tab-center-bg: var(--brand-ochre);
   --tab-center-icon: var(--on-color);
   --tab-center-glow: 0 6px 20px rgba(45, 110, 64, 0.35);
 
@@ -99,7 +99,7 @@
   --tab-glass-border: rgba(26, 22, 19, 0.05);
   --tab-glass-shadow: 0 -6px 24px rgba(26, 22, 19, 0.06);
 
-  /* ── Warm shadows ──────────────────────────────────────── 
+  /* ── Warm shadows ────────────────────────────────────────
      All shadows use warm brown - never neutral/cool gray. */
   --shadow-soft: 0 2px 12px rgba(40, 32, 20, 0.06);
   --shadow-medium: 0 4px 20px rgba(40, 32, 20, 0.09);
@@ -260,7 +260,7 @@ html, body {
   user-select: none;
 }
 
-/* Native app shell lock — applied by (app) layout only, not marketing pages */
+/* Native app shell lock - applied by (app) layout only, not marketing pages */
 html.roam-shell {
   overflow: hidden;
   position: fixed;
@@ -298,7 +298,7 @@ input, textarea, [contenteditable] {
 }
 :focus:not(:focus-visible) { outline: none; }
 
-/* App shell — absolute fill, safe-area padding (except bottom, handled by absolute tab bar) */
+/* App shell - absolute fill, safe-area padding (except bottom, handled by absolute tab bar) */
 .roam-shell {
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
@@ -578,10 +578,7 @@ input, textarea, [contenteditable] {
   background: var(--roam-accent);
   color: var(--on-color);
 }
-.trip-btn-secondary {
-  background: var(--roam-surface-hover);
-  color: var(--roam-text);
-}
+
 .trip-btn-danger {
   background: var(--roam-surface-hover);
   color: var(--roam-danger);
@@ -904,7 +901,7 @@ input, textarea, [contenteditable] {
   justify-content: flex-end;
   animation: roam-fadeIn var(--dur-normal) ease-out forwards;
   overflow: hidden;
-  /* Do NOT use height: 100dvh — it uses the "large" (pre-keyboard) viewport on iOS
+  /* Do NOT use height: 100dvh - it uses the "large" (pre-keyboard) viewport on iOS
      and won't shrink when KeyboardResize.Body resizes the WKWebView.
      top/bottom/left/right: 0 already fills the resized viewport correctly. */
 }
@@ -1097,7 +1094,7 @@ input, textarea, [contenteditable] {
   box-shadow: var(--tab-glass-shadow);
 }
 
-/* Safe-area leg — extends glass effect into bottom safe area */
+/* Safe-area leg - extends glass effect into bottom safe area */
 .roam-tabs::after {
   content: "";
   position: absolute;

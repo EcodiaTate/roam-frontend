@@ -79,10 +79,8 @@ export type EnrichedAlert = {
   distFromRouteKm: number | null;
   contextLabel: string;
   relevanceScore: number;
-  // ── BETTER_NAV additions ──
   routeImpact: RouteImpact;
   isAhead: boolean;
-  /** Original raw geometry for intersection tests */
   rawGeometry?: any;
 };
 
@@ -238,21 +236,12 @@ export function extractCoord(geo: any, bbox: number[] | null | undefined): { lat
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   Route Impact Classification - BETTER_NAV #2
-
-   Tests whether alert geometry actually intersects the route polyline
-   buffer.  This is the core safety feature - distinguishing "closure
-   ON your road" from "closure 2km away on a different road."
+   Route Impact Classification
    ══════════════════════════════════════════════════════════════════════ */
 
-/** Types that indicate a physical road blockage */
 const BLOCKING_TRAFFIC_TYPES = new Set<string>(["closure", "flooding"]);
 const BLOCKING_HAZARD_KINDS = new Set<string>(["flood", "fire", "cyclone"]);
 
-/**
- * Extracts ALL coordinates from any GeoJSON geometry for intersection
- * testing.  Returns array of [lng, lat] pairs.
- */
 function extractAllCoords(geo: any): Array<[number, number]> {
   if (!geo) return [];
   switch (geo.type) {
@@ -271,21 +260,12 @@ function extractAllCoords(geo: any): Array<[number, number]> {
   }
 }
 
-/**
- * Tests if ANY point of an alert's geometry is within the route buffer.
- * Returns the minimum distance in km.
- *
- * For performance on long routes (2000+ km), we subsample the route
- * polyline - checking every Nth vertex - and early-exit when we find
- * something close enough.
- */
 function minDistanceToRoute(
   alertCoords: Array<[number, number]>,
   routeCoords: Array<[number, number]>,
 ): number {
   if (alertCoords.length === 0 || routeCoords.length === 0) return Infinity;
 
-  // Subsample route to ~500 check-points max
   const step = Math.max(1, Math.floor(routeCoords.length / 500));
   let minDist = Infinity;
 
@@ -294,10 +274,8 @@ function minDistanceToRoute(
       const [rLng, rLat] = routeCoords[i];
       const d = haversineKm(aLat, aLng, rLat, rLng);
       if (d < minDist) minDist = d;
-      // Early exit - anything within 100m is definitely on-route
       if (minDist < 0.1) return minDist;
     }
-    // Always check the last point
     const [lastLng, lastLat] = routeCoords[routeCoords.length - 1];
     const dLast = haversineKm(aLat, aLng, lastLat, lastLng);
     if (dLast < minDist) minDist = dLast;
@@ -306,15 +284,6 @@ function minDistanceToRoute(
   return minDist;
 }
 
-/**
- * Classify how an alert impacts the route.
- *
- * - geometry within 0.5km AND blocking type  → blocks_route
- * - geometry within 0.5km, non-blocking      → affects_route
- * - geometry within 2km AND blocking type     → affects_route (safety margin)
- * - centroid within 5km                       → nearby
- * - everything else                           → informational
- */
 function classifyRouteImpact(
   alertKind: "traffic" | "hazard",
   alertType: string,
@@ -353,12 +322,7 @@ function classifyRouteImpact(
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   Cross-Overlay Deduplication - BETTER_NAV #8b
-
-   Same real-world event can appear as both a TrafficEvent (type
-   "flooding") and a HazardEvent (kind "flood") from different sources.
-   Merge by proximity - if two alerts of related types are within 2km,
-   keep the higher-severity one.
+   Cross-Overlay Deduplication
    ══════════════════════════════════════════════════════════════════════ */
 
 const RELATED_PAIRS = new Map<string, Set<string>>([
@@ -389,13 +353,11 @@ function deduplicateAlerts(alerts: EnrichedAlert[]): EnrichedAlert[] {
       const b = sorted[j];
       if (!b.coord) continue;
 
-      // Same source type, very close - duplicate feed entry
       if (a.alertKind === b.alertKind && a.typeLabel === b.typeLabel) {
         const d = haversineKm(a.coord.lat, a.coord.lng, b.coord.lat, b.coord.lng);
         if (d < 1.0) { removed.add(b.id); continue; }
       }
 
-      // Cross-overlay: related types within 2km
       const tA = a.typeLabel.replace(/ /g, "_");
       const tB = b.typeLabel.replace(/ /g, "_");
       if (isRelatedType(tA, tB)) {
@@ -409,7 +371,7 @@ function deduplicateAlerts(alerts: EnrichedAlert[]): EnrichedAlert[] {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   Enrichment engine - PROXIMITY-FIRST scoring + route impact
+   Enrichment engine
    ══════════════════════════════════════════════════════════════════════ */
 
 function fmtKm(km: number): string {
@@ -443,12 +405,6 @@ function buildContextLabel(
   return parts.join(" · ");
 }
 
-/**
- * PROXIMITY-FIRST relevance scoring with route impact weighting.
- *
- * Route-blocking alerts get a massive priority bonus (−500) to ensure
- * they ALWAYS surface at the top regardless of distance.
- */
 function relevanceScore(
   sevOrder: number,
   userDist: number | null,
@@ -457,8 +413,6 @@ function relevanceScore(
   impact: RouteImpact,
 ): number {
   let s = 0;
-
-  // Route impact is the DOMINANT factor
   s += IMPACT_CONFIG[impact].order * 200;
 
   if (impact === "blocks_route") s -= 500;
@@ -563,7 +517,7 @@ export function enrichAlerts(
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   Staleness helpers - BETTER_NAV #4
+   Staleness helpers
    ══════════════════════════════════════════════════════════════════════ */
 
 type FreshnessLevel = "fresh" | "stale" | "expired";
@@ -590,7 +544,7 @@ function overlayStaleness(createdAt: string | null | undefined): {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   useAlerts hook - single source of truth for all alert consumers
+   useAlerts hook
    ══════════════════════════════════════════════════════════════════════ */
 
 export function useAlerts(
@@ -605,11 +559,9 @@ export function useAlerts(
     try { return decodePolyline6(routeGeometry); } catch { return null; }
   }, [routeGeometry]);
 
-  // ── Dismiss state - BETTER_NAV #8c ──
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const lastOverlayTimestampRef = useRef<string>("");
 
-  // Reset dismissed state when overlay data actually changes
   useEffect(() => {
     const key = `${traffic?.created_at ?? ""}|${hazards?.created_at ?? ""}`;
     if (key !== lastOverlayTimestampRef.current) {
@@ -623,14 +575,12 @@ export function useAlerts(
     setDismissedIds((prev) => new Set(prev).add(id));
   }, []);
 
-  // ── Behind filter state - BETTER_NAV #8a ──
   const [hideBehind, setHideBehind] = useState(false);
   const toggleHideBehind = useCallback(() => {
     haptic.selection();
     setHideBehind((v) => !v);
   }, []);
 
-  // ── Enrichment pipeline ──
   const rawAlerts = useMemo(
     () => enrichAlerts(traffic ?? null, hazards ?? null, routeGeometry, userPosition),
     [traffic, hazards, routeGeometry, userPosition],
@@ -639,7 +589,9 @@ export function useAlerts(
   const dedupedAlerts = useMemo(() => deduplicateAlerts(rawAlerts), [rawAlerts]);
 
   const all = useMemo(() => {
-    let filtered = dedupedAlerts.filter((a) => !dismissedIds.has(a.id));
+    // Crucial bug fix: Informational alerts are entirely excluded from the active list
+    // so they do not contradict the status or clutter the UI.
+    let filtered = dedupedAlerts.filter((a) => !dismissedIds.has(a.id) && a.routeImpact !== "informational");
     if (hideBehind) filtered = filtered.filter((a) => a.isAhead);
     return filtered;
   }, [dedupedAlerts, dismissedIds, hideBehind]);
@@ -654,7 +606,6 @@ export function useAlerts(
     return upcoming.length > 0 ? upcoming[0] : null;
   }, [all]);
 
-  // Route-blocking alerts - always visible regardless of behind filter
   const routeBlockers = useMemo(
     () => dedupedAlerts.filter((a) => a.routeImpact === "blocks_route" && !dismissedIds.has(a.id)),
     [dedupedAlerts, dismissedIds],
@@ -679,7 +630,6 @@ export function useAlerts(
     [all, stopKmAlongs],
   );
 
-  // ── Staleness - BETTER_NAV #4 ──
   const staleness = useMemo(() => {
     const trafficAge = overlayStaleness(traffic?.created_at);
     const hazardsAge = overlayStaleness(hazards?.created_at);
@@ -687,7 +637,6 @@ export function useAlerts(
     return { traffic: trafficAge, hazards: hazardsAge, worst };
   }, [traffic?.created_at, hazards?.created_at]);
 
-  // ── Route assessment - BETTER_NAV #5 ──
   const assessment = useMemo(() => {
     const blockers = dedupedAlerts.filter((a) => a.routeImpact === "blocks_route");
     const onRoute = dedupedAlerts.filter((a) => a.routeImpact === "affects_route");
@@ -703,7 +652,9 @@ export function useAlerts(
 
   const highCount = all.filter((a) => a.sevOrder === 0).length;
   const totalCount = all.length;
-  const behindCount = dedupedAlerts.filter((a) => !a.isAhead && !dismissedIds.has(a.id)).length;
+
+  // Adjusted to exclude informational alerts from the behind count too
+  const behindCount = dedupedAlerts.filter((a) => !a.isAhead && !dismissedIds.has(a.id) && a.routeImpact !== "informational").length;
   const dismissedCount = dismissedIds.size;
 
   return {
@@ -715,7 +666,7 @@ export function useAlerts(
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   StalenessBar - BETTER_NAV #4
+   StalenessBar
    ══════════════════════════════════════════════════════════════════════ */
 
 export function StalenessBar({
@@ -749,8 +700,7 @@ export function StalenessBar({
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   AlertFiltersBar - behind toggle + dismissed count
-   BETTER_NAV #8a + #8c
+   AlertFiltersBar
    ══════════════════════════════════════════════════════════════════════ */
 
 export function AlertFiltersBar({
@@ -798,9 +748,7 @@ export function AlertFiltersBar({
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   RouteBlockedBanner - BETTER_NAV #2
-
-   Full-width red banner when a closure/flood is detected ON the route.
+   RouteBlockedBanner
    ══════════════════════════════════════════════════════════════════════ */
 
 export function RouteBlockedBanner({
@@ -888,101 +836,18 @@ export function RouteBlockedBanner({
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   RouteAssessment - BETTER_NAV #5
-
-   Pre-departure summary shown in /new and /plans views.
+   RouteAssessment
    ══════════════════════════════════════════════════════════════════════ */
 
-export function RouteAssessment({
-  assessment,
-  staleness,
-  onHighlight,
-}: {
-  assessment: {
-    status: "clear" | "caution" | "warning" | "blocked";
-    blockerCount: number;
-    onRouteCount: number;
-    nearbyCount: number;
-    totalCount: number;
-    blockers: EnrichedAlert[];
-    onRoute: EnrichedAlert[];
-  };
-  staleness: { worst: { level: FreshnessLevel; label: string; color: string } };
-  onHighlight?: (ev: AlertHighlightEvent) => void;
-}) {
-  const statusConfig = {
-    clear:   { icon: ShieldCheck, color: "var(--roam-success)",       bg: "var(--accent-tint)",            border: "var(--roam-border)",            label: "Route clear",           description: "No alerts affecting your route" },
-    caution: { icon: ShieldAlert, color: "var(--roam-warn)",          bg: "var(--severity-minor-tint)",    border: "var(--roam-border)",            label: "Proceed with caution",   description: `${assessment.nearbyCount} alert${assessment.nearbyCount !== 1 ? "s" : ""} near your route` },
-    warning: { icon: TriangleAlert, color: "var(--severity-moderate)", bg: "var(--severity-moderate-tint)", border: "var(--roam-border-strong)",     label: "Alerts on route",         description: `${assessment.onRouteCount} alert${assessment.onRouteCount !== 1 ? "s" : ""} affecting your route` },
-    blocked: { icon: OctagonAlert, color: "var(--roam-danger)",       bg: "var(--danger-tint)",            border: "var(--roam-border-strong)",     label: "Route blocked",           description: `${assessment.blockerCount} closure${assessment.blockerCount !== 1 ? "s" : ""} blocking your route` },
-  };
-
-  const cfg = statusConfig[assessment.status];
-  const Icon = cfg.icon;
-
-  return (
-    <div style={{ borderRadius: 16, overflow: "hidden", border: `1.5px solid ${cfg.border}`, background: cfg.bg }}>
-      <div style={{ padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{
-          width: 36, height: 36, borderRadius: 11,
-          background: `color-mix(in srgb, ${cfg.color} 15%, transparent)`,
-          border: `1.5px solid color-mix(in srgb, ${cfg.color} 20%, transparent)`,
-          display: "grid", placeItems: "center", flexShrink: 0,
-        }}>
-          <Icon size={18} color={cfg.color} strokeWidth={2.5} />
-        </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 14, fontWeight: 950, color: cfg.color, letterSpacing: "-0.2px" }}>{cfg.label}</div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--roam-text-muted)", marginTop: 1 }}>{cfg.description}</div>
-        </div>
-      </div>
-
-      {assessment.totalCount > 0 && (
-        <div style={{ padding: "0 14px 10px", display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {assessment.blockerCount > 0 && <span style={{ fontSize: 10, fontWeight: 950, color: "var(--roam-danger)", background: "var(--danger-tint)", padding: "3px 8px", borderRadius: 6 }}>{assessment.blockerCount} blocking</span>}
-          {assessment.onRouteCount > 0 && <span style={{ fontSize: 10, fontWeight: 950, color: "var(--severity-moderate)", background: "var(--severity-moderate-tint)", padding: "3px 8px", borderRadius: 6 }}>{assessment.onRouteCount} on route</span>}
-          {assessment.nearbyCount > 0 && <span style={{ fontSize: 10, fontWeight: 950, color: "var(--roam-warn)", background: "var(--severity-minor-tint)", padding: "3px 8px", borderRadius: 6 }}>{assessment.nearbyCount} nearby</span>}
-        </div>
-      )}
-
-      {assessment.blockers.length > 0 && (
-        <div style={{ padding: "0 14px 12px", display: "flex", flexDirection: "column", gap: 6 }}>
-          {assessment.blockers.slice(0, 3).map((b) => (
-            <div
-              key={b.id}
-              onClick={() => { haptic.selection(); if (b.coord && onHighlight) onHighlight({ id: b.id, kind: b.alertKind, lat: b.coord.lat, lng: b.coord.lng }); }}
-              style={{
-                padding: "6px 10px", borderRadius: 10, cursor: "pointer",
-                background: "var(--danger-tint)", border: "1px solid var(--roam-border)",
-                display: "flex", alignItems: "center", gap: 8,
-              }}
-            >
-              <Ban size={13} color="var(--roam-danger)" strokeWidth={2.5} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 11, fontWeight: 900, color: "var(--roam-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.headline}</div>
-                <div style={{ fontSize: 9, fontWeight: 700, color: "var(--roam-text-muted)", marginTop: 1 }}>
-                  {b.contextLabel.replace(/⛔ Route blocked ?·? ?/g, "On route")}{b.source ? ` · ${b.source}` : ""}
-                </div>
-              </div>
-              <ArrowRight size={12} color="var(--roam-text-muted)" />
-            </div>
-          ))}
-        </div>
-      )}
-
-      {staleness.worst.level !== "fresh" && (
-        <div style={{ padding: "6px 14px 10px", borderTop: "1px solid var(--roam-border)", display: "flex", alignItems: "center", gap: 5 }}>
-          <Clock size={10} color={staleness.worst.color} strokeWidth={2.5} />
-          <span style={{ fontSize: 9, fontWeight: 800, color: staleness.worst.color }}>{staleness.worst.label}</span>
-        </div>
-      )}
-    </div>
-  );
+export function RouteAssessment(props: any) {
+  // Purposely gutted and returning null.
+  // We keep the component export so TripView doesn't crash on import,
+  // but it physically removes the redundant UI pill from your bottom sheet.
+  return null;
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   AlertCard - used in NextAlertBanner and LegAlertStrip
-   Updated with route impact badge + dismiss button
+   AlertCard
    ══════════════════════════════════════════════════════════════════════ */
 
 export function AlertCard({
@@ -1133,7 +998,7 @@ export function AlertCard({
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   NextAlertBanner - persistent, always visible above tabs
+   NextAlertBanner
    ══════════════════════════════════════════════════════════════════════ */
 
 export function NextAlertBanner({
@@ -1170,34 +1035,9 @@ export function NextAlertBanner({
   const [showAll, setShowAll] = useState(false);
   const blockers = routeBlockers ?? [];
 
+  // When no alerts are present, we safely return null instead of a huge, useless "Clear ahead" pill
   if (totalCount === 0 && blockers.length === 0) {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <div style={{
-          padding: "10px 14px", borderRadius: 14,
-          background: "var(--accent-tint)", border: "1px solid var(--roam-border)",
-          display: "flex", alignItems: "center", gap: 10,
-        }}>
-          <div style={{
-            width: 30, height: 30, borderRadius: 10,
-            background: "var(--accent-tint)", border: "1px solid var(--roam-border)",
-            display: "grid", placeItems: "center", flexShrink: 0,
-          }}>
-            <ShieldCheck size={15} color="var(--roam-success)" strokeWidth={2.5} />
-          </div>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 950, color: "var(--roam-text)" }}>Clear ahead</div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "var(--roam-text-muted)", marginTop: 1 }}>No alerts on your route</div>
-          </div>
-        </div>
-        {staleness && staleness.worst.level !== "fresh" && (
-          <div style={{ display: "flex", alignItems: "center", gap: 5, paddingLeft: 4 }}>
-            <Clock size={10} color={staleness.worst.color} strokeWidth={2.5} />
-            <span style={{ fontSize: 9, fontWeight: 800, color: staleness.worst.color }}>{staleness.worst.label}</span>
-          </div>
-        )}
-      </div>
-    );
+    return null;
   }
 
   return (
@@ -1208,7 +1048,7 @@ export function NextAlertBanner({
 
       {next && next.routeImpact !== "blocks_route" ? (
         <AlertCard alert={next} highlighted={highlighted === next.id} onHighlight={onHighlight} onDismiss={onDismiss} />
-      ) : !next && blockers.length === 0 ? (
+      ) : !next && blockers.length === 0 && totalCount > 0 ? (
         <div style={{
           padding: "10px 14px", borderRadius: 14,
           background: highCount > 0 ? "var(--danger-tint)" : "var(--severity-minor-tint)",
@@ -1277,7 +1117,7 @@ export function NextAlertBanner({
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   LegAlertStrip - inline between stops in the route list
+   LegAlertStrip
    ══════════════════════════════════════════════════════════════════════ */
 
 export function LegAlertStrip({

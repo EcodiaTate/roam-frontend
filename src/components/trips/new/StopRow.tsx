@@ -22,6 +22,14 @@ function badgeForType(type?: string) {
   }
 }
 
+// Intercepts default names so they don't act as user-typed text
+function getDisplayValue(name?: string, type?: string) {
+  if (!name) return "";
+  if (type === "start" && name === "Start") return "";
+  if (type === "end" && name === "End") return "";
+  return name;
+}
+
 export function StopRow(props: {
   stop: TripStop;
   idx: number;
@@ -37,7 +45,7 @@ export function StopRow(props: {
   const [locating, setLocating] = useState(false);
 
   const [isFocused, setIsFocused] = useState(false);
-  const [q, setQ] = useState(s.name ?? "");
+  const [q, setQ] = useState(() => getDisplayValue(s.name, s.type));
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<PlaceItem[]>([]);
 
@@ -50,9 +58,12 @@ export function StopRow(props: {
   const canRemove = s.type !== "start" && s.type !== "end";
   const isLocked = s.type === "start" || s.type === "end";
 
+  // Sync external changes (but still filter out "Start"/"End")
   useEffect(() => {
-    if (!isFocused) setQ(s.name ?? "");
-  }, [s.name, isFocused]);
+    if (!isFocused) {
+      setQ(getDisplayValue(s.name, s.type));
+    }
+  }, [s.name, s.type, isFocused]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -108,27 +119,32 @@ export function StopRow(props: {
     setQ(it.name);
     setIsFocused(false);
   };
-
   const handleUseMyLocation = async () => {
-    if (props.onUseMyLocation) {
-      haptic.tap();
-      props.onUseMyLocation();
-      return;
-    }
-
     setLocating(true);
-    haptic.tap();
     try {
-      const pos = await getCurrentPosition();
-      props.onEdit({ lat: pos.lat, lng: pos.lng, name: "My Location" });
-      setQ("My Location");
-      haptic.success();
+      if (props.onUseMyLocation) {
+        haptic.tap();
+        await props.onUseMyLocation(); // MUST await this so the spinner stays visible!
+        haptic.success();
+      } else {
+        haptic.tap();
+        const pos = await getCurrentPosition();
+        props.onEdit({ lat: pos.lat, lng: pos.lng, name: "My Location" });
+        setQ("My Location");
+        haptic.success();
+      }
     } catch {
       haptic.error();
     } finally {
       setLocating(false);
     }
   };
+
+  // Dynamic placeholder context based on stop type
+  const placeholderText =
+    s.type === "start" ? "Search starting point…" :
+    s.type === "end" ? "Search destination…" :
+    "Search for a place…";
 
   return (
     <div
@@ -163,7 +179,7 @@ export function StopRow(props: {
             value={q}
             onFocus={() => setIsFocused(true)}
             onChange={(e) => onInput(e.target.value)}
-            placeholder="Search for a place…"
+            placeholder={placeholderText}
             className="trip-input"
             style={{ paddingLeft: 38, width: "100%", height: 44, fontSize: 15, borderRadius: 12 }}
           />

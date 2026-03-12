@@ -21,6 +21,7 @@ import {
   X,
   ArrowLeft,
   UserRound,
+  UserPlus,
 } from "lucide-react";
 
 /* ── Types ────────────────────────────────────────────────────────────── */
@@ -517,10 +518,10 @@ export function StopsEditor(props: {
             </div>
 
             {/* ✅ Action Buttons (Join + User) */}
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
               <button
                 type="button"
-                className="trip-interactive"
+                className="trip-interactive trip-btn-icon"
                 aria-label="Join Plan"
                 title="Join Plan"
                 onPointerDown={(e) => e.stopPropagation()} // Prevent drag conflict
@@ -529,24 +530,18 @@ export function StopsEditor(props: {
                   props.onJoinPlan();
                 }}
                 style={{
-                  height: 42,
-                  padding: "0 14px",
                   borderRadius: 999,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 6,
-                  background: "var(--roam-surface)",
+                  width: 40,
+                  height: 40,
+                  display: "grid",
+                  placeItems: "center",
+                  background: "rgba(0, 0, 0, 0.08)",
                   color: "var(--roam-text)",
-                  border: "1px solid var(--roam-border)",
-                  boxShadow: "var(--shadow-soft)",
+                  border: "none",
                   WebkitTapHighlightColor: "transparent",
-                  fontSize: 14,
-                  fontWeight: 600,
                 }}
               >
-                <span style={{ fontSize: 16 }}>🔗</span>
-                Join
+                <UserPlus size={18} />
               </button>
 
               <button
@@ -560,16 +555,14 @@ export function StopsEditor(props: {
                   router.push("/login");
                 }}
                 style={{
-                  width: 42,
-                  height: 42,
                   borderRadius: 999,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: "var(--roam-surface)",
-                  color: "var(--roam-text)",
-                  border: "1px solid var(--roam-border)",
-                  boxShadow: "var(--shadow-soft)",
+                  width: 40,
+                  height: 40,
+                  display: "grid",
+                  placeItems: "center",
+                  background: "var(--brand-ochre)",
+                  color: "#fff",
+                  border: "none",
                   WebkitTapHighlightColor: "transparent",
                 }}
               >

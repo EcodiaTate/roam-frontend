@@ -8,7 +8,7 @@ const config: CapacitorConfig = {
   // Fallback webDir (unused while server.url is set, but required by Capacitor)
   webDir: "out",
 
-  // Wrap the deployed Vercel app — works for TestFlight iteration.
+  // Wrap the deployed Vercel app - works for TestFlight iteration.
   // Switch back to a static bundle (remove this server block) before production.
   server: {
     url: "https://roam.ecodia.au",

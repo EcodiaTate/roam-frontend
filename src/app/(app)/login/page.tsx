@@ -114,7 +114,7 @@ export default function LoginPage() {
           Navigate anywhere. Even offline.
         </div>
 
-        {/* Apple Sign-In (native only — true system UI, must be black bg per Apple HIG) */}
+        {/* Apple Sign-In (native only - true system UI, must be black bg per Apple HIG) */}
         {isNative && (
           <button
             type="button"
@@ -274,12 +274,6 @@ export default function LoginPage() {
             ? "Don't have an account? Sign up"
             : "Already have an account? Sign in"}
         </button>
-
-        {!isNative && (
-          <div className="trip-muted-small" style={{ textAlign: "center" }}>
-            Apple Sign-In is available in the installed iOS app.
-          </div>
-        )}
       </div>
     </div>
   );

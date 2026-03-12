@@ -254,40 +254,38 @@ export default function LandingPage() {
           </button>
         </div>
 
-        {/* Mobile dropdown */}
-        {menuOpen && (
-          <div className="rl-nav-mobile">
-            <a
-              href="#features"
-              className="rl-nav-mobile-link"
-              onClick={() => setMenuOpen(false)}
-            >
-              Features
-            </a>
-            <a
-              href="#how"
-              className="rl-nav-mobile-link"
-              onClick={() => setMenuOpen(false)}
-            >
-              How It Works
-            </a>
-            <a
-              href="/contact"
-              className="rl-nav-mobile-link"
-              onClick={() => setMenuOpen(false)}
-            >
-              Contact
-            </a>
-            <a
-              href={cta.href}
-              className="rl-nav-mobile-cta"
-              onClick={() => setMenuOpen(false)}
-              {...extProps(cta.external)}
-            >
-              {cta.navLabel} <ArrowRight size={16} />
-            </a>
-          </div>
-        )}
+        {/* Mobile dropdown - Now always in DOM, animated via CSS */}
+        <div className={`rl-nav-mobile ${menuOpen ? "open" : ""}`}>
+          <a
+            href="#features"
+            className="rl-nav-mobile-link"
+            onClick={() => setMenuOpen(false)}
+          >
+            Features
+          </a>
+          <a
+            href="#how"
+            className="rl-nav-mobile-link"
+            onClick={() => setMenuOpen(false)}
+          >
+            How It Works
+          </a>
+          <a
+            href="/contact"
+            className="rl-nav-mobile-link"
+            onClick={() => setMenuOpen(false)}
+          >
+            Contact
+          </a>
+          <a
+            href={cta.href}
+            className="rl-nav-mobile-cta"
+            onClick={() => setMenuOpen(false)}
+            {...extProps(cta.external)}
+          >
+            {cta.navLabel} <ArrowRight size={16} />
+          </a>
+        </div>
       </nav>
 
       {/* 02. Hero */}
@@ -539,8 +537,22 @@ const STYLES = `
   -webkit-tap-highlight-color: transparent;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  position: relative;
 }
 .rl a { color: inherit; text-decoration: none; }
+
+/* GLOBAL TACTILE TEXTURE OVERLAY */
+.rl::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url('/img/noise.png');
+  background-repeat: repeat;
+  opacity: 0.125; /* Adjust based on your noise.png contrast */
+  mix-blend-mode: multiply;
+  pointer-events: none;
+  z-index: 9999;
+}
 
 .rl-inner { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
 
@@ -567,6 +579,8 @@ const STYLES = `
   max-width: 1100px; margin: 0 auto;
   height: 72px; padding: 0 24px;
   display: flex; align-items: center; justify-content: space-between;
+  position: relative;
+  z-index: 1001;
 }
 .rl-nav-logo {
   display: flex; align-items: center; gap: 10px;
@@ -615,14 +629,34 @@ const STYLES = `
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Mobile dropdown */
+/* Mobile dropdown - SMOOTH OVERLAY */
 .rl-nav-mobile {
-  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  background: rgba(252, 246, 239, 0.96);
+  backdrop-filter: blur(12px);
   flex-direction: column;
   padding: 8px 24px 24px;
-  max-width: 1100px; margin: 0 auto;
-  border-top: 1px solid var(--sand-dark);
+  border-bottom: 1px solid var(--sand-dark);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.08);
+
+  /* Smooth transitions */
+  display: flex;
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(-12px);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 999;
 }
+
+.rl-nav-mobile.open {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .rl-nav-mobile-link {
   display: block;
   padding: 16px 0;
@@ -654,7 +688,10 @@ const STYLES = `
   align-items: center; justify-content: center;
   text-align: center; position: relative;
   padding: 60px 24px 80px;
-  background: var(--burnt);
+  background-color: var(--burnt);
+  background-image: url('/img/paper-texture.png'); /* Tactile block texture */
+  background-size: cover;
+  background-blend-mode: multiply;
 }
 .rl-hero-content {
   max-width: 800px;
@@ -841,7 +878,10 @@ const STYLES = `
 /* ---- 06. Download ---- */
 .rl-download { padding: 0 0 120px; }
 .rl-download-card {
-  background: var(--burnt); color: var(--white);
+  background-color: var(--burnt); color: var(--white);
+  background-image: url('/img/paper-texture.png'); /* Tactile block texture */
+  background-size: cover;
+  background-blend-mode: multiply;
   padding: 72px 40px; border-radius: 32px;
   text-align: center;
   position: relative; overflow: hidden;
@@ -979,7 +1019,7 @@ const STYLES = `
   z-index: 1100;
 }
 .rl-btn-mobile {
-  background: var(--text); color: var(--white);
+  background: var(--text); color: var(--white) !important;
   padding: 18px 24px; border-radius: 18px;
   display: flex; align-items: center; justify-content: center; gap: 12px;
   font-weight: 800; font-size: 16px;
@@ -1001,7 +1041,6 @@ const STYLES = `
   .rl-nav-links { display: none; }
   .rl-nav-cta { display: none; }
   .rl-nav-hamburger { display: block; }
-  .rl-nav-mobile { display: flex; }
   .rl-problem-grid { grid-template-columns: 1fr; gap: 48px; }
   .rl-how-grid { grid-template-columns: 1fr; gap: 40px; }
   .rl-footer-grid {
@@ -1012,6 +1051,7 @@ const STYLES = `
 }
 
 @media (min-width: 969px) {
+  /* Hide mobile nav overlay when scaled up */
   .rl-nav-mobile { display: none !important; }
 }
 

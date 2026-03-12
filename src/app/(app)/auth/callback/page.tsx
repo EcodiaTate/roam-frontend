@@ -12,7 +12,7 @@ import { supabase } from "@/lib/supabase/client";
  *
  * A) Inside SFSafariViewController (native Google OAuth sheet):
  *    window.Capacitor is absent. We immediately forward the full URL to the
- *    custom scheme — iOS intercepts it, closes the sheet, fires appUrlOpen
+ *    custom scheme - iOS intercepts it, closes the sheet, fires appUrlOpen
  *    in the main WebView, NativeBootstrap navigates back here with the code.
  *
  * B) Main WebView (web or after deep-link handoff from A):

@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { Capacitor } from "@capacitor/core";
 import { haptic } from "@/lib/native/haptics";
 import { useAuth } from "@/lib/supabase/auth";
 import { listEmergencyContacts } from "@/lib/offline/emergencyStore";
@@ -64,49 +65,63 @@ function mapsLink(lat: number, lon: number) {
 type GeoResult = { lat: number; lon: number; accuracy_m: number | null };
 
 async function getPositionNative(timeoutMs = 120_000): Promise<GeoResult> {
-  // Try Capacitor Geolocation plugin (native iOS/Android — most reliable)
+  // 1. Try Native Capacitor Geolocation first
   try {
-    const mod: any = await import("@capacitor/geolocation");
-    const geo = mod?.Geolocation;
-    if (geo?.watchPosition) {
-      // watchPosition gives first fix faster than getCurrentPosition on cold start
+    if (Capacitor.isNativePlatform()) {
+      const { Geolocation } = await import("@capacitor/geolocation");
+
+      // Mobile OS requires explicit permission checks before getting location
+      let perms = await Geolocation.checkPermissions();
+      if (perms.location !== "granted") {
+        perms = await Geolocation.requestPermissions();
+      }
+      if (perms.location !== "granted") {
+        throw new Error("Location permission denied. Please allow it in settings.");
+      }
+
       return await new Promise<GeoResult>((resolve, reject) => {
         let settled = false;
         let watchId: string | null = null;
 
         const stop = () => {
-          if (watchId != null) geo.clearWatch({ id: watchId }).catch(() => {});
+          if (watchId != null) Geolocation.clearWatch({ id: watchId }).catch(() => {});
         };
 
         const timer = setTimeout(() => {
           if (settled) return;
           settled = true;
           stop();
-          reject(new Error("Location timeout — move to open sky and retry."));
+          reject(new Error("Location timeout - move to open sky and retry."));
         }, timeoutMs);
 
-        // watchIdPromise resolves asynchronously; store it so we can clean up
-        const watchIdPromise: Promise<string> = geo.watchPosition(
-          { enableHighAccuracy: true, maximumAge: 10_000 },
-          (pos: any, err: any) => {
+        Geolocation.watchPosition(
+          { enableHighAccuracy: true, maximumAge: 0, timeout: timeoutMs },
+          (pos, err) => {
             if (settled) return;
-            settled = true;
-            clearTimeout(timer);
-            // watchId may or may not be set yet; chain on the promise to be safe
-            watchIdPromise.then((id) => geo.clearWatch({ id }).catch(() => {})).catch(() => {});
+
             if (err) {
+              settled = true;
+              clearTimeout(timer);
+              stop();
               reject(new Error(err?.message || "Location error."));
               return;
             }
-            resolve({
-              lat: pos.coords.latitude,
-              lon: pos.coords.longitude,
-              accuracy_m: typeof pos.coords.accuracy === "number" ? pos.coords.accuracy : null,
-            });
-          },
-        );
 
-        watchIdPromise.then((id) => { watchId = id; }).catch((e: unknown) => {
+            if (pos) {
+              settled = true;
+              clearTimeout(timer);
+              stop();
+              resolve({
+                lat: pos.coords.latitude,
+                lon: pos.coords.longitude,
+                accuracy_m: typeof pos.coords.accuracy === "number" ? pos.coords.accuracy : null,
+              });
+            }
+          }
+        ).then((id) => {
+          watchId = id;
+          if (settled) stop();
+        }).catch((e) => {
           if (!settled) {
             settled = true;
             clearTimeout(timer);
@@ -115,39 +130,40 @@ async function getPositionNative(timeoutMs = 120_000): Promise<GeoResult> {
         });
       });
     }
-    if (geo?.getCurrentPosition) {
-      const res = await geo.getCurrentPosition({
-        enableHighAccuracy: true,
-        timeout: timeoutMs,
-        maximumAge: 10_000,
-      });
-      return {
-        lat: res.coords.latitude,
-        lon: res.coords.longitude,
-        accuracy_m: typeof res.coords.accuracy === "number" ? res.coords.accuracy : null,
-      };
+  } catch (e: any) {
+    // Bubble up explicit permission errors so the user knows they blocked it
+    if (e?.message?.includes("permission")) {
+      throw e;
     }
-  } catch {
-    // Fall through to browser API
+    // Otherwise fall through to browser API
   }
 
-  // Fallback: browser navigator.geolocation (web / simulator)
+  // 2. Fallback: Browser navigator.geolocation
   if (typeof navigator === "undefined" || !navigator.geolocation) {
     throw new Error("Geolocation not available on this device.");
   }
 
   return new Promise<GeoResult>((resolve, reject) => {
     let watchId: number | null = null;
-    const timer = setTimeout(() => {
+    let settled = false;
+
+    const stop = () => {
       if (watchId != null) navigator.geolocation.clearWatch(watchId);
-      reject(new Error("Location timeout — move to open sky and retry."));
+    };
+
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      stop();
+      reject(new Error("Location timeout - move to open sky and retry."));
     }, timeoutMs);
 
-    // watchPosition gets first fix faster than getCurrentPosition
     watchId = navigator.geolocation.watchPosition(
       (pos) => {
+        if (settled) return;
+        settled = true;
         clearTimeout(timer);
-        navigator.geolocation.clearWatch(watchId!);
+        stop();
         resolve({
           lat: pos.coords.latitude,
           lon: pos.coords.longitude,
@@ -155,11 +171,13 @@ async function getPositionNative(timeoutMs = 120_000): Promise<GeoResult> {
         });
       },
       (e) => {
+        if (settled) return;
+        settled = true;
         clearTimeout(timer);
-        if (watchId != null) navigator.geolocation.clearWatch(watchId);
+        stop();
         reject(new Error(e?.message || "Could not get location."));
       },
-      { enableHighAccuracy: true, maximumAge: 10_000 },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: timeoutMs }
     );
   });
 }
@@ -174,7 +192,7 @@ export default function EmergencyClientPage() {
   const [busy, setBusy] = useState<null | "boot" | "save" | "delete" | "sync">(null);
   const [locating, setLocating] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [elapsedWait, setElapsedWait] = useState(0); // Tracks seconds spent waiting for coaching msgs
+  const [elapsedWait, setElapsedWait] = useState(0);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const editing = useMemo(() => items.find((x) => x.id === editingId) ?? null, [items, editingId]);
@@ -191,11 +209,10 @@ export default function EmergencyClientPage() {
   const didBootRef = useRef(false);
   const syncInFlightRef = useRef(false);
   const locInFlightRef = useRef(false);
-  const timerDisplayRef = useRef<HTMLSpanElement>(null); // Fast DOM update ref
+  const timerDisplayRef = useRef<HTMLSpanElement>(null);
 
   const isLocating = locating && (lat == null || lon == null);
 
-  // High-performance countdown timer & elapsed tracker
   useEffect(() => {
     if (!isLocating) {
       setElapsedWait(0);
@@ -203,7 +220,7 @@ export default function EmergencyClientPage() {
     }
 
     const startTime = Date.now();
-    const durationMs = 120_000; // 2 minutes
+    const durationMs = 120_000;
     const endTime = startTime + durationMs;
     let frameId: number;
     let lastSecond = 0;
@@ -213,21 +230,19 @@ export default function EmergencyClientPage() {
       const remaining = Math.max(0, endTime - now);
       const elapsed = Math.floor((now - startTime) / 1000);
 
-      // Update React state only once per second for dynamic coaching messages
       if (elapsed !== lastSecond) {
         setElapsedWait(elapsed);
         lastSecond = elapsed;
       }
 
-      // Update the countdown DOM directly every frame for buttery smooth ms
       if (timerDisplayRef.current) {
         const mins = Math.floor(remaining / 60000);
         const secs = Math.floor((remaining % 60000) / 1000);
         const ms = Math.floor(remaining % 1000);
 
-        const formattedTime = 
-          String(mins).padStart(2, '0') + ':' + 
-          String(secs).padStart(2, '0') + '.' + 
+        const formattedTime =
+          String(mins).padStart(2, '0') + ':' +
+          String(secs).padStart(2, '0') + '.' +
           String(ms).padStart(3, '0');
 
         timerDisplayRef.current.textContent = formattedTime;
@@ -247,7 +262,6 @@ export default function EmergencyClientPage() {
     const next = await listEmergencyContacts();
     setItems(next);
 
-    // Auto-select ALL contacts by default (emergency-first)
     setSelectedIds((prev) => {
       const hasAnyPrev = Object.keys(prev || {}).length > 0;
       if (hasAnyPrev) {
@@ -284,7 +298,7 @@ export default function EmergencyClientPage() {
     setLocating(true);
     setErr(null);
     try {
-      const p = await getPositionNative(120_000); // 2 full minutes to allow hardware cold lock
+      const p = await getPositionNative(120_000);
       setLat(p.lat);
       setLon(p.lon);
       setAccuracyM(p.accuracy_m);
@@ -296,7 +310,6 @@ export default function EmergencyClientPage() {
     }
   }, []);
 
-  // Boot: contacts + sync (location runs independently via its own effect)
   useEffect(() => {
     let cancelled = false;
 
@@ -323,7 +336,6 @@ export default function EmergencyClientPage() {
     };
   }, [refresh, runAutoSync]);
 
-  // Autosync loop
   useEffect(() => {
     runAutoSync();
   }, [runAutoSync]);
@@ -334,12 +346,10 @@ export default function EmergencyClientPage() {
     return () => clearInterval(t);
   }, [user, isOnline, runAutoSync]);
 
-  // Initial location fetch (runs once on mount, independent of boot)
   useEffect(() => {
     fetchLocationAuto();
   }, [fetchLocationAuto]);
 
-  // Auto-refresh location periodically
   useEffect(() => {
     const t = setInterval(() => {
       fetchLocationAuto();
@@ -347,7 +357,6 @@ export default function EmergencyClientPage() {
     return () => clearInterval(t);
   }, [fetchLocationAuto]);
 
-  // Populate editor
   useEffect(() => {
     if (!editing) {
       setName("");
@@ -360,7 +369,7 @@ export default function EmergencyClientPage() {
     setPhone(editing.phone ?? "");
     setRelationship(editing.relationship ?? "");
     setNotes(editing.notes ?? "");
-  }, [editingId]);
+  }, [editingId, editing]);
 
   const callEmergency = useCallback(() => {
     if (!confirm("Call 000 now?")) return;
@@ -394,7 +403,7 @@ export default function EmergencyClientPage() {
       setLocating(true);
       try {
         haptic.medium();
-        const p = await getPositionNative(120_000); // 2 full minutes here too
+        const p = await getPositionNative(120_000);
         useLat = p.lat;
         useLon = p.lon;
         acc = p.accuracy_m;
@@ -496,7 +505,6 @@ export default function EmergencyClientPage() {
 
   const selectedCount = selectedContacts.length;
 
-  // Dynamic coaching logic based on time elapsed
   let waitMessage = "Acquiring GPS lock...";
   if (elapsedWait > 5) waitMessage = "Searching satellites. Ensure a clear view of the sky...";
   if (elapsedWait > 15) waitMessage = "Offline GPS cold lock (can take up to 2 mins)...";
@@ -505,7 +513,7 @@ export default function EmergencyClientPage() {
     <div className="sos-page roam-scroll">
       {err ? <div className="trip-err-box">{err}</div> : null}
 
-      {/* 1) TOP PRIORITY — CALL 000 */}
+      {/* 1) TOP PRIORITY - CALL 000 */}
       <button type="button" className="sos-call-000" onClick={callEmergency}>
         <PhoneCall size={40} />
         CALL 000
