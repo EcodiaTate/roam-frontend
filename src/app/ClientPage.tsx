@@ -223,7 +223,14 @@ export default function LandingPage() {
       <nav className={`rl-nav ${scrolled ? "rl-nav-s" : ""}`}>
         <div className="rl-nav-bar">
           <a href="/" className="rl-nav-logo">
-            <Compass size={22} strokeWidth={2.5} />
+            {/* Added custom roam app icon here */}
+            <img
+              src="/roam-app-icon.png"
+              alt="Roam Icon"
+              width={28}
+              height={28}
+              style={{ borderRadius: '6px' }}
+            />
             <span>ROAM</span>
           </a>
 
