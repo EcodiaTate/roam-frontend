@@ -225,7 +225,7 @@ export default function LandingPage() {
           <a href="/" className="rl-nav-logo">
             {/* Added custom roam app icon here */}
             <img
-              src="/roam-app-icon.png"
+              src="/img/roam-app-icon.png"
               alt="Roam Icon"
               width={28}
               height={28}
