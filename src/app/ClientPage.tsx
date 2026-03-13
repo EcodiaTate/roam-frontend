@@ -489,7 +489,7 @@ export default function LandingPage() {
             </div>
             <div className="rl-footer-right">
               <div className="rl-footer-links">
-                <a href="mailto:hello@roamapp.com.au">Contact</a>
+                <a href="mailto:hello@ecodia.au">Contact</a>
                 <a href="/privacy">Privacy</a>
                 <a href="/terms">Terms</a>
               </div>
