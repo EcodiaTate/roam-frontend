@@ -227,8 +227,8 @@ export default function LandingPage() {
             <img
               src="/img/roam-app-icon.png"
               alt="Roam Icon"
-              width={28}
-              height={28}
+              width={50}
+              height={50}
               style={{ borderRadius: '6px' }}
             />
             <span>ROAM</span>
@@ -496,12 +496,26 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="rl-footer-sig">
-            <span className="rl-sig-text">Made by</span>
-            <div className="rl-sig-box">
-              <span className="rl-sig-eco">ECODIA</span>
-              <span className="rl-sig-code">CODE</span>
-            </div>
-          </div>
+  <span className="rl-sig-text">Made by</span>
+  <div className="rl-sig-box">
+    <a
+      href="https://code.ecodia.au"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="rl-sig-eco"
+    >
+      ECODIA
+    </a>
+    <a
+      href="https://code.ecodia.au"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="rl-sig-code"
+    >
+      CODE
+    </a>
+  </div>
+</div>
         </div>
       </footer>
 
@@ -550,6 +564,32 @@ const STYLES = `
   position: relative;
 }
 .rl a { color: inherit; text-decoration: none; }
+
+/* Ecodia signature */
+.rl-footer-sig {
+  margin-top: 48px;
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+}
+.rl-sig-text { font-weight: 500; font-size: 14px; color: var(--text-muted); }
+.rl-sig-box {
+  display: flex; overflow: hidden;
+  font-weight: 800; font-size: 14px;
+}
+.rl-sig-eco {
+  background: #fff; color: #000;
+  padding: 5px 11px;
+  transition: background 0.2s, color 0.2s;
+  text-decoration: none;
+}
+.rl-sig-eco:hover { background: #000; color: #fff; }
+
+.rl-sig-code {
+  background: #000; color: #fff;
+  padding: 5px 11px;
+  transition: background 0.2s, color 0.2s;
+  text-decoration: none;
+}
+.rl-sig-code:hover { background: #fff; color: #000; }
 
 /* GLOBAL TACTILE TEXTURE OVERLAY */
 .rl::after {
