@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { NavPack } from "@/lib/types/navigation";
@@ -8,6 +8,7 @@ import type { NavPack } from "@/lib/types/navigation";
 import { navApi } from "@/lib/api/nav";
 import { haptic } from "@/lib/native/haptics";
 import { useBundleBuilder } from "@/lib/hooks/useBundleBuilder";
+import { checkTripGate, incrementTripsUsed } from "@/lib/paywall/tripGate";
 
 import { useNewTripDraft } from "@/components/trips/new/useNewTripDraft";
 import { NewTripMap } from "@/components/trips/new/NewTripMap";
@@ -19,6 +20,8 @@ import {
   type VectorTheme,
 } from "@/components/trips/new/MapStyleSwitcher";
 import { InviteCodeModal } from "@/components/plans/InviteCodeModal";
+import { PaywallModal } from "@/components/paywall/PaywallModal";
+import { WelcomeModal } from "@/components/paywall/WelcomeModal";
 import { Loader2 } from "lucide-react";
 
 function genPlanId() {
@@ -43,6 +46,34 @@ export default function NewTripClientPage() {
 
   // Invite modal
   const [inviteOpen, setInviteOpen] = useState(false);
+
+  // ── Paywall gate ────────────────────────────────────────────────────
+  const [paywallOpen, setPaywallOpen] = useState(false);
+  const [welcomeOpen, setWelcomeOpen] = useState(false);
+  const [isLastFreeTrip, setIsLastFreeTrip] = useState(false);
+  const [gateChecked, setGateChecked] = useState(false);
+
+  useEffect(() => {
+    checkTripGate().then((gate) => {
+      if (gate.allowed) {
+        // Trip 2 (tripsUsed === 1): show "last free trip" warning
+        if (gate.tripsUsed === 1) {
+          setIsLastFreeTrip(true);
+          setWelcomeOpen(true);
+        }
+        setGateChecked(true);
+      } else if (gate.reason === "paywall") {
+        setPaywallOpen(true);
+        // Don't set gateChecked — keep UI locked until purchase
+      } else {
+        // "welcome" — first ever launch
+        setWelcomeOpen(true);
+        setGateChecked(true);
+      }
+    });
+    // Run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const styleId = useMemo(() => {
     if (baseMode === "hybrid") return "roam-basemap-hybrid";
@@ -127,6 +158,9 @@ export default function NewTripClientPage() {
         styleId,
         existingNavPack: navPack,
       });
+
+      // Increment trip counter on successful save
+      await incrementTripsUsed();
 
       setNavPack(result.navPack);
       router.replace(`/trip?plan_id=${encodeURIComponent(plan_id)}`);
@@ -266,6 +300,23 @@ export default function NewTripClientPage() {
         onRedeemed={(joinedPlanId) => {
           setInviteOpen(false);
         }}
+      />
+
+      {/* ── Paywall ──────────────────────────────────────────────────── */}
+      <PaywallModal
+        open={paywallOpen}
+        onClose={() => router.back()}
+        onUnlocked={() => {
+          setPaywallOpen(false);
+          setGateChecked(true);
+        }}
+      />
+
+      {/* ── Welcome / last-free-trip modal ───────────────────────────── */}
+      <WelcomeModal
+        open={welcomeOpen}
+        lastFreeTrip={isLastFreeTrip}
+        onClose={() => setWelcomeOpen(false)}
       />
     </div>
   );

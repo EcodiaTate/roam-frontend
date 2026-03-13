@@ -285,9 +285,9 @@ export default function GuideClientPage(props: {
 
   const handleShowOnMap = useCallback(
     (placeId: string) => {
-      haptic.selection();
+      haptic.medium();
       if (!plan) return;
-      router.push(
+      router.replace(
         `/trip?plan_id=${encodeURIComponent(plan.plan_id)}&focus_place_id=${encodeURIComponent(placeId)}`,
       );
     },
@@ -304,7 +304,7 @@ export default function GuideClientPage(props: {
         style={{
           display: "grid",
           placeItems: "center",
-          height: "100dvh",
+          height: "100%",
           background: "var(--roam-bg)",
           color: "var(--roam-text)",
         }}
@@ -325,7 +325,7 @@ export default function GuideClientPage(props: {
   return (
     <div
       style={{
-        minHeight: "100dvh",
+        minHeight: "100%",
         background: "var(--roam-bg)",
         color: "var(--roam-text)",
         display: "flex",
@@ -525,7 +525,6 @@ export default function GuideClientPage(props: {
         }}
       >
         <GuideView
-          places={places}
           focusedPlaceId={focusedPlaceId}
           onFocusPlace={setFocusedPlaceId}
           isOnline={isOnline}

@@ -2,7 +2,7 @@
 "use client";
 
 import { useMemo, useRef, useState, useEffect } from "react";
-import type { PlacesPack, PlaceItem, PlaceCategory } from "@/lib/types/places";
+import type { PlaceItem, PlaceCategory } from "@/lib/types/places";
 import type { MouseEvent, SyntheticEvent } from "react";
 
 import type {
@@ -19,7 +19,6 @@ import {
   Search,
   Sparkles,
   MapPin,
-  Layers,
   Fuel,
   Tent,
   Bath,
@@ -133,11 +132,9 @@ function catColor(cat: string): ColorDef {
 // Constants - category chips + icon map
 // ──────────────────────────────────────────────────────────────
 
-type ChipKey = PlaceCategory | "all";
-type Chip = { key: ChipKey; label: string; Icon: LucideIcon };
+type Chip = { key: PlaceCategory; label: string; Icon: LucideIcon };
 
 const CHIPS: Chip[] = [
-  { key: "all", label: "All", Icon: Layers },
   { key: "fuel", label: "Fuel", Icon: Fuel },
   { key: "ev_charging", label: "EV", Icon: Zap },
   { key: "rest_area", label: "Rest", Icon: ParkingMeter },
@@ -184,7 +181,7 @@ const CHIPS: Chip[] = [
 const CATEGORY_ICON: Record<string, LucideIcon> = {};
 for (const c of CHIPS) CATEGORY_ICON[c.key] = c.Icon;
 
-type ViewTab = "chat" | "discoveries" | "browse";
+type ViewTab = "chat" | "discoveries";
 
 // ──────────────────────────────────────────────────────────────
 // Helpers
@@ -868,10 +865,10 @@ function DiscoveryGroup({
 // ══════════════════════════════════════════════════════════════
 
 export function GuideView({
-  places, focusedPlaceId, onFocusPlace, onAddStop, isOnline = true, onShowOnMap,
+  focusedPlaceId, onFocusPlace, onAddStop, isOnline = true, onShowOnMap,
   guideReady = false, guidePack, tripProgress, onSendMessage, chatBusy = false,
 }: {
-  places: PlacesPack | null; focusedPlaceId: string | null;
+  focusedPlaceId: string | null;
   onFocusPlace: (id: string | null) => void; onAddStop: (place: PlaceItem) => void;
   isOnline?: boolean; onShowOnMap?: (placeId: string) => void; guideReady?: boolean;
   guidePack?: GuidePack | null; tripProgress?: TripProgress | null;
@@ -879,19 +876,22 @@ export function GuideView({
   chatBusy?: boolean;
 }) {
   const [chatInput, setChatInput] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [chip, setChip] = useState<ChipKey>("all");
   const [activeTab, setActiveTab] = useState<ViewTab>("chat");
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const thread = guidePack?.thread ?? [];
-  const prevThreadLen = useRef(thread.length);
+  const prevThreadLen = useRef(-1);
   useEffect(() => {
-    if (thread.length > prevThreadLen.current) {
+    if (thread.length !== prevThreadLen.current) {
+      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }), 80);
+      prevThreadLen.current = thread.length;
+    }
+  }, [thread.length]);
+  useEffect(() => {
+    if (chatBusy) {
       setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }), 80);
     }
-    prevThreadLen.current = thread.length;
-  }, [thread.length]);
+  }, [chatBusy]);
 
   const discoveredPlaces = guidePack?.discovered_places ?? [];
 
@@ -919,15 +919,6 @@ export function GuideView({
     });
     return cats.map((cat) => ({ category: cat, places: groups[cat] }));
   }, [discoveredPlaces]);
-
-  const browseItems = useMemo(() => {
-    const items = places?.items ?? [];
-    const q = searchQuery.trim().toLowerCase();
-    let list = items;
-    if (chip !== "all") list = list.filter((p) => p.category === chip);
-    if (q) list = list.filter((p) => (p.name ?? "").toLowerCase().includes(q));
-    return list.slice(0, 140);
-  }, [places, searchQuery, chip]);
 
   // Quick suggestions - context-aware
   const quickSuggestions = useMemo(() => {
@@ -971,8 +962,7 @@ export function GuideView({
     setChatInput("");
     setActiveTab("chat");
     if (!guideReady || !onSendMessage) return;
-    const preferred: string[] = chip !== "all" ? [chip] : [];
-    try { await onSendMessage(msg, preferred); } catch {}
+    try { await onSendMessage(msg, []); } catch {}
   }
 
   function handleSubmit(e: React.FormEvent) { e.preventDefault(); handleAsk(); }
@@ -992,7 +982,6 @@ export function GuideView({
         {([
           { key: "chat" as ViewTab, label: "Guide", Icon: Sparkles, badge: null },
           { key: "discoveries" as ViewTab, label: "Found", Icon: MapPin, badge: discoveredPlaces.length > 0 ? discoveredPlaces.length : null },
-          { key: "browse" as ViewTab, label: "Browse", Icon: Search, badge: null },
         ] as const).map((tab) => {
           const active = activeTab === tab.key;
           const TIcon = tab.Icon;
@@ -1103,7 +1092,10 @@ export function GuideView({
           {thread.length > 0 ? (
             <div style={{
               display: "flex", flexDirection: "column", gap: 8,
-              maxHeight: "calc(100dvh - 340px)", overflowY: "auto", paddingRight: 2,
+              // Deduct: sticky header (~120px incl. progress bar) + tab switcher (42px) +
+              // input bar (50px) + gaps (36px) + bottom nav + safe-area notch
+              maxHeight: "calc(100dvh - 248px - var(--bottom-nav-height, 80px) - env(safe-area-inset-bottom, 0px))",
+              overflowY: "auto", paddingRight: 2,
               WebkitOverflowScrolling: "touch", overscrollBehavior: "contain",
             }}>
               {thread.slice(-20).map((m, idx) => {
@@ -1348,78 +1340,6 @@ export function GuideView({
         </div>
       ) : null}
 
-      {/* ════════════════════════════════════════════════════════
-          TAB: BROWSE
-          ════════════════════════════════════════════════════════ */}
-      {activeTab === "browse" ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{
-            display: "flex", alignItems: "center",
-            background: "var(--roam-surface)", borderRadius: 14,
-            border: "1px solid var(--roam-border, rgba(255,255,255,0.06))",
-            padding: "0 14px",
-          }}>
-            <Search size={16} style={{ color: "var(--roam-text-muted)", flexShrink: 0 }} />
-            <input
-              type="text" value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search places…"
-              style={{
-                flex: 1, padding: "13px 10px", border: "none", outline: "none",
-                background: "transparent", color: "var(--roam-text)",
-                fontSize: 14, fontWeight: 500,
-              }}
-            />
-          </div>
-
-          {/* Category chips - colored */}
-          <div className="roam-scroll" style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4, paddingLeft: 2, paddingRight: 16 }}>
-            {CHIPS.map((c) => {
-              const active = chip === c.key;
-              const CI = c.Icon;
-              const cc = c.key === "all" ? { bg: "transparent", fg: "var(--roam-text)", accent: "var(--brand-sky)" } : catColor(c.key);
-              return (
-                <button
-                  key={c.key} type="button"
-                  onClick={() => { haptic.selection(); setChip(c.key); }}
-                  style={{
-                    flex: "0 0 auto", borderRadius: 10, padding: "7px 11px",
-                    fontSize: 12, fontWeight: 700,
-                    border: active ? `1.5px solid ${cc.accent}` : "1px solid var(--roam-border, rgba(255,255,255,0.06))",
-                    background: active ? (c.key === "all" ? "var(--brand-sky)" : cc.bg) : "var(--roam-surface)",
-                    color: active ? (c.key === "all" ? "white" : cc.fg) : "var(--roam-text-muted)",
-                    display: "flex", gap: 5, alignItems: "center", cursor: "pointer",
-                    transition: "all 0.12s ease",
-                  }}
-                >
-                  <CI size={13} />
-                  {c.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {browseItems.length === 0 ? (
-            <div style={{
-              padding: 24, textAlign: "center", color: "var(--roam-text-muted)",
-              fontSize: 14, fontWeight: 500,
-              background: "var(--roam-surface)", borderRadius: 16,
-              border: "1px solid var(--roam-border, rgba(255,255,255,0.06))",
-            }}>
-              No places found{chip !== "all" ? ` for "${fmtCategory(chip)}"` : ""}.
-            </div>
-          ) : (
-            browseItems.map((p) => (
-              <PlaceCard
-                key={p.id} place={p} isFocused={focusedPlaceId === p.id}
-                onFocus={() => onFocusPlace(p.id)} onAdd={() => onAddStop(p)}
-                onShowOnMap={onShowOnMap ? () => onShowOnMap(p.id) : undefined}
-                isOnline={isOnline}
-              />
-            ))
-          )}
-        </div>
-      ) : null}
     </div>
   );
 }

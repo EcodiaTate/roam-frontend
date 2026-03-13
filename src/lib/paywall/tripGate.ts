@@ -1,0 +1,278 @@
+// src/lib/paywall/tripGate.ts
+//
+// Trip usage gate — tracks how many trips the user has created and whether
+// they have purchased Roam Unlimited.
+//
+// SOURCE OF TRUTH (anti-cheat):
+//   - Unlock status  → Supabase `user_entitlements` (written by webhook, read by client)
+//   - Trip count     → Supabase `user_trip_counts`   (written by /api/trips/increment)
+//   - Both fall back to localStorage only when the user is offline or unauthenticated.
+//
+// PLATFORM ROUTING:
+//   - Native (iOS/Android Capacitor) → RevenueCat purchase flow
+//   - Web browser                    → Stripe Checkout redirect
+//
+// Tier logic:
+//   trips_used == 0  → first launch → show welcome modal
+//   trips_used == 1  → trip 2 in progress → show "make it count" banner
+//   trips_used >= 2  → show full paywall (must purchase before creating)
+//   unlocked == true → skip gate entirely
+
+import { Capacitor } from "@capacitor/core";
+import { Purchases, LOG_LEVEL } from "@revenuecat/purchases-capacitor";
+import { supabase } from "@/lib/supabase/client";
+
+const KEY_TRIPS_USED = "roam_trips_used";
+const KEY_UNLOCKED   = "roam_unlimited_unlocked";
+
+const RC_ENTITLEMENT_ID = "roam_unlimited";
+const RC_PRODUCT_ID     = "roam_unlimited_lifetime";
+
+/* ── Platform helper ─────────────────────────────────────────────── */
+
+export function isNativePlatform(): boolean {
+  return Capacitor.isNativePlatform();
+}
+
+/* ── Local cache helpers (localStorage) ─────────────────────────── */
+// Used only as offline fallback — never the primary source of truth.
+
+function localGet(key: string): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(key);
+}
+
+function localSet(key: string, value: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(key, value);
+}
+
+/* ── Supabase: unlock status ─────────────────────────────────────── */
+
+/** Returns true if the authenticated user has an entitlement row in Supabase. */
+async function fetchUnlockFromSupabase(): Promise<boolean | null> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null; // not logged in — can't check
+
+    const { data, error } = await supabase
+      .from("user_entitlements")
+      .select("id")
+      .eq("user_id", user.id)
+      .limit(1)
+      .maybeSingle();
+
+    if (error) return null;
+    return data !== null;
+  } catch {
+    return null;
+  }
+}
+
+/* ── Supabase: trip count ────────────────────────────────────────── */
+
+async function fetchTripCountFromSupabase(): Promise<number | null> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const { data, error } = await supabase
+      .from("user_trip_counts")
+      .select("trips_used")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (error) return null;
+    return data?.trips_used ?? 0;
+  } catch {
+    return null;
+  }
+}
+
+/* ── RevenueCat ──────────────────────────────────────────────────── */
+
+let _rcReady = false;
+
+export async function initRevenueCat(apiKey: string): Promise<void> {
+  if (!isNativePlatform() || _rcReady) return;
+  try {
+    await Purchases.setLogLevel({ level: LOG_LEVEL.ERROR });
+    await Purchases.configure({ apiKey });
+    _rcReady = true;
+  } catch (e) {
+    console.warn("[tripGate] RevenueCat init failed:", e);
+  }
+}
+
+/** Native only: check RC entitlement and persist to Supabase + local cache. */
+async function syncUnlockFromRC(): Promise<boolean> {
+  if (!isNativePlatform() || !_rcReady) return false;
+  try {
+    const { customerInfo } = await Purchases.getCustomerInfo();
+    const unlocked = RC_ENTITLEMENT_ID in customerInfo.entitlements.active;
+    if (unlocked) {
+      // Persist to server so it's visible on web too
+      await markEntitlementInSupabase("revenuecat");
+      localSet(KEY_UNLOCKED, "1");
+    }
+    return unlocked;
+  } catch {
+    return false;
+  }
+}
+
+async function markEntitlementInSupabase(source: "revenuecat" | "stripe" | "manual"): Promise<void> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from("user_entitlements").upsert(
+      { user_id: user.id, source },
+      { onConflict: "user_id,source" }
+    );
+  } catch {
+    // Non-fatal: webhook will also write this
+  }
+}
+
+/* ── Public: purchase / restore (native) ────────────────────────── */
+
+export async function purchaseUnlimited(): Promise<{ success: boolean; error?: string }> {
+  if (!isNativePlatform()) {
+    // Web: caller should redirect to Stripe instead — this path should not be called
+    return { success: false, error: "Use Stripe on web." };
+  }
+  try {
+    const { customerInfo } = await Purchases.purchaseStoreProduct({
+      product: { productIdentifier: RC_PRODUCT_ID } as any,
+    });
+    const unlocked = RC_ENTITLEMENT_ID in customerInfo.entitlements.active;
+    if (unlocked) {
+      await markEntitlementInSupabase("revenuecat");
+      localSet(KEY_UNLOCKED, "1");
+      return { success: true };
+    }
+    return { success: false, error: "Purchase completed but entitlement not found." };
+  } catch (e: any) {
+    if (e?.code === "1") return { success: false, error: "cancelled" };
+    return { success: false, error: e?.message ?? "Purchase failed. Please try again." };
+  }
+}
+
+export async function restorePurchases(): Promise<{ success: boolean; error?: string }> {
+  if (!isNativePlatform()) {
+    return { success: false, error: "Restore is only available in the app." };
+  }
+  try {
+    const { customerInfo } = await Purchases.restorePurchases();
+    const unlocked = RC_ENTITLEMENT_ID in customerInfo.entitlements.active;
+    if (unlocked) {
+      await markEntitlementInSupabase("revenuecat");
+      localSet(KEY_UNLOCKED, "1");
+    }
+    return { success: unlocked, error: unlocked ? undefined : "No previous purchase found." };
+  } catch (e: any) {
+    return { success: false, error: e?.message ?? "Restore failed." };
+  }
+}
+
+/* ── Public: web Stripe redirect ─────────────────────────────────── */
+
+/** Redirects browser to Stripe Checkout. Does not return on success. */
+export async function redirectToStripeCheckout(accessToken?: string): Promise<{ error: string }> {
+  try {
+    // Use token passed from the React auth context — avoids race with Supabase hydration
+    const token = accessToken ?? (await supabase.auth.getSession()).data.session?.access_token;
+const res = await fetch("/api/stripe/checkout", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      return { error: body.error ?? "Failed to start checkout." };
+    }
+    const { url } = await res.json();
+    window.location.href = url;
+    return { error: "" }; // unreachable
+  } catch {
+    return { error: "Could not connect to payment service. Please try again." };
+  }
+}
+
+/* ── Trip counter ────────────────────────────────────────────────── */
+
+export async function getTripsUsed(): Promise<number> {
+  // Server is authoritative — local is fallback when offline / unauthenticated
+  const serverCount = await fetchTripCountFromSupabase();
+  if (serverCount !== null) {
+    localSet(KEY_TRIPS_USED, String(serverCount));
+    return serverCount;
+  }
+  const raw = localGet(KEY_TRIPS_USED);
+  const n = parseInt(raw ?? "0", 10);
+  return isNaN(n) ? 0 : n;
+}
+
+/** Called after a trip is successfully saved. Increments server counter via API. */
+export async function incrementTripsUsed(): Promise<number> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch("/api/trips/increment", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+      },
+    });
+    if (res.ok) {
+      const { trips_used } = await res.json();
+      localSet(KEY_TRIPS_USED, String(trips_used));
+      return trips_used;
+    }
+  } catch {
+    // Offline — fall back to local increment only
+  }
+  const current = parseInt(localGet(KEY_TRIPS_USED) ?? "0", 10);
+  const next = (isNaN(current) ? 0 : current) + 1;
+  localSet(KEY_TRIPS_USED, String(next));
+  return next;
+}
+
+export async function isUnlocked(): Promise<boolean> {
+  const server = await fetchUnlockFromSupabase();
+  if (server !== null) return server;
+  return localGet(KEY_UNLOCKED) === "1";
+}
+
+/* ── Gate check — call before creating a new trip ────────────────── */
+
+export type GateResult =
+  | { allowed: true;  tripsUsed: number }
+  | { allowed: false; reason: "paywall" | "welcome"; tripsUsed: number };
+
+export async function checkTripGate(): Promise<GateResult> {
+  // Dev shortcut: ?paywall=1 forces paywall, ?welcome=1 forces welcome modal
+  if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
+    const p = new URLSearchParams(window.location.search);
+    if (p.get("paywall") === "1") return { allowed: false, reason: "paywall", tripsUsed: 2 };
+    if (p.get("welcome") === "1") return { allowed: false, reason: "welcome", tripsUsed: 0 };
+  }
+
+  // On native: also sync RC entitlements in case they purchased on another device
+  if (isNativePlatform()) {
+    await syncUnlockFromRC();
+  }
+
+  // Supabase is the authoritative source for both unlock and trip count
+  const [unlocked, tripsUsed] = await Promise.all([isUnlocked(), getTripsUsed()]);
+
+  if (unlocked) return { allowed: true, tripsUsed };
+
+  if (tripsUsed >= 2) return { allowed: false, reason: "paywall", tripsUsed };
+
+  if (tripsUsed === 0) return { allowed: false, reason: "welcome", tripsUsed };
+
+  return { allowed: true, tripsUsed };
+}

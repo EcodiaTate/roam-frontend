@@ -264,12 +264,16 @@ html, body {
 html.roam-shell {
   overflow: hidden;
   position: fixed;
+  width: 100%;
+  height: 100%;
   overscroll-behavior: none;
   overscroll-behavior-y: none;
 }
 html.roam-shell body {
   overflow: hidden;
   position: fixed;
+  width: 100%;
+  height: 100%;
   overscroll-behavior: none;
   overscroll-behavior-y: none;
 }
@@ -298,9 +302,10 @@ input, textarea, [contenteditable] {
 }
 :focus:not(:focus-visible) { outline: none; }
 
-/* App shell - absolute fill, safe-area padding (except bottom, handled by absolute tab bar) */
+/* App shell - fills the fixed-locked body, safe-area padding top/sides only.
+   Bottom is handled by the fixed tab bar + its ::after safe-area leg. */
 .roam-shell {
-  position: absolute;
+  position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
   display: flex;
   flex-direction: column;
@@ -323,7 +328,7 @@ input, textarea, [contenteditable] {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   flex: 1;
   height: 100%;
   color: var(--tab-inactive-color);
@@ -332,8 +337,10 @@ input, textarea, [contenteditable] {
   touch-action: manipulation;
   user-select: none;
   transition: color var(--dur-normal) ease;
-  padding: 6px 0;
-  gap: 2px;
+  padding: 4px 0 0;
+  gap: 3px;
+  /* Minimum tap target — 44px per Apple HIG */
+  min-height: 44px;
 }
 
 .roam-tab:active,
@@ -372,6 +379,10 @@ input, textarea, [contenteditable] {
 /* ── Center "Trip" raised button ──────────────────────────── */
 .roam-tab.roam-tab-center {
   position: relative;
+  /* Pull the raised pill up above the bar top edge */
+  margin-top: -14px;
+  padding-top: 0;
+  justify-content: flex-start;
 }
 .roam-tab.roam-tab-center:active .roam-tab-inner {
   transform: scale(0.90);
@@ -1071,9 +1082,9 @@ input, textarea, [contenteditable] {
 }
 
 
-/* ── Fixed tab bar (glass morphism, overlays content) ──────────────── */
+/* ── Fixed tab bar (glass morphism, pins to viewport bottom) ────────── */
 .roam-tabs-wrap {
-  position: absolute;
+  position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
@@ -1087,10 +1098,14 @@ input, textarea, [contenteditable] {
 .roam-tabs {
   position: relative;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-evenly;
   pointer-events: auto;
+  /* height covers just the interactive bar; safe-area leg is handled by ::after */
   height: var(--roam-tab-h);
+  /* Push tab content down from the top of the bar a touch, centre in bar height */
+  padding-top: 8px;
+  padding-bottom: 0;
   border-radius: 24px 24px 0 0;
   background-color: var(--tab-glass-bg);
   backdrop-filter: blur(20px) saturate(170%);
@@ -1112,7 +1127,9 @@ input, textarea, [contenteditable] {
   -webkit-backdrop-filter: blur(20px) saturate(170%);
 }
 
-/* Main content area */
+/* Main content area - flex-fills shell above the fixed tab bar.
+   Individual pages add their own padding-bottom: var(--bottom-nav-height)
+   as needed. Trip page uses position:fixed to escape this entirely (map). */
 .roam-main {
   flex: 1;
   min-height: 0;
@@ -1127,7 +1144,7 @@ input, textarea, [contenteditable] {
    ========================================================================== */
 
 .sos-page {
-  height: 100dvh;
+  height: 100%;
   background: var(--roam-bg);
   color: var(--roam-text);
   overflow-y: auto;

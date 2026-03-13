@@ -15,6 +15,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@aparajita/capacitor-secure-storage": "^8.0.0",
     "@capacitor-community/apple-sign-in": "^7.1.0",
     "@capacitor-community/keep-awake": "^8.0.0",
     "@capacitor/android": "^8.1.0",
@@ -32,6 +33,7 @@
     "@capacitor/share": "^8.0.1",
     "@capacitor/splash-screen": "^8.0.1",
     "@capacitor/status-bar": "^8.0.1",
+    "@revenuecat/purchases-capacitor": "^12.2.4",
     "@supabase/supabase-js": "^2.95.3",
     "@what3words/api": "^5.4.0",
     "fflate": "^0.8.2",
@@ -42,6 +44,7 @@
     "pmtiles": "^4.4.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "stripe": "^20.4.1",
     "zod": "^4.3.6"
   },
   "devDependencies": {

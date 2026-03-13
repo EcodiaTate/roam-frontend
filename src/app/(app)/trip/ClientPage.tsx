@@ -486,7 +486,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   // ── Render gates ────────────────────────────────────────────────
   if (phase === "resolving" || phase === "no-plan") {
     return (
-      <div style={{ display: "grid", placeItems: "center", height: "100dvh", width: "100%", background: "var(--roam-bg)", color: "var(--roam-text)" }}>
+      <div style={{ display: "grid", placeItems: "center", height: "100%", width: "100%", background: "var(--roam-bg)", color: "var(--roam-text)" }}>
         <div style={{ color: "var(--roam-text-muted)", fontSize: 16, fontWeight: 900 }}>
           {phase === "resolving" ? "Loading…" : "Redirecting…"}
         </div>
@@ -496,7 +496,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
 
   if (phase === "error") {
     return (
-      <div style={{ display: "grid", placeItems: "center", height: "100dvh", width: "100%", background: "var(--roam-bg)", color: "var(--roam-text)", padding: 32, textAlign: "center" }}>
+      <div style={{ display: "grid", placeItems: "center", height: "100%", width: "100%", background: "var(--roam-bg)", color: "var(--roam-text)", padding: 32, textAlign: "center" }}>
         <div>
           <div style={{ fontSize: 16, fontWeight: 950, color: "var(--roam-danger)", marginBottom: 12 }}>
             Failed to load trip
@@ -517,7 +517,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
 
   if (phase === "hydrating" || !plan || !effectiveGeom || !effectiveBbox) {
     return (
-      <div style={{ display: "grid", placeItems: "center", height: "100dvh", width: "100%", background: "var(--roam-bg)", color: "var(--roam-text)" }}>
+      <div style={{ display: "grid", placeItems: "center", height: "100%", width: "100%", background: "var(--roam-bg)", color: "var(--roam-text)" }}>
         <div style={{ color: "var(--roam-text-muted)", fontSize: 16, fontWeight: 900 }}>Loading trip map…</div>
       </div>
     );

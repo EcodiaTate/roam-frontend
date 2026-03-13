@@ -19,6 +19,12 @@ import {
 import { App } from "@capacitor/app";
 import { networkMonitor } from "@/lib/offline/networkMonitor";
 import { planSync } from "@/lib/offline/planSync";
+import { initRevenueCat } from "@/lib/paywall/tripGate";
+import { Purchases } from "@revenuecat/purchases-capacitor";
+import { supabase } from "@/lib/supabase/client";
+
+// Set this env var to your RevenueCat iOS/Android API key
+const RC_API_KEY = process.env.NEXT_PUBLIC_REVENUECAT_API_KEY ?? "";
 
 /**
  * Invisible component that initializes all native Capacitor plugins.
@@ -88,7 +94,22 @@ export function NativeBootstrap() {
         } catch {}
       });
 
-      // 7. Hide splash (everything is ready)
+      // 7. Initialize RevenueCat (non-blocking — paywall still works via cached state)
+      if (RC_API_KEY) {
+        initRevenueCat(RC_API_KEY).catch(() => {});
+
+        // Log RC in with the Supabase user ID so the RC webhook can identify
+        // which user to unlock when a purchase completes on device.
+        // We subscribe to auth changes so this works for both immediate and
+        // delayed sign-ins (e.g. user opens app → signs in → buys).
+        supabase.auth.onAuthStateChange((_event, session) => {
+          if (session?.user?.id) {
+            Purchases.logIn({ appUserID: session.user.id }).catch(() => {});
+          }
+        });
+      }
+
+      // 8. Hide splash (everything is ready)
       //    Small delay ensures the first paint has happened
       setTimeout(() => hideSplash(), 150);
     })();
