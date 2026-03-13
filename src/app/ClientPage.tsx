@@ -227,8 +227,8 @@ export default function LandingPage() {
             <img
               src="/img/roam-app-icon.png"
               alt="Roam Icon"
-              width={50}
-              height={50}
+              width={76}
+              height={76}
               style={{ borderRadius: '6px' }}
             />
             <span>ROAM</span>
@@ -627,7 +627,7 @@ const STYLES = `
 }
 .rl-nav-bar {
   max-width: 1100px; margin: 0 auto;
-  height: 72px; padding: 0 24px;
+  height: 96px; padding: 0 24px;
   display: flex; align-items: center; justify-content: space-between;
   position: relative;
   z-index: 1001;
