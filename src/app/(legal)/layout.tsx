@@ -1,5 +1,5 @@
 import React from "react";
-
+import "./legal.module.css"
 export default function LegalLayout({
   children,
 }: {

@@ -191,8 +191,15 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         }
 
         // ── Fuel analysis: load from IDB or compute fresh ──
-        if (packs.fuel_analysis) {
-          setFuelAnalysis(packs.fuel_analysis);
+        // Invalidate cached analysis if the places pack has changed since it was computed.
+        const cachedAnalysis = packs.fuel_analysis;
+        const placesKeyNow = packs.places?.places_key;
+        const analysisStale =
+          !cachedAnalysis ||
+          (placesKeyNow && cachedAnalysis.places_key !== placesKeyNow);
+
+        if (cachedAnalysis && !analysisStale) {
+          setFuelAnalysis(cachedAnalysis);
         } else if (packs.navpack?.primary?.geometry && packs.places?.items) {
           try {
             const fuelProfile = await getVehicleFuelProfile();
@@ -201,6 +208,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
               packs.places.items,
               fuelProfile,
               packs.navpack.primary.route_key,
+              placesKeyNow,
             );
             setFuelAnalysis(analysis);
             putPack(rec.plan_id, "fuel_analysis", analysis).catch(() => {});

@@ -246,6 +246,9 @@ export function PlanningOverlay({ phase, error, visible }: PlanningOverlayProps)
             background: "var(--surface-card, #f4efe6)",
             borderRadius: "28px 28px 0 0",
             overflow: "hidden",
+            maxHeight: "calc(100vh - var(--bottom-nav-height, 80px) - 48px)",
+            display: "flex",
+            flexDirection: "column",
             animation: "roam-po-slideup 0.35s cubic-bezier(0.22, 1, 0.36, 1) both",
           }}
         >
@@ -257,9 +260,10 @@ export function PlanningOverlay({ phase, error, visible }: PlanningOverlayProps)
                 : isReady
                 ? "linear-gradient(135deg, #7a3d00 0%, var(--brand-amber, #b8872a) 100%)"
                 : "linear-gradient(135deg, #7a3d00 0%, var(--brand-ochre, #c85a3a) 100%)",
-              padding: "28px 24px 24px",
+              padding: "20px 20px 16px",
               position: "relative",
               overflow: "hidden",
+              flexShrink: 0,
             }}
           >
             {/* Decorative rings */}
@@ -280,11 +284,11 @@ export function PlanningOverlay({ phase, error, visible }: PlanningOverlayProps)
             <div style={{
               display: "inline-flex", alignItems: "center", gap: 6,
               background: "rgba(255,255,255,0.15)",
-              borderRadius: 999, padding: "4px 12px",
-              marginBottom: 14,
+              borderRadius: 999, padding: "3px 10px",
+              marginBottom: 10,
             }}>
               <span style={{
-                fontSize: 11, fontWeight: 800,
+                fontSize: 10, fontWeight: 800,
                 letterSpacing: "0.06em",
                 color: "rgba(255,255,255,0.9)",
                 textTransform: "uppercase" as const,
@@ -294,8 +298,8 @@ export function PlanningOverlay({ phase, error, visible }: PlanningOverlayProps)
             </div>
 
             <h2 style={{
-              margin: "0 0 6px",
-              fontSize: 22, fontWeight: 900,
+              margin: "0 0 4px",
+              fontSize: 19, fontWeight: 900,
               color: "#fff", lineHeight: 1.2,
             }}>
               {isReady
@@ -307,9 +311,9 @@ export function PlanningOverlay({ phase, error, visible }: PlanningOverlayProps)
 
             <p style={{
               margin: 0,
-              fontSize: 13, fontWeight: 500,
+              fontSize: 12, fontWeight: 500,
               color: "rgba(255,255,255,0.75)",
-              lineHeight: 1.5,
+              lineHeight: 1.45,
             }}>
               {isReady
                 ? "Your trip is saved offline — works without signal, anywhere."
@@ -323,7 +327,7 @@ export function PlanningOverlay({ phase, error, visible }: PlanningOverlayProps)
             {/* Progress bar */}
             {!error && (
               <div style={{
-                marginTop: 18,
+                marginTop: 14,
                 height: 3,
                 background: "rgba(255,255,255,0.18)",
                 borderRadius: 2,
@@ -342,7 +346,7 @@ export function PlanningOverlay({ phase, error, visible }: PlanningOverlayProps)
 
           {/* ── Step list ── */}
           {!error && (
-            <div style={{ padding: "8px 0 4px" }}>
+            <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch" as any }}>
               {STEPS.map((step, i) => {
                 const done = isReady || i < activeIdx;
                 const active = !isReady && i === activeIdx;
@@ -355,27 +359,27 @@ export function PlanningOverlay({ phase, error, visible }: PlanningOverlayProps)
                     style={{
                       display: "flex",
                       alignItems: "center",
-                      gap: 14,
-                      padding: "9px 24px",
+                      gap: 12,
+                      padding: "7px 20px",
                       borderBottom: i < STEPS.length - 1
                         ? "1px solid var(--roam-border, rgba(26,22,19,0.07))"
                         : "none",
-                      opacity: waiting ? 0.35 : 1,
+                      opacity: waiting ? 0.32 : 1,
                       background: active ? "rgba(200,90,58,0.05)" : "transparent",
                       transition: "opacity 0.2s, background 0.2s",
                     }}
                   >
                     {/* Icon / state indicator */}
                     <div style={{
-                      width: 36, height: 36, flexShrink: 0,
-                      borderRadius: 10,
+                      width: 30, height: 30, flexShrink: 0,
+                      borderRadius: 8,
                       background: done
                         ? "var(--accent-tint, rgba(51,120,74,0.10))"
                         : active
                         ? "rgba(200,90,58,0.10)"
                         : "var(--surface-muted, #e3dccf)",
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: done ? 13 : 18,
+                      fontSize: done ? 12 : 16,
                       color: done ? "var(--brand-eucalypt, #2d6e40)" : undefined,
                       fontWeight: done ? 900 : undefined,
                       transition: "background 0.2s",
@@ -386,7 +390,7 @@ export function PlanningOverlay({ phase, error, visible }: PlanningOverlayProps)
                     {/* Text */}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{
-                        fontSize: 14, fontWeight: 700,
+                        fontSize: 13, fontWeight: 700,
                         color: done
                           ? "var(--roam-text-muted, #7a7067)"
                           : "var(--roam-text, #1a1613)",
@@ -395,20 +399,32 @@ export function PlanningOverlay({ phase, error, visible }: PlanningOverlayProps)
                       }}>
                         {step.label}
                       </div>
-                      {(active || done) && (
+                      {active && (
                         <div style={{
-                          fontSize: 12, fontWeight: 500,
-                          color: done
-                            ? "var(--brand-eucalypt, #2d6e40)"
-                            : "var(--roam-text-muted, #7a7067)",
-                          marginTop: 2,
-                          lineHeight: 1.4,
+                          fontSize: 11, fontWeight: 500,
+                          color: "var(--roam-text-muted, #7a7067)",
+                          marginTop: 1,
+                          lineHeight: 1.35,
                           animation: "roam-po-quipin 0.3s ease both",
                         }}>
-                          {done ? step.doneQuip : quip}
+                          {quip}
                         </div>
                       )}
                     </div>
+
+                    {/* Done quip on the right for completed rows */}
+                    {done && (
+                      <div style={{
+                        fontSize: 11, fontWeight: 500,
+                        color: "var(--brand-eucalypt, #2d6e40)",
+                        flexShrink: 0,
+                        maxWidth: 110,
+                        textAlign: "right" as const,
+                        lineHeight: 1.3,
+                      }}>
+                        {step.doneQuip}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -417,10 +433,10 @@ export function PlanningOverlay({ phase, error, visible }: PlanningOverlayProps)
 
           {/* ── Error detail ── */}
           {error && (
-            <div style={{ padding: "16px 24px 20px" }}>
+            <div style={{ padding: "14px 20px 16px", flexShrink: 0 }}>
               <div style={{
-                padding: "12px 14px",
-                borderRadius: 12,
+                padding: "10px 12px",
+                borderRadius: 10,
                 background: "var(--bg-error, #fae5e2)",
                 color: "var(--text-error, #922018)",
                 fontSize: 13, fontWeight: 600,
@@ -432,7 +448,7 @@ export function PlanningOverlay({ phase, error, visible }: PlanningOverlayProps)
           )}
 
           {/* ── Bottom breathing room ── */}
-          <div style={{ height: 16 }} />
+          <div style={{ height: 10, flexShrink: 0 }} />
         </div>
       </div>
     </>

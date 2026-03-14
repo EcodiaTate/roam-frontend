@@ -20,8 +20,12 @@ import type {
   DEFAULT_FUEL_PROFILE,
 } from "@/lib/types/fuel";
 
-/** Max perpendicular snap distance (metres) for a station to be "on route" */
-const MAX_SNAP_DISTANCE_M = 2000;
+/**
+ * Max perpendicular snap distance (metres) for a station to be "on route".
+ * 5 km covers outback servos sitting on parallel service roads or a short
+ * detour off the highway — while still excluding stations in different towns.
+ */
+const MAX_SNAP_DISTANCE_M = 5000;
 
 /** Categories in PlacesPack that represent fuel */
 const FUEL_CATEGORIES = new Set(["fuel", "ev_charging"]);
@@ -44,17 +48,19 @@ function relevantCategories(fuelType: string): Set<string> {
  * @param places         All PlaceItems from the corridor PlacesPack
  * @param profile        Vehicle fuel profile
  * @param routeKey       Route key for tagging the analysis
+ * @param placesKey      Places pack key — stored so callers can detect stale cache
  */
 export function analyzeFuel(
   routeGeometry: string,
   places: PlaceItem[],
   profile: VehicleFuelProfile,
   routeKey: string,
+  placesKey?: string,
 ): FuelAnalysis {
   // 1. Decode polyline → coordinate array
   const decoded = decodePolyline6(routeGeometry);
   if (decoded.length < 2) {
-    return emptyAnalysis(profile, routeKey);
+    return emptyAnalysis(profile, routeKey, placesKey);
   }
 
   // 2. Build cumulative km array
@@ -90,9 +96,14 @@ export function analyzeFuel(
       has_unleaded: p.extra?.has_unleaded ?? undefined,
     };
 
-    // Additional fuel-type filtering for diesel/unleaded
+    // Additional fuel-type filtering for diesel/unleaded/lpg.
+    // Only exclude a station if we have *explicit* fuel-type data AND the
+    // required type is absent.  When has_diesel/has_unleaded/has_lpg are
+    // undefined (OSM tags missing), we keep the station — most servos don't
+    // have granular OSM fuel tags and we'd rather show too many than too few.
     if (profile.fuel_type === "diesel" && station.has_diesel === false) continue;
     if (profile.fuel_type === "unleaded" && station.has_unleaded === false) continue;
+    if (profile.fuel_type === "lpg" && station.has_lpg === false) continue;
 
     stations.push(station);
   }
@@ -124,6 +135,7 @@ export function analyzeFuel(
     has_critical_gaps: legs.some((l) => l.gap_exceeds_range),
     computed_at: new Date().toISOString(),
     route_key: routeKey,
+    places_key: placesKey,
   };
 }
 
@@ -222,7 +234,7 @@ export function computeFuelTracking(
 // Internal helpers
 // ──────────────────────────────────────────────────────────────
 
-function emptyAnalysis(profile: VehicleFuelProfile, routeKey: string): FuelAnalysis {
+function emptyAnalysis(profile: VehicleFuelProfile, routeKey: string, placesKey?: string): FuelAnalysis {
   return {
     profile,
     stations: [],
@@ -238,6 +250,7 @@ function emptyAnalysis(profile: VehicleFuelProfile, routeKey: string): FuelAnaly
     has_critical_gaps: false,
     computed_at: new Date().toISOString(),
     route_key: routeKey,
+    places_key: placesKey,
   };
 }
 

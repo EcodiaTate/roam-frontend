@@ -14,7 +14,10 @@ export type BundleBuildRequest = {
 
 export const bundleApi = {
   // POST /bundle/build -> OfflineBundleManifest
-  build: (req: BundleBuildRequest) => api.post<OfflineBundleManifest>("/bundle/build", req),
+  // Heavy endpoint: two-tier Overpass queries + corridor + traffic/hazards.
+  // Allow up to 10 min — Overpass can be slow for long routes.
+  build: (req: BundleBuildRequest) =>
+    api.post<OfflineBundleManifest>("/bundle/build", req, { timeoutMs: 600_000 }),
 
   // GET /bundle/{plan_id} -> OfflineBundleManifest
   get: (plan_id: string) => api.get<OfflineBundleManifest>(`/bundle/${encodeURIComponent(plan_id)}`),

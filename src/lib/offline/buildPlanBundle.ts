@@ -12,7 +12,6 @@ import type { OfflineBundleManifest } from "@/lib/types/bundle";
 import type { TripStop } from "@/lib/types/trip";
 
 import { navApi } from "@/lib/api/nav";
-import { placesApi } from "@/lib/api/places";
 import { bundleApi } from "@/lib/api/bundle";
 import { saveOfflinePlan, type OfflinePlanPreview } from "./plansStore";
 import { putPack } from "./packsStore";
@@ -57,8 +56,6 @@ export type BuildPlanBundleArgs = {
   buffer_m?: number;
   /** Max corridor graph edges */
   max_edges?: number;
-  /** Places search buffer in km */
-  places_buffer_km?: number;
   /** Progress callback - called on every phase change */
   onPhase?: (phase: BuildPhase) => void;
 };
@@ -115,7 +112,6 @@ export async function buildPlanBundle(args: BuildPlanBundleArgs): Promise<BuildP
     existingNavPack = null,
     buffer_m = 15000,
     max_edges = 350000,
-    places_buffer_km = 15,
     onPhase,
   } = args;
 
@@ -156,22 +152,16 @@ export async function buildPlanBundle(args: BuildPlanBundleArgs): Promise<BuildP
   emit("corridor_get");
   await navApi.corridorGet(meta.corridor_key);
 
-  // ─── 4. Places corridor ──────────────────────────────────────────────
-  emit("places_corridor");
-  const placesPack = await placesApi.corridor({
-    corridor_key: meta.corridor_key,
-    geometry,
-    buffer_km: places_buffer_km,
-    limit: 8000,
-  });
-
-  // ─── 4b. Fuel analysis (client-side, no network) ────────────────────
+  // ─── 4. Fuel analysis (client-side, no network) ─────────────────────
+  // Places are fetched inside bundle/build — run fuel analysis optimistically
+  // with no places so it doesn't block. Fuel stops in the bundle will be
+  // used by the trip page once the bundle is loaded offline.
   emit("fuel_analysis");
   try {
     const fuelProfile = await getVehicleFuelProfile();
     const fuelResult = analyzeFuel(
       geometry,
-      placesPack?.items ?? [],
+      [],
       fuelProfile,
       route_key,
     );
@@ -192,7 +182,7 @@ export async function buildPlanBundle(args: BuildPlanBundleArgs): Promise<BuildP
   emit("hazards_poll");
   await navApi.hazardsPoll({ bbox, sources: [], cache_seconds: 60, timeout_s: 10 });
 
-  // ─── 7. Bundle build ────────────────────────────────────────────────
+  // ─── 7. Bundle build (includes two-tier places search internally) ────
   emit("bundle_build");
   const manifest = await bundleApi.build({
     plan_id,
