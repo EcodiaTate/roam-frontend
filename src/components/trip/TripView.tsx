@@ -482,7 +482,7 @@ export function TripView({
 
                     {/* Edit controls */}
                     {!locked && (
-                      <div className={s.stopControls}>
+                      <div className={s.stopControls} onPointerDown={(e) => e.stopPropagation()}>
                         {index > 1 && (
                           <button
                             type="button"
