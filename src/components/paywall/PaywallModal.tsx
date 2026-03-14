@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { haptic } from "@/lib/native/haptics";
 import {
@@ -25,6 +26,7 @@ const FEATURES = [
 ];
 
 export function PaywallModal({ open, onClose, onUnlocked }: Props) {
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [buying, setBuying] = useState(false);
   const [restoring, setRestoring] = useState(false);
@@ -49,11 +51,12 @@ export function PaywallModal({ open, onClose, onUnlocked }: Props) {
 
   const handlePurchase = useCallback(async () => {
     haptic.medium();
-    setBuying(true);
     setError(null);
-    try {
-      if (isNative) {
-        // iOS / Android — RevenueCat native sheet
+
+    if (isNative) {
+      // iOS / Android — RevenueCat native sheet
+      setBuying(true);
+      try {
         const result = await purchaseUnlimited();
         if (result.success) {
           haptic.success();
@@ -61,15 +64,27 @@ export function PaywallModal({ open, onClose, onUnlocked }: Props) {
         } else if (result.error !== "cancelled") {
           setError(result.error ?? "Purchase failed.");
         }
-      } else {
-        // Web — redirect to Stripe Checkout (does not return on success)
-        const result = await redirectToStripeCheckout(session?.access_token);
-        if (result.error) setError(result.error);
+      } finally {
+        setBuying(false);
       }
+      return;
+    }
+
+    // Web — must be signed in so the payment can be linked to the account
+    if (!session) {
+      router.push("/login?next=checkout");
+      return;
+    }
+
+    // Signed in — redirect to Stripe Checkout (does not return on success)
+    setBuying(true);
+    try {
+      const result = await redirectToStripeCheckout(session.access_token);
+      if (result.error) setError(result.error);
     } finally {
       setBuying(false);
     }
-  }, [isNative, onUnlocked]);
+  }, [isNative, session, onUnlocked, router]);
 
   const handleRestore = useCallback(async () => {
     haptic.light();
@@ -269,7 +284,9 @@ export function PaywallModal({ open, onClose, onUnlocked }: Props) {
               ? (isNative ? "Processing…" : "Redirecting to checkout…")
               : isNative
                 ? "Unlock Roam Unlimited · $19.99"
-                : "Pay with Card · $19.99 →"}
+                : session
+                  ? "Pay with Card · $19.99 →"
+                  : "Sign in to unlock · $19.99 →"}
           </button>
 
           {/* Error */}

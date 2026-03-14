@@ -19,10 +19,10 @@ import {
   type MapBaseMode,
   type VectorTheme,
 } from "@/components/trips/new/MapStyleSwitcher";
+import { PlanningOverlay } from "@/components/trips/new/PlanningOverlay";
 import { InviteCodeModal } from "@/components/plans/InviteCodeModal";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { WelcomeModal } from "@/components/paywall/WelcomeModal";
-import { Loader2 } from "lucide-react";
 
 function genPlanId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return (crypto as any).randomUUID();
@@ -240,45 +240,12 @@ export default function NewTripClientPage() {
         savedOffline={bundle.isReady}
       />
 
-      {/* Status overlay */}
-      {(bundle.building || bundle.phase !== "idle") && (
-        <div
-          style={{
-            position: "absolute",
-            left: 12,
-            right: 12,
-            bottom: 12,
-            zIndex: 50,
-            pointerEvents: "none",
-          }}
-        >
-          <div
-            style={{
-              width: "100%",
-              borderRadius: 14,
-              padding: "12px 14px",
-              background: "var(--overlay-bg)",
-              backdropFilter: "blur(10px)",
-              WebkitBackdropFilter: "blur(10px)",
-              border: "1px solid var(--roam-border-strong)",
-              color: "var(--on-color)",
-              fontSize: 13,
-              fontWeight: 900,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 10,
-            }}
-          >
-            <span style={{ opacity: 0.95 }}>{bundle.statusText}</span>
-            <span style={{ opacity: 0.75, fontWeight: 800, display: "flex", alignItems: "center" }}>
-              {bundle.building ? (
-                <Loader2 size={14} style={{ animation: "roam-spin 0.6s linear infinite" }} />
-              ) : bundle.isReady ? "✓" : ""}
-            </span>
-          </div>
-        </div>
-      )}
+      {/* Planning overlay */}
+      <PlanningOverlay
+        phase={bundle.phase as any}
+        error={bundle.error}
+        visible={bundle.building || bundle.phase === "ready" || bundle.phase === "error"}
+      />
 
       <PlaceSearchModal
         open={searchOpen}

@@ -21,7 +21,7 @@ import { addPlaceToTrip } from "@/lib/guide/addToTrip";
 
 import { GuideView } from "@/components/trip/GuideView";
 
-import { ArrowLeft, Wifi, WifiOff, Satellite, AlertTriangle } from "lucide-react";
+import { Wifi, WifiOff, Satellite, AlertTriangle } from "lucide-react";
 
 // ──────────────────────────────────────────────────────────────
 // Online status hook
@@ -198,6 +198,54 @@ export default function GuideClientPage(props: {
     };
   }, [plan, navpack, corridor, places, traffic, hazards, manifest, tripProgress]);
 
+  // ── Auto-greeting ─────────────────────────────────────────────
+  // When the guide boots with an empty thread, send a greeting prompt
+  // so the guide introduces itself with trip-aware context.
+  const didGreetRef = useRef(false);
+  useEffect(() => {
+    if (didGreetRef.current) return;
+    if (!guideKey || !guidePack || !guideContext) return;
+    if (guidePack.thread.length > 0) return; // already has conversation
+    if (busy) return;
+
+    didGreetRef.current = true;
+
+    const stops = (navpack?.req?.stops ?? plan?.preview?.stops ?? []) as any[];
+    const origin = stops[0]?.name ?? "your starting point";
+    const dest = stops[stops.length - 1]?.name ?? "your destination";
+    const totalKm = navpack?.primary?.distance_m
+      ? Math.round(navpack.primary.distance_m / 1000)
+      : null;
+
+    const greetingPrompt = totalKm
+      ? `[SYSTEM: The user just opened the guide for their trip from ${origin} to ${dest} (${totalKm}km). Give them a warm, brief welcome — mention one or two highlights or heads-ups for this route. Keep it to 2-4 sentences. Be the mate riding shotgun who's excited about this trip.]`
+      : `[SYSTEM: The user just opened the guide for their trip from ${origin} to ${dest}. Give them a warm, brief welcome. Keep it to 2-4 sentences.]`;
+
+    (async () => {
+      setBusy("chat");
+      try {
+        const corridorPlaces: PlaceItem[] = places?.items ?? [];
+        const res = await guideSendMessage({
+          planId: plan?.plan_id ?? null,
+          guideKey,
+          pack: guidePack,
+          context: guideContext,
+          userText: greetingPrompt,
+          preferredCategories: [],
+          maxSteps: 2,
+          progress: tripProgress,
+          corridorPlaces,
+        });
+        setGuidePack(res.pack);
+      } catch {
+        // Non-critical — guide still works without greeting
+      } finally {
+        setBusy(null);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guideKey, guidePack, guideContext]);
+
   // ── Handlers ─────────────────────────────────────────────────
 
   const handleSendMessage = useCallback(
@@ -351,7 +399,7 @@ export default function GuideClientPage(props: {
             boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
             flexShrink: 0,
           }}>
-            <img src="/roam-logo.png" alt="Roam" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            <img src="/img/roam-app-icon.png" alt="Roam" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           </div>
 
           <div style={{ minWidth: 0, flex: 1 }}>

@@ -2,15 +2,14 @@
 "use client";
 
 import { useMemo, useRef, useState, useEffect } from "react";
+import Image from "next/image";
 import type { PlaceItem, PlaceCategory } from "@/lib/types/places";
 import type { MouseEvent, SyntheticEvent } from "react";
 
 import type {
   GuidePack,
   DiscoveredPlace,
-  TripProgress,
-  GuideAction,
-  GuideMsg,
+  TripProgress, GuideMsg
 } from "@/lib/types/guide";
 import { haptic } from "@/lib/native/haptics";
 
@@ -58,6 +57,8 @@ import {
   Plus,
   Send,
   ChevronRight,
+  Bookmark,
+  Check,
 } from "lucide-react";
 
 // ══════════════════════════════════════════════════════════════
@@ -373,48 +374,101 @@ function ActionPill({
 // Message actions row
 // ──────────────────────────────────────────────────────────────
 
-function MessageActionsRow({ msg, isOnline }: { msg: GuideMsg; isOnline: boolean }) {
+function MessageActionsRow({
+  msg, isOnline, onShowOnMap, discoveredIds, onSwitchToFound,
+}: {
+  msg: GuideMsg; isOnline: boolean;
+  onShowOnMap?: (lat: number, lng: number, placeId?: string) => void;
+  discoveredIds?: Set<string>;
+  onSwitchToFound?: () => void;
+}) {
   const structured = msg.actions ?? [];
   const fallback = useMemo(() => {
     if (structured.length > 0) return [];
     return extractActionsFromMarkdown(msg.content ?? "");
   }, [msg.content, structured.length]);
 
+  // Count how many save actions are in this message (for the "View in Found" CTA)
+  const saveCount = structured.filter((a) => a.type === "save").length;
+
   if (structured.length === 0 && fallback.length === 0) return null;
 
   return (
-    <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 6 }}>
-      {structured.map((a, idx) => {
-        if (a.type === "web" && a.url) {
-          return (
-            <ActionPill
-              key={`sa_web_${idx}_${a.place_id ?? idx}`}
-              Icon={ExternalLink}
-              label={a.label}
-              onClick={isOnline ? () => { haptic.selection(); safeOpen(a.url!); } : () => haptic.selection()}
-              muted={!isOnline}
-            />
-          );
-        }
-        if (a.type === "call" && a.tel) {
-          return <ActionPill key={`sa_call_${idx}_${a.place_id ?? idx}`} Icon={Phone} label={a.label} href={`tel:${a.tel}`} color="#10b981" />;
-        }
-        return null;
-      })}
-      {fallback.map((a, idx) => {
-        if (a.type === "web") {
-          return (
-            <ActionPill
-              key={`fb_web_${idx}`}
-              Icon={Link2}
-              label={a.label}
-              onClick={isOnline ? () => { haptic.selection(); safeOpen(a.url); } : () => haptic.selection()}
-              muted={!isOnline}
-            />
-          );
-        }
-        return <ActionPill key={`fb_call_${idx}`} Icon={Phone} label={a.label} href={`tel:${a.tel}`} color="#10b981" />;
-      })}
+    <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        {structured.map((a, idx) => {
+          if (a.type === "web" && a.url) {
+            return (
+              <ActionPill
+                key={`sa_web_${idx}_${a.place_id ?? idx}`}
+                Icon={ExternalLink}
+                label={a.label}
+                onClick={isOnline ? () => { haptic.selection(); safeOpen(a.url!); } : () => haptic.selection()}
+                muted={!isOnline}
+              />
+            );
+          }
+          if (a.type === "call" && a.tel) {
+            return <ActionPill key={`sa_call_${idx}_${a.place_id ?? idx}`} Icon={Phone} label={a.label} href={`tel:${a.tel}`} color="#10b981" />;
+          }
+          if (a.type === "map" && a.lat != null && a.lng != null) {
+            return (
+              <ActionPill
+                key={`sa_map_${idx}_${a.place_id ?? idx}`}
+                Icon={MapPin}
+                label={a.label}
+                onClick={() => { haptic.selection(); onShowOnMap?.(a.lat!, a.lng!, a.place_id ?? undefined); }}
+                color="#6366f1"
+              />
+            );
+          }
+          if (a.type === "save") {
+            const isSaved = a.place_id ? discoveredIds?.has(a.place_id) : true;
+            return (
+              <ActionPill
+                key={`sa_save_${idx}_${a.place_id ?? idx}`}
+                Icon={isSaved ? Check : Bookmark}
+                label={isSaved ? `Saved · ${a.place_name ?? a.label}` : a.label}
+                onClick={() => { haptic.selection(); onSwitchToFound?.(); }}
+                color="#10b981"
+              />
+            );
+          }
+          return null;
+        })}
+        {fallback.map((a, idx) => {
+          if (a.type === "web") {
+            return (
+              <ActionPill
+                key={`fb_web_${idx}`}
+                Icon={Link2}
+                label={a.label}
+                onClick={isOnline ? () => { haptic.selection(); safeOpen(a.url); } : () => haptic.selection()}
+                muted={!isOnline}
+              />
+            );
+          }
+          return <ActionPill key={`fb_call_${idx}`} Icon={Phone} label={a.label} href={`tel:${a.tel}`} color="#10b981" />;
+        })}
+      </div>
+
+      {/* Found tab CTA when places were saved */}
+      {saveCount > 0 && onSwitchToFound ? (
+        <button
+          type="button"
+          onClick={() => { haptic.selection(); onSwitchToFound(); }}
+          style={{
+            padding: "6px 12px", borderRadius: 10,
+            border: "1px solid rgba(16,185,129,0.15)", background: "rgba(16,185,129,0.06)",
+            color: "#10b981", fontSize: 12, fontWeight: 700, cursor: "pointer",
+            display: "inline-flex", alignItems: "center", gap: 6, alignSelf: "flex-start",
+          }}
+        >
+          <Bookmark size={13} />
+          {saveCount === 1 ? "View in Found" : `${saveCount} places saved · View all`}
+          <ChevronRight size={13} />
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -667,6 +721,7 @@ function PlaceCard({
   const suburb = extra["addr:suburb"] || extra["addr:city"] || extra.address;
   const phone = extra.phone as string | undefined;
   const website = extra.website as string | undefined;
+  const guideDesc = (place as DiscoveredPlace).guide_description;
   const cc = catColor(place.category);
   const CatIcon = CATEGORY_ICON[place.category] ?? MapPin;
   const dist = fmtDist((place as DiscoveredPlace).distance_from_user_km);
@@ -727,6 +782,18 @@ function PlaceCard({
             <ExtraBadges place={place} />
           </div>
         </div>
+
+        {/* AI description — prose listing from the guide */}
+        {guideDesc ? (
+          <div style={{
+            fontSize: 13, fontWeight: 500, lineHeight: 1.5,
+            color: "var(--roam-text-muted)",
+            padding: "4px 0 2px",
+            borderTop: "1px solid var(--roam-border, rgba(255,255,255,0.04))",
+          }}>
+            {guideDesc}
+          </div>
+        ) : null}
 
         {/* Action buttons */}
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -879,7 +946,13 @@ export function GuideView({
   const [activeTab, setActiveTab] = useState<ViewTab>("chat");
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  const thread = guidePack?.thread ?? [];
+  // Filter out hidden system prompts (e.g., auto-greeting) from visible thread
+  const thread = useMemo(
+    () => (guidePack?.thread ?? []).filter(
+      (m) => !(m.role === "user" && m.content.startsWith("[SYSTEM:"))
+    ),
+    [guidePack?.thread],
+  );
   const prevThreadLen = useRef(-1);
   useEffect(() => {
     if (thread.length !== prevThreadLen.current) {
@@ -894,6 +967,7 @@ export function GuideView({
   }, [chatBusy]);
 
   const discoveredPlaces = guidePack?.discovered_places ?? [];
+  const discoveredIds = useMemo(() => new Set(discoveredPlaces.map((p) => p.id)), [discoveredPlaces]);
 
   const discoveryGroups = useMemo(() => {
     const groups: Record<string, DiscoveredPlace[]> = {};
@@ -920,37 +994,62 @@ export function GuideView({
     return cats.map((cat) => ({ category: cat, places: groups[cat] }));
   }, [discoveredPlaces]);
 
-  // Quick suggestions - context-aware
+  // Quick suggestions - context-aware, inspiring, trip-phase-specific
   const quickSuggestions = useMemo(() => {
     const suggestions: { label: string; desc: string; query: string; Icon: LucideIcon; color: string }[] = [];
 
     if (tripProgress && tripProgress.total_km > 0) {
       const kmRemaining = tripProgress.km_remaining;
       const kmDone = tripProgress.km_from_start;
+      const pct = kmDone / tripProgress.total_km;
       const hour = new Date().getHours();
 
-      suggestions.push({ label: "Next fuel", desc: "Find the nearest fuel stop", query: "Where's the next fuel stop ahead?", Icon: Fuel, color: "#f59e0b" });
+      // Always-relevant safety
+      suggestions.push({ label: "Next fuel", desc: "Don't get caught out", query: "Where's the next fuel stop ahead? How far is it and what brand?", Icon: Fuel, color: "#f59e0b" });
 
+      // Time-of-day food suggestions
       if (hour >= 5 && hour < 9) {
-        suggestions.push({ label: "Morning coffee", desc: "Cafes & bakeries ahead", query: "Any good cafes or bakeries ahead for a morning coffee?", Icon: Coffee, color: "#b45309" });
+        suggestions.push({ label: "Best pie nearby", desc: "Country bakeries ahead", query: "Any country bakeries ahead with good pies? I want the real deal.", Icon: Star, color: "#ea580c" });
+      } else if (hour >= 9 && hour < 11) {
+        suggestions.push({ label: "Coffee stop", desc: "Good cafes ahead", query: "Where's the best coffee ahead? Real cafe, not servo coffee.", Icon: Coffee, color: "#b45309" });
       } else if (hour >= 11 && hour < 14) {
-        suggestions.push({ label: "Lunch spot", desc: "Where to eat nearby", query: "Where's a good spot to stop for lunch?", Icon: Utensils, color: "#f97316" });
-      } else if (hour >= 16 && hour < 20) {
-        suggestions.push({ label: "Stay tonight", desc: "Camps & motels ahead", query: "Where should I stay tonight? Show me camps and motels ahead.", Icon: Bed, color: "#8b5cf6" });
-      } else if (hour >= 20 || hour < 5) {
-        suggestions.push({ label: "Stop now", desc: "Closest safe option", query: "I need to stop for the night. What's the closest safe option?", Icon: Tent, color: "#8b5cf6" });
+        suggestions.push({ label: "Lunch spot", desc: "Pub meal or bakery", query: "Where should I stop for lunch? I want a proper feed — pub counter meal, bakery, or good cafe.", Icon: Utensils, color: "#f97316" });
+      } else if (hour >= 14 && hour < 17) {
+        suggestions.push({ label: "Arvo break", desc: "Stretch & explore", query: "Good spot for an afternoon break? Lookout, swimming hole, or a cold beer somewhere?", Icon: Eye, color: "#10b981" });
+      } else if (hour >= 17 && hour < 20) {
+        suggestions.push({ label: "Stay tonight", desc: "Camps, pubs & motels", query: "Where should I stay tonight? Show me the best options — camps, motels, or a pub with rooms.", Icon: Bed, color: "#8b5cf6" });
+      } else {
+        suggestions.push({ label: "Stop now", desc: "Closest safe option", query: "I need to stop for the night right now. What's the closest safe option — rest area, camp, or motel?", Icon: Tent, color: "#8b5cf6" });
       }
 
-      if (kmDone > 150) suggestions.push({ label: "Rest area", desc: "Time for a break", query: "Where's the next rest area? Need a break.", Icon: ParkingMeter, color: "#f59e0b" });
-      if (kmRemaining > 200) suggestions.push({ label: "Highlights", desc: "Best stops in next 100km", query: "What are the best stops and things to see in the next 100km?", Icon: Camera, color: "#6366f1" });
-      if (kmRemaining < 80 && kmRemaining > 5) suggestions.push({ label: "Near destination", desc: "Worth seeing nearby", query: "What's worth seeing near my destination?", Icon: Target, color: "#10b981" });
-      suggestions.push({ label: "Scenic spots", desc: "Lookouts, falls & swims", query: "Any scenic lookouts, waterfalls, or swimming holes ahead?", Icon: Eye, color: "#10b981" });
+      // Phase-specific discovery
+      if (pct < 0.35) {
+        suggestions.push({ label: "Hidden gems", desc: "Detours worth taking", query: "Any hidden gems or interesting detours coming up? I've got time to explore.", Icon: Compass, color: "#6366f1" });
+      } else if (pct < 0.65) {
+        suggestions.push({ label: "Best ahead", desc: "Don't miss these", query: "What are the absolute must-see stops in the next 100km? Don't let me miss anything good.", Icon: Camera, color: "#6366f1" });
+      }
+
+      // Fatigue awareness
+      if (kmDone > 150) {
+        suggestions.push({ label: "Need a break", desc: "Stretch the legs", query: "Where's a good spot to stop and stretch? Scenic rest area, waterfall, or swimming hole — anything to break up the drive.", Icon: ParkingMeter, color: "#f59e0b" });
+      }
+
+      // Arriving
+      if (kmRemaining < 80 && kmRemaining > 5) {
+        suggestions.push({ label: "Arriving soon", desc: "What's at the destination", query: "I'm nearly there — what should I know about the destination? Where to eat tonight, any tips?", Icon: Target, color: "#10b981" });
+      }
+
+      // Nature / scenic always welcome
+      suggestions.push({ label: "Swim spots", desc: "Gorges, falls & beaches", query: "Any swimming holes, waterfalls, or beaches ahead? Looking for somewhere to cool off.", Icon: Waves, color: "#0891b2" });
+
     } else {
-      suggestions.push({ label: "Fuel stops", desc: "Where to refuel", query: "Where can I refuel along this route?", Icon: Fuel, color: "#f59e0b" });
-      suggestions.push({ label: "Camping", desc: "Find camp spots", query: "Find camping spots along my route", Icon: Tent, color: "#8b5cf6" });
-      suggestions.push({ label: "Must-see", desc: "What's worth seeing", query: "What's worth seeing along this route?", Icon: Camera, color: "#6366f1" });
-      suggestions.push({ label: "Towns", desc: "What you'll pass", query: "What towns will I pass through?", Icon: Building2, color: "#64748b" });
-      suggestions.push({ label: "Food & bakeries", desc: "Best eats on route", query: "Where are good bakeries and cafes along the route?", Icon: Coffee, color: "#b45309" });
+      // Planning phase — no active trip progress
+      suggestions.push({ label: "Route highlights", desc: "Best stops along the way", query: "What are the absolute must-see highlights along this route? Don't let me drive past anything amazing.", Icon: Camera, color: "#6366f1" });
+      suggestions.push({ label: "Fuel planning", desc: "Where are the long gaps?", query: "Where are the fuel stops along this route? Are there any long gaps I should plan for?", Icon: Fuel, color: "#f59e0b" });
+      suggestions.push({ label: "Best bakeries", desc: "Pies, slices & coffee", query: "Where are the best country bakeries along this route? I want legendary pies.", Icon: Star, color: "#ea580c" });
+      suggestions.push({ label: "Camp spots", desc: "Free camps & parks", query: "What are the best camping spots along this route? Include free camps if there are any good ones.", Icon: Tent, color: "#8b5cf6" });
+      suggestions.push({ label: "Swim & scenery", desc: "Gorges, falls & lookouts", query: "Any swimming holes, waterfalls, or scenic lookouts along this route?", Icon: Waves, color: "#0891b2" });
+      suggestions.push({ label: "Pub stops", desc: "Cold beer & counter meals", query: "What are the best pubs along this route for a cold beer and a counter meal?", Icon: Beer, color: "#92400e" });
     }
     return suggestions.slice(0, 6);
   }, [tripProgress]);
@@ -1035,7 +1134,7 @@ export function GuideView({
                   boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
                   flexShrink: 0,
                 }}>
-                  <img src="/roam-logo.png" alt="Roam" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <Image src="/img/roam-app-icon.png" alt="Roam" width={40} height={40} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 </div>
                 <div>
                   <div style={{ fontSize: 16, fontWeight: 800, color: "var(--roam-text)" }}>
@@ -1129,7 +1228,7 @@ export function GuideView({
                         overflow: "hidden",
                         boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
                       }}>
-                        <img src="/roam-logo.png" alt="Roam" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        <Image src="/img/roam-app-icon.png" alt="Roam" width={28} height={28} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                       </div>
 
                       <div style={{
@@ -1140,12 +1239,19 @@ export function GuideView({
                         color: "var(--roam-text)",
                       }}>
                         <MarkdownBody text={m.content ?? ""} />
-                        {!mine ? <MessageActionsRow msg={m} isOnline={!!isOnline} /> : null}
+                        {!mine ? (
+                          <MessageActionsRow
+                            msg={m} isOnline={!!isOnline}
+                            discoveredIds={discoveredIds}
+                            onShowOnMap={onShowOnMap ? (lat, lng, pid) => { onFocusPlace(pid ?? null); onShowOnMap(pid ?? `${lat}_${lng}`); } : undefined}
+                            onSwitchToFound={() => setActiveTab("discoveries")}
+                          />
+                        ) : null}
                       </div>
                     </div>
 
-                    {/* Discovery CTA */}
-                    {m.resolved_tool_id && discoveredPlaces.length > 0 ? (
+                    {/* Discovery CTA — for tool-resolved messages without save actions */}
+                    {m.resolved_tool_id && discoveredPlaces.length > 0 && !(m.actions ?? []).some((a) => a.type === "save") ? (
                       <button
                         type="button"
                         onClick={() => { haptic.selection(); setActiveTab("discoveries"); }}
@@ -1176,7 +1282,7 @@ export function GuideView({
                     overflow: "hidden",
                     boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
                   }}>
-                    <img src="/roam-logo.png" alt="Roam" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    <Image src="/img/roam-app-icon.png" alt="Roam" width={28} height={28} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                   </div>
                   <div style={{
                     padding: "12px 16px", borderRadius: "4px 16px 16px 16px",

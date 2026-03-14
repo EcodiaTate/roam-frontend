@@ -134,6 +134,12 @@ export async function saveOfflinePlan(args: {
 
   await idbPut(idbStores.plans, rec);
 
+  // Auto-select as current plan if no current plan is set yet (first trip)
+  const currentId = await getCurrentPlanId();
+  if (!currentId) {
+    await setCurrentPlanId(rec.plan_id);
+  }
+
   // Fire-and-forget: notify planSync to push this to Supabase
   emitPlanEvent("plan:saved", { planId: rec.plan_id });
 

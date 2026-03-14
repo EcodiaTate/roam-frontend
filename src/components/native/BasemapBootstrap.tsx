@@ -20,8 +20,6 @@ export function BasemapBootstrap() {
       .then((status) => {
         if (status.state === "installed") {
           console.log("[BasemapBootstrap] ✅ Tile server started, basemap ready");
-        } else {
-          console.log("[BasemapBootstrap] Basemap not installed:", status.state);
         }
       })
       .catch((e) => {

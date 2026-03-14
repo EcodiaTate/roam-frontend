@@ -22,7 +22,7 @@ export type GuideToolName = "places_search" | "places_corridor" | "places_sugges
 // UI Actions (render as buttons/pills under assistant messages)
 // ──────────────────────────────────────────────────────────────
 
-export type GuideActionType = "web" | "call";
+export type GuideActionType = "web" | "call" | "map" | "save";
 
 export type GuideAction = {
   type: GuideActionType;
@@ -32,6 +32,8 @@ export type GuideAction = {
    * Examples:
    * - "Website · Coles Express Kawana"
    * - "Call Reddy Express"
+   * - "Map · Birdsville Hotel"
+   * - "Birdsville Hotel" (save — label is the place name)
    */
   label: string;
 
@@ -43,6 +45,14 @@ export type GuideAction = {
 
   // For type="call"
   tel?: string | null;
+
+  // For type="map" and type="save" — place coordinates
+  lat?: number | null;
+  lng?: number | null;
+  category?: string | null;
+
+  // For type="save" — enriched place listing for Found tab
+  description?: string | null;
 };
 
 export type GuideMsg = {
@@ -190,6 +200,8 @@ export type DiscoveredPlace = PlaceItem & {
   discovered_at: string;
   km_from_start?: number | null;
   distance_from_user_km?: number | null;
+  /** AI-written prose description for the Found tab listing */
+  guide_description?: string | null;
 };
 
 export type GuidePack = {

@@ -387,13 +387,72 @@ function extractDiscoveredPlaces(toolResult: GuideToolResult, progress: TripProg
 function mergeDiscoveries(existing: DiscoveredPlace[], incoming: DiscoveredPlace[]): DiscoveredPlace[] {
   const map = new Map<string, DiscoveredPlace>();
   for (const p of existing) map.set(p.id, p);
-  for (const p of incoming) map.set(p.id, p);
+  for (const p of incoming) {
+    const prev = map.get(p.id);
+    if (prev) {
+      // Merge: keep enriched fields from both, prefer incoming for freshness
+      map.set(p.id, {
+        ...prev,
+        ...p,
+        // Preserve guide_description if incoming doesn't have one
+        guide_description: p.guide_description ?? prev.guide_description ?? null,
+        // Preserve extra fields
+        extra: { ...(prev.extra ?? {}), ...(p.extra ?? {}) },
+      });
+    } else {
+      map.set(p.id, p);
+    }
+  }
   const all = Array.from(map.values());
   if (all.length > MAX_DISCOVERED_PLACES) {
     all.sort((a, b) => (b.discovered_at ?? "").localeCompare(a.discovered_at ?? ""));
     return all.slice(0, MAX_DISCOVERED_PLACES);
   }
   return all;
+}
+
+/**
+ * Extract places from "save" actions in the LLM response.
+ * These are places the AI explicitly recommended with enriched descriptions.
+ * They get added to discovered_places so the Found tab is always populated
+ * when the guide recommends places — even without a tool call.
+ */
+function extractSaveActionPlaces(
+  actions: GuideAction[],
+  progress: TripProgress | null,
+  corridorPlaces: PlaceItem[],
+): DiscoveredPlace[] {
+  const now = nowIso();
+  const places: DiscoveredPlace[] = [];
+
+  for (const a of actions) {
+    if (a.type !== "save") continue;
+    if (!a.place_name || a.lat == null || a.lng == null) continue;
+
+    // Try to find a matching corridor place for richer extra data
+    const placeId = a.place_id ?? `save_${a.place_name.replace(/\s+/g, "_").toLowerCase()}_${Math.round((a.lat ?? 0) * 1000)}`;
+    const corridorMatch = corridorPlaces.find((p) => p.id === placeId);
+
+    const dist = progress
+      ? Math.round(haversineKm(progress.user_lat, progress.user_lng, a.lat!, a.lng!) * 10) / 10
+      : null;
+
+    places.push({
+      id: placeId,
+      name: a.place_name,
+      lat: a.lat!,
+      lng: a.lng!,
+      category: (a.category ?? corridorMatch?.category ?? "attraction") as any,
+      extra: corridorMatch?.extra ?? {},
+      source_tool_id: "guide_save_action",
+      discovered_at: now,
+      km_from_start: null,
+      distance_from_user_km: dist,
+      guide_description: a.description ?? null,
+    });
+  }
+
+  return places;
 }
 
 // ──────────────────────────────────────────────────────────────
@@ -544,6 +603,12 @@ export async function guideSendMessage(args: {
     // frontend can render them as pills without parsing markdown.
     const actions: GuideAction[] = Array.isArray(turn.actions) ? turn.actions : [];
 
+    // Extract places from "save" actions → merge into discovered_places
+    const savedPlaces = extractSaveActionPlaces(actions, progress ?? null, corridorPlaces);
+    const mergedFromSaves = savedPlaces.length > 0
+      ? mergeDiscoveries(pack.discovered_places, savedPlaces)
+      : pack.discovered_places;
+
     const assistantMsg: GuideMsg = {
       role: "assistant",
       content: assistantText,
@@ -556,6 +621,7 @@ export async function guideSendMessage(args: {
       updated_at: nowIso(),
       thread: [...pack.thread, assistantMsg],
       tool_calls: [...pack.tool_calls, ...(turn.tool_calls ?? [])],
+      discovered_places: mergedFromSaves,
     };
     await putGuidePack(planId ?? null, guideKey, pack);
 
