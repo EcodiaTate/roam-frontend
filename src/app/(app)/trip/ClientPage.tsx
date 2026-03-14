@@ -50,7 +50,7 @@ import type { FuelAnalysis, FuelTrackingState, VehicleFuelProfile } from "@/lib/
 // Updated icons here
 import { UserPlus, Library } from "lucide-react";
 import { TripSkeleton } from "./TripSkeleton";
-import { isUnlocked as checkIsUnlocked } from "@/lib/paywall/tripGate";
+import { isUnlocked as checkIsUnlocked, checkTripGate } from "@/lib/paywall/tripGate";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 
 /* ── Constants ────────────────────────────────────────────────────────── */
@@ -479,7 +479,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     if (!isDragging.current || !sheetRef.current) return;
     const totalDelta = e.clientY - dragData.current.startY;
     const sheetHeight = sheetRef.current.clientHeight;
-    const maxUp = -(sheetHeight - 180);
+    const maxUp = -(sheetHeight - 220);
     let proposedOffset = offsetY + totalDelta;
     if (proposedOffset < maxUp) proposedOffset = maxUp;
     if (proposedOffset > 0) proposedOffset = 0;
@@ -494,7 +494,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   };
 
   // ── Derived values ─────────────────────────────────────────────
-  const peekBase = `calc(100% - 180px - var(--roam-safe-bottom, 0px))`;
+  const peekBase = `calc(100% - 220px - var(--roam-safe-bottom, 0px))`;
   const sheetTransform = activeNav.isActive
     ? `translateY(calc(100% - 60px))` // Collapsed to just the drag handle during navigation
     : `translateY(clamp(0px, calc(${peekBase} + ${offsetY + dragOffset}px), ${peekBase}))`;
@@ -620,6 +620,15 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         open={drawOpen}
         onClose={() => setDrawOpen(false)}
         currentPlanId={plan.plan_id}
+        onNewTrip={async () => {
+          const gate = await checkTripGate();
+          if (gate.allowed) {
+            router.push("/new");
+          } else {
+            setPaywallVariant("gate");
+            setPaywallOpen(true);
+          }
+        }}
       />
 
       <InviteCodeModal

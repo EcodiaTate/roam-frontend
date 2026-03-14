@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { haptic } from "@/lib/native/haptics";
+import { Map, Route, Download, AudioLines, Fuel, Sparkles } from "lucide-react";
 
 type Props = {
   open: boolean;
@@ -76,8 +77,8 @@ export function WelcomeModal({ open, lastFreeTrip = false, onClose }: Props) {
             pointerEvents: "none",
           }} />
 
-          <div style={{ fontSize: 52, lineHeight: 1, marginBottom: 14 }}>
-            {lastFreeTrip ? "🛣️" : "🗺️"}
+          <div style={{ marginBottom: 14, color: "rgba(255,255,255,0.9)" }}>
+            {lastFreeTrip ? <Route size={48} strokeWidth={1.5} /> : <Map size={48} strokeWidth={1.5} />}
           </div>
 
           <h1 style={{
@@ -105,18 +106,18 @@ export function WelcomeModal({ open, lastFreeTrip = false, onClose }: Props) {
         {/* Bullets */}
         {!lastFreeTrip && (
           <div style={{ padding: "20px 28px 4px" }}>
-            {[
-              ["🗺️", "Beautiful offline maps that work without signal"],
-              ["🔊", "Turn-by-turn navigation with voice guidance"],
-              ["⛽", "Fuel range alerts so you never run dry in the outback"],
-              ["✦", "AI co-pilot — fuel stops, hazards & local knowledge"],
-            ].map(([icon, text]) => (
+            {([
+              [<Download size={18} key="dl" />, "Beautiful offline maps that work without signal"],
+              [<AudioLines size={18} key="audio" />, "Turn-by-turn navigation with voice guidance"],
+              [<Fuel size={18} key="fuel" />, "Fuel range alerts so you never run dry in the outback"],
+              [<Sparkles size={18} key="ai" />, "AI co-pilot — fuel stops, hazards & local knowledge"],
+            ] as const).map(([icon, text]) => (
               <div key={text} style={{
                 display: "flex", alignItems: "center", gap: 12,
                 padding: "8px 0",
                 borderBottom: "1px solid var(--roam-border, rgba(26,22,19,0.07))",
               }}>
-                <span style={{ fontSize: 18, width: 28, textAlign: "center", flexShrink: 0 }}>{icon}</span>
+                <span style={{ width: 28, textAlign: "center", flexShrink: 0, color: "var(--brand-eucalypt, #2d6e40)", display: "flex", alignItems: "center", justifyContent: "center" }}>{icon}</span>
                 <span style={{ fontSize: 14, fontWeight: 600, color: "var(--roam-text, #1a1613)", lineHeight: 1.4 }}>
                   {text}
                 </span>

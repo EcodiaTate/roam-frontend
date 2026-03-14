@@ -35,11 +35,14 @@ export function GuideSkeleton() {
   return (
     <div
       style={{
-        minHeight: "100%",
+        height: "100%",
         background: "var(--roam-bg)",
         color: "var(--roam-text)",
         display: "flex",
         flexDirection: "column",
+        overflowY: "auto",
+        WebkitOverflowScrolling: "touch",
+        overscrollBehavior: "contain",
       }}
     >
       {/* ── Sticky header skeleton ─────────────────────────────────── */}

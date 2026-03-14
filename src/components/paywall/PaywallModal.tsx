@@ -11,6 +11,14 @@ import {
   redirectToStripeCheckout,
 } from "@/lib/paywall/tripGate";
 import { useAuth } from "@/lib/supabase/auth";
+import {
+  Infinity,
+  Download,
+  Sparkles,
+  Users,
+  Fuel,
+  AudioLines,
+} from "lucide-react";
 
 type Props = {
   open: boolean;
@@ -20,14 +28,13 @@ type Props = {
   variant?: "gate" | "upgrade";
 };
 
-const FEATURES = [
-  { icon: "∞", label: "Unlimited trips", sub: "Plan as many adventures as you want" },
-  { icon: "⬇", label: "Permanent offline maps", sub: "Every trip saved forever, works without signal" },
-  { icon: "✦", label: "AI co-pilot", sub: "Smart fuel stops, hazards & local tips en-route" },
-  { icon: "↗", label: "Trip sharing", sub: "Share with your co-pilot via a 6-character code" },
-  { icon: "⛽", label: "Fuel range alerts", sub: "Never run dry — warnings before the last servo" },
-  { icon: "🔊", label: "Voice navigation", sub: "Turn-by-turn directions, hands on the wheel" },
-  { icon: "📍", label: "Local knowledge", sub: "Hidden gems, rest stops & points of interest along your route" },
+const FEATURES: { icon: React.ReactNode; label: string; sub: string }[] = [
+  { icon: <Infinity size={18} />, label: "Unlimited trips", sub: "Plan as many adventures as you want" },
+  { icon: <Download size={18} />, label: "Permanent offline maps", sub: "Every trip saved forever, works without signal" },
+  { icon: <Sparkles size={18} />, label: "AI co-pilot", sub: "Smart fuel stops, hazards & local tips en-route" },
+  { icon: <Users size={18} />, label: "Trip sharing", sub: "Share with your co-pilot via a 6-character code" },
+  { icon: <Fuel size={18} />, label: "Fuel range alerts", sub: "Never run dry — warnings before the last servo" },
+
 ];
 
 const HERO_COPY = {

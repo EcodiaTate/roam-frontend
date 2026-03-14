@@ -53,7 +53,7 @@ export function TripSkeleton() {
           bottom: 0,
           left: 0,
           right: 0,
-          height: "calc(100% - 80px)",
+          height: "calc(220px + var(--roam-safe-bottom, 0px))",
           zIndex: 20,
           display: "flex",
           flexDirection: "column",

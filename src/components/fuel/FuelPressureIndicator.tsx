@@ -17,8 +17,6 @@ const pillBase: React.CSSProperties = {
   gap: 6,
   padding: "6px 12px",
   borderRadius: 999,
-  backdropFilter: "blur(12px)",
-  WebkitBackdropFilter: "blur(12px)",
   boxShadow: "0 4px 16px rgba(0,0,0,0.2), 0 1px 4px rgba(0,0,0,0.1)",
   fontWeight: 900,
   fontSize: 12,
@@ -44,22 +42,22 @@ const LEVEL_STYLES: Record<PressureLevel, {
   border: string;
 }> = {
   ok: {
-    bg: "rgba(22,163,74,0.15)",
-    text: "#16a34a",
-    icon: "#22c55e",
-    border: "1px solid rgba(22,163,74,0.25)",
+    bg: "#16a34a",
+    text: "#ffffff",
+    icon: "#ffffff",
+    border: "none",
   },
   warn: {
-    bg: "rgba(245,158,11,0.18)",
-    text: "#d97706",
-    icon: "#f59e0b",
-    border: "1px solid rgba(245,158,11,0.3)",
+    bg: "#d97706",
+    text: "#ffffff",
+    icon: "#ffffff",
+    border: "none",
   },
   critical: {
-    bg: "rgba(239,68,68,0.2)",
-    text: "#ef4444",
-    icon: "#ef4444",
-    border: "1px solid rgba(239,68,68,0.35)",
+    bg: "#ef4444",
+    text: "#ffffff",
+    icon: "#ffffff",
+    border: "none",
   },
 };
 

@@ -533,10 +533,13 @@ function PlanCard({
 export function PlanDrawer({
   open,
   onClose,
+  onNewTrip,
 }: {
   open: boolean;
   onClose: () => void;
   currentPlanId?: string | null;
+  /** Called when "New" is tapped. If provided, replaces the default router.push("/new"). */
+  onNewTrip?: () => void;
 }) {
   const router = useRouter();
   const [plans, setPlans] = useState<OfflinePlanRecord[]>([]);
@@ -763,7 +766,7 @@ export function PlanDrawer({
               onClick={() => {
                 haptic.light();
                 onClose();
-                router.push("/new");
+                if (onNewTrip) { onNewTrip(); } else { router.push("/new"); }
               }}
               style={{
                 all: "unset",
