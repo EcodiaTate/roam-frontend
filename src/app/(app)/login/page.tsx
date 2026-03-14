@@ -30,7 +30,7 @@ export default function LoginPage() {
 
   const isNative = useMemo(() => Capacitor.isNativePlatform(), []);
 
-  // If already authenticated, honour ?next=checkout or fall back to /trip
+  // If already authenticated and directed to checkout, honour that flow
   useEffect(() => {
     if (loading || !session) return;
     if (nextParam === "checkout") {
@@ -39,9 +39,9 @@ export default function LoginPage() {
         // Only reached if Stripe redirect fails
         if (result.error) router.replace("/new");
       });
-    } else {
-      router.replace("/trip");
     }
+    // No redirect for the plain /login case — let the user see the page
+    // (useful for accessing legal links, or switching accounts)
   }, [loading, session, nextParam, router]);
 
   const handleGoogle = useCallback(async () => {
@@ -108,8 +108,15 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="trip-wrap-center">
-      <div className="trip-card" style={{ gap: 16 }}>
+    <div style={{
+      position: "absolute", inset: 0,
+      overflowY: "auto", WebkitOverflowScrolling: "touch" as const,
+      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+      padding: "20px 20px var(--bottom-nav-height, 80px)",
+      background: "var(--roam-bg)",
+      gap: 0,
+    }}>
+      <div className="trip-card" style={{ gap: 16, width: "100%", maxWidth: 400 }}>
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 8 }}>
           <img
             src="/img/roam-app-icon.png"
@@ -288,6 +295,51 @@ export default function LoginPage() {
             ? "Don't have an account? Sign up"
             : "Already have an account? Sign in"}
         </button>
+
+        {/* Already signed in — offer a quick link to the app */}
+        {session && (
+          <a
+            href="/trip"
+            style={{
+              display: "block",
+              textAlign: "center",
+              padding: "10px 0 2px",
+              color: "var(--roam-accent)",
+              fontSize: 13,
+              fontWeight: 700,
+              textDecoration: "none",
+            }}
+          >
+            Go to Roam →
+          </a>
+        )}
+      </div>
+
+      {/* Legal links — always accessible, sit below the card */}
+      <div style={{
+        display: "flex", flexWrap: "wrap", justifyContent: "center",
+        gap: "4px 16px", marginTop: 20,
+      }}>
+        {[
+          { href: "/contact", label: "Contact" },
+          { href: "/terms", label: "Terms" },
+          { href: "/privacy", label: "Privacy" },
+          { href: "/attributions", label: "Attributions" },
+        ].map(({ href, label }) => (
+          <a
+            key={href}
+            href={href}
+            style={{
+              color: "var(--roam-text-muted)",
+              fontSize: 12,
+              textDecoration: "none",
+              opacity: 0.55,
+              fontWeight: 500,
+            }}
+          >
+            {label}
+          </a>
+        ))}
       </div>
     </div>
   );

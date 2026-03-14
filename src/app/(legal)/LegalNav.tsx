@@ -79,12 +79,20 @@ export default function LegalNav({ activePath }: LegalNavProps) {
           <div className="rl-nav-links">
             <a href="/#features" className="rl-nav-link">Features</a>
             <a href="/#how" className="rl-nav-link">How It Works</a>
-            <a
-              href="/contact"
-              className={`rl-nav-link${activePath === "/contact" ? " rl-nav-link-active" : ""}`}
-            >
-              Contact
-            </a>
+            {[
+              { href: "/contact", label: "Contact" },
+              { href: "/terms", label: "Terms" },
+              { href: "/privacy", label: "Privacy" },
+              { href: "/attributions", label: "Attributions" },
+            ].map(({ href, label }) => (
+              <a
+                key={href}
+                href={href}
+                className={`rl-nav-link${activePath === href ? " rl-nav-link-active" : ""}`}
+              >
+                {label}
+              </a>
+            ))}
           </div>
 
           <a href={cta.href} className="rl-nav-cta" {...extProps(cta.external)}>
@@ -104,7 +112,21 @@ export default function LegalNav({ activePath }: LegalNavProps) {
           <div className="rl-nav-mobile">
             <a href="/#features" className="rl-nav-mobile-link" onClick={() => setMenuOpen(false)}>Features</a>
             <a href="/#how" className="rl-nav-mobile-link" onClick={() => setMenuOpen(false)}>How It Works</a>
-            <a href="/contact" className="rl-nav-mobile-link" onClick={() => setMenuOpen(false)}>Contact</a>
+            {[
+              { href: "/contact", label: "Contact" },
+              { href: "/terms", label: "Terms" },
+              { href: "/privacy", label: "Privacy" },
+              { href: "/attributions", label: "Attributions" },
+            ].map(({ href, label }) => (
+              <a
+                key={href}
+                href={href}
+                className="rl-nav-mobile-link"
+                onClick={() => setMenuOpen(false)}
+              >
+                {label}
+              </a>
+            ))}
             <a
               href={cta.href}
               className="rl-nav-mobile-cta"
@@ -156,7 +178,7 @@ const NAV_STYLES = `
 .rl-nav-logo:hover { opacity: 0.7; }
 
 .rl-nav-links {
-  display: flex; align-items: center; gap: 32px;
+  display: flex; align-items: center; gap: 20px;
 }
 .rl-nav-link {
   font-family: 'Bricolage Grotesque', sans-serif;
@@ -232,14 +254,14 @@ const NAV_STYLES = `
   box-shadow: 0 3px 0 #a3623d;
 }
 
-@media (max-width: 968px) {
+@media (max-width: 1100px) {
   .rl-nav-links { display: none; }
   .rl-nav-cta { display: none; }
   .rl-nav-hamburger { display: block; }
   .rl-nav-mobile { display: flex; }
 }
 
-@media (min-width: 969px) {
+@media (min-width: 1101px) {
   .rl-nav-mobile { display: none !important; }
 }
 `;

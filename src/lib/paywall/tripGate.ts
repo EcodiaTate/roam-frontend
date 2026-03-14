@@ -178,11 +178,12 @@ export async function restorePurchases(): Promise<{ success: boolean; error?: st
 /* ── Public: web Stripe redirect ─────────────────────────────────── */
 
 /** Redirects browser to Stripe Checkout. Does not return on success. */
-export async function redirectToStripeCheckout(accessToken?: string): Promise<{ error: string }> {
+export async function redirectToStripeCheckout(_accessToken?: string): Promise<{ error: string }> {
   try {
-    // Use token passed from the React auth context — avoids race with Supabase hydration
-    const token = accessToken ?? (await supabase.auth.getSession()).data.session?.access_token;
-const res = await fetch("/api/stripe/checkout", {
+    // Always refresh to avoid sending a stale/expired access_token that causes 401s
+    const { data: { session } } = await supabase.auth.refreshSession();
+    const token = session?.access_token;
+    const res = await fetch("/api/stripe/checkout", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

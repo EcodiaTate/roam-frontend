@@ -25,10 +25,7 @@ export type BuildPhase =
   | "routing"
   | "corridor_ensure"
   | "corridor_get"
-  | "places_corridor"
   | "fuel_analysis"
-  | "traffic_poll"
-  | "hazards_poll"
   | "bundle_build"
   | "downloading"
   | "saving"
@@ -76,10 +73,7 @@ export function phaseLabel(phase: BuildPhase, error?: string | null): string {
     case "routing":          return "Building route…";
     case "corridor_ensure":
     case "corridor_get":     return "Preparing offline corridor…";
-    case "places_corridor":  return "Caching places…";
     case "fuel_analysis":    return "Analysing fuel coverage…";
-    case "traffic_poll":     return "Fetching traffic…";
-    case "hazards_poll":     return "Fetching warnings…";
     case "bundle_build":     return "Packaging offline bundle…";
     case "downloading":      return "Downloading bundle…";
     case "saving":           return "Saving to device…";
@@ -174,15 +168,9 @@ export async function buildPlanBundle(args: BuildPlanBundleArgs): Promise<BuildP
     console.warn("[buildPlanBundle] Fuel analysis failed:", e);
   }
 
-  // ─── 5. Traffic poll ─────────────────────────────────────────────────
-  emit("traffic_poll");
-  await navApi.trafficPoll({ bbox, cache_seconds: 60, timeout_s: 10 });
-
-  // ─── 6. Hazards poll ─────────────────────────────────────────────────
-  emit("hazards_poll");
-  await navApi.hazardsPoll({ bbox, sources: [], cache_seconds: 60, timeout_s: 10 });
-
-  // ─── 7. Bundle build (includes two-tier places search internally) ────
+  // ─── 5. Bundle build ─────────────────────────────────────────────────
+  // Traffic + hazards are fetched concurrently inside bundle/build —
+  // no need to poll them separately first.
   emit("bundle_build");
   const manifest = await bundleApi.build({
     plan_id,

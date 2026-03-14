@@ -1,10 +1,13 @@
 "use client";
 
 import s from "../legal.module.css";
+import LegalNav from "../LegalNav";
 
 export default function TermsContent() {
   return (
     <>
+      <LegalNav activePath="/terms" />
+      <div className="rl-legal-content">
       <h1 className={s.pageTitle}>Terms and Conditions</h1>
       <p className={s.effectiveDate}>
         Effective 1 March 2026 · Last updated 20 February 2026
@@ -544,6 +547,7 @@ export default function TermsContent() {
           </li>
         </ul>
       </section>
+      </div>
     </>
   );
 }

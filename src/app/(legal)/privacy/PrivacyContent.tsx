@@ -1,10 +1,13 @@
 "use client";
 
 import s from "../legal.module.css";
+import LegalNav from "../LegalNav";
 
 export default function PrivacyContent() {
   return (
     <>
+      <LegalNav activePath="/privacy" />
+      <div className="rl-legal-content">
       <h1 className={s.pageTitle}>Privacy Policy</h1>
       <p className={s.effectiveDate}>
         Effective 1 March 2026 · Last updated 20 February 2026
@@ -585,6 +588,7 @@ export default function PrivacyContent() {
           stop using the Service and delete your account.
         </p>
       </section>
+      </div>
     </>
   );
 }

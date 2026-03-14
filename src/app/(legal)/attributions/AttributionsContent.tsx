@@ -1,6 +1,7 @@
 "use client";
 
 import s from "../legal.module.css";
+import LegalNav from "../LegalNav";
 
 interface Attribution {
   name: string;
@@ -114,6 +115,8 @@ const ATTRIBUTIONS: Attribution[] = [
 export default function AttributionsContent() {
   return (
     <>
+      <LegalNav activePath="/attributions" />
+      <div className="rl-legal-content">
       <h1 className={s.pageTitle}>Open Source Attributions</h1>
       <p className={s.effectiveDate}>
         Roam is built on the shoulders of open-source communities
@@ -180,6 +183,7 @@ export default function AttributionsContent() {
           </p>
         </div>
       </section>
+      </div>
     </>
   );
 }

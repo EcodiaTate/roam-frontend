@@ -19,10 +19,7 @@ import type { BuildPhase } from "@/lib/offline/buildPlanBundle";
 type StepId =
   | "routing"
   | "corridor"
-  | "places"
   | "fuel"
-  | "traffic"
-  | "hazards"
   | "bundle"
   | "saving";
 
@@ -60,18 +57,6 @@ const STEPS: StepDef[] = [
     doneQuip: "Corridor secured.",
   },
   {
-    id: "places",
-    icon: "📍",
-    label: "Caching points of interest",
-    quips: [
-      "Logging servo locations so you don't run dry in the outback…",
-      "Finding every roadhouse, rest stop, and dodgy pub en route…",
-      "Cataloguing thousands of places. Most closed on Sundays.",
-      "Bookmarking the good bakeries — and the bad ones, for context.",
-    ],
-    doneQuip: "Places locked and loaded.",
-  },
-  {
     id: "fuel",
     icon: "⛽",
     label: "Analysing fuel coverage",
@@ -84,36 +69,15 @@ const STEPS: StepDef[] = [
     doneQuip: "Fuel coverage mapped.",
   },
   {
-    id: "traffic",
-    icon: "🚦",
-    label: "Checking live traffic",
-    quips: [
-      "Pinging the traffic gods…",
-      "Scanning for inexplicable 40 km/h zones nobody asked for…",
-      "Looking for that one crash near the highway merge. There's always one.",
-      "Checking if the highway is moving or just… sitting there.",
-    ],
-    doneQuip: "Traffic snapshot captured.",
-  },
-  {
-    id: "hazards",
-    icon: "⚠️",
-    label: "Fetching road warnings",
-    quips: [
-      "Checking for floods, fires, and other classic Aussie hazards…",
-      "Scanning road condition reports. The results may shock you.",
-      "Looking for any warnings issued since last Tuesday's drama…",
-      "Fetching advisories. Mostly fine. Probably.",
-    ],
-    doneQuip: "Hazards noted. Drive sensibly.",
-  },
-  {
     id: "bundle",
     icon: "📦",
     label: "Packaging your offline kit",
     quips: [
-      "Wrapping everything into a tidy offline bundle…",
-      "Compressing maps, routes, and wisdom into one neat parcel…",
+      "Logging servo locations so you don't run dry in the outback…",
+      "Checking for floods, fires, and other classic Aussie hazards…",
+      "Pinging the traffic gods while we grab your places…",
+      "Cataloguing roadhouses, rest stops, and dodgy pubs en route…",
+      "Wrapping maps, routes, traffic and wisdom into one neat parcel…",
       "Zipping files. Genuinely the most satisfying part.",
       "Assembling your full outback survival kit…",
     ],
@@ -140,10 +104,7 @@ function phaseToStepId(phase: BuildPhase): StepId | null {
     case "routing":           return "routing";
     case "corridor_ensure":
     case "corridor_get":      return "corridor";
-    case "places_corridor":   return "places";
     case "fuel_analysis":     return "fuel";
-    case "traffic_poll":      return "traffic";
-    case "hazards_poll":      return "hazards";
     case "bundle_build":      return "bundle";
     case "downloading":
     case "saving":            return "saving";
