@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { haptic } from "@/lib/native/haptics";
@@ -16,6 +16,8 @@ type Props = {
   open: boolean;
   onClose: () => void;
   onUnlocked: () => void;
+  /** "gate" = user hit the trip limit (default). "upgrade" = user tapped Upgrade voluntarily. */
+  variant?: "gate" | "upgrade";
 };
 
 const FEATURES = [
@@ -23,18 +25,60 @@ const FEATURES = [
   { icon: "⬇", label: "Permanent offline maps", sub: "Every trip saved forever, works without signal" },
   { icon: "✦", label: "AI co-pilot", sub: "Smart fuel stops, hazards & local tips en-route" },
   { icon: "↗", label: "Trip sharing", sub: "Share with your co-pilot via a 6-character code" },
+  { icon: "⛽", label: "Fuel range alerts", sub: "Never run dry — warnings before the last servo" },
+  { icon: "🔊", label: "Voice navigation", sub: "Turn-by-turn directions, hands on the wheel" },
+  { icon: "📍", label: "Local knowledge", sub: "Hidden gems, rest stops & points of interest along your route" },
 ];
 
-export function PaywallModal({ open, onClose, onUnlocked }: Props) {
+const HERO_COPY = {
+  gate: {
+    heading: <>Ready to go<br />Untethered?</>,
+    body: "You\u2019ve used your 2 free trips. Go Untethered for a single one-time payment \u2014 no subscription, ever.",
+  },
+  upgrade: {
+    heading: <>Go Untethered</>,
+    body: "Unlock every feature and never worry about trip limits again \u2014 one payment, yours forever.",
+  },
+};
+
+type AnimState = "entering" | "open" | "exiting" | "closed";
+
+export function PaywallModal({ open, onClose, onUnlocked, variant = "gate" }: Props) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [buying, setBuying] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [anim, setAnim] = useState<AnimState>("closed");
   const isNative = isNativePlatform();
   const { session } = useAuth();
+  const sheetRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { setMounted(true); }, []);
+
+  // Drive enter/exit animation
+  useEffect(() => {
+    if (open && (anim === "closed" || anim === "exiting")) {
+      setAnim("entering");
+      const raf = requestAnimationFrame(() => {
+        requestAnimationFrame(() => setAnim("open"));
+      });
+      return () => cancelAnimationFrame(raf);
+    }
+    if (!open && anim === "open") {
+      setAnim("closed");
+    }
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleClose = useCallback(() => {
+    if (anim === "exiting") return;
+    haptic.light();
+    setAnim("exiting");
+    setTimeout(() => {
+      setAnim("closed");
+      onClose();
+    }, 340);
+  }, [onClose, anim]);
 
   // Lock scroll while open
   useEffect(() => {
@@ -103,12 +147,15 @@ export function PaywallModal({ open, onClose, onUnlocked }: Props) {
     }
   }, [onUnlocked]);
 
-  if (!mounted || !open) return null;
+  if (!mounted || anim === "closed") return null;
 
   const busy = buying || restoring;
+  const isVisible = anim === "open";
+  const isExiting = anim === "exiting";
 
   return createPortal(
     <div
+      onClick={handleClose}
       style={{
         position: "fixed",
         inset: 0,
@@ -121,12 +168,16 @@ export function PaywallModal({ open, onClose, onUnlocked }: Props) {
         alignItems: "center",
         justifyContent: "flex-end",
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
+        opacity: isVisible ? 1 : isExiting ? 0 : 0,
+        transition: "opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
       }}
       role="dialog"
       aria-modal="true"
     >
       {/* Sheet */}
       <div
+        ref={sheetRef}
+        onClick={(e) => e.stopPropagation()}
         style={{
           width: "100%",
           maxWidth: 480,
@@ -135,6 +186,10 @@ export function PaywallModal({ open, onClose, onUnlocked }: Props) {
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
+          transform: isVisible ? "translateY(0)" : "translateY(100%)",
+          transition: isExiting
+            ? "transform 0.34s cubic-bezier(0.4, 0, 1, 1)"
+            : "transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)",
         }}
       >
         {/* Hero band */}
@@ -163,20 +218,23 @@ export function PaywallModal({ open, onClose, onUnlocked }: Props) {
           {/* Close pill */}
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             disabled={busy}
             style={{
               position: "absolute", top: 16, right: 16,
-              all: "unset", cursor: "pointer",
-              width: 32, height: 32, borderRadius: 999,
+              border: "none", margin: 0, padding: 0,
+              cursor: "pointer",
+              width: 32, height: 32, borderRadius: "50%",
               background: "rgba(255,255,255,0.15)",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 18, color: "rgba(255,255,255,0.8)",
-              lineHeight: 1,
+              color: "rgba(255,255,255,0.8)",
+              boxSizing: "border-box",
             }}
             aria-label="Close"
           >
-            ×
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ display: "block" }}>
+              <path d="M1.5 1.5L12.5 12.5M12.5 1.5L1.5 12.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
           </button>
 
           {/* Badge */}
@@ -187,7 +245,7 @@ export function PaywallModal({ open, onClose, onUnlocked }: Props) {
             marginBottom: 14,
           }}>
             <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.06em", color: "rgba(255,255,255,0.9)", textTransform: "uppercase" }}>
-              Roam Unlimited
+              Roam Untethered
             </span>
           </div>
 
@@ -197,7 +255,7 @@ export function PaywallModal({ open, onClose, onUnlocked }: Props) {
             color: "#fff",
             lineHeight: 1.2,
           }}>
-            Ready for unlimited<br />adventures?
+            {HERO_COPY[variant].heading}
           </h1>
           <p style={{
             margin: 0,
@@ -205,7 +263,7 @@ export function PaywallModal({ open, onClose, onUnlocked }: Props) {
             color: "rgba(255,255,255,0.75)",
             lineHeight: 1.5,
           }}>
-            You've used your 2 free trips. Unlock Roam forever for a single one-time payment — no subscription, ever.
+            {HERO_COPY[variant].body}
           </p>
         </div>
 
@@ -283,7 +341,7 @@ export function PaywallModal({ open, onClose, onUnlocked }: Props) {
             {buying
               ? (isNative ? "Processing…" : "Redirecting to checkout…")
               : isNative
-                ? "Unlock Roam Unlimited · $19.99"
+                ? "Unlock Roam Untethered · $19.99"
                 : session
                   ? "Pay with Card · $19.99 →"
                   : "Sign in to unlock · $19.99 →"}

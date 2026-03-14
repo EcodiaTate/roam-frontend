@@ -11,7 +11,7 @@ const config: CapacitorConfig = {
   // Wrap the deployed Vercel app - works for TestFlight iteration.
   // Switch back to a static bundle (remove this server block) before production.
   server: {
-    url: "https://roam.ecodia.au",
+    url: "https://roam.ecodia.au/trip",
     cleartext: false,
     allowNavigation: ["*.ecodia.au", "*.supabase.co", "*.supabase.in"],
   },

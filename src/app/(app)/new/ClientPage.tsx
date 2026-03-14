@@ -21,7 +21,6 @@ import {
 } from "@/components/trips/new/MapStyleSwitcher";
 import { PlanningOverlay } from "@/components/trips/new/PlanningOverlay";
 import { InviteCodeModal } from "@/components/plans/InviteCodeModal";
-import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { WelcomeModal } from "@/components/paywall/WelcomeModal";
 
 function genPlanId() {
@@ -48,7 +47,6 @@ export default function NewTripClientPage() {
   const [inviteOpen, setInviteOpen] = useState(false);
 
   // ── Paywall gate ────────────────────────────────────────────────────
-  const [paywallOpen, setPaywallOpen] = useState(false);
   const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [isLastFreeTrip, setIsLastFreeTrip] = useState(false);
   const [gateChecked, setGateChecked] = useState(false);
@@ -63,8 +61,9 @@ export default function NewTripClientPage() {
         }
         setGateChecked(true);
       } else if (gate.reason === "paywall") {
-        setPaywallOpen(true);
-        // Don't set gateChecked — keep UI locked until purchase
+        // Redirect back to trip page — paywall shows there, no unnecessary navigation
+        router.replace("/trip?upgrade=1");
+        return;
       } else {
         // "welcome" — first ever launch
         setWelcomeOpen(true);
@@ -266,16 +265,6 @@ export default function NewTripClientPage() {
         onClose={() => setInviteOpen(false)}
         onRedeemed={(joinedPlanId) => {
           setInviteOpen(false);
-        }}
-      />
-
-      {/* ── Paywall ──────────────────────────────────────────────────── */}
-      <PaywallModal
-        open={paywallOpen}
-        onClose={() => router.replace("/trip")}
-        onUnlocked={() => {
-          setPaywallOpen(false);
-          setGateChecked(true);
         }}
       />
 

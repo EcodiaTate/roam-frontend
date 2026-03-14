@@ -48,8 +48,10 @@ import type { TripStop } from "@/lib/types/trip";
 import type { FuelAnalysis, FuelTrackingState, VehicleFuelProfile } from "@/lib/types/fuel";
 
 // Updated icons here
-import { UserRound, UserPlus, Library } from "lucide-react";
+import { UserPlus, Library } from "lucide-react";
 import { TripSkeleton } from "./TripSkeleton";
+import { isUnlocked as checkIsUnlocked } from "@/lib/paywall/tripGate";
+import { PaywallModal } from "@/components/paywall/PaywallModal";
 
 /* ── Constants ────────────────────────────────────────────────────────── */
 
@@ -111,6 +113,22 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
 
   // Plans drawer state
   const [drawOpen, setDrawOpen] = useState(false);
+
+  // Plan status (Untethered)
+  const [unlocked, setUnlocked] = useState<boolean | null>(null);
+  const [paywallOpen, setPaywallOpen] = useState(false);
+  const [paywallVariant, setPaywallVariant] = useState<"gate" | "upgrade">("upgrade");
+
+  useEffect(() => {
+    checkIsUnlocked().then((result) => {
+      setUnlocked(result);
+      // If redirected from /new with ?upgrade=1, open the paywall as gate variant
+      if (!result && sp.get("upgrade") === "1") {
+        setPaywallVariant("gate");
+        setPaywallOpen(true);
+      }
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fluid Bottom Sheet Drag State
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -614,6 +632,13 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         }}
       />
 
+      <PaywallModal
+        open={paywallOpen}
+        variant={paywallVariant}
+        onClose={() => setPaywallOpen(false)}
+        onUnlocked={() => { setPaywallOpen(false); setUnlocked(true); }}
+      />
+
       {/* Bottom Sheet */}
       <div
         ref={sheetRef}
@@ -691,19 +716,40 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
                 <UserPlus size={18} />
               </button>
 
-              <button
-                type="button"
-                className="trip-interactive trip-btn-icon"
-                aria-label="Account"
-                onClick={() => { haptic.selection(); router.push("/login"); }}
-                style={{
-                  borderRadius: 999, width: 40, height: 40,
-                  display: "grid", placeItems: "center",
-                  background: "var(--brand-ochre)", color: "#fff",
-                }}
-              >
-                <UserRound size={18} />
-              </button>
+              {unlocked ? (
+                <div
+                  style={{
+                    display: "flex", alignItems: "center", gap: 5,
+                    background: "linear-gradient(135deg, var(--brand-eucalypt-dark, #1f5236) 0%, var(--brand-eucalypt, #2d6e40) 100%)",
+                    borderRadius: 999, padding: "6px 12px",
+                    height: 40,
+                  }}
+                  title="Roam Untethered"
+                >
+                  <span style={{ fontSize: 13, lineHeight: 1 }}>∞</span>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                    Untethered
+                  </span>
+                </div>
+              ) : unlocked === false ? (
+                <button
+                  type="button"
+                  className="trip-interactive"
+                  aria-label="Upgrade to Roam Untethered"
+                  onClick={() => { haptic.selection(); setPaywallVariant("upgrade"); setPaywallOpen(true); }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 5,
+                    background: "linear-gradient(135deg, var(--brand-ochre, #c85a3a) 0%, #e07856 100%)",
+                    borderRadius: 999, padding: "6px 14px",
+                    height: 40, border: "none", cursor: "pointer",
+                    boxShadow: "0 2px 8px rgba(200,90,58,0.25)",
+                  }}
+                >
+                  <span style={{ fontSize: 12, fontWeight: 800, color: "#fff", letterSpacing: "0.02em" }}>
+                    Upgrade
+                  </span>
+                </button>
+              ) : null}
             </div>
           </div>
 

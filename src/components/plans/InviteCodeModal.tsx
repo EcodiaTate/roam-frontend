@@ -1,10 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { usePlanSync } from "@/lib/hooks/usePlanSync";
-import { X } from "lucide-react";
 import { useBundleBuilder } from "@/lib/hooks/useBundleBuilder";
 import { getOfflinePlan, setCurrentPlanId } from "@/lib/offline/plansStore";
 import { haptic } from "@/lib/native/haptics";
@@ -17,6 +16,8 @@ type Props = {
   onClose: () => void;
   onRedeemed?: (planId: string) => void;
 };
+
+type AnimState = "entering" | "open" | "exiting" | "closed";
 
 /**
  * Invite code modal - portalled to document.body so it always centres
@@ -31,10 +32,36 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [anim, setAnim] = useState<AnimState>("closed");
+  const panelRef = useRef<HTMLDivElement>(null);
 
   // Track whether we're mounted (needed for portal target)
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
+
+  // Drive enter/exit animation
+  useEffect(() => {
+    if (open && (anim === "closed" || anim === "exiting")) {
+      setAnim("entering");
+      const raf = requestAnimationFrame(() => {
+        requestAnimationFrame(() => setAnim("open"));
+      });
+      return () => cancelAnimationFrame(raf);
+    }
+    if (!open && anim === "open") {
+      setAnim("closed");
+    }
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleClose = useCallback(() => {
+    if (anim === "exiting") return;
+    haptic.light();
+    setAnim("exiting");
+    setTimeout(() => {
+      setAnim("closed");
+      onClose();
+    }, 300);
+  }, [onClose, anim]);
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -130,14 +157,16 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
   }, [generatedCode]);
 
   // ── Don't render until client-mounted, and not when closed ─────────
-  if (!open || !mounted) return null;
+  if (!mounted || anim === "closed") return null;
 
   const isBuilding = bundle.building;
   const buildingOrBusy = busy || isBuilding;
+  const isVisible = anim === "open";
+  const isExiting = anim === "exiting";
 
   const modalContent = (
     <div
-      onClick={onClose}
+      onClick={handleClose}
       style={{
         position: "fixed",
         top: 0,
@@ -152,15 +181,17 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
         justifyContent: "center",
         zIndex: 100,
         padding: 20,
-        /* Use dvh to handle virtual keyboard correctly */
         height: "100dvh",
         width: "100vw",
         overflow: "hidden",
+        opacity: isVisible ? 1 : isExiting ? 0 : 0,
+        transition: "opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
       }}
       role="dialog"
       aria-modal="true"
     >
       <div
+        ref={panelRef}
         onClick={(e) => e.stopPropagation()}
         style={{
           backgroundColor: "var(--roam-surface, #1a1a1a)",
@@ -170,10 +201,13 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
           maxWidth: 400,
           boxShadow: "0 20px 40px rgba(0,0,0,0.4)",
           position: "relative",
-          /* Constrain height to prevent overflow and keyboard push */
           maxHeight: "90dvh",
           overflowY: "auto",
           flexShrink: 0,
+          transform: isVisible ? "scale(1) translateY(0)" : isExiting ? "scale(0.95) translateY(20px)" : "scale(0.95) translateY(20px)",
+          transition: isExiting
+            ? "transform 0.28s cubic-bezier(0.4, 0, 1, 1)"
+            : "transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)",
         }}
       >
         {/* ── Header ──────────────────────────────────────────────── */}
@@ -183,21 +217,28 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
           </h2>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             disabled={isBuilding}
             style={{
-              all: "unset",
+              border: "none",
+              margin: 0,
+              padding: 0,
               cursor: "pointer",
-              padding: 8,
-              opacity: 0.5,
+              width: 32, height: 32,
+              borderRadius: "50%",
+              background: "var(--roam-surface-raised, #222)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              borderRadius: 8,
               color: "var(--roam-text, #eee)",
+              opacity: 0.6,
+              flexShrink: 0,
+              boxSizing: "border-box",
             }}
           >
-            <X size={20} />
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ display: "block" }}>
+              <path d="M1.5 1.5L12.5 12.5M12.5 1.5L1.5 12.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
           </button>
         </div>
 

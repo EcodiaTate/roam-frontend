@@ -239,7 +239,7 @@ const ATTRIBUTION_GROUPS: AttributionGroup[] = [
         url: "https://stripe.com",
         licence: "Proprietary (Stripe ToS)",
         description:
-          "Payment processing for Roam Unlimited web purchases.",
+          "Payment processing for Roam Untethered web purchases.",
       },
       {
         name: "RevenueCat",

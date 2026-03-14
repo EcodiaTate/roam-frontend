@@ -97,7 +97,7 @@ export function WelcomeModal({ open, lastFreeTrip = false, onClose }: Props) {
             lineHeight: 1.55,
           }}>
             {lastFreeTrip
-              ? "This is your last free trip. Explore every feature — offline maps, the AI guide, turn-by-turn nav. If you love it, Roam Unlimited is $19.99, one-time."
+              ? "This is your last free trip. Explore every feature — offline maps, the AI guide, turn-by-turn nav. If you love it, Roam Untethered is $19.99, one-time."
               : "Your first two trips are completely free. No credit card needed — just tap, plan, and go."}
           </p>
         </div>
@@ -158,7 +158,7 @@ export function WelcomeModal({ open, lastFreeTrip = false, onClose }: Props) {
               color: "var(--roam-text-muted, #7a7067)",
               lineHeight: 1.5,
             }}>
-              After 2 free trips, unlock unlimited adventures for $19.99 — one-time, no subscription.
+              After 2 free trips, go Untethered for $19.99 — one-time, no subscription.
             </p>
           )}
         </div>

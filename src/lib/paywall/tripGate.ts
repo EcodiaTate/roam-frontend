@@ -1,7 +1,7 @@
 // src/lib/paywall/tripGate.ts
 //
 // Trip usage gate — tracks how many trips the user has created and whether
-// they have purchased Roam Unlimited.
+// they have purchased Roam Untethered.
 //
 // SOURCE OF TRUTH (anti-cheat):
 //   - Unlock status  → Supabase `user_entitlements` (written by webhook, read by client)

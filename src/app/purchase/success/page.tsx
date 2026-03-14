@@ -77,7 +77,7 @@ export default function PurchaseSuccessPage() {
           <div style={{ fontSize: 48 }}>✓</div>
           <h1 style={{ fontSize: 24, fontWeight: 900, margin: 0 }}>Payment confirmed!</h1>
           <p style={{ margin: 0, opacity: 0.6, fontSize: 15 }}>
-            Activating your Roam Unlimited…
+            Activating your Roam Untethered…
           </p>
           {/* Simple spinner */}
           <div style={{
@@ -95,7 +95,7 @@ export default function PurchaseSuccessPage() {
           <div style={{ fontSize: 56 }}>🎉</div>
           <h1 style={{ fontSize: 24, fontWeight: 900, margin: 0 }}>Welcome, Nomad!</h1>
           <p style={{ margin: 0, opacity: 0.7, fontSize: 15 }}>
-            Roam Unlimited is active. Taking you to your trips…
+            Roam Untethered is active. Taking you to your trips…
           </p>
         </>
       )}
