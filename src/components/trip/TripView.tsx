@@ -185,6 +185,31 @@ export function TripView({
   } = useAlerts(traffic, hazards, routeGeometry, userPosition, stopsForProjection);
 
   /* ── Stop editing ───────────────────────────────────────────────────── */
+  /* ── Auto-rebuild helper ───────────────────────────────────────────── */
+  // Fires an immediate rebuild for the given stops list, showing the
+  // spinner and clearing dirty on success.  Used by moveStop, removeStop
+  // and addStopFromPlace so the route updates without the user having to
+  // tap "Save Route".
+  const autoRebuild = useCallback(
+    (nextStops: TripStop[]) => {
+      if (nextStops.length < 2 || !onRebuildRequested) return;
+      setBusy("rebuilding");
+      setErr(null);
+      onRebuildRequested({ stops: ensureStopIds(nextStops), mode })
+        .then(() => {
+          setDirty(false);
+          haptic.success();
+        })
+        .catch((e: any) => {
+          setDirty(true);
+          setErr(e?.message ?? "Rebuild failed");
+          haptic.error();
+        })
+        .finally(() => setBusy(null));
+    },
+    [onRebuildRequested, mode],
+  );
+
   const moveStop = useCallback(
     (fromIdx: number, dir: -1 | 1) => {
       haptic.selection();
@@ -197,11 +222,12 @@ export function TripView({
         const out = [...prev];
         const [moved] = out.splice(fromIdx, 1);
         out.splice(toIdx, 0, moved);
+        // Auto-rebuild with reordered stops
+        autoRebuild(out);
         return out;
       });
-      setDirty(true);
     },
-    [],
+    [autoRebuild],
   );
 
   const removeStop = useCallback(
@@ -211,12 +237,14 @@ export function TripView({
       setStops((prev) => {
         const found = prev.find((x) => x.id === id);
         if (!found || isLockedStop(found)) return prev;
-        return prev.filter((x) => x.id !== id);
+        const out = prev.filter((x) => x.id !== id);
+        // Auto-rebuild with remaining stops
+        autoRebuild(out);
+        return out;
       });
       if (focusedStopId === id) onFocusStop(null);
-      setDirty(true);
     },
-    [focusedStopId, onFocusStop],
+    [focusedStopId, onFocusStop, autoRebuild],
   );
 
   const addStopFromPlace = useCallback(
@@ -238,28 +266,9 @@ export function TripView({
       setStops(out);
       hideKeyboard();
       setActiveSection("route");
-
-      // Auto-rebuild so the route recalculates and persists to IDB immediately.
-      if (out.length >= 2 && onRebuildRequested) {
-        setBusy("rebuilding");
-        setErr(null);
-        onRebuildRequested({ stops: out, mode })
-          .then(() => {
-            setDirty(false);
-            haptic.success();
-          })
-          .catch((e: any) => {
-            // Rebuild failed — mark dirty so user can retry manually
-            setDirty(true);
-            setErr(e?.message ?? "Rebuild failed");
-            haptic.error();
-          })
-          .finally(() => setBusy(null));
-      } else {
-        setDirty(true);
-      }
+      autoRebuild(out);
     },
-    [onAddSuggestion, stops, onRebuildRequested, mode],
+    [onAddSuggestion, stops, autoRebuild],
   );
 
   const reset = useCallback(() => {
@@ -512,7 +521,7 @@ export function TripView({
                           }}
                           aria-label="Remove stop"
                         >
-                          <X size={14} strokeWidth={2.5} />
+                          <X size={18} strokeWidth={2.5} />
                         </button>
                       </div>
                     )}

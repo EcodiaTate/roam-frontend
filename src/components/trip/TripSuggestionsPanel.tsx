@@ -234,6 +234,10 @@ export function TripSuggestionsPanel(props: {
   const listRef = useRef<HTMLDivElement | null>(null);
   const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
+  // Track the initial focusedPlaceId so we don't auto-scroll on mount
+  // (prevents jumping to the bottom when reopening the panel).
+  const initialFocusRef = useRef(props.focusedPlaceId ?? null);
+
   const filtered = useMemo(() => {
     const qq = q.trim().toLowerCase();
     const out = items
@@ -261,9 +265,21 @@ export function TripSuggestionsPanel(props: {
     return counts;
   }, [items]);
 
+  // Reset scroll to top on mount (when panel is reopened) and on category change
+  useEffect(() => {
+    listRef.current?.scrollTo(0, 0);
+  }, [activeCat]);
+
+  // Scroll to focused place only for *new* focus changes, not the stale
+  // value that was already set when the panel was last closed.
   useEffect(() => {
     const id = props.focusedPlaceId ?? null;
     if (!id) return;
+    // Skip the initial render — don't auto-scroll to a stale focus
+    if (id === initialFocusRef.current) {
+      initialFocusRef.current = null; // consume it so subsequent focuses on the same id still work
+      return;
+    }
     const el = rowRefs.current.get(id);
     el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [props.focusedPlaceId]);
