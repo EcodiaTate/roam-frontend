@@ -188,6 +188,7 @@ export function PaywallModal({ open, onClose, onUnlocked, variant = "gate" }: Pr
         style={{
           width: "100%",
           maxWidth: 480,
+          maxHeight: "calc(100dvh - 32px)",
           background: "var(--surface-card, #f4efe6)",
           borderRadius: "28px 28px 0 0",
           overflow: "hidden",
@@ -206,6 +207,7 @@ export function PaywallModal({ open, onClose, onUnlocked, variant = "gate" }: Pr
             padding: "32px 28px 28px",
             position: "relative",
             overflow: "hidden",
+            flexShrink: 0,
           }}
         >
           {/* Decorative rings */}
@@ -275,7 +277,7 @@ export function PaywallModal({ open, onClose, onUnlocked, variant = "gate" }: Pr
         </div>
 
         {/* Feature list */}
-        <div style={{ padding: "20px 28px 8px" }}>
+        <div style={{ padding: "20px 28px 8px", overflowY: "auto", flexShrink: 1, minHeight: 0 }}>
           {FEATURES.map((f) => (
             <div
               key={f.label}
@@ -307,7 +309,7 @@ export function PaywallModal({ open, onClose, onUnlocked, variant = "gate" }: Pr
         </div>
 
         {/* Price + CTA */}
-        <div style={{ padding: "16px 28px 20px" }}>
+        <div style={{ padding: "16px 28px 20px", flexShrink: 0 }}>
           {/* Price callout */}
           <div style={{
             display: "flex", alignItems: "baseline", gap: 8,

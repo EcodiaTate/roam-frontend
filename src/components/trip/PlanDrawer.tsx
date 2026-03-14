@@ -283,6 +283,7 @@ function PlanCard({
           ? "0 0 0 3px rgba(59,130,246,0.12)"
           : "var(--shadow-soft, 0 1px 3px rgba(0,0,0,0.06))",
         display: "flex",
+        flexShrink: 0,
       }}
     >
       {/* Accent stripe */}
@@ -681,8 +682,7 @@ export function PlanDrawer({
           boxShadow: open ? "-4px 0 16px rgba(0,0,0,0.2)" : "none",
           transform: open ? "translateX(0)" : "translateX(100%)",
           transition: "transform 0.35s cubic-bezier(0.4,0,0.2,1)",
-          overflowY: "auto",
-          WebkitOverflowScrolling: "touch",
+          overflow: "hidden",
           display: "flex",
           flexDirection: "column",
         }}
@@ -805,12 +805,13 @@ export function PlanDrawer({
         )}
 
         {/* Plans list */}
-        <div style={{ flex: 1, overflow: "hidden" }}>
+        <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
           <div
             className="roam-scroll"
             style={{
               height: "100%",
               overflowY: "auto",
+              WebkitOverflowScrolling: "touch",
               padding: "12px",
               display: "flex",
               flexDirection: "column",

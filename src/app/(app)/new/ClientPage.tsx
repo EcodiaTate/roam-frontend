@@ -21,6 +21,7 @@ import {
 } from "@/components/trips/new/MapStyleSwitcher";
 import { PlanningOverlay } from "@/components/trips/new/PlanningOverlay";
 import { InviteCodeModal } from "@/components/plans/InviteCodeModal";
+import { PlanDrawer } from "@/components/trip/PlanDrawer";
 import { WelcomeModal } from "@/components/paywall/WelcomeModal";
 
 function genPlanId() {
@@ -45,6 +46,9 @@ export default function NewTripClientPage() {
 
   // Invite modal
   const [inviteOpen, setInviteOpen] = useState(false);
+
+  // Plans drawer
+  const [drawOpen, setDrawOpen] = useState(false);
 
   // ── Paywall gate ────────────────────────────────────────────────────
   const [welcomeOpen, setWelcomeOpen] = useState(false);
@@ -220,6 +224,9 @@ export default function NewTripClientPage() {
         onJoinPlan={() => {
           setInviteOpen(true);
         }}
+        onPlans={() => {
+          setDrawOpen(true);
+        }}
         onBuildRoute={requestRoute}
         canBuildRoute={canRoute}
         routing={routing}
@@ -255,6 +262,12 @@ export default function NewTripClientPage() {
         }}
         mapCenter={draft.mapCenter}
         onPick={onPickPlace}
+      />
+
+      {/* ── Plans drawer ──────────────────────────────────────────────── */}
+      <PlanDrawer
+        open={drawOpen}
+        onClose={() => setDrawOpen(false)}
       />
 
       {/* ── Invite modal (redeem-only from /new) ─────────────────────── */}

@@ -316,20 +316,22 @@ export async function updateOfflinePlanAtomic(
   planId: string,
   patch: Partial<OfflinePlanRecord>,
 ): Promise<OfflinePlanRecord> {
+  // Read before opening the write transaction — IDB auto-commits transactions
+  // when there are no pending requests, so a cross-transaction read inside
+  // idbWithTx can silently close the write transaction before the put executes.
+  const cur = await getOfflinePlan(planId);
+  if (!cur) throw new Error(`Offline plan not found: ${planId}`);
+
+  const next: OfflinePlanRecord = {
+    ...cur,
+    ...patch,
+    plan_id: cur.plan_id,
+    saved_at: new Date().toISOString(),
+  };
+
   const result = await idbWithTx([idbStores.plans], async (osMap) => {
     const os = osMap.get(idbStores.plans);
     if (!os) throw new Error("plans store missing in tx");
-
-    const cur = await getOfflinePlan(planId);
-    if (!cur) throw new Error(`Offline plan not found: ${planId}`);
-
-    const next: OfflinePlanRecord = {
-      ...cur,
-      ...patch,
-      plan_id: cur.plan_id,
-      saved_at: new Date().toISOString(),
-    };
-
     await osPut(os, next);
     return next;
   });

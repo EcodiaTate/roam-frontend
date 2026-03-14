@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Map as MLMap } from "maplibre-gl";
 
@@ -29,18 +30,21 @@ import { useGeolocation } from "@/lib/native/geolocation";
 import { useKeepAwake } from "@/lib/native/keepAwake";
 import { useActiveNavigation } from "@/lib/hooks/useActiveNavigation";
 import { useMapNavigationMode } from "@/lib/hooks/useMapNavigationMode";
+import { useNetworkStatus } from "@/lib/hooks/useNetworkStatus";
 
 import { haptic } from "@/lib/native/haptics";
-import { getCurrentPlanId, getOfflinePlan, type OfflinePlanRecord } from "@/lib/offline/plansStore";
-import { getAllPacks, hasCorePacks, putPack } from "@/lib/offline/packsStore";
+import { getCurrentPlanId, getOfflinePlan, updateOfflinePlan, type OfflinePlanRecord } from "@/lib/offline/plansStore";
+import { getAllPacks, hasCorePacks, putPack, putPacksAtomic } from "@/lib/offline/packsStore";
 import { unpackAndStoreBundle } from "@/lib/offline/unpackBundle";
 import { getVehicleFuelProfile } from "@/lib/offline/fuelProfileStore";
+import { rebuildNavpackOfflineWithFuel } from "@/lib/offline/rebuildNavpack";
 
 import { navApi } from "@/lib/api/nav";
 
 import { analyzeFuel, computeFuelTracking } from "@/lib/nav/fuelAnalysis";
 import { decodePolyline6 } from "@/lib/nav/polyline6";
 import { cumulativeKm, snapToPolyline } from "@/lib/nav/snapToRoute";
+import { shortId } from "@/lib/utils/ids";
 
 import type { NavPack, CorridorGraphPack, TrafficOverlay, HazardOverlay, ElevationResponse } from "@/lib/types/navigation";
 import type { PlacesPack, PlaceItem } from "@/lib/types/places";
@@ -48,7 +52,7 @@ import type { TripStop } from "@/lib/types/trip";
 import type { FuelAnalysis, FuelTrackingState, VehicleFuelProfile } from "@/lib/types/fuel";
 
 // Updated icons here
-import { UserPlus, Library } from "lucide-react";
+import { UserPlus, Library, WifiOff } from "lucide-react";
 import { TripSkeleton } from "./TripSkeleton";
 import { isUnlocked as checkIsUnlocked, checkTripGate } from "@/lib/paywall/tripGate";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
@@ -79,6 +83,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   // Native hooks
   const geo = useGeolocation({ autoStart: true, highAccuracy: true });
   useKeepAwake({ auto: true });
+  const { online: isOnline } = useNetworkStatus();
 
   // Boot state
   const [phase, setPhase] = useState<BootPhase>("resolving");
@@ -102,6 +107,9 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   // Elevation state
   const [elevation, setElevation] = useState<ElevationResponse | null>(null);
 
+  // Offline routing indicator — true when last rebuild used corridor A* instead of OSRM
+  const [offlineRouted, setOfflineRouted] = useState(false);
+
   // UI State
   const [focusedStopId, setFocusedStopId] = useState<string | null>(null);
   const [focusedPlaceId, setFocusedPlaceId] = useState<string | null>(null);
@@ -118,6 +126,9 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   const [unlocked, setUnlocked] = useState<boolean | null>(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [paywallVariant, setPaywallVariant] = useState<"gate" | "upgrade">("upgrade");
+
+  // Offline modal
+  const [offlineModalOpen, setOfflineModalOpen] = useState(false);
 
   useEffect(() => {
     checkIsUnlocked().then((result) => {
@@ -297,7 +308,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
 
   // ── Overlay polling ─────────────────────────────────────────────
   const pollOverlays = useCallback(async () => {
-    if (typeof navigator !== "undefined" && !navigator.onLine) return;
+    if (!isOnline) return;
     if (!navpack?.primary?.bbox) return;
 
     const bbox = navpack.primary.bbox;
@@ -320,7 +331,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     } catch (e) {
       console.warn("[Trip] overlay poll failed:", e);
     }
-  }, [navpack, plan]);
+  }, [navpack, plan, isOnline]);
 
   // Start polling when navpack is ready
   useEffect(() => {
@@ -339,12 +350,130 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   }, [phase, navpack, pollOverlays]);
 
   // ── Rebuild handler ─────────────────────────────────────────────
+  // Falls back to offline corridor A* routing when the backend is unreachable.
   const handleRebuild = useCallback(async (args: { stops: TripStop[]; mode: TripEditorRebuildMode }) => {
-    const result = await navApi.route({
-      profile: navpack?.primary?.profile ?? "drive",
-      stops: args.stops,
-    });
+    const planId = plan?.plan_id;
+
+    // ── Offline path: use corridor A* ───────────────────────────────
+    if (!isOnline && corridor) {
+      const prev = navpack ?? {
+        req: { stops: args.stops, profile: "drive" },
+        primary: { profile: "drive", provider: "corridor", algo_version: "offline.astar.v1", route_key: "", geometry: "", bbox: { minLng: 0, minLat: 0, maxLng: 0, maxLat: 0 }, distance_m: 0, duration_s: 0, legs: [], created_at: new Date().toISOString() },
+        alternates: { alternates: [] },
+      } as NavPack;
+      const routeKey = `offline_${shortId(12)}`;
+      const { navpack: offlineNavpack, fuelAnalysis: offlineFuel } = await rebuildNavpackOfflineWithFuel({
+        planId: planId ?? "",
+        prevNavpack: prev,
+        corridor,
+        stops: args.stops,
+        route_key: routeKey,
+      });
+
+      setNavpack(offlineNavpack);
+      setOfflineRouted(true);
+      if (offlineFuel) setFuelAnalysis(offlineFuel as FuelAnalysis);
+
+      // Persist offline rebuild to IDB so the app can resume after kill
+      if (planId) {
+        const preview = {
+          stops: args.stops,
+          geometry: offlineNavpack.primary.geometry,
+          bbox: offlineNavpack.primary.bbox,
+          distance_m: offlineNavpack.primary.distance_m,
+          duration_s: offlineNavpack.primary.duration_s,
+          profile: offlineNavpack.primary.profile,
+        };
+
+        putPacksAtomic({
+          planId,
+          updates: {
+            navpack: offlineNavpack,
+            ...(offlineFuel ? { fuel_analysis: offlineFuel } : {}),
+          },
+        }).catch(() => {});
+
+        updateOfflinePlan(planId, { route_key: routeKey, preview }).catch(() => {});
+      }
+
+      // Traffic + hazards stay as-is from the cached bundle (still valid for the corridor)
+      return;
+    }
+
+    // ── Online path: use OSRM via backend ───────────────────────────
+    // Wrapped in try-catch so that if the network request fails (stale
+    // isOnline, spotty connectivity, etc.) we fall back to offline
+    // corridor A* routing automatically — the user should never be
+    // stuck without a route when the corridor graph is available.
+    let result: NavPack | null = null;
+    try {
+      result = await navApi.route({
+        profile: navpack?.primary?.profile ?? "drive",
+        stops: args.stops,
+      });
+    } catch (onlineErr) {
+      // ── Fallback: corridor A* when online OSRM fails ────────────
+      if (corridor && navpack) {
+        console.warn("[Trip] online rebuild failed, falling back to offline corridor A*:", onlineErr);
+        const routeKey = `offline_fallback_${shortId(12)}`;
+        const { navpack: offlineNavpack, fuelAnalysis: offlineFuel } = await rebuildNavpackOfflineWithFuel({
+          planId: planId ?? "",
+          prevNavpack: navpack,
+          corridor,
+          stops: args.stops,
+          route_key: routeKey,
+          reason: "online_fallback",
+        });
+
+        setNavpack(offlineNavpack);
+        setOfflineRouted(true);
+        if (offlineFuel) setFuelAnalysis(offlineFuel as FuelAnalysis);
+
+        if (planId) {
+          const preview = {
+            stops: args.stops,
+            geometry: offlineNavpack.primary.geometry,
+            bbox: offlineNavpack.primary.bbox,
+            distance_m: offlineNavpack.primary.distance_m,
+            duration_s: offlineNavpack.primary.duration_s,
+            profile: offlineNavpack.primary.profile,
+          };
+          putPacksAtomic({
+            planId,
+            updates: {
+              navpack: offlineNavpack,
+              ...(offlineFuel ? { fuel_analysis: offlineFuel } : {}),
+            },
+          }).catch(() => {});
+          updateOfflinePlan(planId, { route_key: routeKey, preview }).catch(() => {});
+        }
+        return;
+      }
+      // No corridor available either — rethrow so UI shows the error
+      throw onlineErr;
+    }
+
     setNavpack(result);
+    setOfflineRouted(false);
+
+    // Persist the new navpack and updated preview so the app resumes
+    // correctly after a kill/restart (online rebuild was previously only
+    // updating React state, leaving IDB with the old route).
+    if (planId && result?.primary) {
+      const preview = {
+        stops: args.stops,
+        geometry: result.primary.geometry,
+        bbox: result.primary.bbox,
+        distance_m: result.primary.distance_m,
+        duration_s: result.primary.duration_s,
+        profile: result.primary.profile,
+      };
+      putPacksAtomic({
+        planId,
+        updates: { navpack: result },
+      }).catch(() => {});
+      updateOfflinePlan(planId, { route_key: result.primary.route_key, preview }).catch(() => {});
+    }
 
     // Recompute fuel analysis for new route
     if (places?.items && result?.primary?.geometry) {
@@ -357,8 +486,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           result.primary.route_key,
         );
         setFuelAnalysis(analysis);
-        if (plan?.plan_id) {
-          putPack(plan.plan_id, "fuel_analysis", analysis).catch(() => {});
+        if (planId) {
+          putPack(planId, "fuel_analysis", analysis).catch(() => {});
         }
       } catch (e) {
         console.warn("[Trip] fuel recompute on rebuild failed:", e);
@@ -373,8 +502,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           route_key: result.primary.route_key,
         });
         setElevation(elevRes);
-        if (plan?.plan_id) {
-          putPack(plan.plan_id, "elevation", elevRes).catch(() => {});
+        if (planId) {
+          putPack(planId, "elevation", elevRes).catch(() => {});
         }
       } catch (e) {
         console.warn("[Trip] elevation fetch on rebuild failed:", e);
@@ -389,15 +518,15 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         ]);
         if (t.status === "fulfilled") {
           setTraffic(t.value);
-          if (plan?.plan_id) putPack(plan.plan_id, "traffic", t.value).catch(() => {});
+          if (planId) putPack(planId, "traffic", t.value).catch(() => {});
         }
         if (h.status === "fulfilled") {
           setHazards(h.value);
-          if (plan?.plan_id) putPack(plan.plan_id, "hazards", h.value).catch(() => {});
+          if (planId) putPack(planId, "hazards", h.value).catch(() => {});
         }
       } catch {}
     }
-  }, [navpack, plan, places]);
+  }, [navpack, plan, places, corridor, isOnline]);
 
   // ── Fuel settings saved handler ──────────────────────────────────
   const handleFuelProfileSaved = useCallback(async (newProfile: VehicleFuelProfile) => {
@@ -439,6 +568,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   }, []);
 
   // ── Off-route reroute handler ───────────────────────────────────
+  // Falls back to offline corridor A* when the backend is unreachable.
   const handleOffRouteReroute = useCallback(async () => {
     if (!activeNav.lastPosition || !navpack) return;
 
@@ -457,16 +587,70 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     ];
 
     try {
+      // ── Offline: corridor A* reroute ────────────────────────────
+      if (!isOnline && corridor) {
+        const routeKey = `offline_reroute_${shortId(12)}`;
+        const { navpack: offlineNavpack, fuelAnalysis: offlineFuel } = await rebuildNavpackOfflineWithFuel({
+          planId: plan?.plan_id ?? "",
+          prevNavpack: navpack,
+          corridor,
+          stops: remainingStops,
+          route_key: routeKey,
+          reason: "off_route_reroute",
+        });
+
+        setNavpack(offlineNavpack);
+        setOfflineRouted(true);
+        if (offlineFuel) setFuelAnalysis(offlineFuel as FuelAnalysis);
+        activeNav.applyReroute(offlineNavpack);
+
+        // Persist to IDB
+        if (plan?.plan_id) {
+          putPacksAtomic({
+            planId: plan.plan_id,
+            updates: {
+              navpack: offlineNavpack,
+              ...(offlineFuel ? { fuel_analysis: offlineFuel } : {}),
+            },
+          }).catch(() => {});
+        }
+        return;
+      }
+
+      // ── Online: OSRM reroute ────────────────────────────────────
       const result = await navApi.route({
         profile: navpack.primary.profile,
         stops: remainingStops,
       });
       setNavpack(result);
+      setOfflineRouted(false);
       activeNav.applyReroute(result);
     } catch (e) {
+      // Last resort: try offline A* even if we thought we were online
+      if (corridor) {
+        try {
+          const routeKey = `offline_reroute_fallback_${shortId(12)}`;
+          const { navpack: fallbackNavpack, fuelAnalysis: fallbackFuel } = await rebuildNavpackOfflineWithFuel({
+            planId: plan?.plan_id ?? "",
+            prevNavpack: navpack,
+            corridor,
+            stops: remainingStops,
+            route_key: routeKey,
+            reason: "off_route_reroute_fallback",
+          });
+
+          setNavpack(fallbackNavpack);
+          setOfflineRouted(true);
+          if (fallbackFuel) setFuelAnalysis(fallbackFuel as FuelAnalysis);
+          activeNav.applyReroute(fallbackNavpack);
+          return;
+        } catch (offlineErr) {
+          console.warn("[Trip] offline reroute fallback also failed:", offlineErr);
+        }
+      }
       console.warn("[Trip] reroute failed:", e);
     }
-  }, [activeNav, navpack]);
+  }, [activeNav, navpack, corridor, isOnline, plan]);
 
   // ── Bottom Sheet Handlers ───────────────────────────────────────
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -621,6 +805,10 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         onClose={() => setDrawOpen(false)}
         currentPlanId={plan.plan_id}
         onNewTrip={async () => {
+          if (!isOnline) {
+            setOfflineModalOpen(true);
+            return;
+          }
           const gate = await checkTripGate();
           if (gate.allowed) {
             router.push("/new");
@@ -647,6 +835,92 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         onClose={() => setPaywallOpen(false)}
         onUnlocked={() => { setPaywallOpen(false); setUnlocked(true); }}
       />
+
+      {/* Offline modal — shown when user taps "New" while offline */}
+      {offlineModalOpen && createPortal(
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setOfflineModalOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 200,
+            background: "rgba(10, 8, 6, 0.75)",
+            backdropFilter: "blur(6px)",
+            WebkitBackdropFilter: "blur(6px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 24,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: 360,
+              background: "var(--surface-card, #f4efe6)",
+              borderRadius: 20,
+              overflow: "hidden",
+              textAlign: "center",
+            }}
+          >
+            <div style={{
+              padding: "32px 28px 20px",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 12,
+            }}>
+              <div style={{
+                width: 56, height: 56, borderRadius: "50%",
+                background: "var(--roam-surface-hover, rgba(26,22,19,0.05))",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <WifiOff size={28} strokeWidth={1.8} style={{ color: "var(--roam-text-muted, #7a7067)" }} />
+              </div>
+
+              <h2 style={{
+                margin: 0, fontSize: 18, fontWeight: 800,
+                color: "var(--roam-text, #1a1613)",
+              }}>
+                You&apos;re offline
+              </h2>
+
+              <p style={{
+                margin: 0, fontSize: 14, fontWeight: 500,
+                color: "var(--roam-text-muted, #7a7067)",
+                lineHeight: 1.5,
+              }}>
+                Creating a new trip requires an internet connection to fetch routes and maps. Reconnect and try again.
+              </p>
+            </div>
+
+            <div style={{ padding: "0 28px 24px" }}>
+              <button
+                type="button"
+                onClick={() => { haptic.light(); setOfflineModalOpen(false); }}
+                style={{
+                  width: "100%",
+                  background: "var(--roam-accent)",
+                  color: "var(--on-color, #faf6ef)",
+                  border: "none",
+                  padding: "14px",
+                  borderRadius: "var(--r-btn, 14px)",
+                  fontSize: 15,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  boxShadow: "var(--shadow-button)",
+                }}
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
 
       {/* Bottom Sheet */}
       <div
@@ -729,13 +1003,13 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
                 <div
                   style={{
                     display: "flex", alignItems: "center", gap: 5,
-                    background: "linear-gradient(135deg, var(--brand-eucalypt-dark, #1f5236) 0%, var(--brand-eucalypt, #2d6e40) 100%)",
-                    borderRadius: 999, padding: "6px 12px",
-                    height: 40,
+                    background: "linear-gradient(135deg, var(--brand-ochre, #b5452e) 0%, #d4664a 100%)",
+                    borderRadius: 999, padding: "6px 14px",
+                    height: 40, border: "none", cursor: "pointer",
+                    boxShadow: "0 2px 8px rgba(181,69,46,0.25)",
                   }}
                   title="Roam Untethered"
                 >
-                  <span style={{ fontSize: 13, lineHeight: 1 }}>∞</span>
                   <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", letterSpacing: "0.04em", textTransform: "uppercase" }}>
                     Untethered
                   </span>
@@ -748,10 +1022,9 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
                   onClick={() => { haptic.selection(); setPaywallVariant("upgrade"); setPaywallOpen(true); }}
                   style={{
                     display: "flex", alignItems: "center", gap: 5,
-                    background: "linear-gradient(135deg, var(--brand-ochre, #c85a3a) 0%, #e07856 100%)",
-                    borderRadius: 999, padding: "6px 14px",
-                    height: 40, border: "none", cursor: "pointer",
-                    boxShadow: "0 2px 8px rgba(200,90,58,0.25)",
+                    background: "linear-gradient(135deg, var(--brand-eucalypt-dark, #1f5236) 0%, var(--brand-eucalypt, #2d6e40) 100%)",
+                    borderRadius: 999, padding: "6px 12px",
+                    height: 40,
                   }}
                 >
                   <span style={{ fontSize: 12, fontWeight: 800, color: "#fff", letterSpacing: "0.02em" }}>
@@ -817,6 +1090,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
               userPosition={effectivePosition}
               fuelAnalysis={fuelAnalysis}
               onOpenFuelSettings={() => setFuelSettingsOpen(true)}
+              offlineRouted={offlineRouted}
+              isOnline={isOnline}
             />
           </div>
         </div>

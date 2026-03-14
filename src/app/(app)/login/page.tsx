@@ -99,21 +99,22 @@ export default function LoginPage() {
   return (
     <div style={{
       position: "absolute", inset: 0,
+      bottom: "var(--bottom-nav-height, 80px)",
       overflowY: "auto", WebkitOverflowScrolling: "touch" as const,
       display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-      padding: "20px 20px var(--bottom-nav-height, 80px)",
+      padding: "12px 20px 12px",
       background: "var(--roam-bg)",
       gap: 0,
     }}>
-      <div className="trip-card" style={{ gap: 16, width: "100%", maxWidth: 400 }}>
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 8 }}>
+      <div className="trip-card" style={{ gap: 12, width: "100%", maxWidth: 400 }}>
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 4 }}>
           <img
             src="/img/roam-app-icon.png"
             alt="Roam"
             style={{
-              width: 72,
-              height: 72,
-              borderRadius: "16px",
+              width: 56,
+              height: 56,
+              borderRadius: "14px",
               objectFit: "contain",
             }}
           />
@@ -127,7 +128,7 @@ export default function LoginPage() {
         }}>
           {mode === "login" ? "Sign in" : "Create account"}
         </h1>
-        <div className="trip-muted" style={{ textAlign: "center", marginBottom: 4 }}>
+        <div className="trip-muted" style={{ textAlign: "center", marginBottom: 0 }}>
           Navigate anywhere. Even offline.
         </div>
 
@@ -297,7 +298,7 @@ export default function LoginPage() {
       {/* Legal links — always accessible, sit below the card */}
       <div style={{
         display: "flex", flexWrap: "wrap", justifyContent: "center",
-        gap: "4px 16px", marginTop: 20,
+        gap: "4px 16px", marginTop: 12,
       }}>
         {[
           { href: "/contact", label: "Contact" },

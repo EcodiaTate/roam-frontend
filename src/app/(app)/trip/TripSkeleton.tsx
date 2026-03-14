@@ -82,7 +82,7 @@ export function TripSkeleton() {
                   width: 40,
                   height: 40,
                   borderRadius: 999,
-                  background: "var(--brand-ochre, #c85a3a)",
+                  background: "var(--brand-ochre, #b5452e)",
                   opacity: 0.35,
                   animation: "trip-skel-pulse 1.6s ease-in-out infinite 0.2s",
                   flexShrink: 0,

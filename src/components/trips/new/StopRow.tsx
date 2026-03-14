@@ -168,87 +168,91 @@ export function StopRow(props: {
 
       {/* Main content */}
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
-        {/* Search input */}
-        <div style={{ position: "relative" }}>
-          <div style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--roam-text-muted)", pointerEvents: "none" }}>
-            {loading
-              ? <Loader2 size={16} style={{ animation: "roam-spin 1s linear infinite" }} />
-              : <Search size={16} />
-            }
-          </div>
-          <input
-            value={q}
-            onFocus={() => setIsFocused(true)}
-            onChange={(e) => onInput(e.target.value)}
-            placeholder={placeholderText}
-            className="trip-input"
-            style={{ paddingLeft: 38, width: "100%", height: 44, fontSize: 15, borderRadius: 12 }}
-          />
-
-          {/* Dropdown results */}
-          {isFocused && q.length >= MIN_QUERY_LEN && (
-            <div style={{
-              position: "absolute",
-              top: "calc(100% + 6px)",
-              left: 0, right: 0,
-              background: "var(--roam-surface)",
-              border: "1px solid var(--roam-border)",
-              borderRadius: 12,
-              boxShadow: "0 12px 30px -5px rgba(0,0,0,0.2)",
-              zIndex: 50,
-              overflow: "hidden",
-              maxHeight: 220,
-              overflowY: "auto",
-            }}>
-              {results.length === 0 && !loading && (
-                <div style={{ padding: 16, fontSize: 14, color: "var(--roam-text-muted)", textAlign: "center" }}>
-                  No places found.
-                </div>
-              )}
-              {results.map((it) => (
-                <button
-                  key={it.id}
-                  type="button"
-                  onClick={() => handlePick(it)}
-                  style={{
-                    width: "100%",
-                    padding: "11px 16px",
-                    background: "transparent",
-                    border: "none",
-                    borderBottom: "1px solid var(--roam-border)",
-                    textAlign: "left",
-                    cursor: "pointer",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 2,
-                  }}
-                >
-                  <span style={{ fontSize: 14, fontWeight: 700, color: "var(--roam-text)" }}>{it.name}</span>
-                  <span style={{ fontSize: 12, color: "var(--roam-text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {((it.extra as any)?.address) || `${it.category} · ${it.lat.toFixed(3)}, ${it.lng.toFixed(3)}`}
-                  </span>
-                </button>
-              ))}
+        {/* Search input + Use My Location (inline) */}
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
+            <div style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--roam-text-muted)", pointerEvents: "none" }}>
+              {loading
+                ? <Loader2 size={16} style={{ animation: "roam-spin 1s linear infinite" }} />
+                : <Search size={16} />
+              }
             </div>
+            <input
+              value={q}
+              onFocus={() => setIsFocused(true)}
+              onChange={(e) => onInput(e.target.value)}
+              placeholder={placeholderText}
+              className="trip-input"
+              style={{ paddingLeft: 38, width: "100%", height: 44, fontSize: 15, borderRadius: 12 }}
+            />
+
+            {/* Dropdown results */}
+            {isFocused && q.length >= MIN_QUERY_LEN && (
+              <div style={{
+                position: "absolute",
+                top: "calc(100% + 6px)",
+                left: 0, right: 0,
+                background: "var(--roam-surface)",
+                border: "1px solid var(--roam-border)",
+                borderRadius: 12,
+                boxShadow: "0 12px 30px -5px rgba(0,0,0,0.2)",
+                zIndex: 50,
+                overflow: "hidden",
+                maxHeight: 220,
+                overflowY: "auto",
+              }}>
+                {results.length === 0 && !loading && (
+                  <div style={{ padding: 16, fontSize: 14, color: "var(--roam-text-muted)", textAlign: "center" }}>
+                    No places found.
+                  </div>
+                )}
+                {results.map((it) => (
+                  <button
+                    key={it.id}
+                    type="button"
+                    onClick={() => handlePick(it)}
+                    style={{
+                      width: "100%",
+                      padding: "11px 16px",
+                      background: "transparent",
+                      border: "none",
+                      borderBottom: "1px solid var(--roam-border)",
+                      textAlign: "left",
+                      cursor: "pointer",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 2,
+                    }}
+                  >
+                    <span style={{ fontSize: 14, fontWeight: 700, color: "var(--roam-text)" }}>{it.name}</span>
+                    <span style={{ fontSize: 12, color: "var(--roam-text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {((it.extra as any)?.address) || `${it.category} · ${it.lat.toFixed(3)}, ${it.lng.toFixed(3)}`}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Use My Location button — inline, icon-only on narrow screens */}
+          {(props.onUseMyLocation || s.type === "start") && (
+            <button
+              type="button"
+              onClick={handleUseMyLocation}
+              disabled={locating}
+              className="trip-interactive trip-btn-sm"
+              title="Use my location"
+              aria-label="Use my location"
+              style={{ flexShrink: 0, gap: 4, height: 44, paddingInline: 10, borderRadius: 12, whiteSpace: "nowrap" }}
+            >
+              {locating
+                ? <Loader2 size={16} style={{ animation: "roam-spin 0.8s linear infinite" }} />
+                : <Navigation size={16} />
+              }
+              <span className="hide-mobile" style={{ fontSize: 12 }}>Locate</span>
+            </button>
           )}
         </div>
-
-        {/* Use My Location button */}
-        {(props.onUseMyLocation || s.type === "start") && (
-          <button
-            type="button"
-            onClick={handleUseMyLocation}
-            disabled={locating}
-            className="trip-interactive trip-btn-sm"
-            style={{ alignSelf: "flex-start", gap: 6 }}
-          >
-            {locating
-              ? <Loader2 size={14} style={{ animation: "roam-spin 0.8s linear infinite" }} />
-              : <Navigation size={14} />
-            }
-            {locating ? "Locating…" : "Use my location"}
-          </button>
-        )}
       </div>
 
       {/* Reorder / remove controls */}

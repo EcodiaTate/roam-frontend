@@ -21,7 +21,8 @@ import {
   X,
   ArrowLeft,
   UserRound,
-  UserPlus,
+  Link,
+  Library,
 } from "lucide-react";
 
 /* ── Types ────────────────────────────────────────────────────────────── */
@@ -389,7 +390,8 @@ export function StopsEditor(props: {
   onEditStop: (id: string, patch: Partial<Pick<TripStop, "name" | "lat" | "lng">>) => void;
   onUseMyLocation: () => void;
   onSearchStop: (id: string) => void;
-  onJoinPlan: () => void; // ✅ Added
+  onJoinPlan: () => void;
+  onPlans: () => void;
 
   onBuildRoute: () => void;
   canBuildRoute: boolean;
@@ -477,7 +479,7 @@ export function StopsEditor(props: {
     setDragOffset(0);
   };
 
-  const peekOffsetStr = `calc(100% - 260px - var(--roam-safe-bottom))`;
+  const peekOffsetStr = `calc(100% - 260px - 400px - var(--roam-safe-bottom))`;
   const baseTransform = snapState === "peek" ? peekOffsetStr : "12px";
   const finalTransform = `translateY(calc(${baseTransform} + ${dragOffset}px))`;
 
@@ -517,8 +519,33 @@ export function StopsEditor(props: {
               </div>
             </div>
 
-            {/* ✅ Action Buttons (Join + User) */}
+            {/* Action Buttons (Plans + Join + User) */}
             <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+              <button
+                type="button"
+                className="trip-interactive trip-btn-icon"
+                aria-label="Plans"
+                title="Plans"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={() => {
+                  haptic.selection();
+                  props.onPlans();
+                }}
+                style={{
+                  borderRadius: 999,
+                  width: 40,
+                  height: 40,
+                  display: "grid",
+                  placeItems: "center",
+                  background: "rgba(0, 0, 0, 0.08)",
+                  color: "var(--roam-text)",
+                  border: "none",
+                  WebkitTapHighlightColor: "transparent",
+                }}
+              >
+                <Library size={18} />
+              </button>
+
               <button
                 type="button"
                 className="trip-interactive trip-btn-icon"
@@ -541,7 +568,7 @@ export function StopsEditor(props: {
                   WebkitTapHighlightColor: "transparent",
                 }}
               >
-                <UserPlus size={18} />
+                <Link size={18} />
               </button>
 
               <button
@@ -552,7 +579,7 @@ export function StopsEditor(props: {
                 onPointerDown={(e) => e.stopPropagation()} // Prevent drag conflict
                 onClick={() => {
                   haptic.selection();
-                  router.push("/login");
+                  router.push("/untethered");
                 }}
                 style={{
                   borderRadius: 999,

@@ -25,7 +25,8 @@ import {
   Route,
   Map as MapIcon,
   Navigation,
-  Clock
+  Clock,
+  WifiOff,
 } from "lucide-react";
 
 import {
@@ -116,6 +117,8 @@ export function TripView({
   userPosition,
   fuelAnalysis,
   onOpenFuelSettings,
+  offlineRouted,
+  isOnline,
 }: {
   planId: string;
   navpack: NavPack | null;
@@ -134,6 +137,8 @@ export function TripView({
   userPosition?: RoamPosition | null;
   fuelAnalysis?: FuelAnalysis | null;
   onOpenFuelSettings?: () => void;
+  offlineRouted?: boolean;
+  isOnline?: boolean;
 }) {
   /* ── Editor state ───────────────────────────────────────────────────── */
   const [stops, setStops] = useState<TripStop[]>(() => ensureStopIds(navpack?.req?.stops ?? []));
@@ -149,7 +154,9 @@ export function TripView({
     setErr(null);
   }, [navpack]);
 
-  const canRebuild = stops.length >= 2 && !!corridor && !!onRebuildRequested;
+  // Online: OSRM handles routing (corridor not required).
+  // Offline: corridor graph required for A* routing.
+  const canRebuild = stops.length >= 2 && !!onRebuildRequested && (isOnline || !!corridor);
 
   /* ── Alert intelligence ─────────────────────────────────────────────── */
   const routeGeometry = navpack?.primary?.geometry ?? null;
@@ -219,19 +226,40 @@ export function TripView({
         onAddSuggestion(p);
         return;
       }
-      setStops((prev) => {
-        const out = [...prev];
-        const endIdx = out.findIndex((st) => (st.type ?? "poi") === "end");
-        const next: TripStop = { id: shortId(), type: "poi", name: p.name, lat: p.lat, lng: p.lng };
-        if (endIdx >= 0) out.splice(endIdx, 0, next);
-        else out.push(next);
-        return out;
-      });
-      setDirty(true);
+
+      // Build the updated stops list so we can trigger an immediate rebuild.
+      const prev = ensureStopIds(stops);
+      const out = [...prev];
+      const endIdx = out.findIndex((st) => (st.type ?? "poi") === "end");
+      const next: TripStop = { id: shortId(), type: "poi", name: p.name, lat: p.lat, lng: p.lng };
+      if (endIdx >= 0) out.splice(endIdx, 0, next);
+      else out.push(next);
+
+      setStops(out);
       hideKeyboard();
       setActiveSection("route");
+
+      // Auto-rebuild so the route recalculates and persists to IDB immediately.
+      if (out.length >= 2 && onRebuildRequested) {
+        setBusy("rebuilding");
+        setErr(null);
+        onRebuildRequested({ stops: out, mode })
+          .then(() => {
+            setDirty(false);
+            haptic.success();
+          })
+          .catch((e: any) => {
+            // Rebuild failed — mark dirty so user can retry manually
+            setDirty(true);
+            setErr(e?.message ?? "Rebuild failed");
+            haptic.error();
+          })
+          .finally(() => setBusy(null));
+      } else {
+        setDirty(true);
+      }
     },
-    [onAddSuggestion],
+    [onAddSuggestion, stops, onRebuildRequested, mode],
   );
 
   const reset = useCallback(() => {
@@ -370,6 +398,37 @@ export function TripView({
               </div>
             )}
           </div>
+
+          {/* Offline routing indicator */}
+          {offlineRouted && (
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "6px 10px",
+              marginBottom: 12,
+              borderRadius: 10,
+              background: "rgba(245, 158, 11, 0.1)",
+              border: "1px solid rgba(245, 158, 11, 0.25)",
+              fontSize: 11,
+              fontWeight: 800,
+              color: "rgb(180, 120, 10)",
+            }}>
+              <WifiOff size={13} strokeWidth={2.5} />
+              <span>Route built offline using corridor graph. Turn-by-turn steps unavailable.</span>
+              {isOnline && (
+                <span style={{
+                  marginLeft: "auto",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: "var(--roam-accent)",
+                  whiteSpace: "nowrap",
+                }}>
+                  Rebuild online for full navigation
+                </span>
+              )}
+            </div>
+          )}
 
           <div className={s.stopList}>
             {stops.map((stop, index) => {

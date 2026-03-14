@@ -145,8 +145,8 @@ function Spinner() {
         width: 16,
         height: 16,
         borderRadius: "50%",
-        border: "2px solid rgba(200,90,58,0.20)",
-        borderTopColor: "var(--brand-ochre, #c85a3a)",
+        border: "2px solid rgba(181,69,46,0.20)",
+        borderTopColor: "var(--brand-ochre, #b5452e)",
         animation: "roam-po-spin 0.75s linear infinite",
         flexShrink: 0,
       }}
@@ -217,10 +217,10 @@ export function PlanningOverlay({ phase, error, visible }: PlanningOverlayProps)
           <div
             style={{
               background: error
-                ? "linear-gradient(135deg, #7a1800 0%, var(--brand-ochre, #c85a3a) 100%)"
+                ? "linear-gradient(135deg, #7a1800 0%, var(--brand-ochre, #b5452e) 100%)"
                 : isReady
                 ? "linear-gradient(135deg, #7a3d00 0%, var(--brand-amber, #b8872a) 100%)"
-                : "linear-gradient(135deg, #7a3d00 0%, var(--brand-ochre, #c85a3a) 100%)",
+                : "linear-gradient(135deg, #7a3d00 0%, var(--brand-ochre, #b5452e) 100%)",
               padding: "20px 20px 16px",
               position: "relative",
               overflow: "hidden",
@@ -326,7 +326,7 @@ export function PlanningOverlay({ phase, error, visible }: PlanningOverlayProps)
                         ? "1px solid var(--roam-border, rgba(26,22,19,0.07))"
                         : "none",
                       opacity: waiting ? 0.32 : 1,
-                      background: active ? "rgba(200,90,58,0.05)" : "transparent",
+                      background: active ? "rgba(181,69,46,0.05)" : "transparent",
                       transition: "opacity 0.2s, background 0.2s",
                     }}
                   >
@@ -337,7 +337,7 @@ export function PlanningOverlay({ phase, error, visible }: PlanningOverlayProps)
                       background: done
                         ? "var(--accent-tint, rgba(51,120,74,0.10))"
                         : active
-                        ? "rgba(200,90,58,0.10)"
+                        ? "rgba(181,69,46,0.10)"
                         : "var(--surface-muted, #e3dccf)",
                       display: "flex", alignItems: "center", justifyContent: "center",
                       fontSize: done ? 12 : 16,
