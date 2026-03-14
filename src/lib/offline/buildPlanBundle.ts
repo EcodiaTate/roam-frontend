@@ -133,6 +133,11 @@ export async function buildPlanBundle(args: BuildPlanBundleArgs): Promise<BuildP
   const routeProfile = pack.primary.profile ?? profile;
 
   // ─── 2. Corridor ensure ──────────────────────────────────────────────
+  // ensure() builds the corridor and caches it server-side. We no longer
+  // call corridorGet() separately — that caused WAL read-staleness
+  // "corridor_missing" errors because the GET arrived before SQLite WAL
+  // flushed the ensure() write. The bundle/build endpoint re-ensures
+  // internally and uses the in-memory result, so this is sufficient.
   emit("corridor_ensure");
   const meta = await navApi.corridorEnsure({
     route_key,
@@ -141,10 +146,6 @@ export async function buildPlanBundle(args: BuildPlanBundleArgs): Promise<BuildP
     buffer_m,
     max_edges,
   });
-
-  // ─── 3. Corridor get ─────────────────────────────────────────────────
-  emit("corridor_get");
-  await navApi.corridorGet(meta.corridor_key);
 
   // ─── 4. Fuel analysis (client-side, no network) ─────────────────────
   // Places are fetched inside bundle/build — run fuel analysis optimistically
