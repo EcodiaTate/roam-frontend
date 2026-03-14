@@ -24,6 +24,8 @@ export default function PurchaseSuccessPage() {
     async function poll() {
       attempts++;
       try {
+        // Refresh session — the Stripe redirect can leave the token stale
+        await supabase.auth.refreshSession();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) { router.replace("/login"); return; }
 
@@ -37,7 +39,7 @@ export default function PurchaseSuccessPage() {
           // Webhook has written the row — also seed local cache
           localStorage.setItem("roam_unlimited_unlocked", "1");
           setStatus("unlocked");
-          timer = setTimeout(() => router.replace("/new"), 1800);
+          timer = setTimeout(() => router.replace("/trip"), 1800);
           return;
         }
       } catch {
@@ -93,7 +95,7 @@ export default function PurchaseSuccessPage() {
           <div style={{ fontSize: 56 }}>🎉</div>
           <h1 style={{ fontSize: 24, fontWeight: 900, margin: 0 }}>Welcome, Nomad!</h1>
           <p style={{ margin: 0, opacity: 0.7, fontSize: 15 }}>
-            Roam Unlimited is active. Heading to your trips…
+            Roam Unlimited is active. Taking you to your trips…
           </p>
         </>
       )}
@@ -106,7 +108,7 @@ export default function PurchaseSuccessPage() {
             Your payment went through. It can take a moment to activate — close this page and reopen the app.
           </p>
           <button
-            onClick={() => router.replace("/new")}
+            onClick={() => router.replace("/trip")}
             style={{
               marginTop: 8,
               padding: "12px 28px",

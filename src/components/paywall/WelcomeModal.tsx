@@ -98,7 +98,7 @@ export function WelcomeModal({ open, lastFreeTrip = false, onClose }: Props) {
           }}>
             {lastFreeTrip
               ? "This is your last free trip. Explore every feature — offline maps, the AI guide, turn-by-turn nav. If you love it, Roam Unlimited is $19.99, one-time."
-              : "Your first two trips are completely free. No login, no credit card — just tap, plan, and go."}
+              : "Your first two trips are completely free. No credit card needed — just tap, plan, and go."}
           </p>
         </div>
 

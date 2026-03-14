@@ -2,10 +2,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Capacitor } from "@capacitor/core";
 import { useAuth } from "@/lib/supabase/auth";
-import { redirectToStripeCheckout } from "@/lib/paywall/tripGate";
 
 export default function LoginPage() {
   const {
@@ -18,8 +17,6 @@ export default function LoginPage() {
   } = useAuth();
 
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const nextParam = searchParams.get("next"); // e.g. "checkout"
 
   const [mode, setMode] = useState<"login" | "signup">("signup");
   const [email, setEmail] = useState("");
@@ -30,19 +27,11 @@ export default function LoginPage() {
 
   const isNative = useMemo(() => Capacitor.isNativePlatform(), []);
 
-  // If already authenticated and directed to checkout, honour that flow
+  // After sign-in, always redirect to /new
   useEffect(() => {
     if (loading || !session) return;
-    if (nextParam === "checkout") {
-      // Kick off Stripe redirect with the fresh session token
-      redirectToStripeCheckout(session.access_token).then((result) => {
-        // Only reached if Stripe redirect fails
-        if (result.error) router.replace("/new");
-      });
-    }
-    // No redirect for the plain /login case — let the user see the page
-    // (useful for accessing legal links, or switching accounts)
-  }, [loading, session, nextParam, router]);
+    router.replace("/new");
+  }, [loading, session, router]);
 
   const handleGoogle = useCallback(async () => {
     setError(null);
@@ -129,10 +118,17 @@ export default function LoginPage() {
             }}
           />
         </div>
+        <h1 style={{
+          fontSize: 22,
+          fontWeight: 800,
+          textAlign: "center",
+          margin: 0,
+          color: "var(--roam-text)",
+        }}>
+          {mode === "login" ? "Sign in" : "Create account"}
+        </h1>
         <div className="trip-muted" style={{ textAlign: "center", marginBottom: 4 }}>
-          {nextParam === "checkout"
-            ? "Create an account to complete your purchase — your licence is tied to your account."
-            : "Navigate anywhere. Even offline."}
+          Navigate anywhere. Even offline.
         </div>
 
         {/* Apple Sign-In (native only - true system UI, must be black bg per Apple HIG) */}
@@ -296,23 +292,6 @@ export default function LoginPage() {
             : "Already have an account? Sign in"}
         </button>
 
-        {/* Already signed in — offer a quick link to the app */}
-        {session && (
-          <a
-            href="/trip"
-            style={{
-              display: "block",
-              textAlign: "center",
-              padding: "10px 0 2px",
-              color: "var(--roam-accent)",
-              fontSize: 13,
-              fontWeight: 700,
-              textDecoration: "none",
-            }}
-          >
-            Go to Roam →
-          </a>
-        )}
       </div>
 
       {/* Legal links — always accessible, sit below the card */}

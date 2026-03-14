@@ -21,7 +21,9 @@ import { addPlaceToTrip } from "@/lib/guide/addToTrip";
 
 import { GuideView } from "@/components/trip/GuideView";
 
+import Image from "next/image";
 import { Wifi, WifiOff, Satellite, AlertTriangle } from "lucide-react";
+import { GuideSkeleton } from "./GuideSkeleton";
 
 // ──────────────────────────────────────────────────────────────
 // Online status hook
@@ -347,27 +349,7 @@ export default function GuideClientPage(props: {
   const headerTitle = plan?.label ?? "Guide";
 
   if (!plan) {
-    return (
-      <div
-        style={{
-          display: "grid",
-          placeItems: "center",
-          height: "100%",
-          background: "var(--roam-bg)",
-          color: "var(--roam-text)",
-        }}
-      >
-        <div
-          style={{
-            color: "var(--roam-text-muted)",
-            fontSize: 16,
-            fontWeight: 800,
-          }}
-        >
-          {busy === "boot" ? "Loading guide…" : "No plan loaded"}
-        </div>
-      </div>
-    );
+    return <GuideSkeleton />;
   }
 
   return (
@@ -399,7 +381,7 @@ export default function GuideClientPage(props: {
             boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
             flexShrink: 0,
           }}>
-            <img src="/img/roam-app-icon.png" alt="Roam" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            <Image src="/img/roam-app-icon.png" alt="Roam" width={32} height={32} style={{ objectFit: "cover" }} priority />
           </div>
 
           <div style={{ minWidth: 0, flex: 1 }}>

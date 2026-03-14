@@ -272,7 +272,7 @@ export default function NewTripClientPage() {
       {/* ── Paywall ──────────────────────────────────────────────────── */}
       <PaywallModal
         open={paywallOpen}
-        onClose={() => router.back()}
+        onClose={() => router.replace("/trip")}
         onUnlocked={() => {
           setPaywallOpen(false);
           setGateChecked(true);

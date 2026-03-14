@@ -49,6 +49,7 @@ import type { FuelAnalysis, FuelTrackingState, VehicleFuelProfile } from "@/lib/
 
 // Updated icons here
 import { UserRound, UserPlus, Library } from "lucide-react";
+import { TripSkeleton } from "./TripSkeleton";
 
 /* ── Constants ────────────────────────────────────────────────────────── */
 
@@ -493,13 +494,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
 
   // ── Render gates ────────────────────────────────────────────────
   if (phase === "resolving" || phase === "no-plan") {
-    return (
-      <div style={{ display: "grid", placeItems: "center", height: "100%", width: "100%", background: "var(--roam-bg)", color: "var(--roam-text)" }}>
-        <div style={{ color: "var(--roam-text-muted)", fontSize: 16, fontWeight: 900 }}>
-          {phase === "resolving" ? "Loading…" : "Redirecting…"}
-        </div>
-      </div>
-    );
+    return <TripSkeleton />;
   }
 
   if (phase === "error") {
@@ -524,11 +519,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   }
 
   if (phase === "hydrating" || !plan || !effectiveGeom || !effectiveBbox) {
-    return (
-      <div style={{ display: "grid", placeItems: "center", height: "100%", width: "100%", background: "var(--roam-bg)", color: "var(--roam-text)" }}>
-        <div style={{ color: "var(--roam-text-muted)", fontSize: 16, fontWeight: 900 }}>Loading trip map…</div>
-      </div>
-    );
+    return <TripSkeleton />;
   }
 
   // ── Ready ──────────────────────────────────────────────────────

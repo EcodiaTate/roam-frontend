@@ -1,6 +1,11 @@
-// src/app/(shell)/new/page.tsx
+// src/app/(app)/new/page.tsx
 import NewTripClientPage from "./ClientPage";
+import { AuthGateWrapper } from "./AuthGateWrapper";
 
 export default function Page() {
-  return <NewTripClientPage />;
+  return (
+    <AuthGateWrapper>
+      <NewTripClientPage />
+    </AuthGateWrapper>
+  );
 }

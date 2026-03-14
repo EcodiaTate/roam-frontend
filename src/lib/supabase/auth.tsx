@@ -13,6 +13,7 @@ import {
 import type { Session, User, AuthError } from "@supabase/supabase-js";
 import { supabase } from "./client";
 import { planSync } from "@/lib/offline/planSync";
+import { mergeLocalTripsToServer } from "@/lib/paywall/tripGate";
 
 import { Capacitor } from "@capacitor/core";
 import { SignInWithApple } from "@capacitor-community/apple-sign-in";
@@ -64,9 +65,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);
       setLoading(false);
+
+      // On sign-in, merge any pre-auth localStorage trips into the server
+      // so the counter is never lost/reset when creating an account.
+      if (event === "SIGNED_IN" && newSession) {
+        mergeLocalTripsToServer();
+      }
     });
 
     return () => subscription.unsubscribe();

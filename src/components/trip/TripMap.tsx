@@ -472,11 +472,27 @@ function stopsGeoJSON(stops: TripStop[]) {
   } as any;
 }
 
-function suggestionsGeoJSON(items: PlaceItem[], allowed?: Set<string> | null) {
+/**
+ * Categories rendered by the dedicated fuel layer — exclude from suggestions
+ * to avoid double pins.  Only suppress categories that the fuel analysis is
+ * actually showing; e.g. when the user drives a petrol car, ev_charging
+ * stations should still appear as suggestion POIs (they aren't in the fuel
+ * layer).
+ */
+function fuelLayerCats(fuelStations: FuelStation[] | null | undefined): Set<string> {
+  if (!fuelStations || fuelStations.length === 0) return new Set();
+  const cats = new Set<string>();
+  for (const s of fuelStations) {
+    cats.add(s.category);
+  }
+  return cats;
+}
+
+function suggestionsGeoJSON(items: PlaceItem[], allowed?: Set<string> | null, suppressCats?: Set<string>) {
   return {
     type: "FeatureCollection",
     features: (items ?? [])
-      .filter((p) => (allowed ? allowed.has(p.id) : true))
+      .filter((p) => !(suppressCats?.has(p.category)) && (allowed ? allowed.has(p.id) : true))
       .map((p) => {
         const cfg = getCatConfig(p.category);
         return {
@@ -706,9 +722,10 @@ export function TripMap(props: Props) {
 
   const routeFC = useMemo(() => routeGeoJSON(props.geometry), [props.geometry]);
   const stopsFC = useMemo(() => stopsGeoJSON(props.stops), [props.stops]);
+  const activeFuelCats = useMemo(() => fuelLayerCats(props.fuelStations), [props.fuelStations]);
   const sugFC = useMemo(
-    () => suggestionsGeoJSON(props.suggestions ?? [], props.filteredSuggestionIds ?? null),
-    [props.suggestions, props.filteredSuggestionIds],
+    () => suggestionsGeoJSON(props.suggestions ?? [], props.filteredSuggestionIds ?? null, activeFuelCats),
+    [props.suggestions, props.filteredSuggestionIds, activeFuelCats],
   );
 
   const trafficPtFC = useMemo(() => trafficPointsGeoJSON(props.traffic ?? null), [props.traffic]);

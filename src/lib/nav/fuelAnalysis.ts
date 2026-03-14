@@ -22,10 +22,16 @@ import type {
 
 /**
  * Max perpendicular snap distance (metres) for a station to be "on route".
- * 5 km covers outback servos sitting on parallel service roads or a short
- * detour off the highway — while still excluding stations in different towns.
+ * 15 km covers outback servos sitting on parallel service roads, in small
+ * towns off the highway, or down access roads.  The backend bundle fetches
+ * tier-1 essentials within 30 km; a 15 km snap keeps the two layers
+ * consistent while still excluding completely unrelated towns.
+ *
+ * Previously 5 km — caused servos between 5-30 km to appear as map pins
+ * (via the suggestions layer) but be absent from fuel analysis, leading
+ * to "No fuel ahead" while fuel icons were visible on the map.
  */
-const MAX_SNAP_DISTANCE_M = 5000;
+const MAX_SNAP_DISTANCE_M = 15_000;
 
 /** Categories in PlacesPack that represent fuel */
 const FUEL_CATEGORIES = new Set(["fuel", "ev_charging"]);

@@ -6,7 +6,9 @@
 // SOURCE OF TRUTH (anti-cheat):
 //   - Unlock status  → Supabase `user_entitlements` (written by webhook, read by client)
 //   - Trip count     → Supabase `user_trip_counts`   (written by /api/trips/increment)
-//   - Both fall back to localStorage only when the user is offline or unauthenticated.
+//   - localStorage is an offline-only cache. /new requires auth (AuthGate), so
+//     the server count is always authoritative. On sign-in, mergeLocalTripsToServer()
+//     pushes max(server, local) to the server so pre-auth trips are never lost.
 //
 // PLATFORM ROUTING:
 //   - Native (iOS/Android Capacitor) → RevenueCat purchase flow
@@ -21,6 +23,7 @@
 import { Capacitor } from "@capacitor/core";
 import { Purchases, LOG_LEVEL } from "@revenuecat/purchases-capacitor";
 import { supabase } from "@/lib/supabase/client";
+import { api } from "@/lib/api";
 
 const KEY_TRIPS_USED = "roam_trips_used";
 const KEY_UNLOCKED   = "roam_unlimited_unlocked";
@@ -183,22 +186,13 @@ export async function redirectToStripeCheckout(_accessToken?: string): Promise<{
     // Always refresh to avoid sending a stale/expired access_token that causes 401s
     const { data: { session } } = await supabase.auth.refreshSession();
     const token = session?.access_token;
-    const res = await fetch("/api/stripe/checkout", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+    const { url } = await api.post<{ url: string }>("/stripe/checkout", undefined, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      return { error: body.error ?? "Failed to start checkout." };
-    }
-    const { url } = await res.json();
     window.location.href = url;
     return { error: "" }; // unreachable
-  } catch {
-    return { error: "Could not connect to payment service. Please try again." };
+  } catch (err: any) {
+    return { error: err?.details?.error ?? err?.message ?? "Could not connect to payment service. Please try again." };
   }
 }
 
@@ -218,22 +212,21 @@ export async function getTripsUsed(): Promise<number> {
 
 /** Called after a trip is successfully saved. Increments server counter via API. */
 export async function incrementTripsUsed(): Promise<number> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) {
+    // Auth is required on /new — this should not be reachable.
+    // If it somehow is, refuse to count locally to prevent cheating.
+    throw new Error("Cannot increment trips: not authenticated");
+  }
+
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    const res = await fetch("/api/trips/increment", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-      },
+    const { trips_used } = await api.post<{ trips_used: number }>("/trips/increment", undefined, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
     });
-    if (res.ok) {
-      const { trips_used } = await res.json();
-      localSet(KEY_TRIPS_USED, String(trips_used));
-      return trips_used;
-    }
+    localSet(KEY_TRIPS_USED, String(trips_used));
+    return trips_used;
   } catch {
-    // Offline — fall back to local increment only
+    // Offline — fall back to local increment so the paywall still triggers
   }
   const current = parseInt(localGet(KEY_TRIPS_USED) ?? "0", 10);
   const next = (isNaN(current) ? 0 : current) + 1;
@@ -245,6 +238,31 @@ export async function isUnlocked(): Promise<boolean> {
   const server = await fetchUnlockFromSupabase();
   if (server !== null) return server;
   return localGet(KEY_UNLOCKED) === "1";
+}
+
+/**
+ * Merge localStorage trip count into the server after sign-in.
+ * Ensures pre-auth trips are never lost and can't be replayed by clearing storage.
+ * Should be called exactly once per SIGNED_IN event.
+ */
+export async function mergeLocalTripsToServer(): Promise<void> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return;
+
+    const raw = localGet(KEY_TRIPS_USED);
+    const localCount = parseInt(raw ?? "0", 10);
+    // Only merge if there's a meaningful local count
+    if (isNaN(localCount) || localCount <= 0) return;
+
+    const { trips_used } = await api.post<{ trips_used: number }>("/trips/merge", { local_count: localCount }, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    // Sync local cache to the authoritative merged value
+    localSet(KEY_TRIPS_USED, String(trips_used));
+  } catch {
+    // Non-fatal — server count is still authoritative
+  }
 }
 
 /* ── Gate check — call before creating a new trip ────────────────── */
