@@ -457,7 +457,7 @@ export default function PurchaseSuccessPage() {
             lineHeight: 1.08, letterSpacing: "-0.5px",
             animation: "fade-up 0.5s ease 0.5s both",
           }}>
-            You're untethered.
+            You&apos;re untethered.
           </h1>
 
           <p style={{

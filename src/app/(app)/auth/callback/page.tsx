@@ -26,7 +26,7 @@ export default function AuthCallbackPage() {
     // If Capacitor is absent we're inside the SFSafariViewController sheet.
     // Forward to the custom scheme so iOS closes the sheet and hands the
     // code to the main WebView via appUrlOpen.
-    const hasCapacitor = !!(window as any).Capacitor;
+    const hasCapacitor = !!(window as unknown as Record<string, unknown>).Capacitor;
     if (!hasCapacitor && (window.location.search || window.location.hash)) {
       window.location.href =
         "au.ecodia.roam://auth/callback" +

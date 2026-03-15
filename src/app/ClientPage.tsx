@@ -223,14 +223,7 @@ export default function LandingPage() {
       <nav className={`rl-nav ${scrolled ? "rl-nav-s" : ""}`}>
         <div className="rl-nav-bar">
           <a href="/" className="rl-nav-logo">
-            {/* Added custom roam app icon here */}
-            <img
-              src="/img/roam-app-icon.png"
-              alt="Roam Icon"
-              width={76}
-              height={76}
-              style={{ borderRadius: '6px' }}
-            />
+            <Compass size={22} strokeWidth={2.5} />
             <span>ROAM</span>
           </a>
 
@@ -565,45 +558,6 @@ const STYLES = `
 }
 .rl a { color: inherit; text-decoration: none; }
 
-/* Ecodia signature */
-.rl-footer-sig {
-  margin-top: 48px;
-  display: flex; align-items: center; justify-content: center; gap: 12px;
-}
-.rl-sig-text { font-weight: 500; font-size: 14px; color: var(--text-muted); }
-.rl-sig-box {
-  display: flex; overflow: hidden;
-  font-weight: 800; font-size: 14px;
-}
-.rl-sig-eco {
-  background: #fff; color: #000;
-  padding: 5px 11px;
-  transition: background 0.2s, color 0.2s;
-  text-decoration: none;
-}
-.rl-sig-eco:hover { background: #000; color: #fff; }
-
-.rl-sig-code {
-  background: #000; color: #fff;
-  padding: 5px 11px;
-  transition: background 0.2s, color 0.2s;
-  text-decoration: none;
-}
-.rl-sig-code:hover { background: #fff; color: #000; }
-
-/* GLOBAL TACTILE TEXTURE OVERLAY */
-.rl::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image: url('/img/noise.png');
-  background-repeat: repeat;
-  opacity: 0.125; /* Adjust based on your noise.png contrast */
-  mix-blend-mode: multiply;
-  pointer-events: none;
-  z-index: 9999;
-}
-
 .rl-inner { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
 
 .rl-label {
@@ -627,7 +581,7 @@ const STYLES = `
 }
 .rl-nav-bar {
   max-width: 1100px; margin: 0 auto;
-  height: 96px; padding: 0 24px;
+  height: 64px; padding: 0 24px;
   display: flex; align-items: center; justify-content: space-between;
   position: relative;
   z-index: 1001;
@@ -661,14 +615,13 @@ const STYLES = `
 .rl-nav-link:hover::after { transform: scaleX(1); }
 
 .rl-nav-cta {
-  font-weight: 800; font-size: 15px;
-  color: var(--ochre);
-  text-decoration: underline;
-  text-underline-offset: 4px;
-  text-decoration-thickness: 2px;
-  transition: color 0.2s;
+  font-weight: 800; font-size: 14px;
+  color: var(--white);
+  background: var(--burnt);
+  padding: 10px 22px; border-radius: 10px;
+  transition: background 0.2s, transform 0.12s;
 }
-.rl-nav-cta:hover { color: var(--burnt); }
+.rl-nav-cta:hover { background: #a3380e; transform: translateY(-1px); }
 
 /* Hamburger (mobile) */
 .rl-nav-hamburger {
@@ -737,22 +690,20 @@ const STYLES = `
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
   text-align: center;
-  position: relative; /* Crucial so the texture stays contained */
+  position: relative;
   padding: 60px 24px 80px;
-  background-color: var(--burnt);
-  /* We removed the background image from here! */
+  background: linear-gradient(170deg, #a3380e 0%, var(--burnt) 40%, #6b2208 100%);
 }
 
-/* 1. We apply the texture to an invisible layer that sits over the background color */
+/* Subtle gradient glow overlay */
 .rl-hero::before {
   content: '';
   position: absolute;
-  inset: 0; /* Stretches to fill the hero */
-  background-image: url('/img/paper-texture.png');
-  background-size: cover;
-  mix-blend-mode: multiply; /* Blends with the var(--burnt) underneath */
-  opacity: 0.4; /* <--- BOOM. Change this to whatever you want! */
-  pointer-events: none; /* Ensures the texture doesn't block you from clicking buttons */
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 50% at 30% 20%, rgba(255,255,255,0.06), transparent),
+    radial-gradient(ellipse 50% 60% at 70% 80%, rgba(0,0,0,0.15), transparent);
+  pointer-events: none;
   z-index: 0;
 }
 
@@ -790,9 +741,6 @@ const STYLES = `
   height: 1em;
   flex-shrink: 0;
   animation: rl-spin-subtle 8s linear infinite;
-}
-.rl {
-  overflow-x: clip;
 }
 .rl-hero-tagline {
   font-size: clamp(20px, 3.5vw, 32px);
@@ -958,36 +906,24 @@ const STYLES = `
 /* ---- 06. Download ---- */
 .rl-download { padding: 0 0 120px; }
 .rl-download-card {
-  background-color: var(--burnt);
+  background: linear-gradient(170deg, #a3380e 0%, var(--burnt) 40%, #6b2208 100%);
   color: var(--white);
-  /* Removed the background image from the main div */
   padding: 72px 40px; border-radius: 32px;
   text-align: center;
   position: relative; overflow: hidden;
 }
 
-/* Layer 1: The glowing gradients (Your existing code) */
+/* Subtle gradient glow */
 .rl-download-card::before {
   content: ''; position: absolute; inset: 0;
   background:
-    radial-gradient(ellipse 50% 60% at 80% 20%, rgba(255,255,255,0.06), transparent),
+    radial-gradient(ellipse 50% 60% at 80% 20%, rgba(255,255,255,0.08), transparent),
     radial-gradient(ellipse 40% 50% at 10% 80%, rgba(255,255,255,0.04), transparent);
   pointer-events: none;
   z-index: 0;
 }
 
-/* Layer 2: The paper texture */
-.rl-download-card::after {
-  content: ''; position: absolute; inset: 0;
-  background-image: url('/img/paper-texture.png');
-  background-size: cover;
-  mix-blend-mode: multiply;
-  opacity: 0.2; /* <--- Control your texture opacity here */
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* Layer 3: Ensure all text and buttons sit on top of the texture and gradients */
+/* Ensure content sits above gradient */
 .rl-download-card > * {
   position: relative;
   z-index: 1;

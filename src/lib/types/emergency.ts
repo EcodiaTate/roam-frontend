@@ -19,6 +19,6 @@ export type EmergencyOpType = "emergency_upsert" | "emergency_delete";
 export type EmergencySyncOp = {
   id?: number;             // autoIncrement in IDB sync_queue
   type: EmergencyOpType;
-  payload: any;
+  payload: EmergencyContact | { id: string };
   created_at: string;      // ISO
 };

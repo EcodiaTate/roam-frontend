@@ -18,7 +18,7 @@ function nowIso() {
 }
 
 function randomId() {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return (crypto as any).randomUUID();
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
   return `em_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`;
 }
 
@@ -125,7 +125,7 @@ async function getPositionNative(timeoutMs = 120_000): Promise<GeoResult> {
         ).then((id) => {
           watchId = id;
           if (settled) stop();
-        }).catch((e) => {
+        }).catch(() => {
           if (!settled) {
             settled = true;
             clearTimeout(timer);
@@ -134,9 +134,9 @@ async function getPositionNative(timeoutMs = 120_000): Promise<GeoResult> {
         });
       });
     }
-  } catch (e: any) {
+  } catch (e: unknown) {
     // Bubble up explicit permission errors so the user knows they blocked it
-    if (e?.message?.includes("permission")) {
+    if (e instanceof Error && e.message?.includes("permission")) {
       throw e;
     }
     // Otherwise fall through to browser API
@@ -288,8 +288,8 @@ export default function EmergencyClientPage() {
     try {
       await emergencySyncOnce(user);
       await refresh();
-    } catch (e: any) {
-      setErr(e?.message ?? String(e));
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : String(e));
     } finally {
       syncInFlightRef.current = false;
       setBusy((b) => (b === "sync" ? null : b));
@@ -307,8 +307,8 @@ export default function EmergencyClientPage() {
       setLat(p.lat);
       setLon(p.lon);
       setAccuracyM(p.accuracy_m);
-    } catch (e: any) {
-      setErr(e?.message ?? String(e));
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : String(e));
     } finally {
       locInFlightRef.current = false;
       setLocating(false);
@@ -328,8 +328,8 @@ export default function EmergencyClientPage() {
         await refresh();
         if (cancelled) return;
         await runAutoSync();
-      } catch (e: any) {
-        setErr(e?.message ?? String(e));
+      } catch (e: unknown) {
+        setErr(e instanceof Error ? e.message : String(e));
       } finally {
         if (!cancelled) setBusy(null);
       }
@@ -415,9 +415,9 @@ export default function EmergencyClientPage() {
         setLat(useLat);
         setLon(useLon);
         setAccuracyM(acc);
-      } catch (e: any) {
+      } catch (e: unknown) {
         haptic.error();
-        setErr(e?.message ?? String(e));
+        setErr(e instanceof Error ? e.message : String(e));
         setLocating(false);
         return;
       }
@@ -478,9 +478,9 @@ export default function EmergencyClientPage() {
       setEditingId(null);
       runAutoSync();
       haptic.success();
-    } catch (e: any) {
+    } catch (e: unknown) {
       haptic.error();
-      setErr(e?.message ?? String(e));
+      setErr(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(null);
     }
@@ -498,9 +498,9 @@ export default function EmergencyClientPage() {
         if (editingId === id) setEditingId(null);
         runAutoSync();
         haptic.success();
-      } catch (e: any) {
+      } catch (e: unknown) {
         haptic.error();
-        setErr(e?.message ?? String(e));
+        setErr(e instanceof Error ? e.message : String(e));
       } finally {
         setBusy(null);
       }

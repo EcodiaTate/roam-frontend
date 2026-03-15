@@ -25,7 +25,7 @@ import { PlanDrawer } from "@/components/trip/PlanDrawer";
 import { WelcomeModal } from "@/components/paywall/WelcomeModal";
 
 function genPlanId() {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return (crypto as any).randomUUID();
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
   return `plan_${Math.random().toString(36).slice(2)}_${Date.now().toString(36)}`;
 }
 
@@ -53,7 +53,7 @@ export default function NewTripClientPage() {
   // ── Paywall gate ────────────────────────────────────────────────────
   const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [isLastFreeTrip, setIsLastFreeTrip] = useState(false);
-  const [gateChecked, setGateChecked] = useState(false);
+  const [_gateChecked, setGateChecked] = useState(false);
 
   useEffect(() => {
     checkTripGate().then((gate) => {
@@ -105,9 +105,9 @@ export default function NewTripClientPage() {
         depart_at: draft.depart_at ?? null,
       });
       setNavPack(pack);
-    } catch (e: any) {
+    } catch (e: unknown) {
       setNavPack(null);
-      setRouteError(e?.message ?? "Failed to build route");
+      setRouteError(e instanceof Error ? e.message : "Failed to build route");
     } finally {
       setRouting(false);
     }
@@ -201,7 +201,7 @@ export default function NewTripClientPage() {
         }}
         stops={draft.stops}
         onAddStop={(t) => {
-          draft.addStop(t as any);
+          draft.addStop(t);
           clearRouteState();
         }}
         onRemoveStop={(id) => {
@@ -238,7 +238,7 @@ export default function NewTripClientPage() {
           planIdRef.current = null;
           bundle.reset();
         }}
-        offlinePhase={bundle.phase as any}
+        offlinePhase={bundle.phase}
         offlineError={bundle.error}
         offlineManifest={bundle.result?.manifest ?? null}
         canDownloadOffline={false}
@@ -248,7 +248,7 @@ export default function NewTripClientPage() {
 
       {/* Planning overlay */}
       <PlanningOverlay
-        phase={bundle.phase as any}
+        phase={bundle.phase}
         error={bundle.error}
         visible={bundle.building || bundle.phase === "ready" || bundle.phase === "error"}
       />
@@ -276,7 +276,7 @@ export default function NewTripClientPage() {
         planId={null}
         mode="redeem"
         onClose={() => setInviteOpen(false)}
-        onRedeemed={(joinedPlanId) => {
+        onRedeemed={(_joinedPlanId) => {
           setInviteOpen(false);
         }}
       />

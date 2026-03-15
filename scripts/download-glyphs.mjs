@@ -112,7 +112,7 @@ async function main() {
     // Process in batches of 10 to avoid hammering the server
     for (let batch = 0; batch < RANGES.length; batch += 10) {
       const batchRanges = RANGES.slice(batch, batch + 10);
-      const results = await Promise.allSettled(
+      await Promise.allSettled(
         batchRanges.map(async (range) => {
           const outFile = join(dir, `${range}.pbf`);
 

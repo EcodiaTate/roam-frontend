@@ -24,7 +24,7 @@ export async function putGuidePack(planId: string | null, guideKey: string, pack
     saved_at: Date.now(),
     payload: pack,
   };
-  await idbPut(idbStores.packs, row as any);
+  await idbPut(idbStores.packs, row);
 }
 
 export async function getGuidePack(planId: string | null, guideKey: string): Promise<GuidePack | undefined> {
@@ -37,9 +37,9 @@ export async function deleteGuidePack(planId: string | null, guideKey: string): 
 }
 
 export async function listGuidePacks(planId: string | null): Promise<{ guideKey: string; pack: GuidePack; saved_at: number }[]> {
-  const all = await idbGetAll<any>(idbStores.packs);
+  const all = await idbGetAll<StoredGuidePack>(idbStores.packs);
   const prefix = `${planId ?? "global"}:guide:`;
-  return (all as any[])
+  return all
     .filter((r) => r?.kind === "guide" && typeof r?.k === "string" && r.k.startsWith(prefix))
     .map((r) => ({ guideKey: String(r.k).slice(prefix.length), pack: r.payload as GuidePack, saved_at: r.saved_at as number }))
     .sort((a, b) => b.saved_at - a.saved_at);

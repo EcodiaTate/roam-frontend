@@ -9,8 +9,8 @@ import type {
   PlaceItem,
   PlaceCategory,
 } from "./places";
-import type { TrafficOverlay, HazardOverlay } from "./navigation";
-import type { OfflineBundleManifest } from "./bundle";
+import type { BBox4 } from "./geo";
+
 
 // ──────────────────────────────────────────────────────────────
 // Tool types
@@ -104,7 +104,7 @@ export type GuideContext = {
   corridor_key?: string | null;
 
   geometry?: string | null; // polyline6 - kept for tool repair, never sent to LLM raw
-  bbox?: any | null;
+  bbox?: BBox4 | null;
 
   stops?: TripStop[];
 
@@ -116,8 +116,8 @@ export type GuideContext = {
 
   progress?: TripProgress | null;
 
-  traffic_summary?: any | null;
-  hazards_summary?: any | null;
+  traffic_summary?: Record<string, unknown> | null;
+  hazards_summary?: Record<string, unknown> | null;
 };
 
 // ──────────────────────────────────────────────────────────────

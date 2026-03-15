@@ -47,7 +47,7 @@ import { cumulativeKm, snapToPolyline } from "@/lib/nav/snapToRoute";
 import { shortId } from "@/lib/utils/ids";
 
 import type { NavPack, CorridorGraphPack, TrafficOverlay, HazardOverlay, ElevationResponse } from "@/lib/types/navigation";
-import type { PlacesPack, PlaceItem } from "@/lib/types/places";
+import type { PlacesPack } from "@/lib/types/places";
 import type { TripStop } from "@/lib/types/trip";
 import type { FuelAnalysis, FuelTrackingState, VehicleFuelProfile } from "@/lib/types/fuel";
 
@@ -288,10 +288,10 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         }
 
         setPhase("ready");
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (cancelled) return;
         console.error("[Trip] boot error:", e);
-        setBootError(e?.message ?? "Failed to load trip");
+        setBootError(e instanceof Error ? e.message : "Failed to load trip");
         setPhase("error");
       }
     }
@@ -651,7 +651,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       {
         id: "__reroute_origin",
         name: "Current Location",
-        type: "start" as any,
+        type: "start" as const,
         lat: currentPos.lat,
         lng: currentPos.lng,
       },

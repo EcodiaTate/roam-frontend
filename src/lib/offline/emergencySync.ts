@@ -30,12 +30,12 @@ export async function emergencyPushQueue(user: User | null): Promise<void> {
       if (op.type === "emergency_upsert") {
         await cloudUpsertEmergencyContact(user, op.payload as EmergencyContact);
       } else if (op.type === "emergency_delete") {
-        await cloudDeleteEmergencyContact(user, (op.payload as any)?.id);
+        await cloudDeleteEmergencyContact(user, (op.payload as { id: string }).id);
       }
       await removeEmergencyOp(op.id);
-    } catch (e: any) {
+    } catch (e: unknown) {
       // Stop on first failure to preserve ordering, but DO surface the error.
-      const msg = e?.message ?? String(e);
+      const msg = e instanceof Error ? e.message : String(e);
       throw new Error(`Emergency sync failed on ${op.type}: ${msg}`);
     }
   }

@@ -14,6 +14,7 @@ import type { NavPack, CorridorGraphPack, TrafficOverlay, HazardOverlay } from "
 import type { PlacesPack, PlaceItem } from "@/lib/types/places";
 import type { OfflineBundleManifest } from "@/lib/types/bundle";
 import type { GuidePack, GuideContext, TripProgress } from "@/lib/types/guide";
+import type { TripStop } from "@/lib/types/trip";
 
 import { createGuidePack, guideSendMessage } from "@/lib/guide/guideEngine";
 import { computeTripProgress } from "@/lib/guide/tripProgress";
@@ -79,9 +80,9 @@ export default function GuideClientPage(props: {
   const [navpack, setNavpack] = useState<NavPack | null>(null);
   const [corridor, setCorridor] = useState<CorridorGraphPack | null>(null);
   const [places, setPlaces] = useState<PlacesPack | null>(null);
-  const [traffic, setTraffic] = useState<TrafficOverlay | null>(null);
-  const [hazards, setHazards] = useState<HazardOverlay | null>(null);
-  const [manifest, setManifest] = useState<OfflineBundleManifest | null>(null);
+  const [_traffic, setTraffic] = useState<TrafficOverlay | null>(null);
+  const [_hazards, setHazards] = useState<HazardOverlay | null>(null);
+  const [_manifest, setManifest] = useState<OfflineBundleManifest | null>(null);
 
   const [focusedPlaceId, setFocusedPlaceId] = useState<string | null>(desiredFocusPlaceId);
 
@@ -127,12 +128,12 @@ export default function GuideClientPage(props: {
         const packs = await getAllPacks(rec.plan_id);
         if (cancelled) return;
 
-        const navpackLoaded = (packs as any).navpack ?? null;
-        const corridorLoaded = (packs as any).corridor ?? null;
-        const placesLoaded = (packs as any).places ?? null;
-        const trafficLoaded = (packs as any).traffic ?? null;
-        const hazardsLoaded = (packs as any).hazards ?? null;
-        const manifestLoaded = (packs as any).manifest ?? null;
+        const navpackLoaded = packs.navpack ?? null;
+        const corridorLoaded = packs.corridor ?? null;
+        const placesLoaded = packs.places ?? null;
+        const trafficLoaded = packs.traffic ?? null;
+        const hazardsLoaded = packs.hazards ?? null;
+        const manifestLoaded = packs.manifest ?? null;
 
         setPlan(rec);
         setNavpack(navpackLoaded);
@@ -143,7 +144,7 @@ export default function GuideClientPage(props: {
         setManifest(manifestLoaded);
 
         // ── Bootstrap guide pack immediately (no extra render cycle) ──
-        const stops = (navpackLoaded?.req?.stops ?? rec.preview?.stops ?? []) as any[];
+        const stops = (navpackLoaded?.req?.stops ?? rec.preview?.stops ?? []) as TripStop[];
         if (stops.length === 0) return;
 
         const { guideKey: gk, pack, context } = await createGuidePack({
@@ -199,8 +200,8 @@ export default function GuideClientPage(props: {
         } finally {
           if (!cancelled) setBusy(null);
         }
-      } catch (e: any) {
-        if (!cancelled) setErr(e?.message ?? String(e));
+      } catch (e: unknown) {
+        if (!cancelled) setErr(e instanceof Error ? e.message : String(e));
       } finally {
         if (!cancelled) setBusy((b) => (b === "boot" ? null : b));
       }
@@ -217,7 +218,7 @@ export default function GuideClientPage(props: {
   useEffect(() => {
     if (!geo.position || !plan) return;
 
-    const stops = (navpack?.req?.stops ?? plan.preview?.stops ?? []) as any[];
+    const stops = (navpack?.req?.stops ?? plan.preview?.stops ?? []) as TripStop[];
     if (stops.length === 0) return;
 
     const progress = computeTripProgress({
@@ -243,7 +244,7 @@ export default function GuideClientPage(props: {
         // Recompute progress right before sending for freshest position
         let latestProgress = tripProgress;
         if (geo.position && plan) {
-          const stops = (navpack?.req?.stops ?? plan.preview?.stops ?? []) as any[];
+          const stops = (navpack?.req?.stops ?? plan.preview?.stops ?? []) as TripStop[];
           if (stops.length > 0) {
             latestProgress = computeTripProgress({
               position: geo.position,
@@ -279,8 +280,8 @@ export default function GuideClientPage(props: {
         setGuidePack(res.pack);
         setGuideContext(freshContext);
         return res.assistantText;
-      } catch (e: any) {
-        setErr(e?.message ?? String(e));
+      } catch (e: unknown) {
+        setErr(e instanceof Error ? e.message : String(e));
         throw e;
       } finally {
         setBusy(null);
@@ -306,9 +307,9 @@ export default function GuideClientPage(props: {
         });
         haptic.success();
         router.push(`/trip?plan_id=${encodeURIComponent(plan.plan_id)}`);
-      } catch (e: any) {
+      } catch (e: unknown) {
         haptic.error();
-        setErr(e?.message ?? String(e));
+        setErr(e instanceof Error ? e.message : String(e));
       } finally {
         setBusy(null);
       }
@@ -485,7 +486,7 @@ export default function GuideClientPage(props: {
 
               {/* Stop markers on the progress bar */}
               {(() => {
-                const stops = (navpack?.req?.stops ?? plan.preview?.stops ?? []) as any[];
+                const stops = (navpack?.req?.stops ?? plan.preview?.stops ?? []) as TripStop[];
                 const legs = navpack?.primary?.legs ?? [];
                 if (stops.length < 2 || legs.length === 0) return null;
 

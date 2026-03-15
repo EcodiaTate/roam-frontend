@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Capacitor } from "@capacitor/core";
 import { useAuth } from "@/lib/supabase/auth";
 import { useNetworkStatus } from "@/lib/hooks/useNetworkStatus";
@@ -50,8 +51,8 @@ export default function LoginPage() {
       const { error: err } = await signInWithAppleNative();
       if (err) setError(err.message);
       // success -> session updates -> redirect effect fires
-    } catch (e: any) {
-      setError(e?.message ?? "Apple Sign-In failed");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Apple Sign-In failed");
     } finally {
       setBusy(false);
     }
@@ -127,12 +128,12 @@ export default function LoginPage() {
           </div>
         )}
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 4 }}>
-          <img
+          <Image
             src="/img/roam-app-icon.png"
             alt="Roam"
+            width={56}
+            height={56}
             style={{
-              width: 56,
-              height: 56,
               borderRadius: "14px",
               objectFit: "contain",
             }}

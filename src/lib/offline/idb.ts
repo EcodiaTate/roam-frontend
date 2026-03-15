@@ -1,7 +1,7 @@
 // src/lib/offline/idb.ts
 /* Minimal IndexedDB helper (no deps) */
 
-export type IDBValue = any;
+export type IDBValue = unknown;
 
 const DB_NAME = "roam_offline";
 const DB_VERSION = 5; // baseline version
@@ -211,7 +211,7 @@ export async function idbGet<T = IDBValue>(store: string, key: IDBValidKey): Pro
   });
 }
 
-export async function idbPut(store: string, value: any, key?: IDBValidKey): Promise<void> {
+export async function idbPut(store: string, value: unknown, key?: IDBValidKey): Promise<void> {
   const db = await openDb();
   return await new Promise((resolve, reject) => {
     let os: IDBObjectStore;

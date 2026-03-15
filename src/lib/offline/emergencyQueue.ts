@@ -1,13 +1,13 @@
 "use client";
 
 import { idbWithTx, idbStores } from "./idb";
-import type { EmergencySyncOp } from "@/lib/types/emergency";
+import type { EmergencyContact, EmergencySyncOp } from "@/lib/types/emergency";
 
 function nowIso() {
   return new Date().toISOString();
 }
 
-export async function enqueueEmergencyUpsert(payload: any): Promise<void> {
+export async function enqueueEmergencyUpsert(payload: EmergencyContact): Promise<void> {
   const op: EmergencySyncOp = { type: "emergency_upsert", payload, created_at: nowIso() };
 
   await idbWithTx([idbStores.syncQueue], async (os) => {
@@ -15,7 +15,7 @@ export async function enqueueEmergencyUpsert(payload: any): Promise<void> {
   });
 }
 
-export async function enqueueEmergencyDelete(payload: any): Promise<void> {
+export async function enqueueEmergencyDelete(payload: { id: string }): Promise<void> {
   const op: EmergencySyncOp = { type: "emergency_delete", payload, created_at: nowIso() };
 
   await idbWithTx([idbStores.syncQueue], async (os) => {
@@ -38,9 +38,9 @@ export async function peekEmergencyOps(limit = 50): Promise<(EmergencySyncOp & {
         const cursor = req.result;
         if (!cursor || count >= limit) return resolve();
 
-        const val = cursor.value as any;
+        const val = cursor.value as EmergencySyncOp & { id?: number };
         if (val?.type === "emergency_upsert" || val?.type === "emergency_delete") {
-          dbOps.push({ ...(val as EmergencySyncOp), id: (val.id ?? cursor.primaryKey) as number });
+          dbOps.push({ ...val, id: (val.id ?? cursor.primaryKey) as number });
           count++;
         }
         cursor.continue();

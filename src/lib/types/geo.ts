@@ -12,4 +12,4 @@ export type BBox4 = {
   maxLat: number;
 };
 
-export type GeoJSON = Record<string, any>;
+export type GeoJSON = Record<string, unknown>;

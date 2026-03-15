@@ -153,13 +153,8 @@ class NetworkMonitorImpl {
     try {
       const r = await healthApi.get();
 
-      // api.get<T>() usually returns { data: T }. If your api returns T directly, this still works via fallbacks.
-      const ok =
-        typeof (r as any)?.data?.ok === "boolean"
-          ? Boolean((r as any).data.ok)
-          : typeof (r as any)?.ok === "boolean"
-            ? Boolean((r as any).ok)
-            : true; // "no throw" = reachable
+      // healthApi.get() returns HealthResponse directly ({ ok: boolean }).
+      const ok = typeof r?.ok === "boolean" ? r.ok : true; // "no throw" = reachable
 
       this._setBackendReachable(ok);
     } catch {

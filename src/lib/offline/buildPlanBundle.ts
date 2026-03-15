@@ -40,7 +40,7 @@ export type BuildPlanBundleArgs = {
   /** Routing profile (drive / walk / cycle) */
   profile: string;
   /** Routing preferences */
-  prefs?: Record<string, any>;
+  prefs?: Record<string, unknown>;
   /** Avoidances */
   avoid?: string[];
   /** Departure time ISO string or null */
@@ -129,7 +129,6 @@ export async function buildPlanBundle(args: BuildPlanBundleArgs): Promise<BuildP
 
   const route_key = pack.primary.route_key;
   const geometry = pack.primary.geometry;
-  const bbox = pack.primary.bbox;
   const routeProfile = pack.primary.profile ?? profile;
 
   // ─── 2. Corridor ensure ──────────────────────────────────────────────
@@ -139,7 +138,7 @@ export async function buildPlanBundle(args: BuildPlanBundleArgs): Promise<BuildP
   // flushed the ensure() write. The bundle/build endpoint re-ensures
   // internally and uses the in-memory result, so this is sufficient.
   emit("corridor_ensure");
-  const meta = await navApi.corridorEnsure({
+  await navApi.corridorEnsure({
     route_key,
     geometry,
     profile: routeProfile,

@@ -63,7 +63,7 @@ export interface TileServerInfo {
 
 let _serverInfo: TileServerInfo = { running: false, url: null, port: 0 };
 let _downloadListenerRemove: (() => Promise<void>) | null = null;
-let _progressCallbacks: Set<(status: BasemapStatus) => void> = new Set();
+const _progressCallbacks: Set<(status: BasemapStatus) => void> = new Set();
 
 /* ── Status persistence ──────────────────────────────────────────────── */
 
@@ -283,10 +283,10 @@ export async function downloadBasemap(
 
     // Start tile server if not already running
     await ensureTileServerRunning(region);
-  } catch (e: any) {
+  } catch (e: unknown) {
     const errStatus = await loadStatus(region);
     errStatus.state = "error";
-    errStatus.error = e?.message ?? "Download failed";
+    errStatus.error = e instanceof Error ? e.message : "Download failed";
     await saveStatus(errStatus);
     throw e;
   } finally {
@@ -327,9 +327,9 @@ export async function deleteBasemap(region: string = DEFAULT_REGION): Promise<vo
     await stopTileServer();
     await RoamTileServer.deleteBasemap({ region });
     await saveStatus(defaultStatus(region));
-  } catch (e: any) {
+  } catch (e: unknown) {
     status.state = "error";
-    status.error = e?.message ?? "Delete failed";
+    status.error = e instanceof Error ? e.message : "Delete failed";
     await saveStatus(status);
     throw e;
   }
@@ -371,7 +371,7 @@ export async function ensureTileServerRunning(
     _serverInfo = { running: true, url: result.url, port: result.port };
     await idbPut(idbStores.meta, _serverInfo.url, META_TILE_SERVER_URL);
     return _serverInfo;
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("[basemapManager] Failed to start tile server:", e);
     _serverInfo = { running: false, url: null, port: 0 };
     return _serverInfo;
@@ -415,7 +415,7 @@ export async function initBasemap(region: string = DEFAULT_REGION): Promise<Base
  * This is the key integration point - call this before passing
  * style JSON to map.setStyle().
  */
-export function rewriteStyleForLocalServer(style: any): any {
+export function rewriteStyleForLocalServer(style: Record<string, unknown>): Record<string, unknown> {
   if (!style || typeof style !== "object") return style;
 
   const out = { ...style };
@@ -432,7 +432,7 @@ export function rewriteStyleForLocalServer(style: any): any {
   // Rewrite sources
   if (out.sources && typeof out.sources === "object") {
     out.sources = { ...out.sources };
-    for (const [key, src] of Object.entries<any>(out.sources)) {
+    for (const [key, src] of Object.entries(out.sources as Record<string, Record<string, unknown>>)) {
       if (!src || typeof src !== "object") continue;
 
       // Rewrite pmtiles:// source URLs

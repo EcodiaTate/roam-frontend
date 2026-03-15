@@ -5,7 +5,7 @@ import type { TripStop } from "./trip";
 /** Matches backend: NavRequest.profile is string (e.g. "drive") */
 export type NavRequest = {
   profile?: string; // default "drive"
-  prefs?: Record<string, any>; // default {}
+  prefs?: Record<string, unknown>; // default {}
   stops: TripStop[];
   avoid?: string[]; // default []
   depart_at?: string | null; // ISO8601 UTC recommended
@@ -200,9 +200,9 @@ export type TrafficEvent = {
   description?: string | null;
   url?: string | null;
   last_updated?: string | null;
-  geometry?: Record<string, any> | null;
+  geometry?: Record<string, unknown> | null;
   bbox?: number[] | null; // [minLng,minLat,maxLng,maxLat]
-  raw?: Record<string, any>;
+  raw?: Record<string, unknown>;
 };
 
 export type TrafficOverlay = {
@@ -226,9 +226,9 @@ export type HazardEvent = {
   issued_at?: string | null;
   start_at?: string | null;
   end_at?: string | null;
-  geometry?: Record<string, any> | null;
+  geometry?: Record<string, unknown> | null;
   bbox?: number[] | null;
-  raw?: Record<string, any>;
+  raw?: Record<string, unknown>;
 };
 
 export type HazardOverlay = {

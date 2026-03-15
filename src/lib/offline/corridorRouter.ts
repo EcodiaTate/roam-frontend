@@ -1,7 +1,7 @@
 // src/lib/nav/offline/corridorRouter.ts
 "use client";
 
-import type { CorridorGraphPack, CorridorNode, CorridorEdge } from "@/lib/types/navigation";
+import type { CorridorGraphPack, CorridorNode } from "@/lib/types/navigation";
 import type { TripStop } from "@/lib/types/trip";
 import type { BBox4 } from "@/lib/types/geo";
 

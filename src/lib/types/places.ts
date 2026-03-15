@@ -37,7 +37,7 @@ export type PlacesRequest = {
 };
 
 /** Typed subset of known extra fields on PlaceItem.  The `extra` bag may
- *  contain additional fields beyond these — use `Record<string, any>` for
+ *  contain additional fields beyond these — use `Record<string, unknown>` for
  *  forward compat. */
 export type PlaceExtra = {
   osm_type?: string;
@@ -79,7 +79,7 @@ export type PlaceItem = {
   lat: number;
   lng: number;
   category: PlaceCategory;
-  extra?: PlaceExtra & Record<string, any>;
+  extra?: PlaceExtra & Record<string, unknown>;
 };
 
 export type PlacesPack = {
