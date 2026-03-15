@@ -36,13 +36,50 @@ export type PlacesRequest = {
   limit?: number; // default 50
 };
 
+/** Typed subset of known extra fields on PlaceItem.  The `extra` bag may
+ *  contain additional fields beyond these — use `Record<string, any>` for
+ *  forward compat. */
+export type PlaceExtra = {
+  osm_type?: string;
+  osm_id?: number;
+  phone?: string;
+  website?: string;
+  opening_hours?: string;
+  description?: string;
+  brand?: string;
+  operator?: string;
+  address?: string;
+  fee?: string;
+  access?: string;
+  capacity?: string;
+  fuel_types?: string[];
+  has_diesel?: boolean;
+  has_unleaded?: boolean;
+  has_lpg?: boolean;
+  socket_types?: string[];
+  free?: boolean;
+  powered_sites?: boolean;
+  has_water?: boolean;
+  has_toilets?: boolean;
+  synthetic_name?: boolean;
+  wheelchair?: "yes" | "limited";
+  stars?: number;
+  /** Wikidata entity ID (e.g. "Q12345") */
+  wikidata?: string;
+  /** Wikipedia article reference (e.g. "en:Uluru") */
+  wikipedia?: string;
+  /** Thumbnail URL resolved from Wikimedia Commons / OSM image tag.
+   *  ~400px wide — small enough for bundles, renders well in cards. */
+  thumbnail_url?: string;
+};
+
 export type PlaceItem = {
   id: string;
   name: string;
   lat: number;
   lng: number;
   category: PlaceCategory;
-  extra?: Record<string, any>;
+  extra?: PlaceExtra & Record<string, any>;
 };
 
 export type PlacesPack = {

@@ -108,10 +108,18 @@ export default function GuideClientPage(props: {
       setErr(null);
       try {
         const id = desiredPlanId ?? (await getCurrentPlanId());
-        if (!id || cancelled) return;
+        if (cancelled) return;
+        if (!id) {
+          setErr("No trip selected. Go back and pick a plan first.");
+          return;
+        }
 
         const rec = await getOfflinePlan(id);
-        if (!rec || cancelled) return;
+        if (cancelled) return;
+        if (!rec) {
+          setErr("Trip data not found. The plan may have been deleted.");
+          return;
+        }
 
         const has = await hasCorePacks(rec.plan_id);
         if (!has) await unpackAndStoreBundle(rec);
@@ -349,6 +357,42 @@ export default function GuideClientPage(props: {
   const headerTitle = plan?.label ?? "Guide";
 
   if (!plan) {
+    if (err) {
+      return (
+        <div
+          style={{
+            height: "100%",
+            background: "var(--roam-bg)",
+            color: "var(--roam-text)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 24,
+            gap: 16,
+            textAlign: "center",
+          }}
+        >
+          <AlertTriangle size={32} style={{ color: "var(--text-warn)" }} />
+          <p style={{ fontSize: 15, fontWeight: 600 }}>{err}</p>
+          <button
+            onClick={() => router.push("/trip")}
+            style={{
+              padding: "10px 24px",
+              borderRadius: 999,
+              background: "var(--roam-accent)",
+              color: "#fff",
+              fontSize: 14,
+              fontWeight: 700,
+              border: "none",
+              cursor: "pointer",
+            }}
+          >
+            Back to Trip
+          </button>
+        </div>
+      );
+    }
     return <GuideSkeleton />;
   }
 

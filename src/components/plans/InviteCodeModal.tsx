@@ -32,6 +32,7 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [anim, setAnim] = useState<AnimState>("closed");
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -70,6 +71,8 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
       setGeneratedCode(null);
       setError(null);
       setBusy(false);
+      setCopied(false);
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
     }
   }, [open]);
 
@@ -149,10 +152,14 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
     }
   }, [code, redeemInvite, online, bundle, onRedeemed, onClose, router]);
 
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleCopy = useCallback(() => {
     if (generatedCode) {
       haptic.light();
       navigator.clipboard?.writeText(generatedCode).catch(() => {});
+      setCopied(true);
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+      copiedTimerRef.current = setTimeout(() => setCopied(false), 2000);
     }
   }, [generatedCode]);
 
@@ -269,14 +276,21 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
                     width: "100%",
                     padding: "12px",
                     borderRadius: 12,
-                    border: "1px solid var(--roam-border)",
-                    background: "transparent",
+                    border: copied
+                      ? "1px solid var(--brand-eucalypt, #2d6e40)"
+                      : "1px solid var(--roam-border)",
+                    background: copied
+                      ? "rgba(45, 110, 64, 0.12)"
+                      : "transparent",
                     fontWeight: 700,
                     cursor: "pointer",
-                    color: "var(--roam-text, #eee)",
+                    color: copied
+                      ? "var(--brand-eucalypt, #2d6e40)"
+                      : "var(--roam-text, #eee)",
+                    transition: "all 0.2s ease",
                   }}
                 >
-                  Copy code
+                  {copied ? "Copied!" : "Copy code"}
                 </button>
               </div>
             ) : (
