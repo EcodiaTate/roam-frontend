@@ -316,11 +316,11 @@ export default function GuideClientPage(props: {
   );
 
   const handleShowOnMap = useCallback(
-    (placeId: string) => {
+    (placeId: string, lat: number, lng: number) => {
       haptic.medium();
       if (!plan) return;
       router.replace(
-        `/trip?plan_id=${encodeURIComponent(plan.plan_id)}&focus_place_id=${encodeURIComponent(placeId)}`,
+        `/trip?plan_id=${encodeURIComponent(plan.plan_id)}&focus_place_id=${encodeURIComponent(placeId)}&focus_lat=${lat}&focus_lng=${lng}`,
       );
     },
     [plan, router],

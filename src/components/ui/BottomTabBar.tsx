@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { memo, useCallback } from "react";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { haptic } from "@/lib/native/haptics";
 
 /* ── Types ────────────────────────────────────────────────────────────── */
@@ -26,6 +26,44 @@ type Tab = {
 function cx(...names: (string | false | null | undefined)[]): string {
   return names.filter(Boolean).join(" ");
 }
+
+/* ── Glass styles ─────────────────────────────────────────────────────── */
+
+// Low-opacity bg so page content bleeds through and gives the blur something
+// to work with. color-mix() keeps us theme-aware without JS.
+const NAV_STYLE: CSSProperties = {
+  backgroundColor: "color-mix(in srgb, var(--roam-bg) 72%, transparent)",
+  backdropFilter: "blur(40px) saturate(180%) brightness(0.92)",
+  WebkitBackdropFilter: "blur(40px) saturate(180%) brightness(0.92)",
+  borderTop: "1px solid color-mix(in srgb, white 18%, transparent)",
+  boxShadow: [
+    "inset 0 1px 0 color-mix(in srgb, white 22%, transparent)",
+    "0 -8px 32px rgba(0,0,0,0.18)",
+    "0 -2px 60px rgba(0,0,0,0.10)",
+  ].join(", "),
+};
+
+// Gloss strip — replaces ::before since pseudo-elements can't be inlined
+const GLOSS_STYLE: CSSProperties = {
+  position: "absolute",
+  inset: 0,
+  borderRadius: "inherit",
+  background: "linear-gradient(to bottom, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 25%)",
+  pointerEvents: "none",
+  zIndex: 0,
+};
+
+// Safe-area leg below the nav — extends the blur into the home indicator zone
+const SAFE_LEG_STYLE: CSSProperties = {
+  position: "absolute",
+  top: "100%",
+  left: 0,
+  right: 0,
+  height: "env(safe-area-inset-bottom, 0px)",
+  backgroundColor: "color-mix(in srgb, var(--roam-bg) 72%, transparent)",
+  backdropFilter: "blur(40px) saturate(180%) brightness(0.92)",
+  WebkitBackdropFilter: "blur(40px) saturate(180%) brightness(0.92)",
+};
 
 /* ── Icons ────────────────────────────────────────────────────────────
    Native convention: active = filled, inactive = outlined (stroke only).
@@ -151,7 +189,12 @@ export const BottomTabBar = memo(function BottomTabBar() {
 
   return (
     <div className="roam-tabs-wrap" role="navigation" aria-label="Primary">
-      <nav className="roam-tabs" role="tablist" aria-label="Primary tabs">
+      <nav className="roam-tabs" role="tablist" aria-label="Primary tabs" style={NAV_STYLE}>
+        {/* Gloss strip — replaces CSS ::before */}
+        <span aria-hidden="true" style={GLOSS_STYLE} />
+        {/* Safe-area blur extension — replaces CSS ::after */}
+        <span aria-hidden="true" style={SAFE_LEG_STYLE} />
+
         {TABS.map((tab) => {
           const active = tab.key === activeKey;
 

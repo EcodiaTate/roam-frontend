@@ -888,7 +888,7 @@ function DiscoveryGroup({
 }: {
   category: string; places: DiscoveredPlace[]; focusedPlaceId: string | null;
   onFocusPlace: (id: string | null) => void; onAddStop: (place: PlaceItem) => void;
-  onShowOnMap?: (placeId: string) => void; isOnline: boolean;
+  onShowOnMap?: (placeId: string, lat: number, lng: number) => void; isOnline: boolean;
 }) {
   const Icon = CATEGORY_ICON[category] ?? MapPin;
   const cc = catColor(category);
@@ -914,7 +914,7 @@ function DiscoveryGroup({
         <PlaceCard
           key={p.id} place={p} isFocused={focusedPlaceId === p.id}
           onFocus={() => onFocusPlace(p.id)} onAdd={() => onAddStop(p)}
-          onShowOnMap={onShowOnMap ? () => onShowOnMap(p.id) : undefined} isOnline={isOnline}
+          onShowOnMap={onShowOnMap ? () => onShowOnMap(p.id, p.lat, p.lng) : undefined} isOnline={isOnline}
         />
       ))}
 
@@ -937,7 +937,7 @@ export function GuideView({
 }: {
   focusedPlaceId: string | null;
   onFocusPlace: (id: string | null) => void; onAddStop: (place: PlaceItem) => void;
-  isOnline?: boolean; onShowOnMap?: (placeId: string) => void; guideReady?: boolean;
+  isOnline?: boolean; onShowOnMap?: (placeId: string, lat: number, lng: number) => void; guideReady?: boolean;
   guidePack?: GuidePack | null; tripProgress?: TripProgress | null;
   onSendMessage?: (text: string, preferredCategories: string[]) => Promise<string | undefined>;
   chatBusy?: boolean;
@@ -1243,7 +1243,7 @@ export function GuideView({
                           <MessageActionsRow
                             msg={m} isOnline={!!isOnline}
                             discoveredIds={discoveredIds}
-                            onShowOnMap={onShowOnMap ? (lat, lng, pid) => { onFocusPlace(pid ?? null); onShowOnMap(pid ?? `${lat}_${lng}`); } : undefined}
+                            onShowOnMap={onShowOnMap ? (lat, lng, pid) => { onFocusPlace(pid ?? null); onShowOnMap(pid ?? `${lat}_${lng}`, lat, lng); } : undefined}
                             onSwitchToFound={() => setActiveTab("discoveries")}
                           />
                         ) : null}

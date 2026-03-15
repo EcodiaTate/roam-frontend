@@ -74,6 +74,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
 
   const planIdFromUrl = sp.get("plan_id");
   const focusPlaceFromUrl = sp.get("focus_place_id");
+  const focusLatFromUrl = sp.get("focus_lat");
+  const focusLngFromUrl = sp.get("focus_lng");
 
   const desiredPlanId = useMemo(
     () => props.initialPlanId ?? planIdFromUrl ?? null,
@@ -757,6 +759,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           onStopPress={(id) => { haptic.selection(); setFocusedStopId(id); }}
           suggestions={places?.items ?? null}
           focusedSuggestionId={focusedPlaceId}
+          focusFallbackCoord={focusLatFromUrl && focusLngFromUrl ? [parseFloat(focusLngFromUrl), parseFloat(focusLatFromUrl)] : null}
           onSuggestionPress={(id) => { haptic.selection(); setFocusedPlaceId(id); }}
           traffic={traffic}
           hazards={hazards}

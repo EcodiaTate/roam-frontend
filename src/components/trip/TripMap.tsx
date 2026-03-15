@@ -31,6 +31,8 @@ type Props = {
   suggestions?: PlaceItem[] | null;
   filteredSuggestionIds?: Set<string> | null;
   focusedSuggestionId?: string | null;
+  /** Fallback coords to fly to when focusedSuggestionId doesn't match any PlaceItem */
+  focusFallbackCoord?: [number, number] | null;
   onSuggestionPress?: (placeId: string) => void;
 
   // Overlays
@@ -1911,6 +1913,10 @@ export function TripMap(props: Props) {
           }
         }
       } catch {}
+      // Fallback: use explicit coords passed by the caller (e.g. from guide map action)
+      if (!coord && props.focusFallbackCoord) {
+        coord = props.focusFallbackCoord;
+      }
     }
 
     if (!coord) {
@@ -1982,7 +1988,7 @@ export function TripMap(props: Props) {
       }
       clearTimeout(popupTimer);
     };
-  }, [props.focusedSuggestionId, props.suggestions, buildSuggestionPopupHtml]);
+  }, [props.focusedSuggestionId, props.suggestions, props.focusFallbackCoord, buildSuggestionPopupHtml]);
 
   /* ── Highlighted alert → in-place pulse ring (no camera move) ────────── */
   useEffect(() => {
@@ -2070,10 +2076,11 @@ export function TripMap(props: Props) {
        if (!map) return;
        if (props.mapInstanceRef) props.mapInstanceRef.current = null;
        if (props.navigationMode) return; // camera controlled by useMapNavigationMode
+       if (props.focusedSuggestionId) return; // camera controlled by focus effect
        try {
          map.fitBounds(bboxToBounds(props.bbox), { padding: 60, duration: 250 });
        } catch {}
-     }, [props.bbox.minLat, props.bbox.minLng, props.bbox.maxLat, props.bbox.maxLng, props.navigationMode]);
+     }, [props.bbox.minLat, props.bbox.minLng, props.bbox.maxLat, props.bbox.maxLng, props.navigationMode, props.focusedSuggestionId]);
   
   return (
     <div className="trip-map-fullscreen">

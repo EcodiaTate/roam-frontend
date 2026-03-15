@@ -93,11 +93,8 @@
   --tab-inactive-color: #a89878;       /* Warm desert sand - outback aesthetic */
   --tab-center-bg: var(--brand-ochre);
   --tab-center-icon: var(--on-color);
-  --tab-center-glow: 0 6px 20px rgba(45, 110, 64, 0.35);
+  --tab-center-glow: 0 6px 20px rgba(181, 69, 46, 0.40);
 
-  --tab-glass-bg: rgba(244, 239, 230, 0.80);
-  --tab-glass-border: rgba(26, 22, 19, 0.05);
-  --tab-glass-shadow: 0 -6px 24px rgba(26, 22, 19, 0.06);
 
   /* ── Warm shadows ────────────────────────────────────────
      All shadows use warm brown - never neutral/cool gray. */
@@ -216,11 +213,8 @@
     /* ── Tab bar ─────────────────────────────────────────── */
     --tab-bar-bg: #1a1a1a;
     --tab-inactive-color: #7a6f65;      /* Warm sand in dark mode */
-    --tab-center-glow: 0 6px 20px rgba(66, 177, 89, 0.25);
+    --tab-center-glow: 0 6px 20px rgba(212, 102, 74, 0.45);
 
-    --tab-glass-bg: rgba(15, 15, 15, 0.85);
-    --tab-glass-border: rgba(255, 255, 255, 0.06);
-    --tab-glass-shadow: 0 -6px 24px rgba(0, 0, 0, 0.40);
 
     /* ── Alert severity tints (dark) ──────────────────────── */
     --severity-major: var(--brand-ochre);
@@ -341,6 +335,9 @@ input, textarea, [contenteditable] {
   gap: 3px;
   /* Minimum tap target — 44px per Apple HIG */
   min-height: 44px;
+  /* Sit above the grain ::before layer */
+  position: relative;
+  z-index: 1;
 }
 
 .roam-tab:active,
@@ -358,8 +355,8 @@ input, textarea, [contenteditable] {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   transition: transform var(--dur-normal) var(--ease-spring);
 }
 .roam-tab-icon svg { width: 100%; height: 100%; }
@@ -383,6 +380,7 @@ input, textarea, [contenteditable] {
   margin-top: -14px;
   padding-top: 0;
   justify-content: flex-start;
+  z-index: 2;
 }
 .roam-tab.roam-tab-center:active .roam-tab-inner {
   transform: scale(0.90);
@@ -1106,39 +1104,22 @@ input, textarea, [contenteditable] {
   align-items: flex-start;
   justify-content: space-evenly;
   pointer-events: auto;
-  /* height covers just the interactive bar; safe-area leg is handled by ::after */
   height: var(--roam-tab-h);
-  /* Push tab content down from the top of the bar a touch, centre in bar height */
   padding-top: 8px;
   padding-bottom: 0;
   border-radius: 24px 24px 0 0;
-  background-color: var(--tab-glass-bg);
-  backdrop-filter: blur(20px) saturate(170%);
-  -webkit-backdrop-filter: blur(20px) saturate(170%);
-  border-top: 1px solid var(--tab-glass-border);
-  box-shadow: var(--tab-glass-shadow);
-}
-
-/* Safe-area leg - extends glass effect into bottom safe area */
-.roam-tabs::after {
-  content: "";
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  height: var(--roam-safe-bottom);
-  background-color: var(--tab-glass-bg);
-  backdrop-filter: blur(20px) saturate(170%);
-  -webkit-backdrop-filter: blur(20px) saturate(170%);
+  isolation: isolate;
 }
 
 /* Main content area - flex-fills shell above the fixed tab bar.
    Individual pages add their own padding-bottom: var(--bottom-nav-height)
    as needed. Trip page uses position:fixed to escape this entirely (map). */
 .roam-main {
-  flex: 1;
-  min-height: 0;
-  position: relative;
+  /* Fill the entire shell including the area behind the fixed tab bar,
+     so backdrop-filter on .roam-tabs has actual page pixels to blur.
+     Pages that need scroll clearance use padding-bottom: var(--bottom-nav-height). */
+  position: absolute;
+  inset: 0;
   overflow: hidden;
   background-color: var(--roam-bg);
 }
