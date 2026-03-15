@@ -20,8 +20,13 @@ type TabRoute = (typeof TAB_ROUTES)[number];
 // Which tabs can be live-dragged (not position:fixed full-viewport)
 const DRAGGABLE: Set<TabRoute> = new Set(["/guide", "/sos"]);
 
-function isTabRoute(path: string): path is TabRoute {
-  return TAB_ROUTES.includes(path as TabRoute);
+function normalizeTabRoute(path: string): TabRoute | null {
+  const clean = path.replace(/\/+$/, "") || "/";
+  return TAB_ROUTES.includes(clean as TabRoute) ? (clean as TabRoute) : null;
+}
+
+function isTabRoute(path: string): boolean {
+  return normalizeTabRoute(path) !== null;
 }
 
 /* ── CSS ─────────────────────────────────────────────────────────────── */
@@ -59,8 +64,11 @@ type AnimState =
 /* ── Component ───────────────────────────────────────────────────────── */
 
 export function PersistentTabs({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+  const rawPathname = usePathname();
   const router   = useRouter();
+
+  // Normalize: strip trailing slash so "/trip/" matches "/trip"
+  const activeTab = normalizeTabRoute(rawPathname);
 
   // All hidden on SSR — effects reveal on client
   const [mounted, setMounted] = useState<Set<TabRoute>>(new Set());
@@ -78,12 +86,12 @@ export function PersistentTabs({ children }: { children: React.ReactNode }) {
 
   // ── Mount active + neighbours ───────────────────────────────────────
   useEffect(() => {
-    if (!isTabRoute(pathname)) return;
+    if (!activeTab) return;
     setMounted((prev) => {
-      if (prev.has(pathname as TabRoute)) return prev;
-      return new Set(prev).add(pathname as TabRoute);
+      if (prev.has(activeTab)) return prev;
+      return new Set(prev).add(activeTab);
     });
-    const idx = TAB_ROUTES.indexOf(pathname as TabRoute);
+    const idx = TAB_ROUTES.indexOf(activeTab);
     const t = setTimeout(() => {
       setMounted((prev) => {
         const next = new Set(prev);
@@ -93,12 +101,12 @@ export function PersistentTabs({ children }: { children: React.ReactNode }) {
       });
     }, 400);
     return () => clearTimeout(t);
-  }, [pathname]);
+  }, [activeTab]);
 
   // ── Animate on route change ─────────────────────────────────────────
   useEffect(() => {
-    if (!isTabRoute(pathname)) return;
-    const nextIdx  = TAB_ROUTES.indexOf(pathname as TabRoute);
+    if (!activeTab) return;
+    const nextIdx  = TAB_ROUTES.indexOf(activeTab);
     const prevIdx  = prevIndexRef.current;
 
     if (isFirstRender.current) {
@@ -129,11 +137,11 @@ export function PersistentTabs({ children }: { children: React.ReactNode }) {
 
     prevIndexRef.current = nextIdx;
     return () => clearTimeout(t);
-  }, [pathname]);
+  }, [activeTab]);
 
   // ── Swipe gesture with live-drag for non-trip panes ─────────────────
-  const isOnTab    = isTabRoute(pathname);
-  const activeIndex = isOnTab ? TAB_ROUTES.indexOf(pathname as TabRoute) : -1;
+  const isOnTab    = activeTab !== null;
+  const activeIndex = activeTab ? TAB_ROUTES.indexOf(activeTab) : -1;
 
   const touch = useRef<{
     x: number; y: number; t: number;
