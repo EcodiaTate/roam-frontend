@@ -4,12 +4,11 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
-import type { Map as MLMap } from "maplibre-gl";
+import type { Map as MLMap, GeoJSONSource } from "maplibre-gl";
 
 import { TripMap } from "@/components/trip/TripMap";
 import { TripView, type TripEditorRebuildMode } from "@/components/trip/TripView";
 import type { AlertHighlightEvent } from "@/components/trip/TripAlertsPanel";
-import { SyncStatusBadge } from "@/components/ui/SyncStatusBadge";
 import { InviteCodeModal } from "@/components/plans/InviteCodeModal";
 import { PlanDrawer } from "@/components/trip/PlanDrawer";
 import { BasemapDownloadCard } from "@/components/basemap/BasemapDownloadCard";
@@ -31,6 +30,7 @@ import { useKeepAwake } from "@/lib/native/keepAwake";
 import { useActiveNavigation } from "@/lib/hooks/useActiveNavigation";
 import { useMapNavigationMode } from "@/lib/hooks/useMapNavigationMode";
 import { useNetworkStatus } from "@/lib/hooks/useNetworkStatus";
+import type { InterpolatedPosition } from "@/lib/nav/gpsInterpolator";
 
 import { haptic } from "@/lib/native/haptics";
 import { getCurrentPlanId, getOfflinePlan, listOfflinePlans, setCurrentPlanId, updateOfflinePlan, type OfflinePlanRecord } from "@/lib/offline/plansStore";
@@ -168,10 +168,55 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   const effectiveBbox = navpack?.primary?.bbox ?? plan?.preview?.bbox ?? null;
   const mapNavMode = useMapNavigationMode({
     mapRef: mapInstanceRef,
-    position: activeNav.isActive ? activeNav.lastPosition : null,
+    position: activeNav.isActive ? (activeNav.lastPosition ?? geo.position) : null,
     active: activeNav.isActive,
     bbox: effectiveBbox,
   });
+
+  // ── Wire the 60 fps interpolator to map camera + user puck ──
+  // This runs OUTSIDE React state — directly mutates MapLibre sources and camera
+  // each animation frame for zero-latency, Google Maps-quality smoothness.
+  const mapNavModeRef = useRef(mapNavMode);
+  mapNavModeRef.current = mapNavMode;
+
+  useEffect(() => {
+    const interpolator = activeNav.interpolator;
+    interpolator.setOnFrame((pos: InterpolatedPosition) => {
+      // 1. Update camera (heading-up tracking via jumpTo)
+      mapNavModeRef.current.onInterpolatedFrame(pos);
+
+      // 2. Update user puck GeoJSON source directly (bypass React)
+      const map = mapInstanceRef.current;
+      if (!map) return;
+      const locSrc = map.getSource("roam-user-loc-src") as GeoJSONSource | undefined;
+      if (locSrc) {
+        locSrc.setData({
+          type: "FeatureCollection",
+          features: [{
+            type: "Feature",
+            properties: { accuracy: pos.accuracy, heading: pos.heading, speed: pos.speed },
+            geometry: { type: "Point", coordinates: [pos.lng, pos.lat] },
+          }],
+        });
+      }
+      // 3. Update heading cone source directly
+      const headSrc = map.getSource("roam-user-loc-heading-src") as GeoJSONSource | undefined;
+      if (headSrc) {
+        if (pos.speed > 0.5) {
+          headSrc.setData({
+            type: "FeatureCollection",
+            features: [{
+              type: "Feature",
+              properties: { heading: pos.heading },
+              geometry: { type: "Point", coordinates: [pos.lng, pos.lat] },
+            }],
+          });
+        } else {
+          headSrc.setData({ type: "FeatureCollection", features: [] });
+        }
+      }
+    });
+  }, [activeNav.interpolator]);
 
   // ── Sheet position when entering/exiting navigation ──
   const [prevActive, setPrevActive] = useState(false);
@@ -679,6 +724,13 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   const handleHighlightAlert = useCallback((ev: AlertHighlightEvent) => {
     haptic.selection();
     setHighlightedAlertId(ev.id);
+    setOffsetY(0); // collapse sheet to peek so the map is visible
+
+    // Pan map to the alert location
+    const map = mapInstanceRef.current;
+    if (map && ev.lat != null && ev.lng != null) {
+      map.easeTo({ center: [ev.lng, ev.lat], zoom: Math.max(map.getZoom(), 12), duration: 420 });
+    }
 
     if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
     highlightTimerRef.current = setTimeout(() => {
@@ -1100,38 +1152,34 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         </div>
 
         {/* Header */}
-        <div style={{ padding: "0 20px 12px" }}>
-          {/* Top Row: Title + Icon Buttons */}
+        <div style={{ padding: "0 20px 14px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
             <div style={{ minWidth: 0, flex: 1 }}>
               <div
                 style={{
-                  fontSize: 20, fontWeight: 950, margin: 0,
-                  display: "flex", alignItems: "center", gap: 10,
+                  fontSize: 18, fontWeight: 800, margin: 0,
                   color: "var(--roam-text)", letterSpacing: "-0.3px",
+                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                 }}
               >
-                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {plan.label ?? "Trip Plan"}
-                </span>
-                <SyncStatusBadge />
+                {plan.label ?? "Trip Plan"}
               </div>
             </div>
 
-            {/* Circular Action Buttons */}
-            <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+            <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
               <button
                 type="button"
                 className="trip-interactive trip-btn-icon"
                 aria-label="Plans"
                 onClick={() => { haptic.selection(); setDrawOpen(true); }}
                 style={{
-                  borderRadius: 999, width: 40, height: 40,
+                  borderRadius: 10, width: 32, height: 32,
                   display: "grid", placeItems: "center",
-                  background: "rgba(0, 0, 0, 0.08)", color: "var(--roam-text)",
+                  background: "transparent", color: "var(--roam-text-muted)",
+                  border: "none",
                 }}
               >
-                <Library size={18} />
+                <Library size={16} strokeWidth={1.8} />
               </button>
 
               <button
@@ -1140,77 +1188,54 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
                 aria-label="Invite"
                 onClick={() => { haptic.selection(); setInviteMode("create"); setInviteOpen(true); }}
                 style={{
-                  borderRadius: 999, width: 40, height: 40,
+                  borderRadius: 10, width: 32, height: 32,
                   display: "grid", placeItems: "center",
-                  background: "rgba(0, 0, 0, 0.08)", color: "var(--roam-text)",
+                  background: "transparent", color: "var(--roam-text-muted)",
+                  border: "none",
                 }}
               >
-                <UserPlus size={18} />
+                <UserPlus size={16} strokeWidth={1.8} />
               </button>
 
               {unlocked ? (
                 <button
                   type="button"
                   className="trip-interactive"
+                  onClick={() => { haptic.selection(); router.push("/untethered"); }}
                   style={{
-                    position: "relative",
-                    display: "flex", alignItems: "center", gap: 6,
-                    background: "linear-gradient(135deg, #5c1a0e 0%, var(--brand-ochre, #b5452e) 40%, #d4664a 80%, #e8956a 100%)",
-                    borderRadius: 999, padding: "0 14px",
-                    height: 40, border: "1px solid rgba(255,255,255,0.15)", cursor: "pointer",
-                    boxShadow: "0 2px 12px rgba(181,69,46,0.45), 0 1px 3px rgba(181,69,46,0.20), inset 0 1px 0 rgba(255,255,255,0.12)",
-                    overflow: "hidden",
+                    display: "grid", placeItems: "center",
+                    background: "rgba(181, 69, 46, 0.10)",
+                    borderRadius: 10, width: 32, height: 32,
+                    border: "none", cursor: "pointer",
                     WebkitTapHighlightColor: "transparent",
                   }}
                   title="Roam Untethered"
                 >
-                  {/* Shimmer sweep */}
-                  <div style={{
-                    position: "absolute", inset: 0,
-                    background: "linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.14) 50%, transparent 70%)",
-                    borderRadius: "inherit",
-                    pointerEvents: "none",
-                  }} />
-                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0, position: "relative" }}>
-                    <path d="M6 1L7.5 4.5H11L8.25 6.75L9.25 10.5L6 8.5L2.75 10.5L3.75 6.75L1 4.5H4.5L6 1Z" fill="rgba(255,255,255,0.95)" />
+                  <svg width="14" height="14" viewBox="0 0 12 12" fill="none">
+                    <path d="M6 1L7.5 4.5H11L8.25 6.75L9.25 10.5L6 8.5L2.75 10.5L3.75 6.75L1 4.5H4.5L6 1Z" fill="var(--brand-ochre)" />
                   </svg>
-                  <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", letterSpacing: "0.06em", textTransform: "uppercase", position: "relative" }}>
-                    Untethered
-                  </span>
                 </button>
               ) : unlocked === false ? (
                 <button
                   type="button"
                   className="trip-interactive"
                   aria-label="Upgrade to Roam Untethered"
-                  onClick={() => { haptic.selection(); setPaywallVariant("upgrade"); setPaywallOpen(true); }}
+                  onClick={() => { haptic.selection(); router.push("/untethered"); }}
                   style={{
-                    position: "relative",
-                    display: "flex", alignItems: "center", gap: 6,
-                    background: "linear-gradient(135deg, #122d1e 0%, var(--brand-eucalypt-dark, #1f5236) 40%, var(--brand-eucalypt, #2d6e40) 80%, #3d8f54 100%)",
-                    borderRadius: 999, padding: "0 14px",
-                    height: 40, border: "1px solid rgba(255,255,255,0.12)", cursor: "pointer",
-                    boxShadow: "0 2px 12px rgba(31,82,54,0.45), 0 1px 3px rgba(31,82,54,0.20), inset 0 1px 0 rgba(255,255,255,0.10)",
-                    overflow: "hidden",
+                    display: "flex", alignItems: "center", gap: 4,
+                    background: "var(--roam-surface-hover)",
+                    borderRadius: 10, padding: "0 10px",
+                    height: 32, border: "none", cursor: "pointer",
                     WebkitTapHighlightColor: "transparent",
                   }}
                 >
-                  <div style={{
-                    position: "absolute", inset: 0,
-                    background: "linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.10) 50%, transparent 70%)",
-                    borderRadius: "inherit", pointerEvents: "none",
-                  }} />
-                  <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", letterSpacing: "0.06em", textTransform: "uppercase", position: "relative" }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: "var(--roam-text-muted)", letterSpacing: "0.03em", textTransform: "uppercase" }}>
                     Upgrade
                   </span>
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ flexShrink: 0, position: "relative" }}>
-                    <path d="M2 5h6M5.5 2.5L8 5l-2.5 2.5" stroke="rgba(255,255,255,0.85)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
                 </button>
               ) : null}
             </div>
           </div>
-
         </div>
 
         {/* Scrollable content */}
@@ -1231,8 +1256,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
                   disabled={!navpack?.primary?.legs?.some((l) => l.steps && l.steps.length > 0)}
                 />
                 {!navpack?.primary?.legs?.some((l) => l.steps && l.steps.length > 0) && (
-                  <div style={{ marginTop: 6, fontSize: 11, fontWeight: 700, color: "var(--roam-text-muted)", textAlign: "center" }}>
-                    Turn-by-turn data not available. Rebuild route to enable navigation.
+                  <div style={{ marginTop: 4, fontSize: 11, fontWeight: 600, color: "var(--roam-text-muted)", textAlign: "center" }}>
+                    Rebuild route to enable turn-by-turn
                   </div>
                 )}
               </div>
@@ -1258,7 +1283,10 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
               traffic={traffic}
               hazards={hazards}
               focusedStopId={focusedStopId}
-              onFocusStop={setFocusedStopId}
+              onFocusStop={(id) => {
+                setFocusedStopId(id);
+                setOffsetY(0);           // collapse sheet to peek so the map is visible
+              }}
               focusedPlaceId={focusedPlaceId}
               onFocusPlace={setFocusedPlaceId}
               onRebuildRequested={handleRebuild}

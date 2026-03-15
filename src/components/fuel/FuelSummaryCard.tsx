@@ -10,11 +10,11 @@ import type { FuelAnalysis } from "@/lib/types/fuel";
 /* ── Styles ────────────────────────────────────────────────────────────── */
 
 const card: React.CSSProperties = {
-  background: "var(--roam-surface)",
-  borderRadius: "var(--r-card, 16px)",
-  padding: "16px",
-  marginBottom: 10,
-  border: "1px solid var(--roam-border)",
+  background: "var(--roam-surface-hover)",
+  borderRadius: "var(--r-card, 14px)",
+  padding: "14px",
+  marginBottom: 0,
+  border: "none",
 };
 
 const headerRow: React.CSSProperties = {
@@ -32,49 +32,49 @@ const titleGroup: React.CSSProperties = {
 };
 
 const titleText: React.CSSProperties = {
-  fontSize: 16,
-  fontWeight: 900,
+  fontSize: 14,
+  fontWeight: 800,
   color: "var(--roam-text)",
-  letterSpacing: "-0.2px",
+  letterSpacing: "-0.1px",
 };
 
 const subtitleText: React.CSSProperties = {
-  fontSize: 13,
-  fontWeight: 700,
+  fontSize: 11,
+  fontWeight: 600,
   color: "var(--roam-text-muted)",
-  marginTop: 2,
+  marginTop: 1,
 };
 
 const statsRow: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
-  gap: 8,
-  marginTop: 14,
+  gap: 6,
+  marginTop: 10,
   flexWrap: "wrap",
 };
 
 const statPill: React.CSSProperties = {
-  fontSize: 12,
-  fontWeight: 800,
-  padding: "4px 12px",
-  borderRadius: 999,
+  fontSize: 11,
+  fontWeight: 700,
+  padding: "3px 10px",
+  borderRadius: 8,
   whiteSpace: "nowrap" as const,
 };
 
 const settingsBtn: React.CSSProperties = {
-  background: "rgba(0,0,0,0.06)",
+  background: "transparent",
   border: "none",
-  padding: "6px 12px",
-  borderRadius: 999,
+  padding: "6px",
+  borderRadius: 8,
   display: "flex",
   alignItems: "center",
-  gap: 6,
+  gap: 0,
   cursor: "pointer",
-  color: "var(--roam-text)",
-  fontSize: 12,
-  fontWeight: 800,
+  color: "var(--roam-text-muted)",
+  fontSize: 0,
+  fontWeight: 700,
   flexShrink: 0,
-  transition: "background 0.2s",
+  transition: "color 0.2s",
 };
 
 const warningBox: React.CSSProperties = {
@@ -87,7 +87,7 @@ const warningBox: React.CSSProperties = {
 };
 
 const warningText: React.CSSProperties = {
-  fontSize: 13,
+  fontSize: 12,
   fontWeight: 700,
   lineHeight: "1.4",
 };
@@ -95,13 +95,13 @@ const warningText: React.CSSProperties = {
 const expandBtn: React.CSSProperties = {
   background: "none",
   border: "none",
-  padding: "8px 0 0",
+  padding: "6px 0 0",
   display: "inline-flex",
   alignItems: "center",
   gap: 4,
-  fontSize: 12,
-  fontWeight: 800,
-  color: "var(--brand-ochre, #d46e3a)",
+  fontSize: 11,
+  fontWeight: 700,
+  color: "var(--roam-text-muted)",
   cursor: "pointer",
 };
 
@@ -205,8 +205,8 @@ export function FuelSummaryCard({
       {/* Header */}
       <div style={headerRow}>
         <div style={titleGroup}>
-          <div style={{ background: `${statusColor}20`, padding: 8, borderRadius: 10 }}>
-            <Fuel size={20} strokeWidth={2.5} style={{ color: statusColor, display: "block" }} />
+          <div style={{ background: `${statusColor}12`, padding: 7, borderRadius: 9 }}>
+            <Fuel size={16} strokeWidth={2} style={{ color: statusColor, display: "block" }} />
           </div>
           <div>
             <div style={titleText}>Fuel Coverage</div>
@@ -224,8 +224,7 @@ export function FuelSummaryCard({
             onClick={(e) => { e.stopPropagation(); haptic.selection(); onOpenSettings(); }}
             aria-label="Edit Vehicle"
           >
-            <Settings2 size={14} strokeWidth={2.5} />
-            Settings
+            <Settings2 size={16} strokeWidth={1.8} />
           </button>
         )}
       </div>
@@ -305,7 +304,7 @@ export function FuelSummaryCard({
             const clr = severityColor(w.severity);
             return (
               <div key={i} style={{ ...warningBox, background: clr.bg }}>
-                <AlertTriangle size={16} strokeWidth={2.5} style={{ color: clr.icon, flexShrink: 0, marginTop: 1 }} />
+                <AlertTriangle size={14} strokeWidth={2} style={{ color: clr.icon, flexShrink: 0, marginTop: 1 }} />
                 <div style={{ ...warningText, color: clr.text }}>{w.message}</div>
               </div>
             );

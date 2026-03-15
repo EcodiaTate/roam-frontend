@@ -9,6 +9,8 @@ import type {
   TrafficType,
   HazardSeverity,
   HazardKind,
+  CapUrgency,
+  CapCertainty,
 } from "@/lib/types/navigation";
 import type { RoamPosition } from "@/lib/native/geolocation";
 import { haptic } from "@/lib/native/haptics";
@@ -37,6 +39,10 @@ import {
   RefreshCw,
   Route,
   Ban,
+  ShieldAlert,
+  Timer,
+  Navigation,
+  CircleCheck,
 } from "lucide-react";
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -50,6 +56,17 @@ export type AlertHighlightEvent = {
   kind: "traffic" | "hazard";
   lat: number;
   lng: number;
+};
+
+export type AlertConfidence = "confirmed" | "likely" | "possible" | "unverified";
+
+export type AlertInsight = {
+  expectedDelay: string | null;       // e.g. "~30 min delay" or "Clearing by 3:45 PM"
+  recommendation: string | null;      // e.g. "Consider rerouting" or "Proceed with caution"
+  safetyWarning: string | null;       // e.g. "Do not drive through floodwater"
+  confidence: AlertConfidence;
+  confidenceLabel: string;            // e.g. "Confirmed" or "Likely"
+  confidenceColor: string;
 };
 
 export type EnrichedAlert = {
@@ -75,6 +92,7 @@ export type EnrichedAlert = {
   routeImpact: RouteImpact;
   isAhead: boolean;
   rawGeometry?: Record<string, unknown>;
+  insight: AlertInsight;
 };
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -434,6 +452,160 @@ function timeAgo(iso: string | null | undefined): string {
   } catch { return ""; }
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+   Alert insight synthesis
+   ══════════════════════════════════════════════════════════════════════ */
+
+const CONFIDENCE_CONFIG: Record<AlertConfidence, { label: string; color: string }> = {
+  confirmed:  { label: "Confirmed",  color: "var(--roam-success)" },
+  likely:     { label: "Likely",     color: "var(--roam-info)" },
+  possible:   { label: "Possible",   color: "var(--roam-warn)" },
+  unverified: { label: "Unverified", color: "var(--roam-text-muted)" },
+};
+
+function deriveConfidence(
+  alertKind: "traffic" | "hazard",
+  certainty: CapCertainty | undefined,
+  severity: string,
+  timestamp: string | null | undefined,
+): AlertConfidence {
+  // Hazards with CAP certainty
+  if (alertKind === "hazard" && certainty && certainty !== "unknown") {
+    if (certainty === "observed") return "confirmed";
+    if (certainty === "likely") return "likely";
+    if (certainty === "possible") return "possible";
+    return "unverified";
+  }
+  // Traffic: major/moderate with recent update = confirmed
+  if (alertKind === "traffic") {
+    const isRecent = timestamp ? (Date.now() - new Date(timestamp).getTime()) < 3_600_000 : false;
+    if ((severity === "major" || severity === "moderate") && isRecent) return "confirmed";
+    if (severity === "major") return "likely";
+    if (isRecent) return "likely";
+    return "possible";
+  }
+  return "unverified";
+}
+
+function formatTimeTo(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  } catch { return ""; }
+}
+
+function synthesizeDelay(
+  alertKind: "traffic" | "hazard",
+  type: string,
+  severity: string,
+  startAt: string | null | undefined,
+  endAt: string | null | undefined,
+  impact: RouteImpact,
+): string | null {
+  // If we have an end time, show expected clearing
+  if (endAt) {
+    const endMs = new Date(endAt).getTime();
+    if (endMs > Date.now()) {
+      const remaining = endMs - Date.now();
+      const hours = Math.floor(remaining / 3_600_000);
+      const mins = Math.floor((remaining % 3_600_000) / 60_000);
+      const timeStr = formatTimeTo(endAt);
+      if (hours > 0) return `Clearing ~${timeStr} (~${hours}h ${mins}m)`;
+      if (mins > 5) return `Clearing ~${timeStr} (~${mins} min)`;
+      return `Clearing soon (~${timeStr})`;
+    }
+    return "Expected to have cleared";
+  }
+
+  // No end time — estimate based on type + severity
+  if (alertKind === "traffic" && (impact === "blocks_route" || impact === "affects_route")) {
+    if (type === "closure") return "Expect significant delays";
+    if (type === "roadworks") return severity === "major" ? "30+ min delays likely" : "Minor delays possible";
+    if (type === "congestion") return severity === "major" ? "20–40 min delays" : "5–15 min delays";
+    if (type === "flooding") return "Road may be impassable";
+    if (type === "incident") return severity === "major" ? "30+ min delays likely" : "Delays possible";
+  }
+
+  return null;
+}
+
+function synthesizeRecommendation(
+  alertKind: "traffic" | "hazard",
+  type: string,
+  severity: string,
+  urgency: CapUrgency | undefined,
+  impact: RouteImpact,
+  distFromRouteKm: number | null,
+): string | null {
+  if (impact === "blocks_route") return "Reroute recommended";
+  if (impact === "informational") return null;
+
+  if (alertKind === "hazard") {
+    if (urgency === "immediate") return "Avoid area — take alternate route";
+    if (urgency === "expected") return "Plan alternate route";
+    if (severity === "high") return "Consider rerouting";
+    if (impact === "affects_route") return "Proceed with caution";
+    return "Monitor conditions";
+  }
+
+  if (alertKind === "traffic") {
+    if (type === "closure" && impact === "affects_route") return "Reroute recommended";
+    if (type === "flooding") return "Do not attempt — reroute";
+    if (severity === "major" && impact === "affects_route") return "Consider rerouting";
+    if (impact === "affects_route") return "Proceed with caution";
+    if (distFromRouteKm != null && distFromRouteKm < 2) return "Be aware — near route";
+  }
+
+  return null;
+}
+
+function synthesizeSafetyWarning(
+  alertKind: "traffic" | "hazard",
+  type: string,
+  severity: string,
+  urgency: CapUrgency | undefined,
+): string | null {
+  if (alertKind === "hazard") {
+    if (type === "flood") return "Never drive through floodwater";
+    if (type === "fire" && (severity === "high" || urgency === "immediate")) return "Leave area immediately if directed";
+    if (type === "fire") return "Monitor fire agency alerts";
+    if (type === "cyclone") return "Seek shelter — avoid travel";
+    if (type === "storm" && severity === "high") return "Pull over if conditions deteriorate";
+    if (type === "heat") return "Carry extra water — check vehicle cooling";
+    if (type === "wind" && severity === "high") return "Caution with high-profile vehicles";
+  }
+  if (alertKind === "traffic") {
+    if (type === "flooding") return "Never drive through floodwater";
+    if (type === "incident" && severity === "major") return "Slow down near incident scene";
+  }
+  return null;
+}
+
+function synthesizeInsight(
+  alertKind: "traffic" | "hazard",
+  type: string,
+  severity: string,
+  impact: RouteImpact,
+  startAt: string | null | undefined,
+  endAt: string | null | undefined,
+  urgency: CapUrgency | undefined,
+  certainty: CapCertainty | undefined,
+  timestamp: string | null | undefined,
+  distFromRouteKm: number | null,
+): AlertInsight {
+  const confidence = deriveConfidence(alertKind, certainty, severity, timestamp);
+  const cfg = CONFIDENCE_CONFIG[confidence];
+
+  return {
+    expectedDelay: synthesizeDelay(alertKind, type, severity, startAt, endAt, impact),
+    recommendation: synthesizeRecommendation(alertKind, type, severity, urgency, impact, distFromRouteKm),
+    safetyWarning: synthesizeSafetyWarning(alertKind, type, severity, urgency),
+    confidence,
+    confidenceLabel: cfg.label,
+    confidenceColor: cfg.color,
+  };
+}
+
 export function enrichAlerts(
   traffic: TrafficOverlay | null,
   hazards: HazardOverlay | null,
@@ -475,6 +647,7 @@ export function enrichAlerts(
       routeImpact: impact,
       isAhead,
       rawGeometry: ev.geometry ?? undefined,
+      insight: synthesizeInsight("traffic", ev.type ?? "unknown", ev.severity ?? "unknown", impact, ev.start_at, ev.end_at, undefined, undefined, ev.last_updated, dRoute),
     });
   }
 
@@ -503,6 +676,7 @@ export function enrichAlerts(
       routeImpact: impact,
       isAhead,
       rawGeometry: ev.geometry ?? undefined,
+      insight: synthesizeInsight("hazard", ev.kind ?? "unknown", ev.severity ?? "unknown", impact, ev.start_at, ev.end_at, ev.urgency, ev.certainty, ev.issued_at, dRoute),
     });
   }
 
@@ -942,6 +1116,34 @@ export function AlertCard({
               {alert.typeLabel !== "unknown" && <span style={{ textTransform: "capitalize" }}>{alert.typeLabel}</span>}
               {alert.source && <span>· {alert.source}</span>}
               {alert.timestamp && <span>· {timeAgo(alert.timestamp)}</span>}
+            </div>
+          )}
+
+          {/* ── Synthesized insights ── */}
+          {!compact && (alert.insight.expectedDelay || alert.insight.recommendation || alert.insight.safetyWarning) && (
+            <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 4 }}>
+              {alert.insight.expectedDelay && (
+                <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 750, color: "var(--roam-text)" }}>
+                  <Timer size={11} strokeWidth={2.5} color="var(--roam-text-muted)" style={{ flexShrink: 0 }} />
+                  {alert.insight.expectedDelay}
+                </div>
+              )}
+              {alert.insight.recommendation && (
+                <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 750, color: isBlocker ? "var(--roam-danger)" : "var(--roam-text)" }}>
+                  <Navigation size={11} strokeWidth={2.5} color={isBlocker ? "var(--roam-danger)" : "var(--roam-info)"} style={{ flexShrink: 0 }} />
+                  {alert.insight.recommendation}
+                </div>
+              )}
+              {alert.insight.safetyWarning && (
+                <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 800, color: "var(--roam-danger)" }}>
+                  <ShieldAlert size={11} strokeWidth={2.5} color="var(--roam-danger)" style={{ flexShrink: 0 }} />
+                  {alert.insight.safetyWarning}
+                </div>
+              )}
+              <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 800 }}>
+                <CircleCheck size={9} strokeWidth={2.5} color={alert.insight.confidenceColor} style={{ flexShrink: 0 }} />
+                <span style={{ color: alert.insight.confidenceColor }}>{alert.insight.confidenceLabel}</span>
+              </div>
             </div>
           )}
 

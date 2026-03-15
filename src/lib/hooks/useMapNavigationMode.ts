@@ -5,12 +5,15 @@
 //   - Lookahead offset (user puck at bottom, road ahead visible)
 //   - Smooth entry/exit transitions that can't be interrupted by tracking
 //   - Manual pan detection with auto-resume
+//   - 60 fps interpolated camera driven by GpsInterpolator (no easeTo jitter)
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Map as MLMap } from "maplibre-gl";
 import type { RoamPosition } from "@/lib/native/geolocation";
 import type { BBox4 } from "@/lib/types/geo";
+import type { InterpolatedPosition } from "@/lib/nav/gpsInterpolator";
+import { useDeviceHeading } from "@/lib/hooks/useDeviceHeading";
 
 // ──────────────────────────────────────────────────────────────
 // Types
@@ -21,10 +24,16 @@ export type MapNavMode = {
   showOverview: () => void;
   recenter: () => void;
   isTracking: boolean;
+  /**
+   * Called by the GpsInterpolator on every animation frame (~60 fps).
+   * Drives the camera and user puck directly — bypasses React state.
+   */
+  onInterpolatedFrame: (pos: InterpolatedPosition) => void;
 };
 
 type Opts = {
   mapRef: React.RefObject<MLMap | null>;
+  /** Smoothed GPS position for entry/recenter animations (still ~1 Hz) */
   position: RoamPosition | null;
   active: boolean;
   bbox: BBox4 | null;
@@ -34,47 +43,43 @@ type Opts = {
 // Constants
 // ──────────────────────────────────────────────────────────────
 
-const NAV_ZOOM = 16;
-const NAV_PITCH = 50;
+const NAV_ZOOM = 17.5;
+const NAV_PITCH = 65;
 const ENTRY_MS = 1200;
 const EXIT_MS = 1000;
 const RECENTER_MS = 800;
 const OVERVIEW_MS = 800;
-const TRACK_EASE_MS = 900;
-const JUMP_THRESHOLD_M = 3;
 const MANUAL_PAN_COOLDOWN_MS = 8000;
-const LOOKAHEAD_FRACTION = 0.28;
+const LOOKAHEAD_FRACTION = 0.25;
+
+// Zoom is smoothed toward the target over multiple frames to avoid steps
+const ZOOM_LERP_RATE = 0.05; // 5% per frame → smooth ~300ms convergence
 
 // ──────────────────────────────────────────────────────────────
 // Helpers
 // ──────────────────────────────────────────────────────────────
 
-const DEG = Math.PI / 180;
-function haversineM(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const dLat = (lat2 - lat1) * DEG;
-  const dLng = (lng2 - lng1) * DEG;
-  const a = Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1 * DEG) * Math.cos(lat2 * DEG) * Math.sin(dLng / 2) ** 2;
-  return 6_371_000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
 function getLookaheadPadding(map: MLMap) {
   const h = map.getCanvas()?.clientHeight ?? 600;
-  return { top: 0, bottom: Math.round(h * LOOKAHEAD_FRACTION), left: 0, right: 0 };
+  return { top: Math.round(h * LOOKAHEAD_FRACTION), bottom: 0, left: 0, right: 0 };
 }
 
-function adaptiveZoom(speed: number | null): number {
-  if (speed == null) return NAV_ZOOM;
+function adaptiveZoom(speed: number): number {
   const kph = speed * 3.6;
-  if (kph > 110) return 13.5;
-  if (kph > 80) return 14.0;
-  if (kph > 50) return 14.8;
-  if (kph > 20) return 15.5;
+  if (kph > 110) return 15.0;
+  if (kph > 80) return 15.5;
+  if (kph > 50) return 16.0;
+  if (kph > 20) return 16.8;
   return NAV_ZOOM;
 }
 
-function userBearing(pos: RoamPosition, fallback: number): number {
+function userBearing(
+  pos: RoamPosition,
+  compassHeading: number | null,
+  fallback: number,
+): number {
   if (pos.heading != null && pos.speed != null && pos.speed > 1) return pos.heading;
+  if (compassHeading != null) return compassHeading;
   return fallback;
 }
 
@@ -86,22 +91,26 @@ const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
 // ──────────────────────────────────────────────────────────────
 
 export function useMapNavigationMode({ mapRef, position, active, bbox }: Opts): MapNavMode {
+  const compassHeading = useDeviceHeading(active);
+  const compassRef = useRef(compassHeading);
+  useEffect(() => { compassRef.current = compassHeading; }, [compassHeading]);
+
   const [isTracking, setIsTracking] = useState(true);
   const isTrackingRef = useRef(true);
   const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastCameraPosRef = useRef<{ lat: number; lng: number } | null>(null);
   const isActiveRef = useRef(active);
   const positionRef = useRef(position);
   const hasEnteredRef = useRef(false);
 
+  // Smoothed zoom to avoid steppy zoom changes
+  const currentZoomRef = useRef(NAV_ZOOM);
+
   // ── Transition lock ──
   // While a big camera animation (entry/exit/recenter/overview) is in progress,
-  // the per-tick tracking effect must NOT fire or it will cancel the animation
-  // and cause a snap/jump.
+  // the per-frame tracking must NOT fire or it will cancel the animation.
   const transitionLockRef = useRef(false);
   const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /** Lock tracking for `ms` milliseconds (duration of a transition animation). */
   function lockTracking(ms: number) {
     transitionLockRef.current = true;
     if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
@@ -163,7 +172,7 @@ export function useMapNavigationMode({ mapRef, position, active, bbox }: Opts): 
       isTrackingRef.current = true;
       // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: syncs tracking state with map animation on active toggle
       setIsTracking(true);
-      lastCameraPosRef.current = null;
+      currentZoomRef.current = NAV_ZOOM;
 
       const pos = positionRef.current;
       if (pos) {
@@ -171,7 +180,7 @@ export function useMapNavigationMode({ mapRef, position, active, bbox }: Opts): 
         lockTracking(ENTRY_MS + 100);
         map.flyTo({
           center: [pos.lng, pos.lat],
-          bearing: userBearing(pos, 0),
+          bearing: userBearing(pos, compassRef.current, 0),
           zoom: NAV_ZOOM,
           pitch: NAV_PITCH,
           padding: getLookaheadPadding(map),
@@ -180,8 +189,6 @@ export function useMapNavigationMode({ mapRef, position, active, bbox }: Opts): 
           easing: easeOut,
         });
       }
-      // If no position yet, the tracking effect will handle entry
-      // once the first GPS fix arrives.
     } else {
       // ── Exit nav mode ──
       hasEnteredRef.current = false;
@@ -191,13 +198,10 @@ export function useMapNavigationMode({ mapRef, position, active, bbox }: Opts): 
       }
       isTrackingRef.current = false;
       setIsTracking(false);
-      lastCameraPosRef.current = null;
 
       lockTracking(EXIT_MS + 100);
 
       if (bbox) {
-        // fitBounds with linear:false uses flyTo internally → single smooth arc
-        // that handles zoom, center, pitch, and bearing all at once.
         try {
           map.fitBounds(
             [[bbox.minLng, bbox.minLat], [bbox.maxLng, bbox.maxLat]],
@@ -224,15 +228,12 @@ export function useMapNavigationMode({ mapRef, position, active, bbox }: Opts): 
     }
   }, [mapRef, active, bbox]);
 
-  // ── Continuous position tracking ──
+  // ── Deferred entry: first GPS fix arrives after active=true ──
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !active || !position) return;
-
-    // Don't interrupt a transition animation
     if (transitionLockRef.current) return;
 
-    // Deferred entry: position arrived after active=true was set
     if (!hasEnteredRef.current) {
       hasEnteredRef.current = true;
       isTrackingRef.current = true;
@@ -242,7 +243,7 @@ export function useMapNavigationMode({ mapRef, position, active, bbox }: Opts): 
 
       map.flyTo({
         center: [position.lng, position.lat],
-        bearing: userBearing(position, 0),
+        bearing: userBearing(position, compassRef.current, 0),
         zoom: NAV_ZOOM,
         pitch: NAV_PITCH,
         padding: getLookaheadPadding(map),
@@ -250,33 +251,40 @@ export function useMapNavigationMode({ mapRef, position, active, bbox }: Opts): 
         curve: 1.2,
         easing: easeOut,
       });
-      lastCameraPosRef.current = { lat: position.lat, lng: position.lng };
-      return;
     }
+    // NOTE: No continuous tracking here. That's handled by onInterpolatedFrame.
+  }, [mapRef, active, position]);
 
-    // Skip during manual pan cooldown
+  // ── 60 fps interpolated frame handler ──
+  // Called directly by the GpsInterpolator on every rAF tick.
+  // Uses jumpTo (instant, zero-duration) for jitter-free tracking.
+  const onInterpolatedFrame = useCallback((pos: InterpolatedPosition) => {
+    const map = mapRef.current;
+    if (!map || !isActiveRef.current) return;
+
+    // Don't interrupt a transition animation
+    if (transitionLockRef.current) return;
+    // Don't track during manual pan cooldown
     if (!isTrackingRef.current) return;
 
-    const bearing = userBearing(position, map.getBearing());
-    const zoom = adaptiveZoom(position.speed);
-    const padding = getLookaheadPadding(map);
+    // Smoothly interpolate zoom toward target (avoids steppy zoom changes)
+    const targetZoom = adaptiveZoom(pos.speed);
+    currentZoomRef.current += (targetZoom - currentZoomRef.current) * ZOOM_LERP_RATE;
 
-    const last = lastCameraPosRef.current;
-    const distM = last ? haversineM(last.lat, last.lng, position.lat, position.lng) : Infinity;
-    lastCameraPosRef.current = { lat: position.lat, lng: position.lng };
+    // Use compass heading when stationary, interpolated heading when moving
+    const bearing = pos.speed > 1
+      ? pos.heading
+      : (compassRef.current ?? pos.heading);
 
-    const duration = distM < JUMP_THRESHOLD_M ? 200 : TRACK_EASE_MS;
-
-    map.easeTo({
-      center: [position.lng, position.lat],
+    // jumpTo is instant (no animation queue, no cancellation, no jitter)
+    map.jumpTo({
+      center: [pos.lng, pos.lat],
       bearing,
-      zoom,
+      zoom: currentZoomRef.current,
       pitch: NAV_PITCH,
-      padding,
-      duration,
-      easing: (t) => t,
+      padding: getLookaheadPadding(map),
     });
-  }, [mapRef, active, position]);
+  }, [mapRef]);
 
   // ── Overview ──
   const showOverview = useCallback(() => {
@@ -322,13 +330,12 @@ export function useMapNavigationMode({ mapRef, position, active, bbox }: Opts): 
 
     isTrackingRef.current = true;
     setIsTracking(true);
-    lastCameraPosRef.current = null;
 
     lockTracking(RECENTER_MS + 100);
 
     map.flyTo({
       center: [pos.lng, pos.lat],
-      bearing: userBearing(pos, 0),
+      bearing: userBearing(pos, compassRef.current, 0),
       zoom: NAV_ZOOM,
       pitch: NAV_PITCH,
       padding: getLookaheadPadding(map),
@@ -345,5 +352,5 @@ export function useMapNavigationMode({ mapRef, position, active, bbox }: Opts): 
     if (a) recenter();
   }, [recenter]);
 
-  return { setActive, showOverview, recenter, isTracking };
+  return { setActive, showOverview, recenter, isTracking, onInterpolatedFrame };
 }

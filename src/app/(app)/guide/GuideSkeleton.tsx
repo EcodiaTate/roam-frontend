@@ -51,7 +51,7 @@ export function GuideSkeleton() {
           position: "sticky",
           top: 0,
           zIndex: 50,
-          padding: "16px 16px 12px",
+          padding: "calc(env(safe-area-inset-top, 0px) + 30px) 16px 12px",
           background: "linear-gradient(to bottom, var(--roam-bg) 78%, transparent)",
           backdropFilter: "blur(10px)",
           WebkitBackdropFilter: "blur(10px)",

@@ -201,7 +201,6 @@ export function PlanningOverlay({ phase, error, visible }: PlanningOverlayProps)
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "flex-end",
-          paddingBottom: "var(--bottom-nav-height, calc(80px + env(safe-area-inset-bottom, 0px)))",
           animation: "roam-po-fadein 0.3s ease both",
         }}
         role="status"
@@ -216,9 +215,10 @@ export function PlanningOverlay({ phase, error, visible }: PlanningOverlayProps)
             background: "var(--surface-card, #f4efe6)",
             borderRadius: "28px 28px 0 0",
             overflow: "hidden",
-            maxHeight: "calc(100vh - var(--bottom-nav-height, 80px) - 48px)",
+            maxHeight: "calc(100vh - 48px)",
             display: "flex",
             flexDirection: "column",
+            paddingBottom: "var(--bottom-nav-height, calc(80px + env(safe-area-inset-bottom, 0px)))",
             animation: "roam-po-slideup 0.35s cubic-bezier(0.22, 1, 0.36, 1) both",
           }}
         >
@@ -417,8 +417,6 @@ export function PlanningOverlay({ phase, error, visible }: PlanningOverlayProps)
             </div>
           )}
 
-          {/* ── Bottom breathing room ── */}
-          <div style={{ height: 10, flexShrink: 0 }} />
         </div>
       </div>
     </>

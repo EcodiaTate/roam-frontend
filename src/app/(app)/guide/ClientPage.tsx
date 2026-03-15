@@ -398,19 +398,16 @@ export default function GuideClientPage(props: {
         color: "var(--roam-text)",
         display: "flex",
         flexDirection: "column",
-        overflowY: "auto",
-        WebkitOverflowScrolling: "touch",
-        overscrollBehavior: "contain",
+        overflow: "hidden",
       }}
     >
       {/* ── Sticky header ───────────────────────────────────────── */}
       <div
         ref={headerRef}
         style={{
-          position: "sticky",
-          top: 0,
+          flexShrink: 0,
           zIndex: 50,
-          padding: "8px 16px 6px",
+          padding: "calc(env(safe-area-inset-top, 0px) + 30px) 16px 0",
           background: "var(--roam-bg)",
         }}
       >
@@ -588,8 +585,10 @@ export default function GuideClientPage(props: {
       {/* ── Content ─────────────────────────────────────────────── */}
       <div
         style={{
+          flex: 1,
+          minHeight: 0,
+          overflow: "hidden",
           padding: "0 16px",
-          paddingBottom: "calc(var(--bottom-nav-height, 80px) + 40px)",
         }}
       >
         <GuideView

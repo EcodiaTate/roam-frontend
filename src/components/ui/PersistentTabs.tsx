@@ -2,7 +2,7 @@
 "use client";
 
 import { Suspense, useEffect, useRef, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 import { TripClientPage } from "@/app/(app)/trip/ClientPage";
 import GuideClientPage from "@/app/(app)/guide/ClientPage";
@@ -10,23 +10,16 @@ import EmergencyClientPage from "@/app/(app)/sos/ClientPage";
 
 import { TripSkeleton } from "@/app/(app)/trip/TripSkeleton";
 import { GuideSkeleton } from "@/app/(app)/guide/GuideSkeleton";
-import { haptic } from "@/lib/native/haptics";
-
 /* ── Tab definitions ─────────────────────────────────────────────────── */
 
 const TAB_ROUTES = ["/guide", "/trip", "/sos"] as const;
 type TabRoute = (typeof TAB_ROUTES)[number];
 
-// Which tabs can be live-dragged (not position:fixed full-viewport)
-const DRAGGABLE: Set<TabRoute> = new Set(["/guide", "/sos"]);
+// (page-level swipe removed — navigation is tab-bar only)
 
 function normalizeTabRoute(path: string): TabRoute | null {
   const clean = path.replace(/\/+$/, "") || "/";
   return TAB_ROUTES.includes(clean as TabRoute) ? (clean as TabRoute) : null;
-}
-
-function isTabRoute(path: string): boolean {
-  return normalizeTabRoute(path) !== null;
 }
 
 /* ── CSS ─────────────────────────────────────────────────────────────── */
@@ -51,9 +44,6 @@ const STYLES = `
   .pt-anim-out-left  { animation: pt-out-left  0.26s cubic-bezier(0.25,0.46,0.45,0.94) both; }
   .pt-anim-out-right { animation: pt-out-right 0.26s cubic-bezier(0.25,0.46,0.45,0.94) both; }
 
-  /* Snap-back transition applied inline via JS */
-  .pt-snap { transition: transform 0.3s cubic-bezier(0.25,0.46,0.45,0.94),
-                         opacity  0.3s cubic-bezier(0.25,0.46,0.45,0.94); }
 `;
 
 type AnimState =
@@ -65,7 +55,6 @@ type AnimState =
 
 export function PersistentTabs({ children }: { children: React.ReactNode }) {
   const rawPathname = usePathname();
-  const router   = useRouter();
 
   // Normalize: strip trailing slash so "/trip/" matches "/trip"
   const activeTab = normalizeTabRoute(rawPathname);
@@ -81,7 +70,6 @@ export function PersistentTabs({ children }: { children: React.ReactNode }) {
   const prevIndexRef   = useRef(-1);
   const isFirstRender  = useRef(true);
 
-  // Refs to pane DOM nodes for imperative drag transforms
   const paneRefs = useRef<Partial<Record<TabRoute, HTMLDivElement>>>({});
 
   // ── Mount active + neighbours ───────────────────────────────────────
@@ -139,152 +127,7 @@ export function PersistentTabs({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(t);
   }, [activeTab]);
 
-  // ── Swipe gesture with live-drag for non-trip panes ─────────────────
-  const isOnTab    = activeTab !== null;
-  const activeIndex = activeTab ? TAB_ROUTES.indexOf(activeTab) : -1;
-
-  const touch = useRef<{
-    x: number; y: number; t: number;
-    locked: boolean; // true = horizontal swipe locked in
-    activePaneEl: HTMLDivElement | null;
-    neighbourEl:  HTMLDivElement | null;
-    neighbourDir: 1 | -1; // +1 = right, -1 = left
-    canDrag: boolean; // false when active tab is trip
-  } | null>(null);
-
-  useEffect(() => {
-    if (!isOnTab) return;
-
-    const W = () => window.innerWidth;
-
-    function applyDrag(activeEl: HTMLDivElement | null, neighbourEl: HTMLDivElement | null, neighbourDir: 1 | -1, dx: number) {
-      // rubber-band at the edge
-      const atEdge = (activeIndex === 0 && dx > 0) || (activeIndex === TAB_ROUTES.length - 1 && dx < 0);
-      const offset = atEdge ? dx * 0.18 : dx;
-
-      if (activeEl) {
-        activeEl.style.transform = `translateX(${offset}px)`;
-        activeEl.style.opacity   = `${Math.max(0.6, 1 - Math.abs(offset) / W() * 0.5)}`;
-      }
-      if (neighbourEl && !atEdge) {
-        // neighbour starts 100% off-screen in its direction, tracks alongside
-        const neighbourOffset = neighbourDir * W() + offset;
-        neighbourEl.style.display   = "";
-        neighbourEl.style.transform = `translateX(${neighbourOffset}px)`;
-        neighbourEl.style.opacity   = `${Math.min(1, Math.abs(offset) / W() * 1.5)}`;
-      }
-    }
-
-    function resetDrag(activeEl: HTMLDivElement | null, neighbourEl: HTMLDivElement | null, animated: boolean) {
-      [activeEl, neighbourEl].forEach((el) => {
-        if (!el) return;
-        if (animated) el.classList.add("pt-snap");
-        el.style.transform = "";
-        el.style.opacity   = "";
-        if (animated) {
-          el.addEventListener("transitionend", () => el.classList.remove("pt-snap"), { once: true });
-        }
-      });
-      if (neighbourEl && !animated) {
-        // re-hide if we're just resetting without committing
-        const route = (Object.entries(paneRefs.current) as [TabRoute, HTMLDivElement][])
-          .find(([, el]) => el === neighbourEl)?.[0];
-        if (route) {
-          const s = animStates[route];
-          if (s === "hidden") neighbourEl.style.display = "none";
-        }
-      }
-    }
-
-    function onTouchStart(e: TouchEvent) {
-      const t = e.touches[0];
-      const activeRoute  = TAB_ROUTES[activeIndex];
-      const canDrag      = DRAGGABLE.has(activeRoute);
-      const activePaneEl = canDrag ? (paneRefs.current[activeRoute] ?? null) : null;
-
-      touch.current = {
-        x: t.clientX, y: t.clientY, t: Date.now(),
-        locked: false,
-        activePaneEl,
-        neighbourEl:  null,
-        neighbourDir: 1,
-        canDrag,
-      };
-    }
-
-    function onTouchMove(e: TouchEvent) {
-      if (!touch.current) return;
-      const t  = e.touches[0];
-      const dx = t.clientX - touch.current.x;
-      const dy = t.clientY - touch.current.y;
-
-      if (!touch.current.locked) {
-        if (Math.abs(dx) < 8) return;
-        if (Math.abs(dy) > Math.abs(dx)) { touch.current = null; return; } // vertical — bail
-        touch.current.locked = true;
-
-        // Identify the neighbour pane that will slide in
-        if (touch.current.canDrag) {
-          const neighbourIndex = dx < 0 ? activeIndex + 1 : activeIndex - 1;
-          if (neighbourIndex >= 0 && neighbourIndex < TAB_ROUTES.length) {
-            const nRoute = TAB_ROUTES[neighbourIndex];
-            const nEl    = paneRefs.current[nRoute] ?? null;
-            touch.current.neighbourEl  = nEl;
-            touch.current.neighbourDir = dx < 0 ? 1 : -1;
-          }
-        }
-      }
-
-      if (touch.current.canDrag) {
-        applyDrag(touch.current.activePaneEl, touch.current.neighbourEl, touch.current.neighbourDir, dx);
-      }
-    }
-
-    function onTouchEnd(e: TouchEvent) {
-      if (!touch.current?.locked) { touch.current = null; return; }
-
-      const t   = e.changedTouches[0];
-      const dx  = t.clientX - touch.current.x;
-      const dy  = t.clientY - touch.current.y;
-      const dt  = Date.now() - touch.current.t;
-      const { activePaneEl, neighbourEl, canDrag } = touch.current;
-      touch.current = null;
-
-      if (Math.abs(dx) < Math.abs(dy) * 1.5) {
-        if (canDrag) resetDrag(activePaneEl, neighbourEl, true);
-        return;
-      }
-
-      const velocity  = Math.abs(dx) / dt;
-      const threshold = W() * 0.30;
-      const commit    = Math.abs(dx) > threshold || velocity > 0.3;
-
-      if (commit && dx < 0 && activeIndex < TAB_ROUTES.length - 1) {
-        haptic.selection();
-        // For draggable panes: clear inline styles so CSS animation takes over cleanly
-        if (canDrag) { if (activePaneEl) activePaneEl.style.cssText = ""; if (neighbourEl) neighbourEl.style.cssText = ""; }
-        router.push(TAB_ROUTES[activeIndex + 1]);
-      } else if (commit && dx > 0 && activeIndex > 0) {
-        haptic.selection();
-        if (canDrag) { if (activePaneEl) activePaneEl.style.cssText = ""; if (neighbourEl) neighbourEl.style.cssText = ""; }
-        router.push(TAB_ROUTES[activeIndex - 1]);
-      } else {
-        if (canDrag) resetDrag(activePaneEl, neighbourEl, true);
-      }
-    }
-
-    document.addEventListener("touchstart", onTouchStart, { passive: true });
-    document.addEventListener("touchmove",  onTouchMove,  { passive: true });
-    document.addEventListener("touchend",   onTouchEnd,   { passive: true });
-    return () => {
-      document.removeEventListener("touchstart", onTouchStart);
-      document.removeEventListener("touchmove",  onTouchMove);
-      document.removeEventListener("touchend",   onTouchEnd);
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOnTab, activeIndex, router]);
-
-  if (!isOnTab) return <>{children}</>;
+  if (!activeTab) return <>{children}</>;
 
   function paneClass(route: TabRoute) {
     const s = animStates[route];

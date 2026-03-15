@@ -46,8 +46,10 @@ function updateAxis(axis: KalmanAxis, z: number, t: number, r: number): KalmanAx
 
   // Process noise (tune this for GPS smoothness vs. responsiveness)
   // Lower Q = smoother but more lag; higher Q = more jitter but more responsive
-  const Q_pos = 0.5e-10;   // position process noise (degrees²/s)
-  const Q_vel = 2e-10;     // velocity process noise (degrees²/s²)
+  // These values are tuned to be responsive enough for real-time navigation
+  // while the GpsInterpolator handles visual smoothness between ticks.
+  const Q_pos = 3e-10;     // position process noise (degrees²/s)  — 6x previous for faster response
+  const Q_vel = 8e-10;     // velocity process noise (degrees²/s²) — 4x previous for faster velocity adaptation
 
   // ── Predict ──
   const xPred = axis.x + axis.v * dt;
@@ -131,8 +133,10 @@ export function smoothPosition(smoother: GpsSmoother, pos: RoamPosition): {
   latAxis = updateAxis({ ...latAxis, lastT: latAxis.lastT || t }, pos.lat, t, r);
   lngAxis = updateAxis({ ...lngAxis, lastT: lngAxis.lastT || t }, pos.lng, t, r);
 
-  // Smooth heading with exponential moving average (alpha=0.3 → 30% new, 70% old)
-  // Only update when moving (avoids wild heading swings when stationary)
+  // Speed-adaptive heading EMA:
+  //   - At higher speeds GPS heading is reliable → trust it more (higher alpha)
+  //   - At low speeds GPS heading is noisy → trust it less (lower alpha)
+  //   - Below 0.5 m/s don't update at all (stationary jitter)
   let headingEma = smoother.headingEma;
   if (pos.heading != null && pos.speed != null && pos.speed > 0.5) {
     if (headingEma === null) {
@@ -142,7 +146,9 @@ export function smoothPosition(smoother: GpsSmoother, pos: RoamPosition): {
       let diff = pos.heading - headingEma;
       if (diff > 180) diff -= 360;
       if (diff < -180) diff += 360;
-      headingEma = (headingEma + 0.3 * diff + 360) % 360;
+      // Alpha: 0.4 at walking speed (2 m/s), 0.7 at driving speed (20+ m/s)
+      const alpha = Math.min(0.7, 0.3 + (pos.speed / 30));
+      headingEma = (headingEma + alpha * diff + 360) % 360;
     }
   }
 

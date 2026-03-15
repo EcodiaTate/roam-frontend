@@ -965,6 +965,7 @@ export function GuideView({
   const [pendingUserMsg, setPendingUserMsg] = useState<string | null>(null);
   const GUIDE_TABS: ViewTab[] = ["chat", "discoveries"];
   const trackRef = useRef<HTMLDivElement>(null);
+  const guideContainerRef = useRef<HTMLDivElement>(null);
   const guideSwipe = useRef<{ x: number; y: number; t: number; locked: boolean } | null>(null);
 
   function getTrackX(tab: ViewTab) {
@@ -984,57 +985,76 @@ export function GuideView({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
-  function handleGuideSwipeStart(e: React.TouchEvent) {
-    const t = e.touches[0];
-    guideSwipe.current = { x: t.clientX, y: t.clientY, t: Date.now(), locked: false };
-  }
+  // Imperative touch listeners so we can preventDefault on touchmove
+  // to block vertical scroll while a horizontal tab-swipe is active.
+  useEffect(() => {
+    const el = guideContainerRef.current;
+    if (!el) return;
 
-  function handleGuideSwipeMove(e: React.TouchEvent) {
-    if (!guideSwipe.current) return;
-    const t  = e.touches[0];
-    const dx = t.clientX - guideSwipe.current.x;
-    const dy = t.clientY - guideSwipe.current.y;
-
-    if (!guideSwipe.current.locked) {
-      if (Math.abs(dx) < 8) return;
-      if (Math.abs(dy) > Math.abs(dx)) { guideSwipe.current = null; return; }
-      guideSwipe.current.locked = true;
+    function onTouchStart(e: TouchEvent) {
+      const t = e.touches[0];
+      guideSwipe.current = { x: t.clientX, y: t.clientY, t: Date.now(), locked: false };
     }
 
-    const currentIndex = GUIDE_TABS.indexOf(activeTab);
-    const W = trackRef.current?.offsetWidth ?? window.innerWidth;
-    // rubber-band at edges
-    const atEdge = (currentIndex === 0 && dx > 0) || (currentIndex === GUIDE_TABS.length - 1 && dx < 0);
-    const offset = atEdge ? dx * 0.18 : dx;
-    const basePct = getTrackX(activeTab);
-    setTrackTransform(basePct + (offset / W) * 100, false);
-  }
+    function onTouchMove(e: TouchEvent) {
+      if (!guideSwipe.current) return;
+      const t  = e.touches[0];
+      const dx = t.clientX - guideSwipe.current.x;
+      const dy = t.clientY - guideSwipe.current.y;
 
-  function handleGuideSwipeEnd(e: React.TouchEvent) {
-    if (!guideSwipe.current?.locked) { guideSwipe.current = null; return; }
-    const t   = e.changedTouches[0];
-    const dx  = t.clientX - guideSwipe.current.x;
-    const dy  = t.clientY - guideSwipe.current.y;
-    const dt  = Date.now() - guideSwipe.current.t;
-    guideSwipe.current = null;
+      if (!guideSwipe.current.locked) {
+        if (Math.abs(dx) < 8) return;
+        if (Math.abs(dy) > Math.abs(dx)) { guideSwipe.current = null; return; }
+        guideSwipe.current.locked = true;
+      }
 
-    if (Math.abs(dx) < Math.abs(dy) * 1.5) { setTrackTransform(getTrackX(activeTab), true); return; }
+      // Horizontal swipe locked — block vertical scrolling
+      e.preventDefault();
 
-    const W        = trackRef.current?.offsetWidth ?? window.innerWidth;
-    const velocity = Math.abs(dx) / dt;
-    const commit   = Math.abs(dx) > W * 0.30 || velocity > 0.3;
-    const currentIndex = GUIDE_TABS.indexOf(activeTab);
-
-    if (commit && dx < 0 && currentIndex < GUIDE_TABS.length - 1) {
-      haptic.selection();
-      setActiveTab(GUIDE_TABS[currentIndex + 1]);
-    } else if (commit && dx > 0 && currentIndex > 0) {
-      haptic.selection();
-      setActiveTab(GUIDE_TABS[currentIndex - 1]);
-    } else {
-      setTrackTransform(getTrackX(activeTab), true);
+      const currentIndex = GUIDE_TABS.indexOf(activeTab);
+      const W = trackRef.current?.offsetWidth ?? window.innerWidth;
+      const atEdge = (currentIndex === 0 && dx > 0) || (currentIndex === GUIDE_TABS.length - 1 && dx < 0);
+      const offset = atEdge ? dx * 0.18 : dx;
+      const basePct = getTrackX(activeTab);
+      setTrackTransform(basePct + (offset / W) * 100, false);
     }
-  }
+
+    function onTouchEnd(e: TouchEvent) {
+      if (!guideSwipe.current?.locked) { guideSwipe.current = null; return; }
+      const t   = e.changedTouches[0];
+      const dx  = t.clientX - guideSwipe.current.x;
+      const dy  = t.clientY - guideSwipe.current.y;
+      const dt  = Date.now() - guideSwipe.current.t;
+      guideSwipe.current = null;
+
+      if (Math.abs(dx) < Math.abs(dy) * 1.5) { setTrackTransform(getTrackX(activeTab), true); return; }
+
+      const W        = trackRef.current?.offsetWidth ?? window.innerWidth;
+      const velocity = Math.abs(dx) / dt;
+      const commit   = Math.abs(dx) > W * 0.30 || velocity > 0.3;
+      const currentIndex = GUIDE_TABS.indexOf(activeTab);
+
+      if (commit && dx < 0 && currentIndex < GUIDE_TABS.length - 1) {
+        haptic.selection();
+        setActiveTab(GUIDE_TABS[currentIndex + 1]);
+      } else if (commit && dx > 0 && currentIndex > 0) {
+        haptic.selection();
+        setActiveTab(GUIDE_TABS[currentIndex - 1]);
+      } else {
+        setTrackTransform(getTrackX(activeTab), true);
+      }
+    }
+
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   // Filter out hidden system prompts (e.g., auto-greeting) from visible thread
   const thread = useMemo(
@@ -1179,10 +1199,8 @@ export function GuideView({
   // ── Render ─────────────────────────────────────────────────
   return (
     <div
-      style={{ display: "flex", flexDirection: "column", gap: 12 }}
-      onTouchStart={handleGuideSwipeStart}
-      onTouchMove={handleGuideSwipeMove}
-      onTouchEnd={handleGuideSwipeEnd}
+      ref={guideContainerRef}
+      style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}
     >
       {/* Scoped animations */}
       <style>{`
@@ -1192,7 +1210,7 @@ export function GuideView({
       `}</style>
 
       {/* ── Tab switcher ────────────────────────────────────── */}
-      <div style={{ position: "sticky", top: stickyTabsTop, zIndex: 40, background: "var(--roam-bg)", paddingTop: 8, paddingBottom: 4 }}>
+      <div style={{ flexShrink: 0, zIndex: 40, background: "var(--roam-bg)", paddingTop: 8, paddingBottom: 4 }}>
       <div style={{ display: "flex", gap: 2, background: "var(--roam-surface)", borderRadius: 14, padding: 3, border: "1px solid var(--roam-border, rgba(255,255,255,0.06))" }}>
         {([
           { key: "chat" as ViewTab, label: "Guide", Icon: Sparkles, badge: null },
@@ -1322,7 +1340,7 @@ export function GuideView({
               display: "flex", flexDirection: "column", gap: 8,
               // Deduct: sticky header (~120px incl. progress bar) + tab switcher (42px) +
               // input bar (50px) + gaps (36px) + bottom nav + safe-area notch
-              maxHeight: "calc(100dvh - 248px - var(--bottom-nav-height, 80px) - env(safe-area-inset-bottom, 0px) - var(--roam-keyboard-h, 0px))",
+              maxHeight: "calc(100dvh - 270px - var(--bottom-nav-height, 80px) - env(safe-area-inset-bottom, 0px) - var(--roam-keyboard-h, 0px))",
               overflowY: "auto", paddingRight: 2,
               WebkitOverflowScrolling: "touch", overscrollBehavior: "contain",
             }}>

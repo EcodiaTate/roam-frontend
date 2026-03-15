@@ -192,7 +192,7 @@ export function PaywallModal({ open, onClose, onUnlocked, variant = "gate" }: Pr
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
-          paddingBottom: "env(safe-area-inset-bottom, 0px)",
+          paddingBottom: "var(--bottom-nav-height, calc(80px + env(safe-area-inset-bottom, 0px)))",
           transform: isVisible ? "translateY(0)" : "translateY(100%)",
           transition: isExiting
             ? "transform 0.34s cubic-bezier(0.4, 0, 1, 1)"

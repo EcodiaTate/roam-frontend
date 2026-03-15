@@ -632,6 +632,7 @@ input, textarea, [contenteditable] {
   .hide-mobile { display: none !important; }
 }
 
+
 /* ── Icon button (square, minimal) ────────────────────────── */
 .trip-btn-icon {
   background: var(--roam-surface-hover);
@@ -815,13 +816,11 @@ input, textarea, [contenteditable] {
 }
 
 .trip-drag-handle {
-  width: 40px; height: 5px;
-  background: white;
-  opacity:0.5;
+  width: 36px; height: 4px;
+  background: var(--roam-border-strong);
   border-radius: 10px;
-  margin: 0 auto 10px auto;
-  background-clip: content-box;
-  opacity: 0.7;
+  margin: 0 auto 8px auto;
+  opacity: 0.5;
 }
 
 

@@ -13,6 +13,7 @@ import {
   onAppStateChange,
   initNotificationTapListener,
   requestNotificationPermission,
+  requestLocationPermission,
   onNotificationTap,
 } from "@/lib/native";
 import { App } from "@capacitor/app";
@@ -68,8 +69,13 @@ export function NativeBootstrap() {
         }
       });
 
-      // 5. Notifications
-      await requestNotificationPermission();
+      // 5. Permissions (notifications + location requested together so both
+      //    OS prompts appear at boot — location alone doesn't trigger a
+      //    visible prompt on some devices)
+      await Promise.all([
+        requestNotificationPermission(),
+        requestLocationPermission(),
+      ]);
       await initNotificationTapListener();
 
       // Handle notification taps → route to relevant screen

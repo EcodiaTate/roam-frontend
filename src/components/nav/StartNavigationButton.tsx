@@ -36,21 +36,21 @@ export function StartNavigationButton({ onStart, disabled }: Props) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        gap: 10,
-        padding: "14px 24px",
+        gap: 8,
+        padding: "13px 24px",
         border: "none",
-        borderRadius: 16,
+        borderRadius: 14,
         cursor: loading || disabled ? "default" : "pointer",
-        fontSize: 16,
-        fontWeight: 950,
-        letterSpacing: "-0.3px",
+        fontSize: 15,
+        fontWeight: 800,
+        letterSpacing: "-0.2px",
         color: "white",
         background: loading || disabled
           ? "var(--accent-tint)"
-          : "linear-gradient(135deg, var(--brand-eucalypt), var(--brand-eucalypt-dark))",
+          : "var(--brand-eucalypt)",
         boxShadow: loading || disabled
           ? "none"
-          : "0 4px 16px rgba(51,120,74,0.35), 0 1px 4px rgba(0,0,0,0.1)",
+          : "0 2px 8px rgba(51,120,74,0.2)",
         transition: "all 0.2s ease",
         opacity: disabled ? 0.5 : 1,
       }}

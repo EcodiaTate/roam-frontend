@@ -521,7 +521,7 @@ export function StopsEditor(props: {
             </div>
 
             {/* Action Buttons (Plans + Join + User) */}
-            <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+            <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
               <button
                 type="button"
                 className="trip-interactive trip-btn-icon"
@@ -534,8 +534,8 @@ export function StopsEditor(props: {
                 }}
                 style={{
                   borderRadius: 999,
-                  width: 40,
-                  height: 40,
+                  width: 34,
+                  height: 34,
                   display: "grid",
                   placeItems: "center",
                   background: "rgba(0, 0, 0, 0.08)",
@@ -544,7 +544,7 @@ export function StopsEditor(props: {
                   WebkitTapHighlightColor: "transparent",
                 }}
               >
-                <Library size={18} />
+                <Library size={15} />
               </button>
 
               <button
@@ -552,15 +552,15 @@ export function StopsEditor(props: {
                 className="trip-interactive trip-btn-icon"
                 aria-label="Join Plan"
                 title="Join Plan"
-                onPointerDown={(e) => e.stopPropagation()} // Prevent drag conflict
+                onPointerDown={(e) => e.stopPropagation()}
                 onClick={() => {
                   haptic.light();
                   props.onJoinPlan();
                 }}
                 style={{
                   borderRadius: 999,
-                  width: 40,
-                  height: 40,
+                  width: 34,
+                  height: 34,
                   display: "grid",
                   placeItems: "center",
                   background: "rgba(0, 0, 0, 0.08)",
@@ -569,25 +569,27 @@ export function StopsEditor(props: {
                   WebkitTapHighlightColor: "transparent",
                 }}
               >
-                <Link size={18} />
+                <Link size={15} />
               </button>
 
               {props.unlocked ? (
                 <button
                   type="button"
-                  aria-label="Roam Untethered — view your plan"
+                  className="trip-interactive"
+                  aria-label="Roam Untethered"
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={() => { haptic.selection(); router.push("/untethered"); }}
                   style={{
                     position: "relative",
-                    display: "flex", alignItems: "center", gap: 6,
+                    display: "grid", placeItems: "center",
                     background: "linear-gradient(135deg, #5c1a0e 0%, var(--brand-ochre, #b5452e) 40%, #d4664a 70%, #e8956a 100%)",
-                    borderRadius: 999, padding: "0 16px",
-                    height: 40, border: "1px solid rgba(255,255,255,0.15)", cursor: "pointer",
+                    borderRadius: 999, width: 34, height: 34,
+                    border: "1px solid rgba(255,255,255,0.15)", cursor: "pointer",
                     boxShadow: "0 2px 12px rgba(181,69,46,0.40), 0 1px 3px rgba(181,69,46,0.20), inset 0 1px 0 rgba(255,255,255,0.12)",
                     overflow: "hidden",
                     WebkitTapHighlightColor: "transparent",
                   }}
+                  title="Roam Untethered"
                 >
                   {/* Shimmer sweep */}
                   <div style={{
@@ -596,12 +598,9 @@ export function StopsEditor(props: {
                     borderRadius: "inherit",
                     pointerEvents: "none",
                   }} />
-                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0, position: "relative" }}>
+                  <svg width="13" height="13" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0, position: "relative" }}>
                     <path d="M6 1L7.5 4.5H11L8.25 6.75L9.25 10.5L6 8.5L2.75 10.5L3.75 6.75L1 4.5H4.5L6 1Z" fill="rgba(255,255,255,0.95)" />
                   </svg>
-                  <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", letterSpacing: "0.06em", textTransform: "uppercase", position: "relative" }}>
-                    Untethered
-                  </span>
                 </button>
               ) : props.unlocked === false ? (
                 <button
@@ -609,13 +608,13 @@ export function StopsEditor(props: {
                   className="trip-interactive"
                   aria-label="Upgrade to Roam Untethered"
                   onPointerDown={(e) => e.stopPropagation()}
-                  onClick={() => { haptic.selection(); props.onUpgrade?.(); }}
+                  onClick={() => { haptic.selection(); router.push("/untethered"); }}
                   style={{
                     position: "relative",
-                    display: "flex", alignItems: "center", gap: 6,
+                    display: "flex", alignItems: "center", gap: 5,
                     background: "linear-gradient(135deg, #122d1e 0%, var(--brand-eucalypt-dark, #1f5236) 40%, var(--brand-eucalypt, #2d6e40) 80%, #3d8f54 100%)",
-                    borderRadius: 999, padding: "0 14px",
-                    height: 40, border: "1px solid rgba(255,255,255,0.12)", cursor: "pointer",
+                    borderRadius: 999, padding: "0 12px",
+                    height: 34, border: "1px solid rgba(255,255,255,0.12)", cursor: "pointer",
                     boxShadow: "0 2px 12px rgba(31,82,54,0.45), 0 1px 3px rgba(31,82,54,0.20), inset 0 1px 0 rgba(255,255,255,0.10)",
                     overflow: "hidden",
                     WebkitTapHighlightColor: "transparent",
@@ -626,7 +625,7 @@ export function StopsEditor(props: {
                     background: "linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.10) 50%, transparent 70%)",
                     borderRadius: "inherit", pointerEvents: "none",
                   }} />
-                  <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", letterSpacing: "0.06em", textTransform: "uppercase", position: "relative" }}>
+                  <span style={{ fontSize: 10, fontWeight: 800, color: "#fff", letterSpacing: "0.06em", textTransform: "uppercase", position: "relative" }}>
                     Upgrade
                   </span>
                   <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ flexShrink: 0, position: "relative" }}>

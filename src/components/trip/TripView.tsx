@@ -24,8 +24,6 @@ import {
   Loader2,
   Route,
   Map as MapIcon,
-  Navigation,
-  Clock,
   WifiOff,
 } from "lucide-react";
 
@@ -70,8 +68,8 @@ function resolveType(st: TripStop): string {
   return st.type ?? "poi";
 }
 
-function StopIcon({ type, size = 15 }: { type?: string; size?: number }) {
-  const props = { size, strokeWidth: 2.5 };
+function StopIcon({ type, size = 14 }: { type?: string; size?: number }) {
+  const props = { size, strokeWidth: 2 };
   switch (type) {
     case "start": return <Flag {...props} />;
     case "end":   return <Flag {...props} />;
@@ -525,42 +523,30 @@ export function TripView({
       {/* ══ Route section ═══════════════════════════════════════════════ */}
       {activeSection === "route" && (
         <>
-          {/* Subtle Route Meta Row */}
+          {/* Route meta */}
           <div style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            padding: "0 4px 16px",
+            padding: "0 2px 12px",
             color: "var(--roam-text-muted)",
             fontSize: 12,
-            fontWeight: 700
+            fontWeight: 600,
           }}>
-            <div style={{ display: "flex", gap: 16 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <Navigation size={13} strokeWidth={2.5} />
-                {formatDist(distance)}
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <Clock size={13} strokeWidth={2.5} />
-                {formatDur(duration)}
-              </div>
+            <div style={{ display: "flex", gap: 12 }}>
+              <span>{formatDist(distance)}</span>
+              <span style={{ opacity: 0.4 }}>&middot;</span>
+              <span>{formatDur(duration)}</span>
             </div>
 
             {dirty && (
-              <div style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                color: "var(--roam-warn)",
-                background: "var(--severity-minor-tint)",
-                padding: "2px 8px",
-                borderRadius: 8,
+              <span style={{
                 fontSize: 10,
-                fontWeight: 900
+                fontWeight: 700,
+                color: "var(--roam-warn)",
               }}>
-                <Save size={11} strokeWidth={2.5} />
-                Unsaved
-              </div>
+                Unsaved changes
+              </span>
             )}
           </div>
 
@@ -571,16 +557,15 @@ export function TripView({
               alignItems: "center",
               gap: 6,
               padding: "6px 10px",
-              marginBottom: 12,
+              marginBottom: 8,
               borderRadius: 10,
-              background: "rgba(245, 158, 11, 0.1)",
-              border: "1px solid rgba(245, 158, 11, 0.25)",
+              background: "var(--roam-surface-hover)",
               fontSize: 11,
-              fontWeight: 800,
-              color: "rgb(180, 120, 10)",
+              fontWeight: 700,
+              color: "var(--roam-text-muted)",
             }}>
-              <WifiOff size={13} strokeWidth={2.5} />
-              <span>Route built offline using corridor graph. Turn-by-turn steps unavailable.</span>
+              <WifiOff size={12} strokeWidth={2} />
+              <span>Offline route &mdash; no turn-by-turn</span>
               {isOnline && (
                 <span style={{
                   marginLeft: "auto",
@@ -589,7 +574,7 @@ export function TripView({
                   color: "var(--roam-accent)",
                   whiteSpace: "nowrap",
                 }}>
-                  Rebuild online for full navigation
+                  Rebuild online
                 </span>
               )}
             </div>
@@ -630,17 +615,12 @@ export function TripView({
                       </div>
                     </div>
 
-                    {/* Name + meta */}
+                    {/* Name + type */}
                     <div className={s.stopContent}>
                       <div className={s.stopName}>{stopLabel(stop, index)}</div>
                       <div className={s.stopMeta}>
-                        {typeof stop.lat === "number" && typeof stop.lng === "number" && (
-                          <span className={s.stopCoords}>
-                            {stop.lat.toFixed(4)}, {stop.lng.toFixed(4)}
-                          </span>
-                        )}
-                        <span className={s.stopTypeBadge} data-type={type}>
-                          {type}
+                        <span className={s.stopTypeBadge}>
+                          {type === "poi" ? "stop" : type}
                         </span>
                       </div>
                     </div>
@@ -658,7 +638,7 @@ export function TripView({
                             }}
                             aria-label="Move up"
                           >
-                            <ChevronUp size={14} strokeWidth={2.5} />
+                            <ChevronUp size={14} strokeWidth={2} />
                           </button>
                         )}
                         {index < stops.length - 2 && (
@@ -671,7 +651,7 @@ export function TripView({
                             }}
                             aria-label="Move down"
                           >
-                            <ChevronDown size={14} strokeWidth={2.5} />
+                            <ChevronDown size={14} strokeWidth={2} />
                           </button>
                         )}
                         <button
@@ -683,7 +663,7 @@ export function TripView({
                           }}
                           aria-label="Remove stop"
                         >
-                          <X size={18} strokeWidth={2.5} />
+                          <X size={14} strokeWidth={2} />
                         </button>
                       </div>
                     )}
@@ -718,8 +698,8 @@ export function TripView({
                 setActiveSection("places");
               }}
             >
-              <Plus size={15} strokeWidth={2.5} />
-              Add Stop from Places
+              <Plus size={14} strokeWidth={2} />
+              Add stop
             </button>
 
             {/* Save / Reset footer */}
@@ -731,7 +711,7 @@ export function TripView({
                   disabled={!!busy}
                   onClick={reset}
                 >
-                  <RotateCcw size={13} strokeWidth={2.5} />
+                  <RotateCcw size={13} strokeWidth={2} />
                   Reset
                 </button>
                 <button
@@ -742,12 +722,12 @@ export function TripView({
                 >
                   {busy ? (
                     <>
-                      <Loader2 size={14} strokeWidth={2.5} className={s.spinner} />
+                      <Loader2 size={14} strokeWidth={2} className={s.spinner} />
                       Saving…
                     </>
                   ) : (
                     <>
-                      <Save size={14} strokeWidth={2.5} />
+                      <Save size={14} strokeWidth={2} />
                       Save Route
                     </>
                   )}

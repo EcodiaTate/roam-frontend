@@ -53,7 +53,7 @@ export function WelcomeModal({ open, lastFreeTrip = false, onClose }: Props) {
           background: "var(--surface-card, #f4efe6)",
           borderRadius: "28px 28px 0 0",
           overflow: "hidden",
-          paddingBottom: "env(safe-area-inset-bottom, 0px)",
+          paddingBottom: "var(--bottom-nav-height, calc(80px + env(safe-area-inset-bottom, 0px)))",
         }}
       >
         {/* Hero */}

@@ -1,9 +1,9 @@
 // src/components/basemap/BasemapDownloadCard.tsx
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useBasemapPack } from "@/lib/hooks/useBasemapPack";
-import { CloudDownload, Loader2, AlertTriangle } from "lucide-react";
+import { Loader2, AlertTriangle } from "lucide-react";
 
 type Props = {
   /** Region identifier (default "australia") */
@@ -21,6 +21,15 @@ export function BasemapDownloadCard({ region = "australia", onReady, className }
     await download();
     onReady?.();
   }, [download, onReady]);
+
+  // Auto-download: kick off download as soon as we detect "not_installed" on native
+  const autoTriggered = useRef(false);
+  useEffect(() => {
+    if (isNative && status.state === "not_installed" && !autoTriggered.current) {
+      autoTriggered.current = true;
+      handleDownload();
+    }
+  }, [isNative, status.state, handleDownload]);
 
   // 1. Web users: Map streams from cloud, no offline pack needed. Show nothing.
   if (!isNative) return null;
@@ -55,13 +64,13 @@ export function BasemapDownloadCard({ region = "australia", onReady, className }
         </div>
       )}
 
-      {/* 5. Not installed */}
+      {/* 5. Not installed — auto-download kicks in, show preparing state */}
       {(status.state === "not_installed" || !status.state) && (
         <div style={styles.container}>
-          <button onClick={handleDownload} style={styles.pill}>
-            <CloudDownload size={16} style={{ opacity: 0.7 }} />
-            <span>Download offline map</span>
-          </button>
+          <div style={styles.pill}>
+            <Loader2 size={16} className="roam-spin" style={{ opacity: 0.7 }} />
+            <span>Preparing offline map…</span>
+          </div>
         </div>
       )}
     </div>

@@ -92,9 +92,9 @@ export function NavigationControls({
     <div
       style={{
         position: "absolute",
-        top: "calc(env(safe-area-inset-top, 0px) + 130px)",
+        top: "calc(env(safe-area-inset-top, 0px) + 180px)",
         right: 12,
-        zIndex: 25,
+        zIndex: 30,
         pointerEvents: "auto",
         display: "flex",
         flexDirection: "column",

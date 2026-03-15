@@ -200,6 +200,8 @@ export type TrafficEvent = {
   description?: string | null;
   url?: string | null;
   last_updated?: string | null;
+  start_at?: string | null;
+  end_at?: string | null;
   geometry?: Record<string, unknown> | null;
   bbox?: number[] | null; // [minLng,minLat,maxLng,maxLat]
   raw?: Record<string, unknown>;
@@ -215,11 +217,17 @@ export type TrafficOverlay = {
   warnings: string[];
 };
 
+export type CapUrgency = "immediate" | "expected" | "future" | "past" | "unknown";
+export type CapCertainty = "observed" | "likely" | "possible" | "unlikely" | "unknown";
+
 export type HazardEvent = {
   id: string;
   source: string;
   kind?: HazardKind; // default "unknown"
   severity?: HazardSeverity; // default "unknown"
+  urgency?: CapUrgency;
+  certainty?: CapCertainty;
+  effective_priority?: number; // 0.0–1.0 composite CAP score
   title: string;
   description?: string | null;
   url?: string | null;

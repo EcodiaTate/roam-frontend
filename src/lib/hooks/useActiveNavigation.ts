@@ -35,6 +35,7 @@ import {
 import { haptic } from "@/lib/native/haptics";
 import { decodePolyline6 } from "@/lib/nav/polyline6";
 import { type GpsSmoother, createGpsSmoother, smoothPosition } from "@/lib/nav/gpsSmooth";
+import { GpsInterpolator } from "@/lib/nav/gpsInterpolator";
 import type { NavPack } from "@/lib/types/navigation";
 import type { RoamPosition } from "@/lib/native/geolocation";
 
@@ -57,8 +58,10 @@ export type ActiveNavigationHook = {
   toggleMute: () => void;
   /** Reset after a corridor reroute with a new navpack */
   applyReroute: (newNavpack: NavPack) => void;
-  /** Last GPS position from the navigation stream */
+  /** Last smoothed GPS position (~1 Hz, for nav state machine + fallback) */
   lastPosition: RoamPosition | null;
+  /** The 60 fps GPS interpolator instance (for map camera + puck rendering) */
+  interpolator: GpsInterpolator;
 };
 
 // ──────────────────────────────────────────────────────────────
@@ -85,6 +88,18 @@ export function useActiveNavigation(
   useEffect(() => { configRef.current = config; }, [config]);
   const isMutedRef = useRef(isMuted);
   useEffect(() => { isMutedRef.current = isMuted; }, [isMuted]);
+
+  // ── GPS Interpolator (60 fps) ──
+  // The interpolator is created once and persists for the hook lifetime.
+  // Its onFrame callback is wired externally by the consuming component
+  // (ClientPage) via the returned `interpolator` reference.
+  // We use a stable no-op initially; ClientPage sets the real callback.
+  const interpolatorRef = useRef<GpsInterpolator | null>(null);
+  if (!interpolatorRef.current) {
+    // Create with a no-op — the real onFrame is set by the consumer
+    interpolatorRef.current = new GpsInterpolator(() => {});
+  }
+  const interpolator = interpolatorRef.current;
 
   // Precomputed data (expensive, memoize on navpack change)
   const flatSteps = useMemo(() => {
@@ -114,13 +129,16 @@ export function useActiveNavigation(
   const routeDataRef = useRef(routeData);
   useEffect(() => { routeDataRef.current = routeData; }, [routeData]);
 
-  // ── GPS tick handler ──
+  // ── GPS tick handler (~1 Hz from background GPS) ──
   const handlePosition = useCallback((pos: RoamPosition) => {
     // Apply Kalman smoothing before any processing
     const { smoothed, smoother } = smoothPosition(gpsSmootherRef.current, pos);
     gpsSmootherRef.current = smoother;
 
-    // Expose smoothed position for map rendering (smooth puck)
+    // Feed the smoothed fix to the interpolator for 60 fps rendering
+    interpolatorRef.current?.pushFix(smoothed);
+
+    // Expose smoothed position for nav state machine and fallback
     setLastPosition(smoothed);
 
     const currentNav = navRef.current;
@@ -193,6 +211,9 @@ export function useActiveNavigation(
     gpsSmootherRef.current = createGpsSmoother();
     lastTickRef.current = 0;
 
+    // Start the 60 fps interpolation loop
+    interpolatorRef.current?.start();
+
     // Start GPS
     await startBackgroundTracking(handlePosition, (err) => {
       console.warn("[ActiveNav] GPS error:", err);
@@ -210,6 +231,7 @@ export function useActiveNavigation(
   // ── Stop ──
   const stop = useCallback(() => {
     stopBackgroundTracking();
+    interpolatorRef.current?.stop();
     cancelSpeech();
     setNav((prev) => stopNavigation(prev));
     setLastPosition(null);
@@ -244,6 +266,7 @@ export function useActiveNavigation(
       if (isBackgroundTracking()) {
         stopBackgroundTracking();
       }
+      interpolatorRef.current?.stop();
       cancelSpeech();
     };
   }, []);
@@ -259,5 +282,6 @@ export function useActiveNavigation(
     toggleMute,
     applyReroute,
     lastPosition,
+    interpolator,
   };
 }
