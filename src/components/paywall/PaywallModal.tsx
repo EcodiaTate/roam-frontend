@@ -370,10 +370,10 @@ export function PaywallModal({ open, onClose, onUnlocked, variant = "gate" }: Pr
             </div>
           )}
 
-          {/* Restore + legal */}
+          {/* Restore + sign in + legal */}
           <div style={{
             marginTop: 12,
-            display: "flex", justifyContent: "center", gap: 16,
+            display: "flex", justifyContent: "center", gap: 16, flexWrap: "wrap",
           }}>
             {isNative && (
               <>
@@ -394,6 +394,23 @@ export function PaywallModal({ open, onClose, onUnlocked, variant = "gate" }: Pr
                 <span style={{ color: "var(--roam-border-strong)", fontSize: 12 }}>·</span>
               </>
             )}
+            <>
+              <button
+                type="button"
+                onClick={() => { haptic.light(); router.push("/login?next=/untethered"); onClose(); }}
+                disabled={busy}
+                style={{
+                  all: "unset",
+                  cursor: "pointer",
+                  fontSize: 12, fontWeight: 600,
+                  color: "var(--roam-text-muted, #7a7067)",
+                  opacity: busy ? 0.4 : 0.8,
+                }}
+              >
+                Sign in
+              </button>
+              <span style={{ color: "var(--roam-border-strong)", fontSize: 12 }}>·</span>
+            </>
             <a
               href="/privacy"
               style={{ fontSize: 12, fontWeight: 600, color: "var(--roam-text-muted, #7a7067)", opacity: 0.8 }}

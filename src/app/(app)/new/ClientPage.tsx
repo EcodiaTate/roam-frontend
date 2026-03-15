@@ -38,6 +38,7 @@ export default function NewTripClientPage() {
   const [navPack, setNavPack] = useState<NavPack | null>(null);
   const [routing, setRouting] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
+  const [goingNow, setGoingNow] = useState(false);
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTargetStopId, setSearchTargetStopId] = useState<string | null>(null);
@@ -90,7 +91,9 @@ export default function NewTripClientPage() {
 
   const canRoute = useMemo(() => {
     const s = draft.stops;
-    return s.length >= 2 && s.some((x) => x.type === "start") && s.some((x) => x.type === "end");
+    const start = s.find((x) => x.type === "start");
+    const end = s.find((x) => x.type === "end");
+    return !!start && !!end && !!start.name?.trim() && !!end.name?.trim();
   }, [draft.stops]);
 
   const planIdRef = useRef<string | null>(null);
@@ -177,6 +180,29 @@ export default function NewTripClientPage() {
     }
   }, [canRoute, draft, styleId, navPack, bundle, router]);
 
+  /* ── Go Now: online-only instant navigation (no bundle, no save) ──── */
+
+  const goNow = useCallback(async () => {
+    if (!canRoute) return;
+    setGoingNow(true);
+    setRouteError(null);
+    try {
+      const pack = navPack ?? await navApi.route({
+        profile: draft.profile,
+        prefs: draft.prefs,
+        avoid: draft.avoid,
+        stops: draft.stops,
+        depart_at: draft.depart_at ?? null,
+      });
+      // Store NavPack in sessionStorage for the /live page to pick up
+      sessionStorage.setItem("roam_live_navpack", JSON.stringify(pack));
+      router.replace("/live");
+    } catch (e: unknown) {
+      setRouteError(e instanceof Error ? e.message : "Failed to get route");
+      setGoingNow(false);
+    }
+  }, [canRoute, navPack, draft, router]);
+
   /* ── Render ────────────────────────────────────────────────────────── */
 
   return (
@@ -236,6 +262,8 @@ export default function NewTripClientPage() {
         canBuildRoute={canRoute}
         routing={routing}
         error={routeError}
+        onGoNow={goNow}
+        goingNow={goingNow}
         onBuildOffline={saveTripOfflineReady}
         onDownloadOffline={() => {}}
         onSaveOffline={() => {}}

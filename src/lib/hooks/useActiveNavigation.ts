@@ -21,6 +21,7 @@ import {
   speak,
   cancelSpeech,
   speakFatigueWarning,
+  initVoice,
 } from "@/lib/nav/voice";
 import {
   updateFatigue,
@@ -33,6 +34,7 @@ import {
 } from "@/lib/native/backgroundLocation";
 import { haptic } from "@/lib/native/haptics";
 import { decodePolyline6 } from "@/lib/nav/polyline6";
+import { type GpsSmoother, createGpsSmoother, smoothPosition } from "@/lib/nav/gpsSmooth";
 import type { NavPack } from "@/lib/types/navigation";
 import type { RoamPosition } from "@/lib/native/geolocation";
 
@@ -76,6 +78,7 @@ export function useActiveNavigation(
   useEffect(() => { navRef.current = nav; }, [nav]);
   const voiceRef = useRef<VoiceState>(initialVoiceState());
   const lastTickRef = useRef<number>(0);
+  const gpsSmootherRef = useRef<GpsSmoother>(createGpsSmoother());
   const navpackRef = useRef(navpack);
   useEffect(() => { navpackRef.current = navpack; }, [navpack]);
   const configRef = useRef(config);
@@ -113,20 +116,25 @@ export function useActiveNavigation(
 
   // ── GPS tick handler ──
   const handlePosition = useCallback((pos: RoamPosition) => {
-    setLastPosition(pos);
+    // Apply Kalman smoothing before any processing
+    const { smoothed, smoother } = smoothPosition(gpsSmootherRef.current, pos);
+    gpsSmootherRef.current = smoother;
+
+    // Expose smoothed position for map rendering (smooth puck)
+    setLastPosition(smoothed);
 
     const currentNav = navRef.current;
     const currentNavpack = navpackRef.current;
     if (!currentNavpack || currentNav.status === "idle") return;
 
-    const now = pos.timestamp || Date.now();
+    const now = smoothed.timestamp || Date.now();
     const dt_s = lastTickRef.current > 0 ? (now - lastTickRef.current) / 1000 : 1;
     lastTickRef.current = now;
 
-    // 1. Update navigation state
+    // 1. Update navigation state using smoothed position
     const newNav = updateActiveNav(
       currentNav,
-      pos,
+      smoothed,
       currentNavpack,
       flatStepsRef.current,
       routeDataRef.current.pts,
@@ -136,7 +144,7 @@ export function useActiveNavigation(
 
     // 2. Update fatigue
     const prevFatigue = currentNav.fatigue;
-    const newFatigue = updateFatigue(prevFatigue, pos.speed, dt_s);
+    const newFatigue = updateFatigue(prevFatigue, smoothed.speed, dt_s);
     newNav.fatigue = newFatigue;
 
     // 3. Check for fatigue escalation → voice + haptic
@@ -174,11 +182,15 @@ export function useActiveNavigation(
     if (!navpackRef.current) return;
     if (isBackgroundTracking()) return;
 
+    // Pre-load TTS voice so first announcement isn't delayed
+    initVoice();
+
     // Initialize navigation state
     const initial = startNavigation(navpackRef.current);
     setNav(initial);
     navRef.current = initial;
     voiceRef.current = initialVoiceState();
+    gpsSmootherRef.current = createGpsSmoother();
     lastTickRef.current = 0;
 
     // Start GPS

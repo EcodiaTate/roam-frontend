@@ -61,8 +61,10 @@ export async function startBackgroundTracking(
     watchId = await Geolocation.watchPosition(
       {
         enableHighAccuracy: true,
-        timeout: 10000,
+        // Always request fresh GPS — no cached positions
         maximumAge: 0,
+        // Timeout per fix — increase so weak signal areas don't fail immediately
+        timeout: 15000,
       },
       (position, err) => {
         if (err) {

@@ -10,6 +10,7 @@ import { hideKeyboard } from "@/lib/native/keyboard";
 import { useRouter } from "next/navigation";
 import {
   Rocket,
+  Compass,
   Route,
   Map,
   MapPin,
@@ -398,6 +399,8 @@ export function StopsEditor(props: {
   error: string | null;
 
   onBuildOffline: () => void;
+  onGoNow: () => void;
+  goingNow: boolean;
 
   onDownloadOffline: () => void;
   onSaveOffline: () => void;
@@ -580,22 +583,36 @@ export function StopsEditor(props: {
               </button>
 
               {props.unlocked ? (
-                <div
+                <button
+                  type="button"
+                  aria-label="Roam Untethered — view your plan"
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={() => { haptic.selection(); router.push("/untethered"); }}
                   style={{
-                    display: "flex", alignItems: "center", gap: 5,
-                    background: "linear-gradient(135deg, var(--brand-ochre, #b5452e) 0%, #d4664a 100%)",
-                    borderRadius: 999, padding: "6px 14px",
-                    height: 40, border: "none", cursor: "pointer",
-                    boxShadow: "0 2px 8px rgba(181,69,46,0.25)",
+                    position: "relative",
+                    display: "flex", alignItems: "center", gap: 6,
+                    background: "linear-gradient(135deg, #5c1a0e 0%, var(--brand-ochre, #b5452e) 40%, #d4664a 70%, #e8956a 100%)",
+                    borderRadius: 999, padding: "0 16px",
+                    height: 40, border: "1px solid rgba(255,255,255,0.15)", cursor: "pointer",
+                    boxShadow: "0 2px 12px rgba(181,69,46,0.40), 0 1px 3px rgba(181,69,46,0.20), inset 0 1px 0 rgba(255,255,255,0.12)",
+                    overflow: "hidden",
+                    WebkitTapHighlightColor: "transparent",
                   }}
-                  title="Roam Untethered"
                 >
-                  <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                  {/* Shimmer sweep */}
+                  <div style={{
+                    position: "absolute", inset: 0,
+                    background: "linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.14) 50%, transparent 70%)",
+                    borderRadius: "inherit",
+                    pointerEvents: "none",
+                  }} />
+                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0, position: "relative" }}>
+                    <path d="M6 1L7.5 4.5H11L8.25 6.75L9.25 10.5L6 8.5L2.75 10.5L3.75 6.75L1 4.5H4.5L6 1Z" fill="rgba(255,255,255,0.95)" />
+                  </svg>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", letterSpacing: "0.06em", textTransform: "uppercase", position: "relative" }}>
                     Untethered
                   </span>
-                </div>
+                </button>
               ) : props.unlocked === false ? (
                 <button
                   type="button"
@@ -604,15 +621,27 @@ export function StopsEditor(props: {
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={() => { haptic.selection(); props.onUpgrade?.(); }}
                   style={{
-                    display: "flex", alignItems: "center", gap: 5,
-                    background: "linear-gradient(135deg, var(--brand-eucalypt-dark, #1f5236) 0%, var(--brand-eucalypt, #2d6e40) 100%)",
-                    borderRadius: 999, padding: "6px 12px",
-                    height: 40, border: "none", cursor: "pointer",
+                    position: "relative",
+                    display: "flex", alignItems: "center", gap: 6,
+                    background: "linear-gradient(135deg, #122d1e 0%, var(--brand-eucalypt-dark, #1f5236) 40%, var(--brand-eucalypt, #2d6e40) 80%, #3d8f54 100%)",
+                    borderRadius: 999, padding: "0 14px",
+                    height: 40, border: "1px solid rgba(255,255,255,0.12)", cursor: "pointer",
+                    boxShadow: "0 2px 12px rgba(31,82,54,0.45), 0 1px 3px rgba(31,82,54,0.20), inset 0 1px 0 rgba(255,255,255,0.10)",
+                    overflow: "hidden",
+                    WebkitTapHighlightColor: "transparent",
                   }}
                 >
-                  <span style={{ fontSize: 12, fontWeight: 800, color: "#fff", letterSpacing: "0.02em" }}>
+                  <div style={{
+                    position: "absolute", inset: 0,
+                    background: "linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.10) 50%, transparent 70%)",
+                    borderRadius: "inherit", pointerEvents: "none",
+                  }} />
+                  <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", letterSpacing: "0.06em", textTransform: "uppercase", position: "relative" }}>
                     Upgrade
                   </span>
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ flexShrink: 0, position: "relative" }}>
+                    <path d="M2 5h6M5.5 2.5L8 5l-2.5 2.5" stroke="rgba(255,255,255,0.85)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
                 </button>
               ) : null}
             </div>
@@ -620,7 +649,7 @@ export function StopsEditor(props: {
         </div>
 
         {/* CONTENT: either editor or build progress */}
-        <div className="trip-sheet-content">
+        <div className="trip-sheet-content" style={{ paddingBottom: "calc(var(--bottom-nav-height, 80px) + 120px)" }}>
           {isBuilding ? (
             <BuildProgressView
               phase={props.offlinePhase as OfflineBuildPhase}
@@ -666,18 +695,8 @@ export function StopsEditor(props: {
                 ))}
               </div>
 
-              <div className="trip-actions" style={{ gridTemplateColumns: "1fr 1fr", marginTop: 8 }}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    haptic.tap();
-                    props.onAddStop("poi");
-                  }}
-                  className="trip-interactive trip-btn trip-btn-secondary"
-                >
-                  + Add Stop
-                </button>
-
+              <div className="trip-actions" style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
+                {/* Start Roaming — full offline bundle, the hero action */}
                 <button
                   type="button"
                   onClick={() => {
@@ -687,12 +706,93 @@ export function StopsEditor(props: {
                     props.onBuildOffline();
                   }}
                   disabled={!canSave}
-                  className="trip-interactive trip-btn trip-btn-primary"
-                  style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+                  className="trip-interactive"
+                  style={{
+                    position: "relative",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                    width: "100%",
+                    padding: "16px 24px",
+                    borderRadius: 16,
+                    border: "1px solid rgba(255,255,255,0.15)",
+                    background: "linear-gradient(135deg, #5c1a0e 0%, var(--brand-ochre, #b5452e) 40%, #d4664a 70%, #e8956a 100%)",
+                    color: "#fff",
+                    fontSize: 16,
+                    fontWeight: 900,
+                    letterSpacing: "-0.2px",
+                    cursor: canSave ? "pointer" : "default",
+                    opacity: canSave ? 1 : 0.45,
+                    boxShadow: "0 4px 20px rgba(181,69,46,0.45), 0 2px 6px rgba(181,69,46,0.25), inset 0 1px 0 rgba(255,255,255,0.12)",
+                    overflow: "hidden",
+                    WebkitTapHighlightColor: "transparent",
+                    transition: "opacity 0.2s, transform 0.15s",
+                  }}
                 >
-                  <Rocket size={16} />
-                  Let&apos;s do it
+                  {/* Shimmer sweep */}
+                  <div style={{
+                    position: "absolute", inset: 0,
+                    background: "linear-gradient(105deg, transparent 25%, rgba(255,255,255,0.08) 45%, rgba(255,255,255,0.14) 50%, rgba(255,255,255,0.08) 55%, transparent 75%)",
+                    borderRadius: "inherit", pointerEvents: "none",
+                  }} />
+                  <Compass size={18} style={{ position: "relative", flexShrink: 0 }} />
+                  <span style={{ position: "relative" }}>Start Roaming</span>
                 </button>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      haptic.tap();
+                      props.onAddStop("poi");
+                    }}
+                    className="trip-interactive"
+                    style={{
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      padding: "10px 14px",
+                      borderRadius: "var(--r-btn, 14px)",
+                      border: "none",
+                      background: "var(--brand-eucalypt, #2d6e40)",
+                      color: "#fff",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      WebkitTapHighlightColor: "transparent",
+                    }}
+                  >
+                    + Add Stop
+                  </button>
+
+                  {/* Quick Trip — online-only, instant nav */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      haptic.medium();
+                      hideKeyboard();
+                      props.onGoNow();
+                    }}
+                    disabled={!props.canBuildRoute || props.goingNow}
+                    className="trip-interactive"
+                    style={{
+                      display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+                      padding: "10px 14px",
+                      borderRadius: "var(--r-btn, 14px)",
+                      border: "none",
+                      background: "var(--brand-eucalypt, #2d6e40)",
+                      color: "#fff",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: (props.canBuildRoute && !props.goingNow) ? "pointer" : "default",
+                      opacity: (props.canBuildRoute && !props.goingNow) ? 1 : 0.45,
+                      WebkitTapHighlightColor: "transparent",
+                    }}
+                  >
+                    {props.goingNow ? (
+                      <Loader2 size={14} style={{ animation: "roam-spin 0.8s linear infinite" }} />
+                    ) : (
+                      <Route size={14} />
+                    )}
+                    {props.goingNow ? "Loading…" : "Quick Trip"}
+                  </button>
+                </div>
               </div>
 
               {props.error && <div className="trip-err-box">{props.error}</div>}

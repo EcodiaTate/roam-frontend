@@ -1148,20 +1148,35 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
               </button>
 
               {unlocked ? (
-                <div
+                <button
+                  type="button"
+                  className="trip-interactive"
                   style={{
-                    display: "flex", alignItems: "center", gap: 5,
-                    background: "linear-gradient(135deg, var(--brand-ochre, #b5452e) 0%, #d4664a 100%)",
-                    borderRadius: 999, padding: "6px 14px",
-                    height: 40, border: "none", cursor: "pointer",
-                    boxShadow: "0 2px 8px rgba(181,69,46,0.25)",
+                    position: "relative",
+                    display: "flex", alignItems: "center", gap: 6,
+                    background: "linear-gradient(135deg, #5c1a0e 0%, var(--brand-ochre, #b5452e) 40%, #d4664a 80%, #e8956a 100%)",
+                    borderRadius: 999, padding: "0 14px",
+                    height: 40, border: "1px solid rgba(255,255,255,0.15)", cursor: "pointer",
+                    boxShadow: "0 2px 12px rgba(181,69,46,0.45), 0 1px 3px rgba(181,69,46,0.20), inset 0 1px 0 rgba(255,255,255,0.12)",
+                    overflow: "hidden",
+                    WebkitTapHighlightColor: "transparent",
                   }}
                   title="Roam Untethered"
                 >
-                  <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                  {/* Shimmer sweep */}
+                  <div style={{
+                    position: "absolute", inset: 0,
+                    background: "linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.14) 50%, transparent 70%)",
+                    borderRadius: "inherit",
+                    pointerEvents: "none",
+                  }} />
+                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0, position: "relative" }}>
+                    <path d="M6 1L7.5 4.5H11L8.25 6.75L9.25 10.5L6 8.5L2.75 10.5L3.75 6.75L1 4.5H4.5L6 1Z" fill="rgba(255,255,255,0.95)" />
+                  </svg>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", letterSpacing: "0.06em", textTransform: "uppercase", position: "relative" }}>
                     Untethered
                   </span>
-                </div>
+                </button>
               ) : unlocked === false ? (
                 <button
                   type="button"
@@ -1169,15 +1184,27 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
                   aria-label="Upgrade to Roam Untethered"
                   onClick={() => { haptic.selection(); setPaywallVariant("upgrade"); setPaywallOpen(true); }}
                   style={{
-                    display: "flex", alignItems: "center", gap: 5,
-                    background: "linear-gradient(135deg, var(--brand-eucalypt-dark, #1f5236) 0%, var(--brand-eucalypt, #2d6e40) 100%)",
-                    borderRadius: 999, padding: "6px 12px",
-                    height: 40,
+                    position: "relative",
+                    display: "flex", alignItems: "center", gap: 6,
+                    background: "linear-gradient(135deg, #122d1e 0%, var(--brand-eucalypt-dark, #1f5236) 40%, var(--brand-eucalypt, #2d6e40) 80%, #3d8f54 100%)",
+                    borderRadius: 999, padding: "0 14px",
+                    height: 40, border: "1px solid rgba(255,255,255,0.12)", cursor: "pointer",
+                    boxShadow: "0 2px 12px rgba(31,82,54,0.45), 0 1px 3px rgba(31,82,54,0.20), inset 0 1px 0 rgba(255,255,255,0.10)",
+                    overflow: "hidden",
+                    WebkitTapHighlightColor: "transparent",
                   }}
                 >
-                  <span style={{ fontSize: 12, fontWeight: 800, color: "#fff", letterSpacing: "0.02em" }}>
+                  <div style={{
+                    position: "absolute", inset: 0,
+                    background: "linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.10) 50%, transparent 70%)",
+                    borderRadius: "inherit", pointerEvents: "none",
+                  }} />
+                  <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", letterSpacing: "0.06em", textTransform: "uppercase", position: "relative" }}>
                     Upgrade
                   </span>
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ flexShrink: 0, position: "relative" }}>
+                    <path d="M2 5h6M5.5 2.5L8 5l-2.5 2.5" stroke="rgba(255,255,255,0.85)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
                 </button>
               ) : null}
             </div>
@@ -1192,7 +1219,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
             style={{
               height: "100%",
               overflowY: "auto",
-              padding: "0 20px calc(var(--bottom-nav-height) + 20px)",
+              padding: "0 20px calc(var(--bottom-nav-height) + 120px)",
             }}
           >
             {/* ── Start Navigation button (shown when NOT actively navigating) ── */}

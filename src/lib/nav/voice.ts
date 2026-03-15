@@ -183,15 +183,91 @@ export function applyAnnouncement(voice: VoiceState, ann: Announcement): VoiceSt
 }
 
 // ──────────────────────────────────────────────────────────────
-// TTS wrapper
+// TTS wrapper — smart voice selection + Web Speech API
 // ──────────────────────────────────────────────────────────────
 
+/** Cached best voice (populated once voices load). */
+let _selectedVoice: SpeechSynthesisVoice | null = null;
+let _voiceLoaded = false;
+
 /**
- * Speak text using Web Speech API.
- * Works on both web and Capacitor (iOS/Android WebView).
- *
- * For production, consider @capacitor-community/text-to-speech
- * for native TTS with better voices and background support.
+ * Priority-ranked voice preference patterns.
+ * Tries each in order; uses the first voice whose name matches.
+ * Designed to avoid robotic default voices and pick enhanced/neural ones.
+ */
+const VOICE_PREFERENCES: Array<{ lang: RegExp; name?: RegExp; localService?: boolean }> = [
+  // iOS enhanced English voices (highest quality on device)
+  { lang: /en[-_](AU|GB|US)/i, name: /Siri|Enhanced|Premium/i },
+  // iOS/macOS "Samantha" (Enhanced) is the best bundled natural AU/US voice
+  { lang: /en[-_](AU|GB|US)/i, name: /Samantha/i },
+  // Android high-quality TTS
+  { lang: /en[-_](AU|GB|US)/i, name: /Google/i },
+  // Any local English AU voice
+  { lang: /en[-_]AU/i },
+  // Any local English GB voice (next best accent match)
+  { lang: /en[-_]GB/i },
+  // Any local English US voice
+  { lang: /en[-_]US/i },
+  // Any English local service voice
+  { lang: /en/i, localService: true },
+  // Last resort: any English voice at all
+  { lang: /en/i },
+];
+
+function pickBestVoice(): SpeechSynthesisVoice | null {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
+  const voices = window.speechSynthesis.getVoices();
+  if (voices.length === 0) return null;
+
+  for (const pref of VOICE_PREFERENCES) {
+    const match = voices.find((v) => {
+      if (!pref.lang.test(v.lang)) return false;
+      if (pref.name && !pref.name.test(v.name)) return false;
+      if (pref.localService !== undefined && v.localService !== pref.localService) return false;
+      return true;
+    });
+    if (match) return match;
+  }
+
+  // Absolute fallback: first available voice
+  return voices[0] ?? null;
+}
+
+/**
+ * Eagerly load voices and select the best one.
+ * Call this once when the app initializes (before first nav tick).
+ * The Web Speech API loads voices asynchronously on first call.
+ */
+export function initVoice(): void {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+  if (_voiceLoaded) return;
+
+  const tryLoad = () => {
+    const voice = pickBestVoice();
+    if (voice) {
+      _selectedVoice = voice;
+      _voiceLoaded = true;
+    }
+  };
+
+  tryLoad();
+
+  // Chrome/Android fires onvoiceschanged when async list is ready
+  if (!_voiceLoaded) {
+    window.speechSynthesis.onvoiceschanged = () => {
+      tryLoad();
+      // Also fix the iOS/Android WebView bug where speechSynthesis freezes after ~30s
+      // by pre-warming with a silent utterance
+      if (_voiceLoaded) {
+        window.speechSynthesis.onvoiceschanged = null;
+      }
+    };
+  }
+}
+
+/**
+ * Speak text using Web Speech API with the best available voice.
+ * Handles the iOS WebView 30-second freeze bug by cancelling + resuming.
  */
 export function speak(
   text: string,
@@ -200,12 +276,30 @@ export function speak(
   if (typeof window === "undefined") return;
   if (!("speechSynthesis" in window)) return;
 
+  // Ensure voices are loaded
+  if (!_voiceLoaded) initVoice();
+
+  // iOS WebView bug: speechSynthesis can get stuck. Resume before speaking.
+  if (window.speechSynthesis.paused) {
+    window.speechSynthesis.resume();
+  }
+
   const u = new SpeechSynthesisUtterance(text);
-  u.lang = options?.lang ?? "en-AU";
-  u.rate = options?.rate ?? 1.0;
+
+  // Apply best voice if found
+  if (_selectedVoice) {
+    u.voice = _selectedVoice;
+    u.lang = _selectedVoice.lang;
+  } else {
+    u.lang = options?.lang ?? "en-AU";
+  }
+
+  // Slightly slower rate sounds more natural and easier to understand while driving
+  u.rate = options?.rate ?? 0.95;
+  u.pitch = 1.0;
   u.volume = 1.0;
 
-  // Cancel any in-progress speech before starting new
+  // Cancel in-progress speech then speak
   window.speechSynthesis.cancel();
   window.speechSynthesis.speak(u);
 }

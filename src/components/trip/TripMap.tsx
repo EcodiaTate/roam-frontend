@@ -1960,16 +1960,18 @@ export function TripMap(props: Props) {
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
+    if (props.navigationMode) return; // camera controlled by useMapNavigationMode
     const id = props.focusedStopId ?? null;
     if (!id) return;
     const s = (props.stops ?? []).find((x) => String(x.id) === String(id));
     if (s) easeToCoord(map, [s.lng, s.lat], { zoom: Math.max(map.getZoom(), 12), duration: 420 });
-  }, [props.focusedStopId, props.stops]);
+  }, [props.focusedStopId, props.stops, props.navigationMode]);
 
   /* ── Focus suggestion → zoom/focus/popup/highlight ────────────────── */
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
+    if (props.navigationMode) return; // camera controlled by useMapNavigationMode
 
     const emptyFC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
     const id = props.focusedSuggestionId ?? null;
@@ -2189,7 +2191,8 @@ export function TripMap(props: Props) {
   useEffect(() => {
        const map = mapRef.current;
        if (!map) return;
-       if (props.mapInstanceRef) props.mapInstanceRef.current = null;
+       // Keep mapInstanceRef populated so useMapNavigationMode can control the camera
+       if (props.mapInstanceRef) props.mapInstanceRef.current = map;
        if (props.navigationMode) return; // camera controlled by useMapNavigationMode
        if (props.focusedSuggestionId) return; // camera controlled by focus effect
        try {

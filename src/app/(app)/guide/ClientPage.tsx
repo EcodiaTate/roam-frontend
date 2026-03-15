@@ -410,7 +410,7 @@ export default function GuideClientPage(props: {
           position: "sticky",
           top: 0,
           zIndex: 50,
-          padding: "16px 16px 12px",
+          padding: "8px 16px 6px",
           background: "var(--roam-bg)",
         }}
       >
@@ -589,7 +589,7 @@ export default function GuideClientPage(props: {
       <div
         style={{
           padding: "0 16px",
-          paddingBottom: "calc(var(--bottom-nav-height, 80px) + 24px)",
+          paddingBottom: "calc(var(--bottom-nav-height, 80px) + 40px)",
         }}
       >
         <GuideView

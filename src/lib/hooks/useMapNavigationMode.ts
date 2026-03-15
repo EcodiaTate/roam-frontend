@@ -1,4 +1,10 @@
 // src/hooks/useMapNavigationMode.ts
+//
+// Controls the MapLibre camera during active navigation.
+//   - Heading-up 3D tracking with adaptive zoom
+//   - Lookahead offset (user puck at bottom, road ahead visible)
+//   - Smooth entry/exit transitions that can't be interrupted by tracking
+//   - Manual pan detection with auto-resume
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -11,13 +17,9 @@ import type { BBox4 } from "@/lib/types/geo";
 // ──────────────────────────────────────────────────────────────
 
 export type MapNavMode = {
-  /** Enable/disable navigation camera tracking */
   setActive: (active: boolean) => void;
-  /** Zoom out to see full route bbox */
   showOverview: () => void;
-  /** Re-center on user and resume tracking */
   recenter: () => void;
-  /** Whether camera is currently in user-tracking mode (vs overview/manual) */
   isTracking: boolean;
 };
 
@@ -32,201 +34,314 @@ type Opts = {
 // Constants
 // ──────────────────────────────────────────────────────────────
 
-/** Zoom level during navigation tracking */
 const NAV_ZOOM = 16;
-/** Pitch for the slight 3D effect during nav */
 const NAV_PITCH = 50;
-/** Duration for smooth camera easing (ms) */
-const EASE_DURATION = 600;
-/** Fast ease for position updates (ms) */
-const TRACK_DURATION = 1000;
-/** If user manually pans, pause tracking for this long (ms) */
+const ENTRY_MS = 1200;
+const EXIT_MS = 1000;
+const RECENTER_MS = 800;
+const OVERVIEW_MS = 800;
+const TRACK_EASE_MS = 900;
+const JUMP_THRESHOLD_M = 3;
 const MANUAL_PAN_COOLDOWN_MS = 8000;
+const LOOKAHEAD_FRACTION = 0.28;
+
+// ──────────────────────────────────────────────────────────────
+// Helpers
+// ──────────────────────────────────────────────────────────────
+
+const DEG = Math.PI / 180;
+function haversineM(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const dLat = (lat2 - lat1) * DEG;
+  const dLng = (lng2 - lng1) * DEG;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * DEG) * Math.cos(lat2 * DEG) * Math.sin(dLng / 2) ** 2;
+  return 6_371_000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function getLookaheadPadding(map: MLMap) {
+  const h = map.getCanvas()?.clientHeight ?? 600;
+  return { top: 0, bottom: Math.round(h * LOOKAHEAD_FRACTION), left: 0, right: 0 };
+}
+
+function adaptiveZoom(speed: number | null): number {
+  if (speed == null) return NAV_ZOOM;
+  const kph = speed * 3.6;
+  if (kph > 110) return 13.5;
+  if (kph > 80) return 14.0;
+  if (kph > 50) return 14.8;
+  if (kph > 20) return 15.5;
+  return NAV_ZOOM;
+}
+
+function userBearing(pos: RoamPosition, fallback: number): number {
+  if (pos.heading != null && pos.speed != null && pos.speed > 1) return pos.heading;
+  return fallback;
+}
+
+/** Smooth ease-out-cubic curve */
+const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
 
 // ──────────────────────────────────────────────────────────────
 // Hook
 // ──────────────────────────────────────────────────────────────
 
 export function useMapNavigationMode({ mapRef, position, active, bbox }: Opts): MapNavMode {
-  const isTrackingRef = useRef(true);
   const [isTracking, setIsTracking] = useState(true);
-  const lastManualInteraction = useRef(0);
+  const isTrackingRef = useRef(true);
+  const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastCameraPosRef = useRef<{ lat: number; lng: number } | null>(null);
   const isActiveRef = useRef(active);
-  useEffect(() => { isActiveRef.current = active; }, [active]);
+  const positionRef = useRef(position);
+  const hasEnteredRef = useRef(false);
 
-  // ── Detect user manual interaction → pause tracking ──
+  // ── Transition lock ──
+  // While a big camera animation (entry/exit/recenter/overview) is in progress,
+  // the per-tick tracking effect must NOT fire or it will cancel the animation
+  // and cause a snap/jump.
+  const transitionLockRef = useRef(false);
+  const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /** Lock tracking for `ms` milliseconds (duration of a transition animation). */
+  function lockTracking(ms: number) {
+    transitionLockRef.current = true;
+    if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
+    transitionTimerRef.current = setTimeout(() => {
+      transitionLockRef.current = false;
+      transitionTimerRef.current = null;
+    }, ms);
+  }
+
+  useEffect(() => { isActiveRef.current = active; }, [active]);
+  useEffect(() => { positionRef.current = position; }, [position]);
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
+      if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
+    };
+  }, []);
+
+  // ── Manual pan detection ──
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !active) return;
 
     const onMoveStart = (e: { originalEvent?: Event }) => {
-      // If the move was triggered programmatically (by us), ignore
-      if (e.originalEvent) {
-        // User-initiated pan/zoom/rotate
-        lastManualInteraction.current = Date.now();
-        isTrackingRef.current = false;
-        setIsTracking(false);
-      }
+      if (!e.originalEvent) return;
+
+      isTrackingRef.current = false;
+      setIsTracking(false);
+
+      if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
+      cooldownTimerRef.current = setTimeout(() => {
+        cooldownTimerRef.current = null;
+        if (isActiveRef.current) {
+          isTrackingRef.current = true;
+          setIsTracking(true);
+        }
+      }, MANUAL_PAN_COOLDOWN_MS);
     };
 
     map.on("movestart", onMoveStart);
     return () => {
       map.off("movestart", onMoveStart);
+      if (cooldownTimerRef.current) {
+        clearTimeout(cooldownTimerRef.current);
+        cooldownTimerRef.current = null;
+      }
     };
   }, [mapRef, active]);
 
-  // ── Enter/exit navigation camera mode ──
+  // ── Enter / exit navigation mode ──
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
     if (active) {
-      // Enter nav mode: set pitch, disable compass rotation
-      map.easeTo({
-        pitch: NAV_PITCH,
-        duration: EASE_DURATION,
-      });
+      hasEnteredRef.current = false;
       isTrackingRef.current = true;
-    } else {
-      // Exit nav mode: reset to flat, north-up
-      map.easeTo({
-        pitch: 0,
-        bearing: 0,
-        duration: EASE_DURATION,
-      });
-      isTrackingRef.current = false;
+      setIsTracking(true);
+      lastCameraPosRef.current = null;
 
-      // Refit to route bbox
+      const pos = positionRef.current;
+      if (pos) {
+        hasEnteredRef.current = true;
+        lockTracking(ENTRY_MS + 100);
+        map.flyTo({
+          center: [pos.lng, pos.lat],
+          bearing: userBearing(pos, 0),
+          zoom: NAV_ZOOM,
+          pitch: NAV_PITCH,
+          padding: getLookaheadPadding(map),
+          duration: ENTRY_MS,
+          curve: 1.2,
+          easing: easeOut,
+        });
+      }
+      // If no position yet, the tracking effect will handle entry
+      // once the first GPS fix arrives.
+    } else {
+      // ── Exit nav mode ──
+      hasEnteredRef.current = false;
+      if (cooldownTimerRef.current) {
+        clearTimeout(cooldownTimerRef.current);
+        cooldownTimerRef.current = null;
+      }
+      isTrackingRef.current = false;
+      setIsTracking(false);
+      lastCameraPosRef.current = null;
+
+      lockTracking(EXIT_MS + 100);
+
       if (bbox) {
-        setTimeout(() => {
-          try {
-            map.fitBounds(
-              [
-                [bbox.minLng, bbox.minLat],
-                [bbox.maxLng, bbox.maxLat],
-              ],
-              { padding: 60, duration: EASE_DURATION },
-            );
-          } catch {}
-        }, EASE_DURATION + 50);
+        // fitBounds with linear:false uses flyTo internally → single smooth arc
+        // that handles zoom, center, pitch, and bearing all at once.
+        try {
+          map.fitBounds(
+            [[bbox.minLng, bbox.minLat], [bbox.maxLng, bbox.maxLat]],
+            {
+              padding: 60,
+              pitch: 0,
+              bearing: 0,
+              duration: EXIT_MS,
+              linear: false,
+              curve: 1.5,
+              easing: easeOut,
+            },
+          );
+        } catch {}
+      } else {
+        map.flyTo({
+          pitch: 0,
+          bearing: 0,
+          padding: { top: 0, bottom: 0, left: 0, right: 0 },
+          duration: EXIT_MS,
+          easing: easeOut,
+        });
       }
     }
   }, [mapRef, active, bbox]);
 
-  // ── Track user position ──
+  // ── Continuous position tracking ──
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !active || !position) return;
 
-    // If user manually panned, wait for cooldown
-    const timeSinceManual = Date.now() - lastManualInteraction.current;
-    if (timeSinceManual < MANUAL_PAN_COOLDOWN_MS) {
-      // Still in manual mode - just update the user-is-tracking flag
-      // After cooldown expires, we'll resume tracking
-      const remaining = MANUAL_PAN_COOLDOWN_MS - timeSinceManual;
-      const timer = setTimeout(() => {
-        isTrackingRef.current = true;
-        setIsTracking(true);
-      }, remaining);
-      return () => clearTimeout(timer);
-    }
+    // Don't interrupt a transition animation
+    if (transitionLockRef.current) return;
 
-    if (!isTrackingRef.current) {
+    // Deferred entry: position arrived after active=true was set
+    if (!hasEnteredRef.current) {
+      hasEnteredRef.current = true;
       isTrackingRef.current = true;
+      setIsTracking(true);
+      lockTracking(ENTRY_MS + 100);
+
+      map.flyTo({
+        center: [position.lng, position.lat],
+        bearing: userBearing(position, 0),
+        zoom: NAV_ZOOM,
+        pitch: NAV_PITCH,
+        padding: getLookaheadPadding(map),
+        duration: ENTRY_MS,
+        curve: 1.2,
+        easing: easeOut,
+      });
+      lastCameraPosRef.current = { lat: position.lat, lng: position.lng };
+      return;
     }
 
-    // Compute bearing from heading (if available and moving)
-    const bearing = position.heading != null && position.speed != null && position.speed > 1
-      ? position.heading
-      : map.getBearing(); // keep current bearing if stationary
+    // Skip during manual pan cooldown
+    if (!isTrackingRef.current) return;
 
-    // Adaptive zoom: zoom out slightly at high speed
-    let zoom = NAV_ZOOM;
-    if (position.speed != null) {
-      const kph = position.speed * 3.6;
-      if (kph > 110) zoom = 14;
-      else if (kph > 80) zoom = 14.5;
-      else if (kph > 50) zoom = 15;
-      else if (kph > 20) zoom = 15.5;
-    }
+    const bearing = userBearing(position, map.getBearing());
+    const zoom = adaptiveZoom(position.speed);
+    const padding = getLookaheadPadding(map);
 
-    // Offset center slightly below screen center so the route ahead is more visible
-    // In heading-up mode with pitch, the camera naturally shows more ahead
+    const last = lastCameraPosRef.current;
+    const distM = last ? haversineM(last.lat, last.lng, position.lat, position.lng) : Infinity;
+    lastCameraPosRef.current = { lat: position.lat, lng: position.lng };
+
+    const duration = distM < JUMP_THRESHOLD_M ? 200 : TRACK_EASE_MS;
+
     map.easeTo({
       center: [position.lng, position.lat],
       bearing,
       zoom,
       pitch: NAV_PITCH,
-      duration: TRACK_DURATION,
-      easing: (t: number) => t, // linear for smooth tracking
+      padding,
+      duration,
+      easing: (t) => t,
     });
   }, [mapRef, active, position]);
 
-  // ── Overview: zoom out to full route ──
+  // ── Overview ──
   const showOverview = useCallback(() => {
     const map = mapRef.current;
     if (!map || !bbox) return;
 
+    if (cooldownTimerRef.current) {
+      clearTimeout(cooldownTimerRef.current);
+      cooldownTimerRef.current = null;
+    }
     isTrackingRef.current = false;
     setIsTracking(false);
-    lastManualInteraction.current = Date.now();
 
-    map.easeTo({ pitch: 0, bearing: 0, duration: EASE_DURATION / 2 });
+    lockTracking(OVERVIEW_MS + 100);
 
-    setTimeout(() => {
-      try {
-        map.fitBounds(
-          [
-            [bbox.minLng, bbox.minLat],
-            [bbox.maxLng, bbox.maxLat],
-          ],
-          { padding: 60, duration: EASE_DURATION },
-        );
-      } catch {}
-    }, EASE_DURATION / 2 + 50);
+    try {
+      map.fitBounds(
+        [[bbox.minLng, bbox.minLat], [bbox.maxLng, bbox.maxLat]],
+        {
+          padding: 60,
+          pitch: 0,
+          bearing: 0,
+          duration: OVERVIEW_MS,
+          linear: false,
+          curve: 1.5,
+          easing: easeOut,
+        },
+      );
+    } catch {}
   }, [mapRef, bbox]);
 
-  // ── Recenter: snap back to user ──
+  // ── Recenter ──
   const recenter = useCallback(() => {
     const map = mapRef.current;
-    if (!map || !position) return;
+    if (!map) return;
+    const pos = positionRef.current;
+    if (!pos) return;
 
-    lastManualInteraction.current = 0;
+    if (cooldownTimerRef.current) {
+      clearTimeout(cooldownTimerRef.current);
+      cooldownTimerRef.current = null;
+    }
+
     isTrackingRef.current = true;
     setIsTracking(true);
+    lastCameraPosRef.current = null;
 
-    const bearing =
-      position.heading != null && position.speed != null && position.speed > 1
-        ? position.heading
-        : 0;
+    lockTracking(RECENTER_MS + 100);
 
-    map.easeTo({
-      center: [position.lng, position.lat],
-      bearing,
+    map.flyTo({
+      center: [pos.lng, pos.lat],
+      bearing: userBearing(pos, 0),
       zoom: NAV_ZOOM,
       pitch: NAV_PITCH,
-      duration: EASE_DURATION,
+      padding: getLookaheadPadding(map),
+      duration: RECENTER_MS,
+      curve: 1.2,
+      easing: easeOut,
     });
-  }, [mapRef, position]);
+  }, [mapRef]);
 
   // ── Imperative activation ──
-  const setActive = useCallback(
-    (a: boolean) => {
-      // This is handled by the active prop reactively,
-      // but exposed for programmatic control if needed
-      isTrackingRef.current = a;
-      setIsTracking(a);
-      if (a && position) {
-        recenter();
-      }
-    },
-    [recenter, position],
-  );
+  const setActive = useCallback((a: boolean) => {
+    isTrackingRef.current = a;
+    setIsTracking(a);
+    if (a) recenter();
+  }, [recenter]);
 
-  return {
-    setActive,
-    showOverview,
-    recenter,
-    isTracking,
-  };
+  return { setActive, showOverview, recenter, isTracking };
 }

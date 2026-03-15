@@ -1,7 +1,7 @@
 // src/components/nav/NavigationControls.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Volume2, VolumeX, Maximize2, Crosshair, X } from "lucide-react";
 import { haptic } from "@/lib/native/haptics";
 
@@ -79,6 +79,13 @@ export function NavigationControls({
 }: Props) {
   const [confirmEnd, setConfirmEnd] = useState(false);
 
+  // Auto-dismiss confirm after 4 seconds
+  useEffect(() => {
+    if (!confirmEnd) return;
+    const t = setTimeout(() => setConfirmEnd(false), 4000);
+    return () => clearTimeout(t);
+  }, [confirmEnd]);
+
   if (!visible) return null;
 
   return (
@@ -91,6 +98,7 @@ export function NavigationControls({
         pointerEvents: "auto",
         display: "flex",
         flexDirection: "column",
+        alignItems: "flex-end",
         gap: 10,
       }}
     >
@@ -116,39 +124,37 @@ export function NavigationControls({
         onClick={onRecenter}
       />
 
-      {/* End navigation - requires confirmation */}
-      {!confirmEnd ? (
+      {/* End navigation — confirm menu opens left, anchored to right edge */}
+      <div style={{ position: "relative" }}>
         <FloatingBtn
           icon={<X size={20} />}
           label="End navigation"
-          onClick={() => setConfirmEnd(true)}
+          onClick={() => setConfirmEnd((v) => !v)}
           danger
         />
-      ) : (
+
+        {/* Confirm popover — positioned to the left of the X button */}
         <div
           style={{
+            position: "absolute",
+            top: 0,
+            right: 52,
+            opacity: confirmEnd ? 1 : 0,
+            transform: confirmEnd ? "translateX(0) scale(1)" : "translateX(8px) scale(0.9)",
+            pointerEvents: confirmEnd ? "auto" : "none",
+            transition: "opacity 0.15s ease, transform 0.15s ease",
             display: "flex",
-            flexDirection: "column",
+            flexDirection: "row",
             gap: 6,
             background: "rgba(30,30,30,0.95)",
-            borderRadius: 16,
-            padding: 8,
+            borderRadius: 14,
+            padding: 6,
             backdropFilter: "blur(12px)",
             WebkitBackdropFilter: "blur(12px)",
             boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+            whiteSpace: "nowrap",
           }}
         >
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 900,
-              color: "rgba(255,255,255,0.6)",
-              textAlign: "center",
-              padding: "2px 4px",
-            }}
-          >
-            End nav?
-          </div>
           <button
             type="button"
             onClick={() => {
@@ -157,8 +163,7 @@ export function NavigationControls({
               onEnd();
             }}
             style={{
-              width: "100%",
-              padding: "8px 12px",
+              padding: "8px 14px",
               border: "none",
               borderRadius: 10,
               cursor: "pointer",
@@ -168,7 +173,7 @@ export function NavigationControls({
               background: "#ef4444",
             }}
           >
-            Yes, end
+            End nav
           </button>
           <button
             type="button"
@@ -177,8 +182,7 @@ export function NavigationControls({
               setConfirmEnd(false);
             }}
             style={{
-              width: "100%",
-              padding: "8px 12px",
+              padding: "8px 14px",
               border: "none",
               borderRadius: 10,
               cursor: "pointer",
@@ -191,7 +195,7 @@ export function NavigationControls({
             Cancel
           </button>
         </div>
-      )}
+      </div>
     </div>
   );
 }
