@@ -154,6 +154,9 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   // Overlay polling ref
   const overlayTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Track which plan has been booted so URL-param changes (focus_place_id etc.) don't re-boot
+  const bootedPlanIdRef = useRef<string | null>(null);
+
   // ── MapLibre instance ref (shared between TripMap and useMapNavigationMode) ──
   const mapInstanceRef = useRef<MLMap | null>(null);
 
@@ -201,6 +204,11 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         const preferredId = desiredPlanId ?? (await getCurrentPlanId());
         if (cancelled) return;
 
+        // If this exact plan is already booted and ready, skip re-booting.
+        // This prevents focus_place_id / focus_lat / focus_lng URL params from
+        // triggering a full reload when the guide navigates to /trip?plan_id=X&focus_...
+        if (preferredId && bootedPlanIdRef.current === preferredId) return;
+
         // Find the first plan that has a usable local bundle.
         // A plan is usable if its packs are already in IDB, or if it has a
         // zip_blob we can unpack. Cloud-synced stubs (no zip, no packs) are
@@ -239,6 +247,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         const packs = await getAllPacks(rec.plan_id);
         if (cancelled) return;
 
+        bootedPlanIdRef.current = rec.plan_id;
         setPlan(rec);
         setNavpack(packs.navpack ?? null);
         setCorridor(packs.corridor ?? null);

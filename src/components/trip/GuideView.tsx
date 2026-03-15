@@ -950,6 +950,7 @@ export function GuideView({
   const [chatInput, setChatInput] = useState("");
   const [activeTab, setActiveTab] = useState<ViewTab>(initialTab ?? "chat");
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const [pendingUserMsg, setPendingUserMsg] = useState<string | null>(null);
 
   // Filter out hidden system prompts (e.g., auto-greeting) from visible thread
   const thread = useMemo(
@@ -1076,7 +1077,9 @@ export function GuideView({
     setChatInput("");
     setActiveTab("chat");
     if (!guideReady || !onSendMessage) return;
+    setPendingUserMsg(msg);
     try { await onSendMessage(msg, []); } catch {}
+    finally { setPendingUserMsg(null); }
   }
 
   function handleSubmit(e: React.FormEvent) { e.preventDefault(); handleAsk(); }
@@ -1136,7 +1139,7 @@ export function GuideView({
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 
           {/* Welcome state - when no messages yet */}
-          {thread.length === 0 ? (
+          {thread.length === 0 && !pendingUserMsg ? (
             <div style={{
               background: "var(--roam-surface)", borderRadius: 18, padding: "20px 16px",
               border: "1px solid var(--roam-border, rgba(255,255,255,0.06))",
@@ -1203,7 +1206,7 @@ export function GuideView({
           ) : null}
 
           {/* Thread - chat messages */}
-          {thread.length > 0 ? (
+          {(thread.length > 0 || pendingUserMsg) ? (
             <div style={{
               display: "flex", flexDirection: "column", gap: 8,
               // Deduct: sticky header (~120px incl. progress bar) + tab switcher (42px) +
@@ -1289,6 +1292,20 @@ export function GuideView({
                 );
               })}
 
+              {/* Optimistic user message shown immediately while awaiting response */}
+              {pendingUserMsg ? (
+                <div style={{ display: "flex", justifyContent: "flex-end", animation: "guideFadeIn 0.2s ease" }}>
+                  <div style={{
+                    maxWidth: "85%", padding: "10px 14px", borderRadius: "16px 16px 4px 16px",
+                    background: "var(--brand-sky)", color: "white",
+                    fontSize: 14, fontWeight: 600, lineHeight: 1.4,
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                  }}>
+                    {pendingUserMsg}
+                  </div>
+                </div>
+              ) : null}
+
               {/* Typing indicator */}
               {chatBusy ? (
                 <div style={{ display: "flex", gap: 8, animation: "guideFadeIn 0.2s ease" }}>
@@ -1363,7 +1380,7 @@ export function GuideView({
             </form>
 
             {/* Quick suggestions - compact row when thread has messages */}
-            {thread.length > 0 && !chatBusy ? (
+            {(thread.length > 0 || pendingUserMsg) && !chatBusy ? (
               <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2, WebkitOverflowScrolling: "touch" }}>
                 {quickSuggestions.slice(0, 4).map((s, i) => {
                   const SI = s.Icon;

@@ -1,15 +1,19 @@
 // src/app/purchase/success/page.tsx
 //
 // Landing page after Stripe Checkout completes.
-// Polls Supabase until the webhook has written the entitlement row,
-// then celebrates and redirects to /trip.
+// Strategy:
+//   1. On first poll, call /stripe/confirm (session_id from URL) to grant the
+//      entitlement immediately — this handles webhook latency / dev tunnels.
+//   2. Continue polling user_entitlements until it appears (max 12 × 2.5s).
+//   3. Timeout screen if still not visible after 30 s.
 
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { haptic } from "@/lib/native/haptics";
+import { api } from "@/lib/api";
 import { Compass, MapPin, ArrowRight, Infinity, Download, Sparkles, Users, Fuel } from "lucide-react";
 
 const MAX_POLLS = 12;
@@ -131,6 +135,8 @@ const UNLOCK_FEATURES = [
 
 export default function PurchaseSuccessPage() {
   const router = useRouter();
+  const sp = useSearchParams();
+  const sessionId = sp.get("session_id") ?? "";
   const [status, setStatus] = useState<"polling" | "unlocked" | "timeout">("polling");
   const [entered, setEntered] = useState(false);
   const celebratedRef = useRef(false);
@@ -160,13 +166,29 @@ export default function PurchaseSuccessPage() {
   useEffect(() => {
     let attempts = 0;
     let timer: ReturnType<typeof setTimeout>;
+    let confirmed = false; // tracks whether /stripe/confirm has been called
 
     async function poll() {
       attempts++;
       try {
-        await supabase.auth.refreshSession();
+        const { data: { session } } = await supabase.auth.refreshSession();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) { router.replace("/login"); return; }
+
+        // On the first attempt, call /stripe/confirm with the session_id so we
+        // don't depend solely on the webhook arriving before the user notices.
+        if (!confirmed && sessionId) {
+          confirmed = true;
+          try {
+            await api.post<{ unlocked: boolean }>(
+              "/stripe/confirm",
+              { session_id: sessionId },
+              { headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {} },
+            );
+          } catch {
+            // Non-fatal — webhook may have already written the row
+          }
+        }
 
         const { data } = await supabase
           .from("user_entitlements")
@@ -188,7 +210,7 @@ export default function PurchaseSuccessPage() {
 
     timer = setTimeout(poll, POLL_INTERVAL);
     return () => clearTimeout(timer);
-  }, [router]);
+  }, [router, sessionId]);
 
   const isUnlocked = status === "unlocked";
 
