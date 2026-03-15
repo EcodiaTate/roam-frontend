@@ -3,7 +3,7 @@
 // Pure functions: NavStep → human-readable text, TTS strings, icon names.
 // No React, no side effects, no imports beyond types.
 
-import type { NavStep, NavManeuver, ManeuverType, ManeuverModifier } from "@/lib/types/navigation";
+import type { NavStep, NavManeuver } from "@/lib/types/navigation";
 
 // ──────────────────────────────────────────────────────────────
 // Distance & duration formatting (Australian conventions)

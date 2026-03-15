@@ -1,22 +1,27 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import Link from "next/link";
 import { Compass, Menu, X, ArrowRight } from "lucide-react";
 
 type Platform = "ios" | "android" | "desktop";
 
+function detectPlatform(): Platform {
+  if (typeof navigator === "undefined") return "desktop";
+  const ua = navigator.userAgent || "";
+  if (
+    /iPad|iPhone|iPod/.test(ua) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  )
+    return "ios";
+  if (/android/i.test(ua)) return "android";
+  return "desktop";
+}
+
+const subscribePlatform = () => () => {};
+
 function usePlatform(): Platform {
-  const [p, setP] = useState<Platform>("desktop");
-  useEffect(() => {
-    const ua = navigator.userAgent || "";
-    if (
-      /iPad|iPhone|iPod/.test(ua) ||
-      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
-    )
-      setP("ios");
-    else if (/android/i.test(ua)) setP("android");
-  }, []);
-  return p;
+  return useSyncExternalStore(subscribePlatform, detectPlatform, () => "desktop" as Platform);
 }
 
 // TODO: Replace with real App Store ID after first submission
@@ -71,27 +76,27 @@ export default function LegalNav({ activePath }: LegalNavProps) {
       <style>{NAV_STYLES}</style>
       <nav className={`rl-nav ${scrolled ? "rl-nav-s" : ""}`}>
         <div className="rl-nav-bar">
-          <a href="/" className="rl-nav-logo">
+          <Link href="/" className="rl-nav-logo">
             <Compass size={22} strokeWidth={2.5} />
             <span>ROAM</span>
-          </a>
+          </Link>
 
           <div className="rl-nav-links">
-            <a href="/#features" className="rl-nav-link">Features</a>
-            <a href="/#how" className="rl-nav-link">How It Works</a>
+            <Link href="/#features" className="rl-nav-link">Features</Link>
+            <Link href="/#how" className="rl-nav-link">How It Works</Link>
             {[
               { href: "/contact", label: "Contact" },
               { href: "/terms", label: "Terms" },
               { href: "/privacy", label: "Privacy" },
               { href: "/attributions", label: "Attributions" },
             ].map(({ href, label }) => (
-              <a
+              <Link
                 key={href}
                 href={href}
                 className={`rl-nav-link${activePath === href ? " rl-nav-link-active" : ""}`}
               >
                 {label}
-              </a>
+              </Link>
             ))}
           </div>
 
@@ -110,22 +115,22 @@ export default function LegalNav({ activePath }: LegalNavProps) {
 
         {menuOpen && (
           <div className="rl-nav-mobile">
-            <a href="/#features" className="rl-nav-mobile-link" onClick={() => setMenuOpen(false)}>Features</a>
-            <a href="/#how" className="rl-nav-mobile-link" onClick={() => setMenuOpen(false)}>How It Works</a>
+            <Link href="/#features" className="rl-nav-mobile-link" onClick={() => setMenuOpen(false)}>Features</Link>
+            <Link href="/#how" className="rl-nav-mobile-link" onClick={() => setMenuOpen(false)}>How It Works</Link>
             {[
               { href: "/contact", label: "Contact" },
               { href: "/terms", label: "Terms" },
               { href: "/privacy", label: "Privacy" },
               { href: "/attributions", label: "Attributions" },
             ].map(({ href, label }) => (
-              <a
+              <Link
                 key={href}
                 href={href}
                 className="rl-nav-mobile-link"
                 onClick={() => setMenuOpen(false)}
               >
                 {label}
-              </a>
+              </Link>
             ))}
             <a
               href={cta.href}

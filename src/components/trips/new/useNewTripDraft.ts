@@ -28,7 +28,7 @@ export function useNewTripDraft() {
   );
 
   const [profile, setProfile] = useState<string>("drive");
-  const [prefs] = useState<Record<string, any>>({});
+  const [prefs] = useState<Record<string, unknown>>({});
   const [avoid] = useState<string[]>([]);
   const [depart_at] = useState<string | null>(null);
 

@@ -9,7 +9,7 @@
 
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { haptic } from "@/lib/native/haptics";
@@ -133,7 +133,7 @@ const UNLOCK_FEATURES = [
 
 /* ── Main page ────────────────────────────────────────────────────────── */
 
-export default function PurchaseSuccessPage() {
+function PurchaseSuccessInner() {
   const router = useRouter();
   const sp = useSearchParams();
   const sessionId = sp.get("session_id") ?? "";
@@ -166,30 +166,47 @@ export default function PurchaseSuccessPage() {
   useEffect(() => {
     let attempts = 0;
     let timer: ReturnType<typeof setTimeout>;
-    let confirmed = false; // tracks whether /stripe/confirm has been called
+    let confirmOk = false;
+
+    // Fire /stripe/confirm separately so an auth/network failure in the poll
+    // body can never prevent the confirm call from being attempted.
+    async function tryConfirm(token: string | undefined) {
+      if (confirmOk || !sessionId) return;
+      try {
+        await api.post<{ unlocked: boolean }>(
+          "/stripe/confirm",
+          { session_id: sessionId },
+          { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+        );
+        confirmOk = true;
+      } catch {
+        // Will retry on next poll cycle
+      }
+    }
 
     async function poll() {
       attempts++;
-      try {
-        const { data: { session } } = await supabase.auth.refreshSession();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) { router.replace("/login"); return; }
 
-        // On the first attempt, call /stripe/confirm with the session_id so we
-        // don't depend solely on the webhook arriving before the user notices.
-        if (!confirmed && sessionId) {
-          confirmed = true;
-          try {
-            await api.post<{ unlocked: boolean }>(
-              "/stripe/confirm",
-              { session_id: sessionId },
-              { headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {} },
-            );
-          } catch {
-            // Non-fatal — webhook may have already written the row
-          }
+      // 1. Try to get a valid session + user
+      const { data: { session } } = await supabase.auth.refreshSession().catch(() => ({ data: { session: null } }));
+      const { data: { user } } = await supabase.auth.getUser().catch(() => ({ data: { user: null } }));
+
+      // 2. Always attempt confirm — even without a session, the backend logs will
+      //    tell us what's wrong (401 = auth lost after Stripe redirect)
+      await tryConfirm(session?.access_token ?? undefined);
+
+      if (!user) {
+        if (attempts >= MAX_POLLS) {
+          setStatus("timeout");
+          haptic.warning();
+          return;
         }
+        timer = setTimeout(poll, POLL_INTERVAL);
+        return;
+      }
 
+      // 3. Check entitlement
+      try {
         const { data } = await supabase
           .from("user_entitlements")
           .select("id")
@@ -202,7 +219,9 @@ export default function PurchaseSuccessPage() {
           timer = setTimeout(() => router.replace("/trip"), 4000);
           return;
         }
-      } catch { /* keep polling */ }
+      } catch {
+        // Supabase query failed — keep polling
+      }
 
       if (attempts >= MAX_POLLS) { setStatus("timeout"); haptic.warning(); return; }
       timer = setTimeout(poll, POLL_INTERVAL);
@@ -617,5 +636,13 @@ export default function PurchaseSuccessPage() {
         }
       `}</style>
     </div>
+  );
+}
+
+export default function PurchaseSuccessPage() {
+  return (
+    <Suspense>
+      <PurchaseSuccessInner />
+    </Suspense>
   );
 }

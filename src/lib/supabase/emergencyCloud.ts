@@ -22,7 +22,7 @@ export async function cloudListEmergencyContacts(user: User): Promise<EmergencyC
     .order("updated_at", { ascending: false });
 
   if (error) throw new Error(error.message);
-  return (data ?? []) as any;
+  return (data ?? []) as EmergencyContact[];
 }
 
 export async function cloudUpsertEmergencyContact(user: User, c: EmergencyContact): Promise<void> {
@@ -33,8 +33,8 @@ export async function cloudUpsertEmergencyContact(user: User, c: EmergencyContac
     phone: c.phone,
     relationship: c.relationship ?? null,
     notes: c.notes ?? null,
-    created_at: (c as any).created_at ?? null,
-    updated_at: (c as any).updated_at ?? null,
+    created_at: c.created_at ?? null,
+    updated_at: c.updated_at ?? null,
   };
 
   const { error } = await supabase.from(TABLE).upsert(payload, { onConflict: "id" });

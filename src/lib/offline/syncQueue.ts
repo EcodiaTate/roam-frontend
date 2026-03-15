@@ -14,7 +14,7 @@ export type SyncOp = {
   id?: number;       // auto-incremented by IDB
   op: SyncOpType;
   plan_id: string;
-  payload?: any;     // op-specific data (e.g. { label } for plan_label)
+  payload?: Record<string, unknown>;     // op-specific data (e.g. { label } for plan_label)
   created_at: number;
   retries: number;
   last_error?: string | null;
@@ -32,7 +32,7 @@ const MAX_RETRIES = 5;
 export async function enqueueSync(
   op: SyncOpType,
   planId: string,
-  payload?: any,
+  payload?: Record<string, unknown>,
 ): Promise<void> {
   const row: SyncOp = {
     op,

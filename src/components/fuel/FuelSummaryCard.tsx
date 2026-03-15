@@ -5,7 +5,7 @@ import { useState, useCallback } from "react";
 import { Fuel, AlertTriangle, ChevronDown, ChevronUp, Settings2 } from "lucide-react";
 import { haptic } from "@/lib/native/haptics";
 
-import type { FuelAnalysis, FuelWarning } from "@/lib/types/fuel";
+import type { FuelAnalysis } from "@/lib/types/fuel";
 
 /* ── Styles ────────────────────────────────────────────────────────────── */
 

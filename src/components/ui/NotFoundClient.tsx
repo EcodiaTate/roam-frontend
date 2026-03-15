@@ -51,7 +51,7 @@ export function NotFoundClient() {
       </h1>
       
       <p className="trip-muted" style={{ marginBottom: 32, maxWidth: 300, lineHeight: 1.5 }}>
-        Looks like you've wandered a bit too far. We couldn't find the page you're looking for.
+        Looks like you&apos;ve wandered a bit too far. We couldn&apos;t find the page you&apos;re looking for.
       </p>
 
       {/* Valid Next.js Link for the home route */}

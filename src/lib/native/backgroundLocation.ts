@@ -19,14 +19,13 @@
 //   FOREGROUND_SERVICE, FOREGROUND_SERVICE_LOCATION
 
 import { Geolocation } from "@capacitor/geolocation";
-import { isNative } from "./platform";
 import type { RoamPosition } from "./geolocation";
 
 let watchId: string | null = null;
 let lastPosition: RoamPosition | null = null;
 
 export type PositionCallback = (pos: RoamPosition) => void;
-export type ErrorCallback = (err: any) => void;
+export type ErrorCallback = (err: unknown) => void;
 
 /**
  * Start continuous background-capable GPS tracking.

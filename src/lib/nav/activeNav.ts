@@ -6,10 +6,9 @@
 // Called every GPS tick (~1/sec). No side effects, no subscriptions.
 // The parent component calls it and dispatches voice/haptic/UI from the result.
 
-import type { NavPack, NavStep, NavLeg } from "@/lib/types/navigation";
+import type { NavPack, NavStep } from "@/lib/types/navigation";
 import type { RoamPosition } from "@/lib/native/geolocation";
 import type { FatigueState } from "@/lib/nav/fatigue";
-import { decodePolyline6 } from "@/lib/nav/polyline6";
 
 // ──────────────────────────────────────────────────────────────
 // Config
@@ -212,17 +211,6 @@ function snapToLine(
   };
 }
 
-/**
- * Total length of a decoded polyline in metres.
- */
-function polylineLength(pts: [number, number][]): number {
-  let total = 0;
-  for (let i = 1; i < pts.length; i++) {
-    total += haversineM(pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1]);
-  }
-  return total;
-}
-
 // ──────────────────────────────────────────────────────────────
 // Flattened step index helper
 // ──────────────────────────────────────────────────────────────
@@ -349,7 +337,6 @@ export function updateActiveNav(
 
   // 4. Check arrival (last step, close to end)
   const isLastStep = currentFlatIdx === flatSteps.length - 1;
-  const lastStep = flatSteps[flatSteps.length - 1];
   const distToEnd_m = Math.max(0, routeTotalM - snap.distAlongLine_m);
 
   if (isLastStep && distToEnd_m < config.arrivedDistance_m) {

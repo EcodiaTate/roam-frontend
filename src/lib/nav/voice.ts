@@ -6,7 +6,7 @@
 // Plus a thin TTS wrapper around Web Speech API / Capacitor TTS.
 
 import type { ActiveNavState, ActiveNavConfig } from "@/lib/nav/activeNav";
-import { formatUpcoming, formatInstruction, formatShort, formatLongStraight } from "@/lib/nav/instructions";
+import { formatUpcoming, formatInstruction, formatLongStraight } from "@/lib/nav/instructions";
 
 // ──────────────────────────────────────────────────────────────
 // Voice state

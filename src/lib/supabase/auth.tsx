@@ -161,7 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         nonce: nonceHash,
       });
 
-      const identityToken = (result as any)?.response?.identityToken ?? (result as any)?.identityToken;
+      const identityToken = (result as { response?: { identityToken?: string }; identityToken?: string })?.response?.identityToken ?? (result as { identityToken?: string })?.identityToken;
       if (!identityToken) {
         return { error: asAuthError("Apple Sign-In failed: missing identity token.") };
       }
@@ -173,9 +173,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       return { error };
-    } catch (e: any) {
+    } catch (e: unknown) {
       // 1001 = ASAuthorizationErrorCanceled - user dismissed the sheet, not an error
-      const msg: string = e?.message ?? "";
+      const msg: string = e instanceof Error ? e.message : "";
       if (msg.includes("1001") || msg.toLowerCase().includes("cancel")) {
         return { error: null };
       }

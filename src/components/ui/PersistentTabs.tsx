@@ -1,8 +1,8 @@
 // src/components/ui/PersistentTabs.tsx
 "use client";
 
-import { Suspense, useRef, useState, useEffect, useCallback } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { usePathname } from "next/navigation";
 
 import { TripClientPage } from "@/app/(app)/trip/ClientPage";
 import GuideClientPage from "@/app/(app)/guide/ClientPage";
@@ -41,12 +41,10 @@ export function PersistentTabs({ children }: { children: React.ReactNode }) {
     return initial;
   });
 
-  // When navigating to a tab route, mark it as mounted
-  useEffect(() => {
-    if (isTabRoute(pathname) && !mounted.has(pathname)) {
-      setMounted((prev) => new Set(prev).add(pathname));
-    }
-  }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+  // When navigating to a tab route, mark it as mounted (during-render state update)
+  if (isTabRoute(pathname) && !mounted.has(pathname)) {
+    setMounted((prev) => new Set(prev).add(pathname));
+  }
 
   const isOnTab = isTabRoute(pathname);
   const activeTab = isOnTab ? pathname : null;

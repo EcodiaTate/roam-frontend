@@ -49,7 +49,7 @@ import { shortId } from "@/lib/utils/ids";
 import type { NavPack, CorridorGraphPack, TrafficOverlay, HazardOverlay, ElevationResponse } from "@/lib/types/navigation";
 import type { PlacesPack } from "@/lib/types/places";
 import type { TripStop } from "@/lib/types/trip";
-import type { FuelAnalysis, FuelTrackingState, VehicleFuelProfile } from "@/lib/types/fuel";
+import type { FuelAnalysis, VehicleFuelProfile } from "@/lib/types/fuel";
 
 // Updated icons here
 import { UserPlus, Library, WifiOff } from "lucide-react";
@@ -104,7 +104,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
 
   // Fuel state
   const [fuelAnalysis, setFuelAnalysis] = useState<FuelAnalysis | null>(null);
-  const [fuelTracking, setFuelTracking] = useState<FuelTrackingState | null>(null);
+  // fuelTracking is derived from props, not stored in state — see computedFuelTracking below
   const [fuelSettingsOpen, setFuelSettingsOpen] = useState(false);
 
   // Elevation state
@@ -149,6 +149,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   const [offsetY, setOffsetY] = useState(0);
   const [dragOffset, setDragOffset] = useState(0);
   const isDragging = useRef(false);
+  const [isDraggingState, setIsDraggingState] = useState(false);
   const dragData = useRef({ startY: 0 });
 
   // Overlay polling ref
@@ -173,27 +174,28 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   });
 
   // ── Sheet position when entering/exiting navigation ──
-  const prevActiveRef = useRef(false);
-  useEffect(() => {
-    if (activeNav.isActive && !prevActiveRef.current) {
-      // Entering navigation mode → collapse sheet to just the peek handle
-      setOffsetY(0);
-      setDragOffset(0);
-    }
-    prevActiveRef.current = activeNav.isActive;
-  }, [activeNav.isActive]);
+  const [prevActive, setPrevActive] = useState(false);
+  if (activeNav.isActive && !prevActive) {
+    // Entering navigation mode → collapse sheet to just the peek handle
+    setOffsetY(0);
+    setDragOffset(0);
+    setPrevActive(true);
+  } else if (!activeNav.isActive && prevActive) {
+    setPrevActive(false);
+  }
 
   // ── Re-apply URL focus once places load (timing race fix) ─────────
   // Use a ref to ensure we only apply the initial URL focus once per URL value,
   // regardless of how many times places or sp re-renders.
-  const urlFocusAppliedRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!focusPlaceFromUrl) return;
-    if (!places || !places.items?.length) return;
-    if (urlFocusAppliedRef.current === focusPlaceFromUrl) return; // already applied this URL focus
-    urlFocusAppliedRef.current = focusPlaceFromUrl;
+  const [urlFocusApplied, setUrlFocusApplied] = useState<string | null>(null);
+  if (
+    focusPlaceFromUrl &&
+    places?.items?.length &&
+    urlFocusApplied !== focusPlaceFromUrl
+  ) {
+    setUrlFocusApplied(focusPlaceFromUrl);
     setFocusedPlaceId((prev) => (prev === focusPlaceFromUrl ? prev : focusPlaceFromUrl));
-  }, [places, focusPlaceFromUrl]);
+  }
 
   // ── Boot logic ──────────────────────────────────────────────────
   useEffect(() => {
@@ -232,7 +234,22 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         }
 
         if (cancelled) return;
-        if (!rec) { router.replace("/new"); return; }
+        if (!rec) {
+          // Check if user is paywalled before redirecting to /new.
+          // If they are, redirecting to /new would just bounce back here (loop).
+          // Instead, show an empty state with the paywall modal.
+          const gate = await checkTripGate();
+          if (cancelled) return;
+          if (!gate.allowed && gate.reason === "paywall") {
+            setPaywallVariant("gate");
+            setPaywallOpen(true);
+            setPhase("error");
+            setBootError(null); // signal "no plans + paywalled" (not a real error)
+            return;
+          }
+          router.replace("/new");
+          return;
+        }
 
         // If we fell back to a different plan, update the current pointer
         if (rec.plan_id !== preferredId) {
@@ -298,12 +315,16 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
 
     boot();
     return () => { cancelled = true; };
-  }, [desiredPlanId]);
+  }, [desiredPlanId, router, sp]);
 
-  // Focus place from URL
+  // Focus place from URL — expand sheet to show detail
+  const [prevFocusUrl, setPrevFocusUrl] = useState<string | null>(null);
+  if (focusPlaceFromUrl && prevFocusUrl !== focusPlaceFromUrl) {
+    setPrevFocusUrl(focusPlaceFromUrl);
+    setFocusedPlaceId(focusPlaceFromUrl);
+  }
   useEffect(() => {
     if (!focusPlaceFromUrl) return;
-    setFocusedPlaceId(focusPlaceFromUrl);
     if (sheetRef.current) {
       const h = sheetRef.current.clientHeight;
       const maxUp = -(h - 180);
@@ -315,8 +336,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   // Use active nav position if navigating, else regular geo
   const effectivePosition = activeNav.isActive ? activeNav.lastPosition : geo.position;
 
-  useEffect(() => {
-    if (!fuelAnalysis || !effectivePosition || !navpack?.primary?.geometry) return;
+  const fuelTracking = useMemo(() => {
+    if (!fuelAnalysis || !effectivePosition || !navpack?.primary?.geometry) return null;
 
     try {
       const decoded = decodePolyline6(navpack.primary.geometry);
@@ -328,15 +349,12 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       );
 
       // Only track if within 2km of the route
-      if (snap.distance_m > 2000) {
-        setFuelTracking(null);
-        return;
-      }
+      if (snap.distance_m > 2000) return null;
 
-      const tracking = computeFuelTracking(fuelAnalysis, snap.km, fuelAnalysis.profile);
-      setFuelTracking(tracking);
+      return computeFuelTracking(fuelAnalysis, snap.km, fuelAnalysis.profile);
     } catch {
       // Non-fatal - just skip this update
+      return null;
     }
   }, [fuelAnalysis, effectivePosition, navpack]);
 
@@ -371,11 +389,13 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   useEffect(() => {
     if (phase !== "ready" || !navpack?.primary?.bbox) return;
 
-    pollOverlays();
+    // Schedule initial poll immediately (avoid synchronous setState in effect)
+    const initialPoll = setTimeout(pollOverlays, 0);
 
     overlayTimerRef.current = setInterval(pollOverlays, OVERLAY_POLL_INTERVAL_MS);
 
     return () => {
+      clearTimeout(initialPoll);
       if (overlayTimerRef.current) {
         clearInterval(overlayTimerRef.current);
         overlayTimerRef.current = null;
@@ -727,6 +747,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   // ── Bottom Sheet Handlers ───────────────────────────────────────
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     isDragging.current = true;
+    setIsDraggingState(true);
     dragData.current = { startY: e.clientY };
     e.currentTarget.setPointerCapture(e.pointerId);
   };
@@ -744,6 +765,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     isDragging.current = false;
+    setIsDraggingState(false);
     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {}
     setOffsetY((prev) => prev + dragOffset);
     setDragOffset(0);
@@ -755,9 +777,9 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     ? `translateY(calc(100% - 60px))` // Collapsed to just the drag handle during navigation
     : `translateY(clamp(0px, calc(${peekBase} + ${offsetY + dragOffset}px), ${peekBase}))`;
 
-  const sheetTransition = isDragging.current ? "none" : "transform 0.25s cubic-bezier(0.4,0,0.2,1)";
+  const sheetTransition = isDraggingState ? "none" : "transform 0.25s cubic-bezier(0.4,0,0.2,1)";
 
-  const effectiveStops = navpack?.req?.stops ?? plan?.preview?.stops ?? [];
+  const effectiveStops = useMemo(() => navpack?.req?.stops ?? plan?.preview?.stops ?? [], [navpack, plan]);
   const effectiveGeom = navpack?.primary?.geometry ?? plan?.preview?.geometry ?? null;
 
   // Set of place IDs already in the trip — passed to TripMap to mark "Already in Trip" in popups
@@ -775,22 +797,41 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   }
 
   if (phase === "error") {
+    // No plans + paywalled: show empty state with paywall modal (no bootError means this case)
+    const isPaywallEmpty = !bootError && paywallOpen;
     return (
       <div style={{ display: "grid", placeItems: "center", height: "100%", width: "100%", background: "var(--roam-bg)", color: "var(--roam-text)", padding: 32, textAlign: "center" }}>
         <div>
-          <div style={{ fontSize: 16, fontWeight: 950, color: "var(--roam-danger)", marginBottom: 12 }}>
-            Failed to load trip
+          <div style={{ fontSize: 16, fontWeight: 950, color: isPaywallEmpty ? "var(--roam-text)" : "var(--roam-danger)", marginBottom: 12 }}>
+            {isPaywallEmpty ? "No trips yet" : "Failed to load trip"}
           </div>
           {bootError && <div style={{ fontSize: 13, color: "var(--roam-text-muted)", marginBottom: 20 }}>{bootError}</div>}
-          <button
-            type="button"
-            className="trip-interactive"
-            style={{ borderRadius: 999, minHeight: 42, padding: "0 20px", fontWeight: 950, background: "var(--roam-accent)", color: "var(--on-color)", boxShadow: "var(--shadow-button)" }}
-            onClick={() => router.replace("/new")}
-          >
-            Build a Trip
-          </button>
+          {isPaywallEmpty ? (
+            <button
+              type="button"
+              className="trip-interactive"
+              style={{ borderRadius: 999, minHeight: 42, padding: "0 20px", fontWeight: 950, background: "var(--roam-accent)", color: "var(--on-color)", boxShadow: "var(--shadow-button)" }}
+              onClick={() => { setPaywallVariant("gate"); setPaywallOpen(true); }}
+            >
+              Upgrade to create more trips
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="trip-interactive"
+              style={{ borderRadius: 999, minHeight: 42, padding: "0 20px", fontWeight: 950, background: "var(--roam-accent)", color: "var(--on-color)", boxShadow: "var(--shadow-button)" }}
+              onClick={() => router.replace("/new")}
+            >
+              Build a Trip
+            </button>
+          )}
         </div>
+        <PaywallModal
+          open={paywallOpen}
+          variant={paywallVariant}
+          onClose={() => setPaywallOpen(false)}
+          onUnlocked={() => { setPaywallOpen(false); setUnlocked(true); router.replace("/new"); }}
+        />
       </div>
     );
   }
@@ -818,8 +859,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           onSuggestionPress={(id) => { haptic.selection(); setFocusedPlaceId(id); }}
           traffic={traffic}
           hazards={hazards}
-          onTrafficEventPress={(id) => { haptic.selection(); }}
-          onHazardEventPress={(id) => { haptic.selection(); }}
+          onTrafficEventPress={(_id) => { haptic.selection(); }}
+          onHazardEventPress={(_id) => { haptic.selection(); }}
           userPosition={activeNav.isActive ? activeNav.lastPosition : geo.position}
           planId={plan.plan_id}
           onNavigateToGuide={handleNavigateToGuide}

@@ -1,12 +1,10 @@
 // src/components/trip/TripAlertsPanel.tsx
 "use client";
 
-import { useMemo, useState, useCallback, useRef, useEffect } from "react";
+import { useMemo, useState, useCallback } from "react";
 import type {
   TrafficOverlay,
   HazardOverlay,
-  TrafficEvent,
-  HazardEvent,
   TrafficSeverity,
   TrafficType,
   HazardSeverity,
@@ -31,17 +29,12 @@ import {
   Thermometer,
   Waves,
   Zap,
-  ShieldCheck,
   ChevronDown,
-  MapPin,
   Eye,
   EyeOff,
   Clock,
   XCircle,
-  OctagonAlert,
   RefreshCw,
-  ArrowRight,
-  ShieldAlert,
   Route,
   Ban,
 } from "lucide-react";
@@ -81,7 +74,7 @@ export type EnrichedAlert = {
   relevanceScore: number;
   routeImpact: RouteImpact;
   isAhead: boolean;
-  rawGeometry?: any;
+  rawGeometry?: Record<string, unknown>;
 };
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -215,7 +208,7 @@ function projectOntoRoute(lat: number, lng: number, rc: Array<[number, number]>)
   return { kmAlong: bestKm, distKm: best };
 }
 
-export function extractCoord(geo: any, bbox: number[] | null | undefined): { lat: number; lng: number } | null {
+export function extractCoord(geo: Record<string, unknown> | null | undefined, bbox: number[] | null | undefined): { lat: number; lng: number } | null {
   if (geo) {
     if (geo.type === "Point" && Array.isArray(geo.coordinates)) return { lng: geo.coordinates[0], lat: geo.coordinates[1] };
     if (geo.type === "LineString" && geo.coordinates?.length > 0) {
@@ -242,7 +235,7 @@ export function extractCoord(geo: any, bbox: number[] | null | undefined): { lat
 const BLOCKING_TRAFFIC_TYPES = new Set<string>(["closure", "flooding"]);
 const BLOCKING_HAZARD_KINDS = new Set<string>(["flood", "fire", "cyclone"]);
 
-function extractAllCoords(geo: any): Array<[number, number]> {
+function extractAllCoords(geo: Record<string, unknown> | null | undefined): Array<[number, number]> {
   if (!geo) return [];
   switch (geo.type) {
     case "Point":
@@ -287,7 +280,7 @@ function minDistanceToRoute(
 function classifyRouteImpact(
   alertKind: "traffic" | "hazard",
   alertType: string,
-  alertGeometry: any,
+  alertGeometry: Record<string, unknown> | null | undefined,
   alertBbox: number[] | null | undefined,
   routeCoords: Array<[number, number]>,
   distFromRouteKm: number | null,
@@ -560,15 +553,13 @@ export function useAlerts(
   }, [routeGeometry]);
 
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
-  const lastOverlayTimestampRef = useRef<string>("");
+  const [lastOverlayKey, setLastOverlayKey] = useState<string>("");
 
-  useEffect(() => {
-    const key = `${traffic?.created_at ?? ""}|${hazards?.created_at ?? ""}`;
-    if (key !== lastOverlayTimestampRef.current) {
-      lastOverlayTimestampRef.current = key;
-      setDismissedIds(new Set());
-    }
-  }, [traffic?.created_at, hazards?.created_at]);
+  const overlayKey = `${traffic?.created_at ?? ""}|${hazards?.created_at ?? ""}`;
+  if (overlayKey !== lastOverlayKey) {
+    setLastOverlayKey(overlayKey);
+    setDismissedIds(new Set());
+  }
 
   const dismissAlert = useCallback((id: string) => {
     haptic.selection();
@@ -839,7 +830,7 @@ export function RouteBlockedBanner({
    RouteAssessment
    ══════════════════════════════════════════════════════════════════════ */
 
-export function RouteAssessment(props: any) {
+export function RouteAssessment(_props: Record<string, unknown>) {
   // Purposely gutted and returning null.
   // We keep the component export so TripView doesn't crash on import,
   // but it physically removes the redundant UI pill from your bottom sheet.

@@ -73,7 +73,7 @@ const PACK_KINDS = [
 
 /* ── IDB helpers ──────────────────────────────────────────────────────── */
 
-function osPut(os: IDBObjectStore, value: any): Promise<void> {
+function osPut(os: IDBObjectStore, value: OfflinePlanRecord): Promise<void> {
   return new Promise((resolve, reject) => {
     const req = os.put(value);
     req.onsuccess = () => resolve();
@@ -109,18 +109,18 @@ export async function saveOfflinePlan(args: {
     route_key: m.route_key,
     created_at: m.created_at,
 
-    corridor_status: (m as any).corridor_status,
-    places_status: (m as any).places_status,
-    traffic_status: (m as any).traffic_status,
-    hazards_status: (m as any).hazards_status,
+    corridor_status: m.corridor_status,
+    places_status: m.places_status,
+    traffic_status: m.traffic_status,
+    hazards_status: m.hazards_status,
 
-    corridor_key: (m as any).corridor_key ?? null,
-    places_key: (m as any).places_key ?? null,
-    traffic_key: (m as any).traffic_key ?? null,
-    hazards_key: (m as any).hazards_key ?? null,
+    corridor_key: m.corridor_key ?? null,
+    places_key: m.places_key ?? null,
+    traffic_key: m.traffic_key ?? null,
+    hazards_key: m.hazards_key ?? null,
 
-    styles: (m as any).styles ?? [],
-    tiles_id: (m as any).tiles_id ?? "australia",
+    styles: m.styles ?? [],
+    tiles_id: m.tiles_id ?? "australia",
 
     zip_bytes: args.zipBytes,
     zip_mime: args.zipMime,

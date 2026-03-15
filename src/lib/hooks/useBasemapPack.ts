@@ -99,7 +99,7 @@ export function useBasemapPack(region: string = DEFAULT_REGION): UseBasemapPackR
     try {
       await downloadBasemap(region);
       setServerInfo(getTileServerInfo());
-    } catch (e: any) {
+    } catch (e: unknown) {
       // Status is already updated by basemapManager
       console.error("[useBasemapPack] download failed:", e);
     }

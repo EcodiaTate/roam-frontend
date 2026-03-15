@@ -23,6 +23,7 @@ import { PlanningOverlay } from "@/components/trips/new/PlanningOverlay";
 import { InviteCodeModal } from "@/components/plans/InviteCodeModal";
 import { PlanDrawer } from "@/components/trip/PlanDrawer";
 import { WelcomeModal } from "@/components/paywall/WelcomeModal";
+import { PaywallModal } from "@/components/paywall/PaywallModal";
 
 function genPlanId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
@@ -54,20 +55,23 @@ export default function NewTripClientPage() {
   const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [isLastFreeTrip, setIsLastFreeTrip] = useState(false);
   const [_gateChecked, setGateChecked] = useState(false);
+  const [paywallOpen, setPaywallOpen] = useState(false);
 
   useEffect(() => {
     checkTripGate().then((gate) => {
       if (gate.allowed) {
         // Trip 2 (tripsUsed === 1): show "last free trip" warning
-        if (gate.tripsUsed === 1) {
+        // But skip this for unlocked (Untethered) users — they have unlimited trips.
+        if (gate.tripsUsed === 1 && !gate.unlocked) {
           setIsLastFreeTrip(true);
           setWelcomeOpen(true);
         }
         setGateChecked(true);
       } else if (gate.reason === "paywall") {
-        // Redirect back to trip page — paywall shows there, no unnecessary navigation
-        router.replace("/trip?upgrade=1");
-        return;
+        // Show paywall modal right here instead of redirecting to /trip.
+        // Redirecting caused an infinite loop when the user had no plans left.
+        setPaywallOpen(true);
+        setGateChecked(true);
       } else {
         // "welcome" — first ever launch
         setWelcomeOpen(true);
@@ -75,7 +79,6 @@ export default function NewTripClientPage() {
       }
     });
     // Run once on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const styleId = useMemo(() => {
@@ -286,6 +289,14 @@ export default function NewTripClientPage() {
         open={welcomeOpen}
         lastFreeTrip={isLastFreeTrip}
         onClose={() => setWelcomeOpen(false)}
+      />
+
+      {/* ── Paywall modal (shown when user has used all free trips) ── */}
+      <PaywallModal
+        open={paywallOpen}
+        variant="gate"
+        onClose={() => setPaywallOpen(false)}
+        onUnlocked={() => setPaywallOpen(false)}
       />
     </div>
   );

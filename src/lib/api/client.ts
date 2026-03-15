@@ -191,7 +191,7 @@ export class ApiClient {
       if (!res.ok) {
         const detail =
           payload && typeof payload === "object" && payload !== null && "detail" in payload
-            ? (payload as any).detail
+            ? (payload as Record<string, unknown>).detail
             : null;
 
         const message =
@@ -225,10 +225,10 @@ export class ApiClient {
       // Enrich timeout errors with a clearer message
       if (err instanceof DOMException && err.name === "AbortError") {
         console.error(`${tag} → TIMEOUT after ${elapsed}ms (limit: ${timeoutMs}ms)`);
-        const timeoutErr = new Error(`Request timed out after ${Math.round(timeoutMs / 1000)}s: ${method} ${path}`);
-        timeoutErr.name = "TimeoutError";
-        (timeoutErr as any).elapsed = elapsed;
-        (timeoutErr as any).url = url;
+        const timeoutErr = Object.assign(
+          new Error(`Request timed out after ${Math.round(timeoutMs / 1000)}s: ${method} ${path}`),
+          { name: "TimeoutError", elapsed, url },
+        );
         throw timeoutErr;
       }
 

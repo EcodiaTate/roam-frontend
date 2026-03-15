@@ -17,7 +17,6 @@ import type {
   FuelWarning,
   FuelAnalysis,
   FuelTrackingState,
-  DEFAULT_FUEL_PROFILE,
 } from "@/lib/types/fuel";
 
 /**
@@ -366,7 +365,6 @@ function generateWarnings(
     if (leg.gap_exceeds_range) {
       const fromName = leg.from_station?.name ?? "Start";
       const toName = leg.to_station?.name ?? "End";
-      const margin = profile.tank_range_km - leg.distance_km;
 
       warnings.push({
         type: "gap",

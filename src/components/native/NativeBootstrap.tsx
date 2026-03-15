@@ -5,7 +5,6 @@ import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 
 import {
-  isNative,
   configureStatusBar,
   configureKeyboard,
   lockPortrait,

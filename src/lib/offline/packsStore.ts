@@ -24,17 +24,17 @@ function k(planId: string, kind: PackKind) {
   return `${planId}:${kind}`;
 }
 
-function makeRow(planId: string, kind: PackKind, payload: any): StoredPack {
+function makeRow(planId: string, kind: PackKind, payload: StoredPack["payload"]): StoredPack {
   return {
     k: k(planId, kind),
     plan_id: planId,
-    kind: kind as any,
+    kind,
     saved_at: Date.now(),
-    payload: payload as any,
-  } as any;
+    payload,
+  } as StoredPack;
 }
 
-function osPut(os: IDBObjectStore, value: any): Promise<void> {
+function osPut(os: IDBObjectStore, value: StoredPack): Promise<void> {
   return new Promise((resolve, reject) => {
     const req = os.put(value);
     req.onsuccess = () => resolve();
@@ -42,7 +42,7 @@ function osPut(os: IDBObjectStore, value: any): Promise<void> {
   });
 }
 
-export async function putPack<T>(planId: string, kind: PackKind, payload: T): Promise<void> {
+export async function putPack(planId: string, kind: PackKind, payload: StoredPack["payload"]): Promise<void> {
   const row = makeRow(planId, kind, payload);
   await idbPut(idbStores.packs, row);
 }
@@ -86,7 +86,7 @@ export async function deleteAllPacks(planId: string): Promise<void> {
  */
 export async function putPacksAtomic(args: {
   planId: string;
-  updates: Partial<Record<PackKind, any>>;
+  updates: Partial<Record<PackKind, StoredPack["payload"] | object>>;
 }): Promise<void> {
   const { planId, updates } = args;
 
@@ -94,7 +94,7 @@ export async function putPacksAtomic(args: {
     const os = osMap.get(idbStores.packs);
     if (!os) throw new Error("packs store missing in tx");
 
-    const entries = Object.entries(updates) as [PackKind, any][];
+    const entries = Object.entries(updates) as [PackKind, StoredPack["payload"]][];
     for (const [kind, payload] of entries) {
       if (payload === undefined) continue;
       await osPut(os, makeRow(planId, kind, payload));

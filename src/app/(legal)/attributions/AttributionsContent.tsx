@@ -331,7 +331,7 @@ export default function AttributionsContent() {
         <div key={group.title}>
           <hr className={s.divider} />
           <h2 className={s.sectionTitle}>{group.title}</h2>
-          {group.entries.map((attr, i) => (
+          {group.entries.map((attr) => (
             <section key={attr.name} className={s.section}>
               <h3 className={s.subsectionTitle}>{attr.name}</h3>
               <p className={s.text}>{attr.description}</p>

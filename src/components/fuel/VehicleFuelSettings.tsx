@@ -155,14 +155,12 @@ export function VehicleFuelSettings({
   onSaved?: (profile: VehicleFuelProfile) => void;
 }) {
   const [profile, setProfile] = useState<VehicleFuelProfile>({ ...DEFAULT_FUEL_PROFILE });
-  const [loaded, setLoaded] = useState(false);
-
   // Load current profile from IDB on open
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
     getVehicleFuelProfile().then((p) => {
-      if (!cancelled) { setProfile(p); setLoaded(true); }
+      if (!cancelled) { setProfile(p); }
     });
     return () => { cancelled = true; };
   }, [open]);

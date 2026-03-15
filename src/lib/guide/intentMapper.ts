@@ -324,21 +324,21 @@ export type RankedPlace = {
 };
 
 function extractLocality(p: PlaceItem): string | null {
-  const ex: any = p.extra ?? {};
-  const tags = (ex?.tags && typeof ex.tags === "object") ? ex.tags : ex;
-  return tags?.["addr:suburb"] || tags?.["addr:city"] || tags?.["addr:town"] || null;
+  const ex: Record<string, unknown> = p.extra ?? {};
+  const tags: Record<string, unknown> = (ex?.tags && typeof ex.tags === "object") ? ex.tags as Record<string, unknown> : ex;
+  return (tags?.["addr:suburb"] as string) || (tags?.["addr:city"] as string) || (tags?.["addr:town"] as string) || null;
 }
 
 function extractHours(p: PlaceItem): string | null {
-  const ex: any = p.extra ?? {};
-  const tags = (ex?.tags && typeof ex.tags === "object") ? ex.tags : ex;
-  return tags?.opening_hours || null;
+  const ex: Record<string, unknown> = p.extra ?? {};
+  const tags: Record<string, unknown> = (ex?.tags && typeof ex.tags === "object") ? ex.tags as Record<string, unknown> : ex;
+  return (tags?.opening_hours as string) || null;
 }
 
 function extractPhone(p: PlaceItem): string | null {
-  const ex: any = p.extra ?? {};
-  const tags = (ex?.tags && typeof ex.tags === "object") ? ex.tags : ex;
-  return tags?.phone || null;
+  const ex: Record<string, unknown> = p.extra ?? {};
+  const tags: Record<string, unknown> = (ex?.tags && typeof ex.tags === "object") ? ex.tags as Record<string, unknown> : ex;
+  return (tags?.phone as string) || null;
 }
 
 /**

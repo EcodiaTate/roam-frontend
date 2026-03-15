@@ -62,8 +62,8 @@ export function useBundleBuilder() {
         setPhase("ready");
         haptic.success();
         return res;
-      } catch (e: any) {
-        const msg = e?.message ?? "Failed to build offline bundle";
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "Failed to build offline bundle";
         setError(msg);
         setPhase("error");
         haptic.error();

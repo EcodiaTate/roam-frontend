@@ -18,7 +18,6 @@ import {
   type OfflinePlanRecord,
   type OfflinePlanPreview,
 } from "./plansStore";
-import { idbGet, idbStores } from "./idb";
 import { onPlanEvent, type PlanEventType, type PlanEventPayload } from "./planEvents";
 
 /* ── Supabase row shape ──────────────────────────────────────────────── */
@@ -29,7 +28,18 @@ type SupaPlanRow = {
   route_key: string;
   label: string | null;
   preview: OfflinePlanPreview | null;
-  manifest_meta: Record<string, any> | null;
+  manifest_meta: {
+    corridor_status?: string;
+    places_status?: string;
+    traffic_status?: string;
+    hazards_status?: string;
+    corridor_key?: string | null;
+    places_key?: string | null;
+    traffic_key?: string | null;
+    hazards_key?: string | null;
+    styles?: string[];
+    tiles_id?: string;
+  } | null;
   created_at: string;
   updated_at: string;
 };
@@ -100,7 +110,7 @@ export type SyncEvent =
   | "realtime_update"
   | "error";
 
-type SyncListener = (event: SyncEvent, detail?: any) => void;
+type SyncListener = (event: SyncEvent, detail?: unknown) => void;
 
 /* ── PlanSyncManager ─────────────────────────────────────────────────── */
 
@@ -236,8 +246,8 @@ class PlanSyncManager {
         try {
           await this._executeOp(op);
           if (op.id != null) await removeOp(op.id);
-        } catch (e: any) {
-          const msg = e?.message ?? "Unknown sync error";
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : "Unknown sync error";
           console.warn(`[PlanSync] op ${op.op} failed:`, msg);
           if (op.id != null) await markOpFailed(op.id, msg);
         }
@@ -266,7 +276,7 @@ class PlanSyncManager {
 
       if (mErr) throw mErr;
 
-      const planIds = (memberships ?? []).map((m: any) => m.plan_id);
+      const planIds = (memberships ?? []).map((m: { plan_id: string }) => m.plan_id);
       if (planIds.length === 0) {
         this._emit("pull_complete");
         return;
@@ -475,7 +485,7 @@ class PlanSyncManager {
       }
 
       default:
-        console.warn(`[PlanSync] Unknown op type: ${(op as any).op}`);
+        console.warn(`[PlanSync] Unknown op type: ${(op as SyncOp).op}`);
     }
   }
 
@@ -563,7 +573,7 @@ class PlanSyncManager {
 
   /* ── Private: emit sync event ──────────────────────────────────────── */
 
-  private _emit(event: SyncEvent, detail?: any) {
+  private _emit(event: SyncEvent, detail?: unknown) {
     for (const fn of this._listeners) {
       try {
         fn(event, detail);

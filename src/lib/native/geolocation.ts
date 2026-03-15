@@ -2,7 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Geolocation, type Position, type WatchPositionCallback } from "@capacitor/geolocation";
+import { Geolocation, type Position } from "@capacitor/geolocation";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { hasPlugin, isNative } from "./platform";
 
@@ -164,11 +164,11 @@ export function useGeolocation(opts?: {
 
       watchIdRef.current = id;
       setState((s) => ({ ...s, tracking: true }));
-    } catch (e: any) {
+    } catch (e: unknown) {
       setState((s) => ({
         ...s,
         loading: false,
-        error: e?.message ?? "Failed to start location tracking",
+        error: e instanceof Error ? e.message : "Failed to start location tracking",
       }));
     }
   }, [highAccuracy, hapticOnFix]);

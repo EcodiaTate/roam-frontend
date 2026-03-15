@@ -1,7 +1,7 @@
 // src/hooks/useMapNavigationMode.ts
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Map as MLMap } from "maplibre-gl";
 import type { RoamPosition } from "@/lib/native/geolocation";
 import type { BBox4 } from "@/lib/types/geo";
@@ -49,21 +49,23 @@ const MANUAL_PAN_COOLDOWN_MS = 8000;
 
 export function useMapNavigationMode({ mapRef, position, active, bbox }: Opts): MapNavMode {
   const isTrackingRef = useRef(true);
+  const [isTracking, setIsTracking] = useState(true);
   const lastManualInteraction = useRef(0);
   const isActiveRef = useRef(active);
-  isActiveRef.current = active;
+  useEffect(() => { isActiveRef.current = active; }, [active]);
 
   // ── Detect user manual interaction → pause tracking ──
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !active) return;
 
-    const onMoveStart = (e: any) => {
+    const onMoveStart = (e: { originalEvent?: Event }) => {
       // If the move was triggered programmatically (by us), ignore
       if (e.originalEvent) {
         // User-initiated pan/zoom/rotate
         lastManualInteraction.current = Date.now();
         isTrackingRef.current = false;
+        setIsTracking(false);
       }
     };
 
@@ -124,6 +126,7 @@ export function useMapNavigationMode({ mapRef, position, active, bbox }: Opts): 
       const remaining = MANUAL_PAN_COOLDOWN_MS - timeSinceManual;
       const timer = setTimeout(() => {
         isTrackingRef.current = true;
+        setIsTracking(true);
       }, remaining);
       return () => clearTimeout(timer);
     }
@@ -165,6 +168,7 @@ export function useMapNavigationMode({ mapRef, position, active, bbox }: Opts): 
     if (!map || !bbox) return;
 
     isTrackingRef.current = false;
+    setIsTracking(false);
     lastManualInteraction.current = Date.now();
 
     map.easeTo({ pitch: 0, bearing: 0, duration: EASE_DURATION / 2 });
@@ -189,6 +193,7 @@ export function useMapNavigationMode({ mapRef, position, active, bbox }: Opts): 
 
     lastManualInteraction.current = 0;
     isTrackingRef.current = true;
+    setIsTracking(true);
 
     const bearing =
       position.heading != null && position.speed != null && position.speed > 1
@@ -210,6 +215,7 @@ export function useMapNavigationMode({ mapRef, position, active, bbox }: Opts): 
       // This is handled by the active prop reactively,
       // but exposed for programmatic control if needed
       isTrackingRef.current = a;
+      setIsTracking(a);
       if (a && position) {
         recenter();
       }
@@ -221,6 +227,6 @@ export function useMapNavigationMode({ mapRef, position, active, bbox }: Opts): 
     setActive,
     showOverview,
     recenter,
-    isTracking: isTrackingRef.current,
+    isTracking,
   };
 }

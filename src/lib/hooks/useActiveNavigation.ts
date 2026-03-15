@@ -23,8 +23,6 @@ import {
   speakFatigueWarning,
 } from "@/lib/nav/voice";
 import {
-  type FatigueState,
-  initialFatigueState,
   updateFatigue,
   fatigueEscalated,
 } from "@/lib/nav/fatigue";
@@ -75,15 +73,15 @@ export function useActiveNavigation(
 
   // Refs for values that change every tick (avoid stale closures)
   const navRef = useRef(nav);
-  navRef.current = nav;
+  useEffect(() => { navRef.current = nav; }, [nav]);
   const voiceRef = useRef<VoiceState>(initialVoiceState());
   const lastTickRef = useRef<number>(0);
   const navpackRef = useRef(navpack);
-  navpackRef.current = navpack;
+  useEffect(() => { navpackRef.current = navpack; }, [navpack]);
   const configRef = useRef(config);
-  configRef.current = config;
+  useEffect(() => { configRef.current = config; }, [config]);
   const isMutedRef = useRef(isMuted);
-  isMutedRef.current = isMuted;
+  useEffect(() => { isMutedRef.current = isMuted; }, [isMuted]);
 
   // Precomputed data (expensive, memoize on navpack change)
   const flatSteps = useMemo(() => {
@@ -109,9 +107,9 @@ export function useActiveNavigation(
   }, [navpack]);
 
   const flatStepsRef = useRef(flatSteps);
-  flatStepsRef.current = flatSteps;
+  useEffect(() => { flatStepsRef.current = flatSteps; }, [flatSteps]);
   const routeDataRef = useRef(routeData);
-  routeDataRef.current = routeData;
+  useEffect(() => { routeDataRef.current = routeData; }, [routeData]);
 
   // ── GPS tick handler ──
   const handlePosition = useCallback((pos: RoamPosition) => {

@@ -1,7 +1,7 @@
 // src/lib/native/statusBar.ts
 "use client";
 
-import { isNative, hasPlugin, isIOS, isAndroid } from "./platform";
+import { isNative, hasPlugin, isAndroid } from "./platform";
 
 /**
  * Configure the status bar for an immersive, dark navigation UI.
@@ -37,7 +37,8 @@ export async function hideStatusBar() {
   if (!isNative || !hasPlugin("StatusBar")) return;
   try {
     const { StatusBar } = await import("@capacitor/status-bar");
-    await StatusBar.hide({ animation: "SLIDE" as any });
+    const { Animation } = await import("@capacitor/status-bar");
+    await StatusBar.hide({ animation: Animation.Slide });
   } catch {}
 }
 
@@ -48,6 +49,7 @@ export async function showStatusBar() {
   if (!isNative || !hasPlugin("StatusBar")) return;
   try {
     const { StatusBar } = await import("@capacitor/status-bar");
-    await StatusBar.show({ animation: "SLIDE" as any });
+    const { Animation } = await import("@capacitor/status-bar");
+    await StatusBar.show({ animation: Animation.Slide });
   } catch {}
 }

@@ -431,8 +431,8 @@ export function rewriteStyleForLocalServer(style: Record<string, unknown>): Reco
 
   // Rewrite sources
   if (out.sources && typeof out.sources === "object") {
-    out.sources = { ...out.sources };
-    for (const [key, src] of Object.entries(out.sources as Record<string, Record<string, unknown>>)) {
+    const sources = { ...(out.sources as Record<string, Record<string, unknown>>) };
+    for (const [key, src] of Object.entries(sources)) {
       if (!src || typeof src !== "object") continue;
 
       // Rewrite pmtiles:// source URLs
@@ -440,7 +440,7 @@ export function rewriteStyleForLocalServer(style: Record<string, unknown>): Reco
         if (_serverInfo.running && _serverInfo.url) {
           // Extract the tile filename from the original URL
           const filename = src.url.split("/").pop() ?? "australia.pmtiles";
-          out.sources[key] = {
+          sources[key] = {
             ...src,
             url: `pmtiles://${_serverInfo.url}/tiles/${filename}`,
           };
@@ -449,9 +449,9 @@ export function rewriteStyleForLocalServer(style: Record<string, unknown>): Reco
 
       // Rewrite tile array URLs
       if (Array.isArray(src.tiles)) {
-        out.sources[key] = {
+        sources[key] = {
           ...src,
-          tiles: src.tiles.map((t: string) => {
+          tiles: (src.tiles as string[]).map((t: string) => {
             if (typeof t === "string" && t.startsWith("pmtiles://") && _serverInfo.running && _serverInfo.url) {
               const filename = t.split("/").pop() ?? "australia.pmtiles";
               return `pmtiles://${_serverInfo.url}/tiles/${filename}`;
@@ -461,6 +461,7 @@ export function rewriteStyleForLocalServer(style: Record<string, unknown>): Reco
         };
       }
     }
+    out.sources = sources;
   }
 
   return out;

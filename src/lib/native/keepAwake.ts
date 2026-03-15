@@ -17,7 +17,7 @@ import { isNative } from "./platform";
  */
 export function useKeepAwake(opts?: { auto?: boolean }) {
   const [isAwake, setIsAwake] = useState(false);
-  const wakeLockRef = useRef<any>(null);
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
 
   const enable = useCallback(async () => {
     if (isAwake) return;
@@ -27,7 +27,7 @@ export function useKeepAwake(opts?: { auto?: boolean }) {
         const { KeepAwake } = await import("@capacitor-community/keep-awake");
         await KeepAwake.keepAwake();
       } else if ("wakeLock" in navigator) {
-        wakeLockRef.current = await (navigator as any).wakeLock.request("screen");
+        wakeLockRef.current = await navigator.wakeLock.request("screen");
       }
       setIsAwake(true);
     } catch (e) {
@@ -57,7 +57,7 @@ export function useKeepAwake(opts?: { auto?: boolean }) {
     return () => {
       disable();
     };
-  }, []);
+  }, [opts?.auto, enable, disable]);
 
   return { isAwake, enable, disable };
 }

@@ -7,26 +7,20 @@ import { Sun, Moon, Map as MapIcon, Satellite } from "lucide-react";
 export type MapBaseMode = "vector" | "hybrid";
 export type VectorTheme = "bright" | "dark";
 
-export function MapStyleSwitcher(props: {
-  mode: MapBaseMode;
-  vectorTheme: VectorTheme;
-  onChange: (next: { mode: MapBaseMode; vectorTheme: VectorTheme }) => void;
+function SegBtn({
+  active,
+  onClick,
+  children,
+  title,
+  ariaLabel,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  title?: string;
+  ariaLabel?: string;
 }) {
-  const { mode, vectorTheme, onChange } = props;
-
-  const SegBtn = ({
-    active,
-    onClick,
-    children,
-    title,
-    ariaLabel,
-  }: {
-    active: boolean;
-    onClick: () => void;
-    children: React.ReactNode;
-    title?: string;
-    ariaLabel?: string;
-  }) => (
+  return (
     <button
       type="button"
       className="trip-interactive"
@@ -57,20 +51,22 @@ export function MapStyleSwitcher(props: {
       {children}
     </button>
   );
+}
 
-  const IconBtn = ({
-    active,
-    onClick,
-    children,
-    title,
-    ariaLabel,
-  }: {
-    active: boolean;
-    onClick: () => void;
-    children: React.ReactNode;
-    title: string;
-    ariaLabel: string;
-  }) => (
+function IconBtn({
+  active,
+  onClick,
+  children,
+  title,
+  ariaLabel,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  title: string;
+  ariaLabel: string;
+}) {
+  return (
     <button
       type="button"
       className="trip-interactive"
@@ -97,6 +93,14 @@ export function MapStyleSwitcher(props: {
       {children}
     </button>
   );
+}
+
+export function MapStyleSwitcher(props: {
+  mode: MapBaseMode;
+  vectorTheme: VectorTheme;
+  onChange: (next: { mode: MapBaseMode; vectorTheme: VectorTheme }) => void;
+}) {
+  const { mode, vectorTheme, onChange } = props;
 
   return (
     <div

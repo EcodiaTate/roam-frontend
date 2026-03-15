@@ -226,7 +226,7 @@ export function StopRow(props: {
                   >
                     <span style={{ fontSize: 14, fontWeight: 700, color: "var(--roam-text)" }}>{it.name}</span>
                     <span style={{ fontSize: 12, color: "var(--roam-text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {((it.extra as any)?.address) || `${it.category} · ${it.lat.toFixed(3)}, ${it.lng.toFixed(3)}`}
+                      {((it.extra as Record<string, unknown> | undefined)?.address as string) || `${it.category} · ${it.lat.toFixed(3)}, ${it.lng.toFixed(3)}`}
                     </span>
                   </button>
                 ))}

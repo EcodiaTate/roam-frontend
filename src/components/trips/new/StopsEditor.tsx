@@ -143,7 +143,7 @@ function Spinner({ color, size = 18 }: { color: string; size?: number }) {
 /* ── Elapsed timer ───────────────────────────────────────────────────── */
 
 function ElapsedTimer({ startedAt }: { startedAt: number }) {
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -417,27 +417,30 @@ export function StopsEditor(props: {
   // --- Smooth Drag Controller ---
   const [snapState, setSnapState] = useState<"peek" | "expanded">("peek");
   const [dragOffset, setDragOffset] = useState(0);
+  const [isDraggingState, setIsDraggingState] = useState(false);
   const isDragging = useRef(false);
   const dragData = useRef({ startY: 0, lastY: 0, lastTime: 0, velocity: 0 });
 
   // Track when build started for elapsed timer
-  const buildStartRef = useRef<number>(0);
+  const [buildStartTime, setBuildStartTime] = useState<number>(0);
+  const [prevPhase, setPrevPhase] = useState(props.offlinePhase);
   const isBuilding = props.offlinePhase !== "idle";
 
-  useEffect(() => {
-    if (isBuilding && props.offlinePhase !== "error") {
+  // During-render state updates when phase changes
+  if (props.offlinePhase !== prevPhase) {
+    setPrevPhase(props.offlinePhase);
+    if (props.offlinePhase !== "idle" && props.offlinePhase !== "error") {
       setSnapState("expanded");
-      if (buildStartRef.current === 0) buildStartRef.current = Date.now();
     }
-  }, [isBuilding, props.offlinePhase]);
-
-  useEffect(() => {
-    if (props.offlinePhase === "idle") buildStartRef.current = 0;
-  }, [props.offlinePhase]);
+    if (props.offlinePhase === "idle") {
+      setBuildStartTime(0);
+    }
+  }
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (isBuilding) return;
     isDragging.current = true;
+    setIsDraggingState(true);
     dragData.current = { startY: e.clientY, lastY: e.clientY, lastTime: Date.now(), velocity: 0 };
     e.currentTarget.setPointerCapture(e.pointerId);
   };
@@ -460,6 +463,7 @@ export function StopsEditor(props: {
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     isDragging.current = false;
+    setIsDraggingState(false);
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
     } catch {}
@@ -490,7 +494,7 @@ export function StopsEditor(props: {
       className="trip-bottom-sheet-wrap"
       style={{
         transform: finalTransform,
-        transition: isDragging.current ? "none" : "transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)",
+        transition: isDraggingState ? "none" : "transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)",
       }}
     >
       <style>{`
@@ -606,7 +610,7 @@ export function StopsEditor(props: {
               phase={props.offlinePhase as OfflineBuildPhase}
               error={props.offlineError}
               saved={props.savedOffline}
-              startedAt={buildStartRef.current || Date.now()}
+              startedAt={buildStartTime}
               onCancel={props.onResetOffline}
             />
           ) : (
@@ -663,6 +667,7 @@ export function StopsEditor(props: {
                   onClick={() => {
                     haptic.medium();
                     hideKeyboard();
+                    setBuildStartTime(Date.now());
                     props.onBuildOffline();
                   }}
                   disabled={!canSave}
@@ -670,7 +675,7 @@ export function StopsEditor(props: {
                   style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8 }}
                 >
                   <Rocket size={16} />
-                  Let's do it
+                  Let&apos;s do it
                 </button>
               </div>
 

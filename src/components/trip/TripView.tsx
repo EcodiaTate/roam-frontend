@@ -100,7 +100,7 @@ function cx(...names: (string | false | null | undefined)[]): string {
 /* ── Component ────────────────────────────────────────────────────────── */
 
 export function TripView({
-  planId,
+  planId: _planId,
   navpack,
   corridor,
   places,
@@ -200,9 +200,9 @@ export function TripView({
           setDirty(false);
           haptic.success();
         })
-        .catch((e: any) => {
+        .catch((e: unknown) => {
           setDirty(true);
-          setErr(e?.message ?? "Rebuild failed");
+          setErr(e instanceof Error ? e.message : "Rebuild failed");
           haptic.error();
         })
         .finally(() => setBusy(null));
@@ -288,8 +288,8 @@ export function TripView({
       await onRebuildRequested({ stops: ensureStopIds(stops), mode });
       setDirty(false);
       haptic.success();
-    } catch (e: any) {
-      setErr(e?.message ?? "Rebuild failed");
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : "Rebuild failed");
       haptic.error();
     } finally {
       setBusy(null);

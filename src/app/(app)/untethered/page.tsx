@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Capacitor } from "@capacitor/core";
 import {
@@ -10,7 +10,6 @@ import {
   Users,
   Fuel,
   ArrowLeft,
-  MapPin,
   Compass,
   Signal,
   SignalZero,
@@ -162,7 +161,7 @@ export default function UntetheredPage() {
 
     setBuying(true);
     try {
-      const result = await redirectToStripeCheckout(session.access_token);
+      const result = await redirectToStripeCheckout();
       if (result.error) setError(result.error);
     } finally {
       setBuying(false);
@@ -348,7 +347,7 @@ export default function UntetheredPage() {
             }}
           >
             One payment. Yours forever. Full offline maps, unlimited trips, and
-            an AI co-pilot — even when you're 500km from the nearest tower.
+            an AI co-pilot — even when you&apos;re 500km from the nearest tower.
           </p>
         </div>
 
@@ -618,7 +617,7 @@ export default function UntetheredPage() {
               opacity: 0.7,
             }}
           >
-            You'll sign in or create an account at checkout
+            You&apos;ll sign in or create an account at checkout
           </div>
         )}
 

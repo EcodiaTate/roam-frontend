@@ -17,7 +17,6 @@ import {
   Sparkles,
   Users,
   Fuel,
-  AudioLines,
 } from "lucide-react";
 
 type Props = {
@@ -130,7 +129,7 @@ export function PaywallModal({ open, onClose, onUnlocked, variant = "gate" }: Pr
     // Signed in — redirect to Stripe Checkout (does not return on success)
     setBuying(true);
     try {
-      const result = await redirectToStripeCheckout(session.access_token);
+      const result = await redirectToStripeCheckout();
       if (result.error) setError(result.error);
     } finally {
       setBuying(false);

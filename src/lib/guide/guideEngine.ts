@@ -3,7 +3,7 @@
 
 import type { TripStop } from "@/lib/types/trip";
 import type { NavPack, CorridorGraphPack, TrafficOverlay, HazardOverlay } from "@/lib/types/navigation";
-import type { PlacesPack, PlacesSuggestResponse, PlaceItem } from "@/lib/types/places";
+import type { PlacesPack, PlacesSuggestResponse, PlaceItem, PlaceCategory } from "@/lib/types/places";
 import type { OfflineBundleManifest } from "@/lib/types/bundle";
 
 import type {
@@ -148,9 +148,10 @@ function buildContext(args: GuideBootstrap): GuideContext {
  * (phone, website, opening_hours, fuel_types, socket_types, etc).
  * We pick them out explicitly so the LLM sees them.
  */
-function pickPlaceExtras(item: PlaceItem | Record<string, any>): Record<string, any> {
-  const extra: any = (item as any).extra ?? item;
-  const out: Record<string, any> = {};
+function pickPlaceExtras(item: PlaceItem | Record<string, unknown>): Record<string, unknown> {
+  const src = item as Record<string, unknown>;
+  const extra: Record<string, unknown> = (src.extra as Record<string, unknown>) ?? src;
+  const out: Record<string, unknown> = {};
 
   // Contact & hours
   if (extra.phone) out.phone = String(extra.phone).slice(0, 40);
@@ -180,11 +181,12 @@ function pickPlaceExtras(item: PlaceItem | Record<string, any>): Record<string, 
 function rankedToWire(places: RankedPlace[]): WirePlace[] {
   return places.map((p) => {
     // Pull website from extra if not on the RankedPlace directly
-    const extra: any = (p as any).extra ?? {};
+    const pRec = p as unknown as Record<string, unknown>;
+    const extra: Record<string, unknown> = (pRec.extra as Record<string, unknown>) ?? {};
     const website =
-      (p as any).website ??
-      extra.website ??
-      extra["contact:website"] ??
+      (pRec.website as string | undefined) ??
+      (extra.website as string | undefined) ??
+      (extra["contact:website"] as string | undefined) ??
       null;
 
     return {
@@ -213,15 +215,15 @@ function rankedToWire(places: RankedPlace[]): WirePlace[] {
  */
 function trimToolResultForWire(tr: GuideToolResult): GuideToolResult {
   if (!tr.ok) return tr;
-  const result = tr.result as any;
 
   if (tr.tool === "places_search" || tr.tool === "places_corridor") {
-    const items = (result?.items ?? []) as any[];
+    const pack = tr.result as PlacesPack;
+    const items = pack?.items ?? [];
     return {
       ...tr,
       result: {
-        ...result,
-        items: items.slice(0, WIRE_MAX_ITEMS_PER_RESULT).map((p: any) => {
+        ...pack,
+        items: items.slice(0, WIRE_MAX_ITEMS_PER_RESULT).map((p) => {
           const extras = pickPlaceExtras(p);
           return {
             id: p.id,
@@ -232,22 +234,23 @@ function trimToolResultForWire(tr: GuideToolResult): GuideToolResult {
             ...extras,
           };
         }),
-      },
+      } as PlacesPack,
     };
   }
 
   if (tr.tool === "places_suggest") {
-    const clusters = (result?.clusters ?? []) as any[];
+    const resp = tr.result as PlacesSuggestResponse;
+    const clusters = resp?.clusters ?? [];
 
     return {
       ...tr,
       result: {
-        clusters: clusters.slice(0, 5).map((cl: any) => {
+        clusters: clusters.slice(0, 5).map((cl) => {
           const rawPack = cl?.places ?? null;
-          const rawItems = (rawPack?.items ?? []) as any[];
+          const rawItems = rawPack?.items ?? [];
 
-          let lat = typeof cl?.lat === "number" ? cl.lat : null;
-          let lng = typeof cl?.lng === "number" ? cl.lng : null;
+          let lat: number | null = typeof cl?.lat === "number" ? cl.lat : null;
+          let lng: number | null = typeof cl?.lng === "number" ? cl.lng : null;
 
           if ((lat == null || lng == null) && rawItems.length > 0) {
             let sumLat = 0;
@@ -275,7 +278,7 @@ function trimToolResultForWire(tr: GuideToolResult): GuideToolResult {
             places: rawPack
               ? {
                   ...rawPack,
-                  items: rawItems.slice(0, 5).map((p: any) => {
+                  items: rawItems.slice(0, 5).map((p) => {
                     const extras = pickPlaceExtras(p);
                     return {
                       id: p.id,
@@ -297,7 +300,7 @@ function trimToolResultForWire(tr: GuideToolResult): GuideToolResult {
                 },
           };
         }),
-      },
+      } as PlacesSuggestResponse,
     };
   }
 
@@ -331,7 +334,7 @@ function buildWireRequest(
     const intent = extractIntent(latestUserText);
 
     if (preferredCategories.length > 0 && intent.categories.length === 0) {
-      intent.categories = preferredCategories as any[];
+      intent.categories = preferredCategories as PlaceCategory[];
     }
 
     const ranked = filterAndRankPlaces(corridorPlaces, intent, progress, WIRE_MAX_RELEVANT_PLACES);
@@ -442,7 +445,7 @@ function extractSaveActionPlaces(
       name: a.place_name,
       lat: a.lat!,
       lng: a.lng!,
-      category: (a.category ?? corridorMatch?.category ?? "attraction") as any,
+      category: (a.category as PlaceCategory) ?? corridorMatch?.category ?? ("attraction" as PlaceCategory),
       extra: corridorMatch?.extra ?? {},
       source_tool_id: "guide_save_action",
       discovered_at: now,
@@ -528,28 +531,38 @@ export async function restoreLatestGuidePack(
 // ──────────────────────────────────────────────────────────────
 
 async function execToolCall(call: GuideToolCall, context: GuideContext): Promise<GuideToolResult> {
-  const base = call as unknown as { id: string; tool: string; req?: unknown };
   try {
-    if ((call as any).tool === "places_search") {
-      const res = await placesApi.search((call as any).req);
-      return { id: base.id, tool: base.tool as any, ok: true, result: res as any };
+    if (call.tool === "places_search") {
+      const res = await placesApi.search(call.req);
+      return { id: call.id, tool: call.tool, ok: true, result: res };
     }
-    if ((call as any).tool === "places_corridor") {
-      const corridorReq = { ...(call as any).req };
+    if (call.tool === "places_corridor") {
+      const corridorReq = { ...call.req };
       if (context.geometry && !corridorReq.geometry) {
         corridorReq.geometry = context.geometry;
         corridorReq.buffer_km = corridorReq.buffer_km ?? 15;
       }
       const res = await placesApi.corridor(corridorReq);
-      return { id: base.id, tool: base.tool as any, ok: true, result: res as any };
+      return { id: call.id, tool: call.tool, ok: true, result: res };
     }
-    if ((call as any).tool === "places_suggest") {
-      const res = await placesApi.suggest((call as any).req);
-      return { id: base.id, tool: base.tool as any, ok: true, result: res as any };
+    if (call.tool === "places_suggest") {
+      const res = await placesApi.suggest(call.req);
+      return { id: call.id, tool: call.tool, ok: true, result: res };
     }
-    return { id: base.id, tool: base.tool as any, ok: false, result: { error: "unknown tool" } as any };
-  } catch (e: any) {
-    return { id: base.id, tool: base.tool as any, ok: false, result: { error: e?.message ?? String(e) } as any };
+    // Exhaustive check - should never reach here with current union type
+    const _exhaustive: never = call;
+    return _exhaustive;
+  } catch (e: unknown) {
+    const errorMsg = e instanceof Error ? e.message : String(e);
+    // Error results carry an { error } bag; cast through unknown to satisfy the discriminated union
+    const errorResult = { error: errorMsg } as unknown;
+    if (call.tool === "places_search") {
+      return { id: call.id, tool: call.tool, ok: false, result: errorResult as PlacesPack };
+    }
+    if (call.tool === "places_corridor") {
+      return { id: call.id, tool: call.tool, ok: false, result: errorResult as PlacesPack };
+    }
+    return { id: call.id, tool: "places_suggest", ok: false, result: errorResult as PlacesSuggestResponse };
   }
 }
 

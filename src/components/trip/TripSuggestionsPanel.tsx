@@ -53,7 +53,7 @@ function fmtCat(c: PlaceCategory) {
 // nature → family → culture → geocoding
 // ──────────────────────────────────────────────────────────────
 
-const ALL_CATS: PlaceCategory[] = [
+const _ALL_CATS: PlaceCategory[] = [
   // Essentials & safety
   "fuel", "ev_charging", "rest_area", "toilet", "water",
   "dump_point", "mechanic", "hospital", "pharmacy",
@@ -223,7 +223,7 @@ export function TripSuggestionsPanel(props: {
   initialCats?: PlaceCategory[];
   maxHeight?: string | number;
 }) {
-  const items = props.places.items ?? [];
+  const items = useMemo(() => props.places.items ?? [], [props.places.items]);
   const [q, setQ] = useState("");
 
   // Default: show ALL categories (was previously a hardcoded subset of 14)
@@ -394,7 +394,7 @@ export function TripSuggestionsPanel(props: {
           filtered.map((p) => {
             const focused = props.focusedPlaceId === p.id;
             const CatIcon = CATEGORY_ICON[p.category] ?? MapPin;
-            const extra: any = p.extra ?? {};
+            const extra: Record<string, unknown> = (p.extra ?? {}) as Record<string, unknown>;
             const suburb =
               extra["addr:suburb"] || extra["addr:city"] || extra.address;
 

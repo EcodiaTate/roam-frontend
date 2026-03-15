@@ -134,14 +134,15 @@ function useRotatingQuip(quips: string[], active: boolean): string {
   useEffect(() => {
     if (!active) {
       if (ref.current) clearInterval(ref.current);
-      setIdx(0);
       return;
     }
     ref.current = setInterval(() => setIdx((i) => (i + 1) % quips.length), 3000);
     return () => { if (ref.current) clearInterval(ref.current); };
   }, [active, quips.length]);
 
-  return quips[idx] ?? quips[0] ?? "";
+  // When not active, always show the first quip
+  const effectiveIdx = active ? idx : 0;
+  return quips[effectiveIdx] ?? quips[0] ?? "";
 }
 
 /* ─── Spinner ────────────────────────────────────────────────────────────── */
@@ -315,7 +316,7 @@ export function PlanningOverlay({ phase, error, visible }: PlanningOverlayProps)
 
           {/* ── Step list ── */}
           {!error && (
-            <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch" as any }}>
+            <div style={{ overflowY: "auto", WebkitOverflowScrolling: "touch" as const }}>
               {STEPS.map((step, i) => {
                 const done = isReady || i < activeIdx;
                 const active = !isReady && i === activeIdx;

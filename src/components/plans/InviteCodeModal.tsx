@@ -103,8 +103,8 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
       const c = await createInvite(planId);
       haptic.success();
       setGeneratedCode(c);
-    } catch (e: any) {
-      setError(e?.message ?? "Failed to create invite");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to create invite");
     } finally {
       setBusy(false);
     }
@@ -145,8 +145,8 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
       onRedeemed?.(joinedPlanId);
       onClose();
       router.push(`/trip?plan_id=${encodeURIComponent(joinedPlanId)}`);
-    } catch (e: any) {
-      setError(e?.message ?? "Failed to join plan");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to join plan");
     } finally {
       setBusy(false);
     }

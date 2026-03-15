@@ -27,14 +27,14 @@ function gradeColor(gradePct: number): string {
 
 export function ElevationStrip({ profile, gradeSegments, currentKm, compact }: Props) {
   const samples = profile.samples;
-  if (!samples || samples.length < 2) return null;
 
-  const totalKm = samples[samples.length - 1].km_along;
+  const totalKm = samples && samples.length >= 2 ? samples[samples.length - 1].km_along : 0;
   const height = compact ? 40 : 56;
   const width = 100; // percentage-based, rendered in SVG viewBox
 
   // Build SVG path for the elevation sparkline
   const { path, minElev, maxElev } = useMemo(() => {
+    if (!samples || samples.length < 2) return { path: "", minElev: 0, maxElev: 0 };
     const elevs = samples.map((s) => s.elevation_m);
     const min = Math.min(...elevs);
     const max = Math.max(...elevs);
@@ -71,6 +71,8 @@ export function ElevationStrip({ profile, gradeSegments, currentKm, compact }: P
       };
     });
   }, [gradeSegments, totalKm]);
+
+  if (!samples || samples.length < 2) return null;
 
   // Current position marker
   const posX = currentKm != null && totalKm > 0

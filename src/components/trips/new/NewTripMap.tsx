@@ -116,7 +116,7 @@ function pointFromBbox(b: number[] | null | undefined): [number, number] | null 
   return [(minLng + maxLng) / 2, (minLat + maxLat) / 2];
 }
 
-function tryPointFromGeoJSON(g: any): [number, number] | null {
+function tryPointFromGeoJSON(g: Record<string, unknown> | null | undefined): [number, number] | null {
   try {
     if (g?.type === "Point" && Array.isArray(g.coordinates) && g.coordinates.length >= 2) {
       const lng = Number(g.coordinates[0]), lat = Number(g.coordinates[1]);
@@ -133,7 +133,7 @@ function mapReady(map: MLMap | null): map is MLMap {
   if (!map) return false;
   try {
     map.getCanvas();
-    const loaded = (map as any).isStyleLoaded?.();
+    const loaded = (map as unknown as { isStyleLoaded?: () => boolean }).isStyleLoaded?.();
     return loaded === true;
   } catch {
     return false;
@@ -144,11 +144,11 @@ function mapReady(map: MLMap | null): map is MLMap {
  * Fetch a style JSON and rewrite it for the local tile server if available.
  * Falls back to the raw style JSON if the tile server isn't running.
  */
-async function fetchAndRewriteStyle(styleUrl: string): Promise<any> {
+async function fetchAndRewriteStyle(styleUrl: string): Promise<Record<string, unknown>> {
   const res = await fetch(styleUrl);
-  let styleJson = await res.json();
+  let styleJson = await res.json() as Record<string, unknown>;
   if (isFullyOfflineCapable()) {
-    styleJson = rewriteStyleForLocalServer(styleJson);
+    styleJson = rewriteStyleForLocalServer(styleJson) as Record<string, unknown>;
   }
   return styleJson;
 }
@@ -202,7 +202,7 @@ export function NewTripMap(props: {
     // Start with an empty style - we load + rewrite the real one async
     const map = new maplibregl.Map({
       container: elRef.current,
-      style: { version: 8, sources: {}, layers: [] } as any,
+      style: { version: 8 as const, sources: {}, layers: [] },
       center: [153.026, -27.4705],
       zoom: 10,
       attributionControl: false,
@@ -477,7 +477,13 @@ function syncUserLocation(
 
 /* ── Data sync functions ──────────────────────────────────────────────── */
 
-function syncAll(map: MLMap, props: any) {
+function syncAll(map: MLMap, props: {
+  stops: TripStop[];
+  navPack: NavPack | null;
+  placesPack?: PlacesPack | null;
+  traffic?: TrafficOverlay | null;
+  hazards?: HazardOverlay | null;
+}) {
   syncStops(map, props.stops);
   syncRoute(map, props.navPack);
   syncPlaces(map, props.placesPack ?? null);
@@ -502,10 +508,14 @@ function syncRoute(map: MLMap, navPack: NavPack | null) {
   const src = map.getSource(ROUTE_SOURCE) as GeoJSONSource | undefined;
   if (!src) return;
 
+  const np = navPack as Record<string, unknown> | null;
+  const npPrimary = (np?.primary as Record<string, unknown> | undefined);
+  const npRoutes = (np?.routes as Record<string, unknown> | undefined);
+  const npRoutesPrimary = (npRoutes?.primary as Record<string, unknown> | undefined);
   const poly6 =
-    (navPack as any)?.primary?.geometry ??
-    (navPack as any)?.routes?.primary?.geometry ??
-    (navPack as any)?.geometry ??
+    npPrimary?.geometry ??
+    npRoutesPrimary?.geometry ??
+    np?.geometry ??
     null;
 
   if (!poly6) {
@@ -520,9 +530,9 @@ function syncRoute(map: MLMap, navPack: NavPack | null) {
   });
 
   const b =
-    (navPack as any)?.primary?.bbox ??
-    (navPack as any)?.routes?.primary?.bbox ??
-    (navPack as any)?.bbox ??
+    npPrimary?.bbox ??
+    npRoutesPrimary?.bbox ??
+    np?.bbox ??
     null;
 
   if (b && typeof b === "object" && "minLng" in b) {
@@ -537,7 +547,8 @@ function syncPlaces(map: MLMap, pack: PlacesPack | null) {
   const src = map.getSource(PLACES_SOURCE) as GeoJSONSource | undefined;
   if (!src) return;
 
-  const items: any[] = (pack as any)?.items ?? (pack as any)?.places ?? [];
+  const packRecord = pack as Record<string, unknown> | null;
+  const items = ((packRecord?.items ?? packRecord?.places ?? []) as Array<{ id: string; name: string; lat: number; lng: number; category: string }>);
   if (!items.length) {
     src.setData(EMPTY_FC);
     return;
@@ -560,7 +571,8 @@ function syncTraffic(map: MLMap, overlay: TrafficOverlay | null) {
   const src = map.getSource(TRAFFIC_SOURCE) as GeoJSONSource | undefined;
   if (!src) return;
 
-  const items: any[] = (overlay as any)?.items ?? [];
+  const overlayRecord = overlay as Record<string, unknown> | null;
+  const items = ((overlayRecord?.items ?? []) as Array<Record<string, unknown>>);
   if (!items.length) {
     src.setData(EMPTY_FC);
     return;
@@ -570,15 +582,15 @@ function syncTraffic(map: MLMap, overlay: TrafficOverlay | null) {
     type: "FeatureCollection",
     features: items
       .map((ev) => {
-        const p = tryPointFromGeoJSON(ev.geometry) ?? pointFromBbox(ev.bbox);
+        const p = tryPointFromGeoJSON(ev.geometry as Record<string, unknown> | null) ?? pointFromBbox(ev.bbox as number[] | null);
         if (!p) return null;
         return {
           type: "Feature" as const,
           geometry: { type: "Point" as const, coordinates: p },
-          properties: { id: ev.id, type: ev.type ?? "unknown", severity: ev.severity ?? "unknown" },
+          properties: { id: ev.id, type: (ev.type as string) ?? "unknown", severity: (ev.severity as string) ?? "unknown" },
         };
       })
-      .filter(Boolean) as any[],
+      .filter((f): f is NonNullable<typeof f> => f !== null),
   });
 }
 
@@ -586,7 +598,8 @@ function syncHazards(map: MLMap, overlay: HazardOverlay | null) {
   const src = map.getSource(HAZARDS_SOURCE) as GeoJSONSource | undefined;
   if (!src) return;
 
-  const items: any[] = (overlay as any)?.items ?? [];
+  const hazardRecord = overlay as Record<string, unknown> | null;
+  const items = ((hazardRecord?.items ?? []) as Array<Record<string, unknown>>);
   if (!items.length) {
     src.setData(EMPTY_FC);
     return;
@@ -596,14 +609,14 @@ function syncHazards(map: MLMap, overlay: HazardOverlay | null) {
     type: "FeatureCollection",
     features: items
       .map((ev) => {
-        const p = tryPointFromGeoJSON(ev.geometry) ?? pointFromBbox(ev.bbox);
+        const p = tryPointFromGeoJSON(ev.geometry as Record<string, unknown> | null) ?? pointFromBbox(ev.bbox as number[] | null);
         if (!p) return null;
         return {
           type: "Feature" as const,
           geometry: { type: "Point" as const, coordinates: p },
-          properties: { id: ev.id, kind: ev.kind ?? "unknown", severity: ev.severity ?? "unknown" },
+          properties: { id: ev.id, kind: (ev.kind as string) ?? "unknown", severity: (ev.severity as string) ?? "unknown" },
         };
       })
-      .filter(Boolean) as any[],
+      .filter((f): f is NonNullable<typeof f> => f !== null),
   });
 }

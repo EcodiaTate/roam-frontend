@@ -123,8 +123,8 @@ async function onlineRebuild(args: {
     route_key: nextNav.primary.route_key,
     corridor_key: corridorKey,
     places_key: nextPlaces?.places_key ?? null,
-    traffic_key: (nextTraffic as any)?.traffic_key ?? null,
-    hazards_key: (nextHazards as any)?.hazards_key ?? null,
+    traffic_key: nextTraffic?.traffic_key ?? null,
+    hazards_key: nextHazards?.hazards_key ?? null,
     preview: {
       stops,
       geometry: nextNav.primary.geometry,
@@ -218,9 +218,10 @@ async function rebuildFromStops(args: {
 
   try {
     return offlineRebuild({ plan, prevNavpack, corridor, stopsRaw: stops });
-  } catch (e: any) {
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Offline rebuild failed";
     throw new Error(
-      (e?.message ?? "Offline rebuild failed") +
+      message +
         "\n\nBackend is offline. If stops moved outside the stored corridor, you must go online to refresh the corridor.",
     );
   }

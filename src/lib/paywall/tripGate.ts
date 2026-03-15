@@ -146,7 +146,7 @@ export async function purchaseUnlimited(): Promise<{ success: boolean; error?: s
   }
   try {
     const { customerInfo } = await Purchases.purchaseStoreProduct({
-      product: { productIdentifier: RC_PRODUCT_ID } as any,
+      product: { productIdentifier: RC_PRODUCT_ID } as unknown as Parameters<typeof Purchases.purchaseStoreProduct>[0]["product"],
     });
     const unlocked = RC_ENTITLEMENT_ID in customerInfo.entitlements.active;
     if (unlocked) {
@@ -155,9 +155,10 @@ export async function purchaseUnlimited(): Promise<{ success: boolean; error?: s
       return { success: true };
     }
     return { success: false, error: "Purchase completed but entitlement not found." };
-  } catch (e: any) {
-    if (e?.code === "1") return { success: false, error: "cancelled" };
-    return { success: false, error: e?.message ?? "Purchase failed. Please try again." };
+  } catch (e: unknown) {
+    const err = e as { code?: string; message?: string };
+    if (err?.code === "1") return { success: false, error: "cancelled" };
+    return { success: false, error: err?.message ?? "Purchase failed. Please try again." };
   }
 }
 
@@ -173,15 +174,15 @@ export async function restorePurchases(): Promise<{ success: boolean; error?: st
       localSet(KEY_UNLOCKED, "1");
     }
     return { success: unlocked, error: unlocked ? undefined : "No previous purchase found." };
-  } catch (e: any) {
-    return { success: false, error: e?.message ?? "Restore failed." };
+  } catch (e: unknown) {
+    return { success: false, error: e instanceof Error ? e.message : "Restore failed." };
   }
 }
 
 /* ── Public: web Stripe redirect ─────────────────────────────────── */
 
 /** Redirects browser to Stripe Checkout. Does not return on success. */
-export async function redirectToStripeCheckout(_accessToken?: string): Promise<{ error: string }> {
+export async function redirectToStripeCheckout(): Promise<{ error: string }> {
   try {
     // Always refresh to avoid sending a stale/expired access_token that causes 401s
     const { data: { session } } = await supabase.auth.refreshSession();
@@ -191,8 +192,9 @@ export async function redirectToStripeCheckout(_accessToken?: string): Promise<{
     });
     window.location.href = url;
     return { error: "" }; // unreachable
-  } catch (err: any) {
-    return { error: err?.details?.error ?? err?.message ?? "Could not connect to payment service. Please try again." };
+  } catch (err: unknown) {
+    const e = err as { details?: { error?: string }; message?: string };
+    return { error: e?.details?.error ?? e?.message ?? "Could not connect to payment service. Please try again." };
   }
 }
 
@@ -268,15 +270,15 @@ export async function mergeLocalTripsToServer(): Promise<void> {
 /* ── Gate check — call before creating a new trip ────────────────── */
 
 export type GateResult =
-  | { allowed: true;  tripsUsed: number }
-  | { allowed: false; reason: "paywall" | "welcome"; tripsUsed: number };
+  | { allowed: true;  tripsUsed: number; unlocked: boolean }
+  | { allowed: false; reason: "paywall" | "welcome"; tripsUsed: number; unlocked: boolean };
 
 export async function checkTripGate(): Promise<GateResult> {
   // Dev shortcut: ?paywall=1 forces paywall, ?welcome=1 forces welcome modal
   if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
     const p = new URLSearchParams(window.location.search);
-    if (p.get("paywall") === "1") return { allowed: false, reason: "paywall", tripsUsed: 2 };
-    if (p.get("welcome") === "1") return { allowed: false, reason: "welcome", tripsUsed: 0 };
+    if (p.get("paywall") === "1") return { allowed: false, reason: "paywall", tripsUsed: 2, unlocked: false };
+    if (p.get("welcome") === "1") return { allowed: false, reason: "welcome", tripsUsed: 0, unlocked: false };
   }
 
   // On native: also sync RC entitlements in case they purchased on another device
@@ -287,11 +289,11 @@ export async function checkTripGate(): Promise<GateResult> {
   // Supabase is the authoritative source for both unlock and trip count
   const [unlocked, tripsUsed] = await Promise.all([isUnlocked(), getTripsUsed()]);
 
-  if (unlocked) return { allowed: true, tripsUsed };
+  if (unlocked) return { allowed: true, tripsUsed, unlocked: true };
 
-  if (tripsUsed >= 2) return { allowed: false, reason: "paywall", tripsUsed };
+  if (tripsUsed >= 2) return { allowed: false, reason: "paywall", tripsUsed, unlocked: false };
 
-  if (tripsUsed === 0) return { allowed: false, reason: "welcome", tripsUsed };
+  if (tripsUsed === 0) return { allowed: false, reason: "welcome", tripsUsed, unlocked: false };
 
-  return { allowed: true, tripsUsed };
+  return { allowed: true, tripsUsed, unlocked: false };
 }

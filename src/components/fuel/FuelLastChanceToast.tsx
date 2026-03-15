@@ -1,7 +1,7 @@
 // src/components/fuel/FuelLastChanceToast.tsx
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { Fuel, X } from "lucide-react";
 import { haptic } from "@/lib/native/haptics";
 import type { FuelWarning, FuelTrackingState } from "@/lib/types/fuel";
@@ -12,7 +12,7 @@ import type { FuelWarning, FuelTrackingState } from "@/lib/types/fuel";
 const TRIGGER_DISTANCE_KM = 5;
 
 /** Auto-dismiss after this many ms (0 = never) */
-const AUTO_DISMISS_MS = 0; // user must dismiss manually for safety
+const _AUTO_DISMISS_MS = 0; // user must dismiss manually for safety
 
 /* ── Styles ────────────────────────────────────────────────────────────── */
 
@@ -89,43 +89,33 @@ export function FuelLastChanceToast({
   currentKm: number;
 }) {
   const [dismissed, setDismissed] = useState<string | null>(null);
-  const [visible, setVisible] = useState(false);
-  const [activeWarning, setActiveWarning] = useState<FuelWarning | null>(null);
 
-  useEffect(() => {
-    if (!tracking || !tracking.active_warning) {
-      setVisible(false);
-      return;
-    }
-
+  // Derive visibility from props (no setState in effect)
+  const activeWarning = useMemo<FuelWarning | null>(() => {
+    if (!tracking?.active_warning) return null;
     const w = tracking.active_warning;
-    if (w.type !== "last_chance") {
-      setVisible(false);
-      return;
-    }
-
-    // Don't show if already dismissed for this station
+    if (w.type !== "last_chance") return null;
     const stationKey = w.station?.place_id ?? `km-${Math.round(w.at_km)}`;
-    if (dismissed === stationKey) {
-      setVisible(false);
-      return;
-    }
-
-    // Check if within trigger distance
-    if (w.station && Math.abs(currentKm - w.station.km_along_route) <= TRIGGER_DISTANCE_KM) {
-      setActiveWarning(w);
-      setVisible(true);
-      haptic.warning();
-    } else {
-      setVisible(false);
-    }
+    if (dismissed === stationKey) return null;
+    if (w.station && Math.abs(currentKm - w.station.km_along_route) <= TRIGGER_DISTANCE_KM) return w;
+    return null;
   }, [tracking, currentKm, dismissed]);
+
+  const visible = activeWarning !== null;
+
+  // Haptic side effect when warning becomes visible
+  const prevVisibleRef = useRef(false);
+  useEffect(() => {
+    if (visible && !prevVisibleRef.current) {
+      haptic.warning();
+    }
+    prevVisibleRef.current = visible;
+  }, [visible]);
 
   const handleDismiss = useCallback(() => {
     haptic.selection();
     const stationKey = activeWarning?.station?.place_id ?? `km-${Math.round(activeWarning?.at_km ?? 0)}`;
     setDismissed(stationKey);
-    setVisible(false);
   }, [activeWarning]);
 
   if (!visible || !activeWarning) return null;

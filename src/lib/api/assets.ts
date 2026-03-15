@@ -14,7 +14,6 @@
 import {
   getTileServerUrl,
   isFullyOfflineCapable,
-  getPmtilesUrl,
   getGlyphsUrl,
   getSpriteUrl,
 } from "@/lib/offline/basemapManager";

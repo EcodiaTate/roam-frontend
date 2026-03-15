@@ -30,9 +30,10 @@ export async function nativeShare(opts: ShareOpts): Promise<boolean> {
         dialogTitle: opts.title,
       });
       return true;
-    } catch (e: any) {
+    } catch (e: unknown) {
       // User cancelled
-      if (e?.message?.includes("cancel") || e?.message?.includes("dismiss")) return false;
+      const message = e instanceof Error ? e.message : "";
+      if (message.includes("cancel") || message.includes("dismiss")) return false;
       console.warn("[Share] native share failed", e);
     }
   }

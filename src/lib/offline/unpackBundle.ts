@@ -14,8 +14,8 @@ function parseJson<T>(bytes: Uint8Array, name: string): T {
   const txt = strFromU8(bytes);
   try {
     return JSON.parse(txt) as T;
-  } catch (e: any) {
-    throw new Error(`Failed to parse ${name}: ${e?.message ?? "invalid json"}`);
+  } catch (e: unknown) {
+    throw new Error(`Failed to parse ${name}: ${e instanceof Error ? e.message : "invalid json"}`);
   }
 }
 

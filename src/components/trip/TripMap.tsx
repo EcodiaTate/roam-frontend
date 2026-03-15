@@ -4,14 +4,15 @@
 import { useEffect, useMemo, useRef, useCallback } from "react";
 import { rewriteStyleForLocalServer, isFullyOfflineCapable } from "@/lib/offline/basemapManager";
 
-import maplibregl, { type Map as MLMap, type LngLatBoundsLike } from "maplibre-gl";
+import maplibregl, { type Map as MLMap, type LngLatBoundsLike, type MapLayerMouseEvent, GeoJSONSource } from "maplibre-gl";
+import type { StyleSpecification, SourceSpecification, GeoJSONSourceSpecification, ExpressionSpecification } from "@maplibre/maplibre-gl-style-spec";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { Protocol } from "pmtiles";
 
 import type { BBox4 } from "@/lib/types/geo";
 import type { TripStop } from "@/lib/types/trip";
-import type { PlaceItem, PlaceCategory } from "@/lib/types/places";
-import type { TrafficOverlay, HazardOverlay, TrafficEvent, HazardEvent } from "@/lib/types/navigation";
+import type { PlaceItem } from "@/lib/types/places";
+import type { TrafficOverlay, HazardOverlay } from "@/lib/types/navigation";
 import type { RoamPosition } from "@/lib/native/geolocation";
 import type { FuelStation, FuelTrackingState } from "@/lib/types/fuel";
 
@@ -461,18 +462,18 @@ function decodePolyline6(poly: string): Array<[number, number]> {
   return coordinates;
 }
 
-function routeGeoJSON(polyline6: string) {
+function routeGeoJSON(polyline6: string): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
     features: [{ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: decodePolyline6(polyline6) } }],
-  } as any;
+  };
 }
 
-function stopsGeoJSON(stops: TripStop[]) {
+function stopsGeoJSON(stops: TripStop[]): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
     features: (stops ?? []).map((s, idx) => ({
-      type: "Feature",
+      type: "Feature" as const,
       properties: {
         id: s.id ?? `${idx}`,
         type: s.type ?? "poi",
@@ -480,9 +481,9 @@ function stopsGeoJSON(stops: TripStop[]) {
         idx,
         iconId: `roam-stop-${s.type ?? "poi"}`,
       },
-      geometry: { type: "Point", coordinates: [s.lng, s.lat] },
+      geometry: { type: "Point" as const, coordinates: [s.lng, s.lat] },
     })),
-  } as any;
+  };
 }
 
 /**
@@ -501,7 +502,7 @@ function fuelLayerCats(fuelStations: FuelStation[] | null | undefined): Set<stri
   return cats;
 }
 
-function suggestionsGeoJSON(items: PlaceItem[], allowed?: Set<string> | null, suppressCats?: Set<string>) {
+function suggestionsGeoJSON(items: PlaceItem[], allowed?: Set<string> | null, suppressCats?: Set<string>): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
     features: (items ?? [])
@@ -509,7 +510,7 @@ function suggestionsGeoJSON(items: PlaceItem[], allowed?: Set<string> | null, su
       .map((p) => {
         const cfg = getCatConfig(p.category);
         return {
-          type: "Feature",
+          type: "Feature" as const,
           properties: {
             id: p.id,
             name: p.name ?? "",
@@ -518,22 +519,22 @@ function suggestionsGeoJSON(items: PlaceItem[], allowed?: Set<string> | null, su
             sizeClass: cfg.size,
             iconId: CATEGORY_CONFIG[p.category] ? `roam-cat-${p.category}` : "roam-cat-default",
           },
-          geometry: { type: "Point", coordinates: [p.lng, p.lat] },
+          geometry: { type: "Point" as const, coordinates: [p.lng, p.lat] },
         };
       }),
-  } as any;
+  };
 }
 
 /* ── Overlay GeoJSON builders ────────────────────────────────────────── */
 
-function trafficPointsGeoJSON(overlay: TrafficOverlay | null) {
-  if (!overlay) return { type: "FeatureCollection", features: [] } as any;
+function trafficPointsGeoJSON(overlay: TrafficOverlay | null): GeoJSON.FeatureCollection {
+  if (!overlay) return { type: "FeatureCollection", features: [] };
   return {
     type: "FeatureCollection",
     features: overlay.items
       .filter((ev) => ev.geometry && ev.geometry.type === "Point" && Array.isArray(ev.geometry.coordinates))
       .map((ev) => ({
-        type: "Feature",
+        type: "Feature" as const,
         properties: {
           id: ev.id,
           type: ev.type ?? "unknown",
@@ -541,45 +542,45 @@ function trafficPointsGeoJSON(overlay: TrafficOverlay | null) {
           headline: ev.headline,
           iconId: `roam-traffic-${ev.type ?? "unknown"}`,
         },
-        geometry: ev.geometry,
+        geometry: ev.geometry as unknown as GeoJSON.Geometry,
       })),
-  } as any;
+  };
 }
 
-function trafficLinesGeoJSON(overlay: TrafficOverlay | null) {
-  if (!overlay) return { type: "FeatureCollection", features: [] } as any;
+function trafficLinesGeoJSON(overlay: TrafficOverlay | null): GeoJSON.FeatureCollection {
+  if (!overlay) return { type: "FeatureCollection", features: [] };
   return {
     type: "FeatureCollection",
     features: overlay.items
       .filter((ev) => ev.geometry && (ev.geometry.type === "LineString" || ev.geometry.type === "MultiLineString"))
       .map((ev) => ({
-        type: "Feature",
+        type: "Feature" as const,
         properties: { id: ev.id, type: ev.type ?? "unknown", severity: ev.severity ?? "unknown", headline: ev.headline },
-        geometry: ev.geometry,
+        geometry: ev.geometry as unknown as GeoJSON.Geometry,
       })),
-  } as any;
+  };
 }
 
-function trafficPolygonsGeoJSON(overlay: TrafficOverlay | null) {
-  if (!overlay) return { type: "FeatureCollection", features: [] } as any;
+function trafficPolygonsGeoJSON(overlay: TrafficOverlay | null): GeoJSON.FeatureCollection {
+  if (!overlay) return { type: "FeatureCollection", features: [] };
   return {
     type: "FeatureCollection",
     features: overlay.items
       .filter((ev) => ev.geometry && (ev.geometry.type === "Polygon" || ev.geometry.type === "MultiPolygon"))
       .map((ev) => ({
-        type: "Feature",
+        type: "Feature" as const,
         properties: { id: ev.id, type: ev.type ?? "unknown", severity: ev.severity ?? "unknown", headline: ev.headline },
-        geometry: ev.geometry,
+        geometry: ev.geometry as unknown as GeoJSON.Geometry,
       })),
-  } as any;
+  };
 }
 
-function hazardPointsGeoJSON(overlay: HazardOverlay | null) {
-  if (!overlay) return { type: "FeatureCollection", features: [] } as any;
+function hazardPointsGeoJSON(overlay: HazardOverlay | null): GeoJSON.FeatureCollection {
+  if (!overlay) return { type: "FeatureCollection", features: [] };
   return {
     type: "FeatureCollection",
     features: overlay.items
-      .map((ev) => {
+      .map((ev): GeoJSON.Feature | null => {
         if (ev.geometry && ev.geometry.type === "Point") {
           return {
             type: "Feature",
@@ -590,7 +591,7 @@ function hazardPointsGeoJSON(overlay: HazardOverlay | null) {
               title: ev.title,
               iconId: `roam-hazard-${ev.kind ?? "unknown"}`,
             },
-            geometry: ev.geometry,
+            geometry: ev.geometry as unknown as GeoJSON.Geometry,
           };
         }
         if (ev.bbox && ev.bbox.length === 4 && !ev.geometry) {
@@ -608,28 +609,28 @@ function hazardPointsGeoJSON(overlay: HazardOverlay | null) {
         }
         return null;
       })
-      .filter(Boolean),
-  } as any;
+      .filter((f): f is GeoJSON.Feature => f !== null),
+  };
 }
 
-function hazardPolygonsGeoJSON(overlay: HazardOverlay | null) {
-  if (!overlay) return { type: "FeatureCollection", features: [] } as any;
+function hazardPolygonsGeoJSON(overlay: HazardOverlay | null): GeoJSON.FeatureCollection {
+  if (!overlay) return { type: "FeatureCollection", features: [] };
   return {
     type: "FeatureCollection",
     features: overlay.items
       .filter((ev) => ev.geometry && (ev.geometry.type === "Polygon" || ev.geometry.type === "MultiPolygon"))
       .map((ev) => ({
-        type: "Feature",
+        type: "Feature" as const,
         properties: { id: ev.id, kind: ev.kind ?? "unknown", severity: ev.severity ?? "unknown", title: ev.title },
-        geometry: ev.geometry,
+        geometry: ev.geometry as unknown as GeoJSON.Geometry,
       })),
-  } as any;
+  };
 }
 
 /* ── User location GeoJSON ───────────────────────────────────────────── */
 
-function userLocGeoJSON(pos: RoamPosition | null | undefined) {
-  if (!pos) return { type: "FeatureCollection", features: [] } as any;
+function userLocGeoJSON(pos: RoamPosition | null | undefined): GeoJSON.FeatureCollection {
+  if (!pos) return { type: "FeatureCollection", features: [] };
   return {
     type: "FeatureCollection",
     features: [
@@ -639,15 +640,15 @@ function userLocGeoJSON(pos: RoamPosition | null | undefined) {
         geometry: { type: "Point", coordinates: [pos.lng, pos.lat] },
       },
     ],
-  } as any;
+  };
 }
 
-function headingConeGeoJSON(pos: RoamPosition | null | undefined) {
-  if (!pos || pos.heading == null || pos.speed == null || pos.speed < 0.5) return { type: "FeatureCollection", features: [] } as any;
+function headingConeGeoJSON(pos: RoamPosition | null | undefined): GeoJSON.FeatureCollection {
+  if (!pos || pos.heading == null || pos.speed == null || pos.speed < 0.5) return { type: "FeatureCollection", features: [] };
   return {
     type: "FeatureCollection",
     features: [{ type: "Feature", properties: { heading: pos.heading }, geometry: { type: "Point", coordinates: [pos.lng, pos.lat] } }],
-  } as any;
+  };
 }
 
 function accuracyToPixels(accuracyM: number, lat: number, zoom: number): number {
@@ -657,25 +658,26 @@ function accuracyToPixels(accuracyM: number, lat: number, zoom: number): number 
 
 /* ── Style / PMTiles helpers ─────────────────────────────────────────── */
 
-function rewriteStyleForPMTiles(style: any, origin: string) {
+function rewriteStyleForPMTiles(style: StyleSpecification, origin: string): StyleSpecification {
   if (!style?.sources || typeof style.sources !== "object") return style;
   const out = { ...style, sources: { ...style.sources } };
-  for (const [k, src] of Object.entries<any>(out.sources)) {
+  for (const [k, src] of Object.entries(out.sources)) {
     if (!src || typeof src !== "object") continue;
-    if (typeof src.url === "string" && src.url.startsWith("pmtiles://")) {
-      out.sources[k] = { ...src, url: normalizePmtilesUrl(src.url, origin) };
-    } else if (Array.isArray(src.tiles)) {
+    const s = src as Record<string, unknown>;
+    if (typeof s.url === "string" && s.url.startsWith("pmtiles://")) {
+      out.sources[k] = { ...src, url: normalizePmtilesUrl(s.url as string, origin) } as SourceSpecification;
+    } else if (Array.isArray(s.tiles)) {
       out.sources[k] = {
         ...src,
-        tiles: src.tiles.map((t: string) => (typeof t === "string" && t.startsWith("pmtiles://") ? normalizePmtilesUrl(t, origin) : t)),
-      };
+        tiles: (s.tiles as string[]).map((t: string) => (typeof t === "string" && t.startsWith("pmtiles://") ? normalizePmtilesUrl(t, origin) : t)),
+      } as SourceSpecification;
     }
   }
   return out;
 }
 
 function normalizePmtilesUrl(u: string, origin: string) {
-  let inner = u.slice("pmtiles://".length).replace(/^\/+/, "");
+  const inner = u.slice("pmtiles://".length).replace(/^\/+/, "");
   if (/^https?:\/\//i.test(inner)) return `pmtiles://${inner}`;
   const path = inner.startsWith("offline/") ? `/${inner}` : inner.startsWith("/") ? inner : `/${inner}`;
   return `pmtiles://${origin}${path}`;
@@ -685,13 +687,13 @@ function escapeHtml(s: string) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
-function addOrUpdateGeoJsonSource(map: MLMap, id: string, data: any, extraOpts?: Record<string, any>) {
-  const src: any = map.getSource(id);
+function addOrUpdateGeoJsonSource(map: MLMap, id: string, data: GeoJSON.FeatureCollection, extraOpts?: Partial<GeoJSONSourceSpecification>) {
+  const src = map.getSource(id) as GeoJSONSource | undefined;
   if (!src) {
-    map.addSource(id, { type: "geojson", data, ...extraOpts });
+    map.addSource(id, { type: "geojson", data, ...extraOpts } as GeoJSONSourceSpecification);
     return;
   }
-  if (src?.setData) src.setData(data);
+  src.setData(data);
 }
 
 function easeToCoord(map: MLMap, coord: [number, number], opts?: { zoom?: number; duration?: number }) {
@@ -839,7 +841,7 @@ export function TripMap(props: Props) {
 
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: { version: 8, sources: {}, layers: [] } as any,
+      style: { version: 8, sources: {}, layers: [] } as StyleSpecification,
       center: [(props.bbox.minLng + props.bbox.maxLng) / 2, (props.bbox.minLat + props.bbox.maxLat) / 2],
       zoom: 6,
       attributionControl: false,
@@ -863,15 +865,15 @@ export function TripMap(props: Props) {
         }
 
         // Then apply the existing PMTiles URL normalization for Capacitor safety
-        map.setStyle(rewriteStyleForPMTiles(styleJson, origin), { diff: false });
-      } catch (e) {
+        map.setStyle(rewriteStyleForPMTiles(styleJson as StyleSpecification, origin), { diff: false });
+      } catch (e: unknown) {
         console.error("[TripMap] style load failed", e);
       }
     })();
 
     // Stop click handler
     const registerStopClick = (layerId: string) => {
-      map.on("click", layerId, (e: any) => {
+      map.on("click", layerId, (e: MapLayerMouseEvent) => {
         const id = e?.features?.[0]?.properties?.id;
         if (id) props.onStopPress?.(String(id));
       });
@@ -1110,7 +1112,7 @@ export function TripMap(props: Props) {
       }
 
       // Traffic click → popup
-      map.on("click", TRAFFIC_POINT_LAYER, (e: any) => {
+      map.on("click", TRAFFIC_POINT_LAYER, (e: MapLayerMouseEvent) => {
         const f = e?.features?.[0];
         if (!f) return;
         const p = f.properties;
@@ -1208,7 +1210,7 @@ export function TripMap(props: Props) {
       }
 
       // Hazard click → popup
-      map.on("click", HAZARD_ICON_LAYER, (e: any) => {
+      map.on("click", HAZARD_ICON_LAYER, (e: MapLayerMouseEvent) => {
         const f = e?.features?.[0];
         if (!f) return;
         const p = f.properties;
@@ -1225,7 +1227,7 @@ export function TripMap(props: Props) {
       });
 
       // Traffic line click → popup
-      map.on("click", TRAFFIC_LINE_LAYER, (e: any) => {
+      map.on("click", TRAFFIC_LINE_LAYER, (e: MapLayerMouseEvent) => {
         const f = e?.features?.[0];
         if (!f) return;
         const p = f.properties;
@@ -1242,7 +1244,7 @@ export function TripMap(props: Props) {
       });
 
       // Traffic polygon click → popup
-      map.on("click", TRAFFIC_POLY_LAYER, (e: any) => {
+      map.on("click", TRAFFIC_POLY_LAYER, (e: MapLayerMouseEvent) => {
         const f = e?.features?.[0];
         if (!f) return;
         const p = f.properties;
@@ -1259,7 +1261,7 @@ export function TripMap(props: Props) {
       });
 
       // Hazard polygon click → popup
-      map.on("click", HAZARD_POLY_LAYER, (e: any) => {
+      map.on("click", HAZARD_POLY_LAYER, (e: MapLayerMouseEvent) => {
         const f = e?.features?.[0];
         if (!f) return;
         const p = f.properties;
@@ -1379,29 +1381,32 @@ export function TripMap(props: Props) {
       }
 
       // Cluster click → expand
-      map.on("click", SUG_CLUSTER_CIRCLE, (e: any) => {
+      map.on("click", SUG_CLUSTER_CIRCLE, (e: MapLayerMouseEvent) => {
         const features = map.queryRenderedFeatures(e.point, { layers: [SUG_CLUSTER_CIRCLE] });
         if (!features.length) return;
-        const clusterId = features[0].properties?.cluster_id;
+        const clusterId = features[0].properties?.cluster_id as number | undefined;
         if (clusterId == null) return;
-        const source = map.getSource(SUG_SRC) as any;
+        const source = map.getSource(SUG_SRC) as GeoJSONSource | undefined;
         if (!source?.getClusterExpansionZoom) return;
-        source.getClusterExpansionZoom(clusterId, (err: any, zoom: number) => {
-          if (err) return;
-          const coords = (features[0].geometry as any)?.coordinates;
-          if (coords) map.easeTo({ center: coords, zoom: Math.min(zoom, 16), duration: 350 });
-        });
+        source.getClusterExpansionZoom(clusterId).then((zoom: number) => {
+          const geom = features[0].geometry;
+          if (geom.type === "Point") {
+            const coords = geom.coordinates as [number, number];
+            map.easeTo({ center: coords, zoom: Math.min(zoom, 16), duration: 350 });
+          }
+        }).catch(() => {});
       });
 
       // Suggestion click → popup
-      const handleSugClick = (e: any) => {
+      const handleSugClick = (e: MapLayerMouseEvent) => {
         const f = e?.features?.[0];
-        const id = f?.properties?.id ? String(f.properties.id) : null;
+        if (!f) return;
+        const id = f.properties?.id ? String(f.properties.id) : null;
         if (!id) return;
-        const coords = (f.geometry as any)?.coordinates;
+        const coords = f.geometry.type === "Point" ? f.geometry.coordinates : null;
         if (Array.isArray(coords) && coords.length === 2) easeToCoord(map, [Number(coords[0]), Number(coords[1])], { zoom: Math.max(map.getZoom(), 13), duration: 420 });
         onSugPressRef.current?.(id);
-        const html = buildSuggestionPopupHtml(f?.properties?.name ?? "", f?.properties?.category ?? "", id);
+        const html = buildSuggestionPopupHtml(f.properties?.name ?? "", f.properties?.category ?? "", id);
         try {
           popupRef.current?.remove();
           popupRef.current = new maplibregl.Popup({ closeButton: true, closeOnClick: true, className: "trip-map-popup", maxWidth: "280px" })
@@ -1469,7 +1474,7 @@ export function TripMap(props: Props) {
       /* ── 5. Stop layers - beautiful themed markers ─────────────────── */
       addOrUpdateGeoJsonSource(map, STOPS_SRC, stopsFC);
 
-      const stopColor = ["match", ["get", "type"], "start", "#16a34a", "end", "#dc2626", "via", "#9333ea", "#2563eb"] as any;
+      const stopColor: ExpressionSpecification = ["match", ["get", "type"], "start", "#16a34a", "end", "#dc2626", "via", "#9333ea", "#2563eb"];
 
       // Drop shadow circle (subtle, larger, behind)
       if (!map.getLayer(STOPS_SHADOW)) {
@@ -1730,18 +1735,20 @@ export function TripMap(props: Props) {
       }
 
       // Fuel cluster click → expand
-      map.on("click", FUEL_CLUSTER_CIRCLE, (e: any) => {
+      map.on("click", FUEL_CLUSTER_CIRCLE, (e: MapLayerMouseEvent) => {
         const features = map.queryRenderedFeatures(e.point, { layers: [FUEL_CLUSTER_CIRCLE] });
         if (!features.length) return;
-        const clusterId = features[0].properties?.cluster_id;
+        const clusterId = features[0].properties?.cluster_id as number | undefined;
         if (clusterId == null) return;
-        const source = map.getSource(FUEL_SRC) as any;
+        const source = map.getSource(FUEL_SRC) as GeoJSONSource | undefined;
         if (!source?.getClusterExpansionZoom) return;
-        source.getClusterExpansionZoom(clusterId, (err: any, zoom: number) => {
-          if (err) return;
-          const coords = (features[0].geometry as any)?.coordinates;
-          if (coords) map.easeTo({ center: coords, zoom: Math.min(zoom, 16), duration: 350 });
-        });
+        source.getClusterExpansionZoom(clusterId).then((zoom: number) => {
+          const geom = features[0].geometry;
+          if (geom.type === "Point") {
+            const coords = geom.coordinates as [number, number];
+            map.easeTo({ center: coords, zoom: Math.min(zoom, 16), duration: 350 });
+          }
+        }).catch(() => {});
       });
 
       map.on("mouseenter", FUEL_CLUSTER_CIRCLE, () => (map.getCanvas().style.cursor = "pointer"));
@@ -1793,8 +1800,8 @@ export function TripMap(props: Props) {
         if (isFullyOfflineCapable()) {
           styleJson = rewriteStyleForLocalServer(styleJson);
         }
-        map.setStyle(rewriteStyleForPMTiles(styleJson, origin), { diff: false });
-      } catch (e) {
+        map.setStyle(rewriteStyleForPMTiles(styleJson as StyleSpecification, origin), { diff: false });
+      } catch (e: unknown) {
         console.error("[TripMap] style load failed", e);
       }
     })();
@@ -1802,17 +1809,17 @@ export function TripMap(props: Props) {
 
   /* ── Data updates ───────────────────────────────────────────────────── */
   useEffect(() => {
-    const s: any = mapRef.current?.getSource(ROUTE_SRC);
-    s?.setData?.(routeFC);
+    const s = mapRef.current?.getSource(ROUTE_SRC) as GeoJSONSource | undefined;
+    s?.setData(routeFC);
   }, [routeFC]);
   useEffect(() => {
-    const s: any = mapRef.current?.getSource(STOPS_SRC);
-    s?.setData?.(stopsFC);
+    const s = mapRef.current?.getSource(STOPS_SRC) as GeoJSONSource | undefined;
+    s?.setData(stopsFC);
   }, [stopsFC]);
 
   useEffect(() => {
-    const s: any = mapRef.current?.getSource(FUEL_SRC);
-    s?.setData?.(fuelFC);
+    const s = mapRef.current?.getSource(FUEL_SRC) as GeoJSONSource | undefined;
+    s?.setData(fuelFC);
   }, [fuelFC]);
 
   useEffect(() => {
@@ -1822,8 +1829,8 @@ export function TripMap(props: Props) {
   }, [props.focusedStopId]);
 
   useEffect(() => {
-    const s: any = mapRef.current?.getSource(SUG_SRC);
-    s?.setData?.(sugFC);
+    const s = mapRef.current?.getSource(SUG_SRC) as GeoJSONSource | undefined;
+    s?.setData(sugFC);
   }, [sugFC]);
 
   /* ── Update suggestion layer focus styling reactively ─────────────── */
@@ -1856,30 +1863,30 @@ export function TripMap(props: Props) {
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    const s1: any = map.getSource(TRAFFIC_POINT_SRC);
-    s1?.setData?.(trafficPtFC);
-    const s2: any = map.getSource(TRAFFIC_LINE_SRC);
-    s2?.setData?.(trafficLineFC);
-    const s3: any = map.getSource(TRAFFIC_POLY_SRC);
-    s3?.setData?.(trafficPolyFC);
+    const s1 = map.getSource(TRAFFIC_POINT_SRC) as GeoJSONSource | undefined;
+    s1?.setData(trafficPtFC);
+    const s2 = map.getSource(TRAFFIC_LINE_SRC) as GeoJSONSource | undefined;
+    s2?.setData(trafficLineFC);
+    const s3 = map.getSource(TRAFFIC_POLY_SRC) as GeoJSONSource | undefined;
+    s3?.setData(trafficPolyFC);
   }, [trafficPtFC, trafficLineFC, trafficPolyFC]);
 
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    const s1: any = map.getSource(HAZARD_POINT_SRC);
-    s1?.setData?.(hazardPtFC);
-    const s2: any = map.getSource(HAZARD_POLY_SRC);
-    s2?.setData?.(hazardPolyFC);
+    const s1 = map.getSource(HAZARD_POINT_SRC) as GeoJSONSource | undefined;
+    s1?.setData(hazardPtFC);
+    const s2 = map.getSource(HAZARD_POLY_SRC) as GeoJSONSource | undefined;
+    s2?.setData(hazardPolyFC);
   }, [hazardPtFC, hazardPolyFC]);
 
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    const locSrc: any = map.getSource(USER_LOC_SRC);
-    if (locSrc?.setData) locSrc.setData(userLocFC);
-    const headSrc: any = map.getSource(USER_LOC_HEADING_SRC);
-    if (headSrc?.setData) headSrc.setData(headingFC);
+    const locSrc = map.getSource(USER_LOC_SRC) as GeoJSONSource | undefined;
+    locSrc?.setData(userLocFC);
+    const headSrc = map.getSource(USER_LOC_HEADING_SRC) as GeoJSONSource | undefined;
+    headSrc?.setData(headingFC);
     const pos = props.userPosition;
     if (pos && map.getLayer(USER_LOC_ACCURACY)) {
       map.setPaintProperty(USER_LOC_ACCURACY, "circle-radius", accuracyToPixels(pos.accuracy, pos.lat, map.getZoom()));
@@ -1913,8 +1920,8 @@ export function TripMap(props: Props) {
     if (!id) {
       // Clear focus highlight
       lastFocusFlewToRef.current = null;
-      const src = map.getSource(SUG_FOCUS_SRC) as any;
-      if (src?.setData) src.setData(emptyFC);
+      const src = map.getSource(SUG_FOCUS_SRC) as GeoJSONSource | undefined;
+      src?.setData(emptyFC);
       popupRef.current?.remove();
       return;
     }
@@ -1934,15 +1941,17 @@ export function TripMap(props: Props) {
     } else {
       try {
         const feats = map.querySourceFeatures(SUG_SRC);
-        for (const f of feats as any[]) {
+        for (const f of feats) {
           if (f?.properties?.id && String(f.properties.id) === id) {
-            const coords = (f.geometry as any)?.coordinates;
-            if (Array.isArray(coords) && coords.length === 2) {
-              coord = [Number(coords[0]), Number(coords[1])];
-              name = f.properties.name ?? "";
-              category = f.properties.category ?? "";
-              color = f.properties.color ?? "#3b82f6";
-              break;
+            if (f.geometry.type === "Point") {
+              const coords = f.geometry.coordinates;
+              if (Array.isArray(coords) && coords.length === 2) {
+                coord = [Number(coords[0]), Number(coords[1])];
+                name = (f.properties.name as string) ?? "";
+                category = (f.properties.category as string) ?? "";
+                color = (f.properties.color as string) ?? "#3b82f6";
+                break;
+              }
             }
           }
         }
@@ -1958,8 +1967,8 @@ export function TripMap(props: Props) {
     }
 
     if (!coord) {
-      const src = map.getSource(SUG_FOCUS_SRC) as any;
-      if (src?.setData) src.setData(emptyFC);
+      const src = map.getSource(SUG_FOCUS_SRC) as GeoJSONSource | undefined;
+      src?.setData(emptyFC);
       return;
     }
 
@@ -1981,8 +1990,8 @@ export function TripMap(props: Props) {
       }],
     };
 
-    const focusSrc = map.getSource(SUG_FOCUS_SRC) as any;
-    if (focusSrc?.setData) {
+    const focusSrc = map.getSource(SUG_FOCUS_SRC) as GeoJSONSource | undefined;
+    if (focusSrc) {
       focusSrc.setData(focusFC);
     } else {
       try { map.addSource(SUG_FOCUS_SRC, { type: "geojson", data: focusFC }); } catch {}
@@ -2041,18 +2050,18 @@ export function TripMap(props: Props) {
     const emptyFC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
 
     if (!id) {
-      const src = map.getSource(ALERT_HIGHLIGHT_SRC) as any;
-      if (src?.setData) src.setData(emptyFC);
+      const src = map.getSource(ALERT_HIGHLIGHT_SRC) as GeoJSONSource | undefined;
+      src?.setData(emptyFC);
       return;
     }
 
     let coord: [number, number] | null = null;
     for (const srcId of [TRAFFIC_POINT_SRC, HAZARD_POINT_SRC]) {
       try {
-        const feats = (map.getSource(srcId) as any)?._data?.features ?? [];
+        const feats = map.querySourceFeatures(srcId);
         for (const f of feats) {
           if (f?.properties?.id === id && f?.geometry?.type === "Point") {
-            coord = f.geometry.coordinates as [number, number];
+            coord = (f.geometry as GeoJSON.Point).coordinates as [number, number];
             break;
           }
         }
@@ -2061,8 +2070,8 @@ export function TripMap(props: Props) {
     }
 
     if (!coord) {
-      const src = map.getSource(ALERT_HIGHLIGHT_SRC) as any;
-      if (src?.setData) src.setData(emptyFC);
+      const src = map.getSource(ALERT_HIGHLIGHT_SRC) as GeoJSONSource | undefined;
+      src?.setData(emptyFC);
       return;
     }
 
@@ -2074,7 +2083,7 @@ export function TripMap(props: Props) {
     if (!map.getSource(ALERT_HIGHLIGHT_SRC)) {
       map.addSource(ALERT_HIGHLIGHT_SRC, { type: "geojson", data: fc });
     } else {
-      (map.getSource(ALERT_HIGHLIGHT_SRC) as any).setData(fc);
+      (map.getSource(ALERT_HIGHLIGHT_SRC) as GeoJSONSource).setData(fc);
     }
 
     if (!map.getLayer(ALERT_HIGHLIGHT_PING)) {
@@ -2123,7 +2132,7 @@ export function TripMap(props: Props) {
        try {
          map.fitBounds(bboxToBounds(props.bbox), { padding: 60, duration: 250 });
        } catch {}
-     }, [props.bbox.minLat, props.bbox.minLng, props.bbox.maxLat, props.bbox.maxLng, props.navigationMode, props.focusedSuggestionId]);
+     }, [props.bbox.minLat, props.bbox.minLng, props.bbox.maxLat, props.bbox.maxLng, props.bbox, props.navigationMode, props.focusedSuggestionId, props.mapInstanceRef]);
   
   return (
     <div className="trip-map-fullscreen">

@@ -188,12 +188,6 @@ type ViewTab = "chat" | "discoveries";
 // Helpers
 // ──────────────────────────────────────────────────────────────
 
-function getTags(p: PlaceItem): Record<string, any> {
-  const ex: any = p.extra ?? {};
-  if (ex?.tags && typeof ex.tags === "object") return ex.tags as Record<string, any>;
-  return ex as Record<string, any>;
-}
-
 function fmtCategory(c?: string) {
   return (c ?? "").replace(/_/g, " ");
 }
@@ -626,7 +620,7 @@ function MarkdownBody({ text }: { text: string }) {
 // ──────────────────────────────────────────────────────────────
 
 function ExtraBadges({ place }: { place: PlaceItem }) {
-  const extra: any = place.extra ?? {};
+  const extra: Record<string, unknown> = (place.extra ?? {}) as Record<string, unknown>;
   const cc = catColor(place.category);
   const badges: { label: string; accent?: boolean }[] = [];
 
@@ -717,7 +711,7 @@ function PlaceCard({
   onShowOnMap?: () => void;
   isOnline: boolean;
 }) {
-  const extra: any = place.extra ?? {};
+  const extra: Record<string, unknown> = (place.extra ?? {}) as Record<string, unknown>;
   const suburb = extra["addr:suburb"] || extra["addr:city"] || extra.address;
   const phone = extra.phone as string | undefined;
   const website = extra.website as string | undefined;
@@ -982,7 +976,7 @@ export function GuideView({
     onSendMessage(autoAskMessage, []).catch(() => {});
   }, [guideReady, autoAskMessage, onSendMessage]);
 
-  const discoveredPlaces = guidePack?.discovered_places ?? [];
+  const discoveredPlaces = useMemo(() => guidePack?.discovered_places ?? [], [guidePack?.discovered_places]);
   const discoveredIds = useMemo(() => new Set(discoveredPlaces.map((p) => p.id)), [discoveredPlaces]);
 
   const discoveryGroups = useMemo(() => {
