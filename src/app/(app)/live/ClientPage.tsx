@@ -49,7 +49,7 @@ function loadLiveNavPack(): NavPack | null {
   }
 }
 
-function clearLiveNavPack(): void {
+function _clearLiveNavPack(): void {
   try { sessionStorage.removeItem(LIVE_NAVPACK_KEY); } catch {}
 }
 
@@ -64,6 +64,7 @@ export default function LiveTripClientPage() {
   const { online: isOnline } = useNetworkStatus();
 
   // Stable ID for this live session (not persisted)
+  // eslint-disable-next-line react-hooks/purity -- stable session ID, only set once on mount
   const livePlanId = useRef(`live_${Date.now().toString(36)}`);
 
   // Core state

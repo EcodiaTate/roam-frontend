@@ -211,7 +211,7 @@ function projectOntoRoute(lat: number, lng: number, rc: Array<[number, number]>)
 export function extractCoord(geo: Record<string, unknown> | null | undefined, bbox: number[] | null | undefined): { lat: number; lng: number } | null {
   if (geo) {
     if (geo.type === "Point" && Array.isArray(geo.coordinates)) return { lng: geo.coordinates[0], lat: geo.coordinates[1] };
-    if (geo.type === "LineString" && geo.coordinates?.length > 0) {
+    if (geo.type === "LineString" && Array.isArray(geo.coordinates) && geo.coordinates.length > 0) {
       const mid = geo.coordinates[Math.floor(geo.coordinates.length / 2)];
       return Array.isArray(mid) ? { lng: mid[0], lat: mid[1] } : null;
     }
