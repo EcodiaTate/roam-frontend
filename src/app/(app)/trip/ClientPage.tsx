@@ -76,6 +76,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   const focusPlaceFromUrl = sp.get("focus_place_id");
   const focusLatFromUrl = sp.get("focus_lat");
   const focusLngFromUrl = sp.get("focus_lng");
+  const focusPlaceNameFromUrl = sp.get("focus_place_name");
 
   const desiredPlanId = useMemo(
     () => props.initialPlanId ?? planIdFromUrl ?? null,
@@ -180,13 +181,16 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   }, [activeNav.isActive]);
 
   // ── Re-apply URL focus once places load (timing race fix) ─────────
+  // Use a ref to ensure we only apply the initial URL focus once per URL value,
+  // regardless of how many times places or sp re-renders.
+  const urlFocusAppliedRef = useRef<string | null>(null);
   useEffect(() => {
-    const fp = sp.get("focus_place_id");
-    if (fp && places && places.items?.length > 0) {
-      // Only set if not already focused (avoid infinite loop)
-      setFocusedPlaceId((prev) => (prev === fp ? prev : fp));
-    }
-  }, [places, sp]);
+    if (!focusPlaceFromUrl) return;
+    if (!places || !places.items?.length) return;
+    if (urlFocusAppliedRef.current === focusPlaceFromUrl) return; // already applied this URL focus
+    urlFocusAppliedRef.current = focusPlaceFromUrl;
+    setFocusedPlaceId((prev) => (prev === focusPlaceFromUrl ? prev : focusPlaceFromUrl));
+  }, [places, focusPlaceFromUrl]);
 
   // ── Boot logic ──────────────────────────────────────────────────
   useEffect(() => {
@@ -569,10 +573,48 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   }, [navpack, places, plan]);
 
   // ── Guide navigation handler ────────────────────────────────────
-  const handleNavigateToGuide = useCallback((placeId: string) => {
+  const handleNavigateToGuide = useCallback((placeId: string, placeName?: string) => {
     if (!plan) return;
-    router.push(`/guide?plan_id=${encodeURIComponent(plan.plan_id)}&focus_place_id=${encodeURIComponent(placeId)}`);
-  }, [plan, router]);
+    // Use name from places pack or the name passed from the popup button
+    const p = places?.items?.find((x) => x.id === placeId);
+    const name = p?.name ?? placeName ?? null;
+    const askAbout = name ? encodeURIComponent(`Tell me more about ${name}`) : "";
+    const url = `/guide?plan_id=${encodeURIComponent(plan.plan_id)}&focus_place_id=${encodeURIComponent(placeId)}${askAbout ? `&ask_about=${askAbout}` : ""}`;
+    router.push(url);
+  }, [plan, places, router]);
+
+  // ── Add stop from map popup ──────────────────────────────────────
+  const handleAddStopFromMap = useCallback(async (placeId: string) => {
+    if (!plan || !navpack) return;
+    // Check already in stops
+    const currentStops = navpack.req?.stops ?? plan.preview?.stops ?? [];
+    if (currentStops.some((s) => s.id === placeId)) return;
+
+    // Find the PlaceItem from places pack, or fall back to URL coords (guide-suggested place)
+    const place = places?.items?.find((x) => x.id === placeId);
+    const fallbackLat = focusLatFromUrl ? parseFloat(focusLatFromUrl) : null;
+    const fallbackLng = focusLngFromUrl ? parseFloat(focusLngFromUrl) : null;
+    if (!place && (!fallbackLat || !fallbackLng)) return;
+
+    haptic.medium();
+    try {
+      const newStop: TripStop = place
+        ? { id: place.id, name: place.name ?? "Stop", lat: place.lat, lng: place.lng, type: "poi" }
+        : { id: placeId, name: "Stop", lat: fallbackLat!, lng: fallbackLng!, type: "poi" };
+
+      const endIdx = currentStops.findIndex((s) => (s.type ?? "poi") === "end");
+      const newStops: TripStop[] = [...currentStops];
+      if (endIdx >= 0) newStops.splice(endIdx, 0, newStop);
+      else newStops.push(newStop);
+
+      await handleRebuild({ stops: newStops, mode: "auto" });
+      haptic.success();
+      setFocusedPlaceId(null);
+    } catch (e) {
+      haptic.error();
+      console.warn("[Trip] addStopFromMap failed:", e);
+    }
+  }, [plan, navpack, places, focusLatFromUrl, focusLngFromUrl, handleRebuild]);
 
   // ── Alert highlight handler ─────────────────────────────────────
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -709,6 +751,9 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   const effectiveStops = navpack?.req?.stops ?? plan?.preview?.stops ?? [];
   const effectiveGeom = navpack?.primary?.geometry ?? plan?.preview?.geometry ?? null;
 
+  // Set of place IDs already in the trip — passed to TripMap to mark "Already in Trip" in popups
+  const stopPlaceIds = useMemo(() => new Set(effectiveStops.map((s) => s.id).filter((id): id is string => !!id)), [effectiveStops]);
+
   // Current km along route for fuel tracking + elevation strip
   const currentKm = useMemo(() => {
     if (!fuelTracking) return 0;
@@ -760,6 +805,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           suggestions={places?.items ?? null}
           focusedSuggestionId={focusedPlaceId}
           focusFallbackCoord={focusLatFromUrl && focusLngFromUrl ? [parseFloat(focusLngFromUrl), parseFloat(focusLatFromUrl)] : null}
+          focusFallbackName={focusPlaceFromUrl ? (places?.items?.find((x) => x.id === focusPlaceFromUrl)?.name ?? focusPlaceNameFromUrl ?? null) : null}
           onSuggestionPress={(id) => { haptic.selection(); setFocusedPlaceId(id); }}
           traffic={traffic}
           hazards={hazards}
@@ -768,6 +814,9 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           userPosition={activeNav.isActive ? activeNav.lastPosition : geo.position}
           planId={plan.plan_id}
           onNavigateToGuide={handleNavigateToGuide}
+          onAddStopFromMap={handleAddStopFromMap}
+          stopPlaceIds={stopPlaceIds}
+          isOnline={isOnline}
           highlightedAlertId={highlightedAlertId}
           fuelStations={fuelAnalysis?.stations ?? null}
           fuelTracking={fuelTracking}

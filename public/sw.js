@@ -5,7 +5,7 @@
 //
 // To update cached assets, increment CACHE_VERSION.
 
-const CACHE_VERSION = "roam-v1";
+const CACHE_VERSION = "roam-v2";
 const SHELL_URLS = [
   "/",
   "/trip/",
@@ -53,10 +53,12 @@ self.addEventListener("fetch", (event) => {
     return; // let browser handle normally
   }
 
-  // Navigation requests: serve cached shell, fallback to network
+  // Navigation requests: try the actual URL first, fall back to cached "/"
+  // only as a last resort (offline). Do NOT always serve "/" — that breaks
+  // pathname-based routing (all navigations would land on the homepage).
   if (request.mode === "navigate") {
     event.respondWith(
-      caches.match("/").then((cached) => cached ?? fetch(request)),
+      fetch(request).catch(() => caches.match("/").then((cached) => cached ?? Response.error())),
     );
     return;
   }

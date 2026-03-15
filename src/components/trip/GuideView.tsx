@@ -934,6 +934,7 @@ function DiscoveryGroup({
 export function GuideView({
   focusedPlaceId, onFocusPlace, onAddStop, isOnline = true, onShowOnMap,
   guideReady = false, guidePack, tripProgress, onSendMessage, chatBusy = false,
+  initialTab, autoAskMessage,
 }: {
   focusedPlaceId: string | null;
   onFocusPlace: (id: string | null) => void; onAddStop: (place: PlaceItem) => void;
@@ -941,9 +942,13 @@ export function GuideView({
   guidePack?: GuidePack | null; tripProgress?: TripProgress | null;
   onSendMessage?: (text: string, preferredCategories: string[]) => Promise<string | undefined>;
   chatBusy?: boolean;
+  /** If set, start on this tab (e.g. "discoveries" when offline) */
+  initialTab?: "chat" | "discoveries";
+  /** If set and online, auto-send this message once guide is ready */
+  autoAskMessage?: string | null;
 }) {
   const [chatInput, setChatInput] = useState("");
-  const [activeTab, setActiveTab] = useState<ViewTab>("chat");
+  const [activeTab, setActiveTab] = useState<ViewTab>(initialTab ?? "chat");
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Filter out hidden system prompts (e.g., auto-greeting) from visible thread
@@ -965,6 +970,16 @@ export function GuideView({
       setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }), 80);
     }
   }, [chatBusy]);
+
+  // Auto-ask once guide becomes ready (triggered by "View in Guide" from map)
+  const autoAskFiredRef = useRef(false);
+  useEffect(() => {
+    if (!autoAskMessage || autoAskFiredRef.current) return;
+    if (!guideReady || !onSendMessage) return;
+    autoAskFiredRef.current = true;
+    setActiveTab("chat");
+    onSendMessage(autoAskMessage, []).catch(() => {});
+  }, [guideReady, autoAskMessage, onSendMessage]);
 
   const discoveredPlaces = guidePack?.discovered_places ?? [];
   const discoveredIds = useMemo(() => new Set(discoveredPlaces.map((p) => p.id)), [discoveredPlaces]);

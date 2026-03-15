@@ -2,10 +2,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { memo, useCallback } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { haptic } from "@/lib/native/haptics";
+import { getCurrentPlanId, listOfflinePlans } from "@/lib/offline/plansStore";
 
 /* ── Types ────────────────────────────────────────────────────────────── */
 
@@ -175,6 +176,7 @@ const TABS: Tab[] = [
 
 export const BottomTabBar = memo(function BottomTabBar() {
   const pathname = usePathname();
+  const router = useRouter();
 
   const resolveActive = useCallback(
     (href: string) =>
@@ -187,6 +189,28 @@ export const BottomTabBar = memo(function BottomTabBar() {
     TABS.find((t) => resolveActive(t.href))?.key ??
     (pathname === "/" ? "trip" : null);
 
+  /** For the Trip tab: check IDB before navigating — go to /new if no usable plan exists. */
+  const handleTripPress = useCallback(
+    async (e: React.MouseEvent | React.PointerEvent) => {
+      e.preventDefault();
+      haptic.tap();
+      try {
+        const planId = await getCurrentPlanId();
+        if (planId) {
+          router.push("/trip");
+          return;
+        }
+        const plans = await listOfflinePlans();
+        const dest = plans.length > 0 ? "/trip" : "/new";
+        router.push(dest);
+      } catch {
+        // IDB unavailable (SSR/test) — fall back to /trip
+        router.push("/trip");
+      }
+    },
+    [router],
+  );
+
   return (
     <div className="roam-tabs-wrap" role="navigation" aria-label="Primary">
       <nav className="roam-tabs" role="tablist" aria-label="Primary tabs" style={NAV_STYLE}>
@@ -198,6 +222,31 @@ export const BottomTabBar = memo(function BottomTabBar() {
         {TABS.map((tab) => {
           const active = tab.key === activeKey;
 
+          if (tab.isCenter) {
+            return (
+              <a
+                key={tab.key}
+                href="/trip"
+                role="tab"
+                aria-selected={active}
+                aria-label={tab.label}
+                aria-current={active ? ("page" as const) : undefined}
+                className={cx("roam-tab roam-tab-center", active && "roam-tab-active")}
+                data-active={active ? "true" : "false"}
+                draggable={false}
+                onClick={handleTripPress}
+              >
+                <span className="roam-tab-bump" aria-hidden="true" />
+                <span className="roam-tab-inner">
+                  <span className="roam-tab-icon" aria-hidden="true">
+                    {tab.icon(active)}
+                  </span>
+                </span>
+                <span className="roam-tab-label">{tab.label}</span>
+              </a>
+            );
+          }
+
           return (
             <Link
               key={tab.key}
@@ -208,7 +257,6 @@ export const BottomTabBar = memo(function BottomTabBar() {
               aria-current={active ? ("page" as const) : undefined}
               className={cx(
                 "roam-tab",
-                tab.isCenter && "roam-tab-center",
                 active && "roam-tab-active",
                 tab.emergency && "roam-tab-sos",
               )}
@@ -220,26 +268,10 @@ export const BottomTabBar = memo(function BottomTabBar() {
                 if (!active) haptic.tap();
               }}
             >
-              {tab.isCenter ? (
-                /* ── Center raised Trip button ──────────────────────── */
-                <>
-                  <span className="roam-tab-bump" aria-hidden="true" />
-                  <span className="roam-tab-inner">
-                    <span className="roam-tab-icon" aria-hidden="true">
-                      {tab.icon(active)}
-                    </span>
-                  </span>
-                  <span className="roam-tab-label">{tab.label}</span>
-                </>
-              ) : (
-                /* ── Standard tab ───────────────────────────────────── */
-                <>
-                  <span className="roam-tab-icon" aria-hidden="true">
-                    {tab.icon(active)}
-                  </span>
-                  <span className="roam-tab-label">{tab.label}</span>
-                </>
-              )}
+              <span className="roam-tab-icon" aria-hidden="true">
+                {tab.icon(active)}
+              </span>
+              <span className="roam-tab-label">{tab.label}</span>
             </Link>
           );
         })}

@@ -103,7 +103,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [session?.user?.id]);
 
   const signInWithGoogle = useCallback(async () => {
-    const redirectTo = "https://roam.ecodia.au/auth/callback";
+    // On web, derive the callback URL from the current origin so localhost dev
+    // redirects back to localhost instead of the live domain.
+    const redirectTo = Capacitor.isNativePlatform()
+      ? "https://roam.ecodia.au/auth/callback"
+      : `${window.location.origin}/auth/callback`;
 
     if (Capacitor.isNativePlatform()) {
       // skipBrowserRedirect prevents Supabase from calling window.location.href,

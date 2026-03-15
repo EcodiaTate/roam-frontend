@@ -252,7 +252,7 @@ export function PaywallModal({ open, onClose, onUnlocked, variant = "gate" }: Pr
             background: "rgba(255,255,255,0.15)",
             borderRadius: 999, padding: "4px 12px",
             marginBottom: 14,
-          }}>
+        }}>
             <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.06em", color: "rgba(255,255,255,0.9)", textTransform: "uppercase" }}>
               Roam Untethered
             </span>

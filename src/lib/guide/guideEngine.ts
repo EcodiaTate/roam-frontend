@@ -488,6 +488,11 @@ export async function createGuidePack(
     return { guideKey, pack: restored, context };
   }
 
+  // Fingerprint changed (e.g. stop added, route recalculated) — inherit thread
+  // from the most recent pack for this plan so conversation isn't wiped.
+  const previousPacks = await listGuidePacks(args.planId ?? null);
+  const inheritedThread = previousPacks.find((p) => p.pack.thread.length > 0)?.pack.thread ?? [];
+
   const pack: GuidePack = {
     schema_version,
     algo_version,
@@ -497,7 +502,7 @@ export async function createGuidePack(
     route_key: context.route_key,
     corridor_key: context.corridor_key,
     manifest_route_key: context.manifest_route_key,
-    thread: [],
+    thread: inheritedThread,
     tool_calls: [],
     tool_results: [],
     discovered_places: [],

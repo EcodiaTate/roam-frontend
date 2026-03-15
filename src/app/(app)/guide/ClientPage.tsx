@@ -60,6 +60,7 @@ export default function GuideClientPage(props: {
 
   const planIdFromUrl = sp.get("plan_id");
   const focusFromUrl = sp.get("focus_place_id");
+  const askAboutFromUrl = sp.get("ask_about");
 
   const desiredPlanId = useMemo(
     () => props.initialPlanId ?? planIdFromUrl ?? null,
@@ -319,11 +320,16 @@ export default function GuideClientPage(props: {
     (placeId: string, lat: number, lng: number) => {
       haptic.medium();
       if (!plan) return;
+      // Look up place name from places pack or guide discoveries for the popup fallback
+      const placeFromPack = places?.items?.find((x) => x.id === placeId);
+      const placeFromGuide = guidePack?.discovered_places?.find((x) => x.id === placeId);
+      const placeName = placeFromPack?.name ?? placeFromGuide?.name ?? null;
+      const nameParam = placeName ? `&focus_place_name=${encodeURIComponent(placeName)}` : "";
       router.replace(
-        `/trip?plan_id=${encodeURIComponent(plan.plan_id)}&focus_place_id=${encodeURIComponent(placeId)}&focus_lat=${lat}&focus_lng=${lng}`,
+        `/trip?plan_id=${encodeURIComponent(plan.plan_id)}&focus_place_id=${encodeURIComponent(placeId)}&focus_lat=${lat}&focus_lng=${lng}${nameParam}`,
       );
     },
-    [plan, router],
+    [plan, places, guidePack, router],
   );
 
   // ── Render ───────────────────────────────────────────────────
@@ -586,6 +592,8 @@ export default function GuideClientPage(props: {
           chatBusy={busy === "chat"}
           onAddStop={handleAddStop}
           onShowOnMap={handleShowOnMap}
+          initialTab={askAboutFromUrl && !isOnline ? "discoveries" : "chat"}
+          autoAskMessage={askAboutFromUrl && isOnline ? decodeURIComponent(askAboutFromUrl) : null}
         />
       </div>
     </div>

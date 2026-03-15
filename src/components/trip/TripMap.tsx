@@ -33,6 +33,8 @@ type Props = {
   focusedSuggestionId?: string | null;
   /** Fallback coords to fly to when focusedSuggestionId doesn't match any PlaceItem */
   focusFallbackCoord?: [number, number] | null;
+  /** Fallback name for popup when focusedSuggestionId doesn't match any PlaceItem */
+  focusFallbackName?: string | null;
   onSuggestionPress?: (placeId: string) => void;
 
   // Overlays
@@ -49,7 +51,14 @@ type Props = {
 
   // Guide navigation
   planId?: string | null;
-  onNavigateToGuide?: (placeId: string) => void;
+  onNavigateToGuide?: (placeId: string, placeName?: string) => void;
+
+  // Add stop from map popup
+  onAddStopFromMap?: (placeId: string) => void;
+  /** IDs of stops already in the trip — used to show "Already added" in popup */
+  stopPlaceIds?: Set<string> | null;
+  /** Whether the device is online — controls popup button labels */
+  isOnline?: boolean;
 
   // Alert highlight - pulses the marker in-place without moving the camera
   highlightedAlertId?: string | null;
@@ -714,9 +723,17 @@ export function TripMap(props: Props) {
   const protocolRef = useRef<Protocol | null>(null);
   const accuracyAnimFrame = useRef<number | null>(null);
   const sugFocusRaf = useRef<number | null>(null);
+  /** Tracks the last place ID we flew the camera to — prevents re-fly on same ID */
+  const lastFocusFlewToRef = useRef<string | null>(null);
 
   const onNavToGuideRef = useRef(props.onNavigateToGuide);
   onNavToGuideRef.current = props.onNavigateToGuide;
+  const onAddStopFromMapRef = useRef(props.onAddStopFromMap);
+  onAddStopFromMapRef.current = props.onAddStopFromMap;
+  const stopPlaceIdsRef = useRef(props.stopPlaceIds);
+  stopPlaceIdsRef.current = props.stopPlaceIds;
+  const isOnlineRef = useRef(props.isOnline ?? true);
+  isOnlineRef.current = props.isOnline ?? true;
   const onSugPressRef = useRef(props.onSuggestionPress);
   onSugPressRef.current = props.onSuggestionPress;
   const onTrafficPressRef = useRef(props.onTrafficEventPress);
@@ -768,19 +785,24 @@ export function TripMap(props: Props) {
 
   const buildSuggestionPopupHtml = useCallback((name: string, category: string, placeId: string) => {
     const cfg = getCatConfig(category);
-    return `<div style="font-family:inherit;min-width:160px">
+    const alreadyAdded = stopPlaceIdsRef.current?.has(placeId) ?? false;
+    const online = isOnlineRef.current;
+    const guideLabel = online ? "View in Guide" : "View in Found";
+    const addBtn = alreadyAdded
+      ? `<button disabled style="display:block;width:100%;margin-top:6px;padding:8px 0;border:none;border-radius:10px;font-size:12px;font-weight:950;letter-spacing:0.2px;background:var(--roam-surface-hover,rgba(255,255,255,0.08));color:var(--roam-text-muted,#888);cursor:default;">Already in Trip</button>`
+      : `<button data-roam-add-stop="${escapeHtml(placeId)}" style="display:block;width:100%;margin-top:6px;padding:8px 0;border:none;border-radius:10px;cursor:pointer;font-size:12px;font-weight:950;letter-spacing:0.2px;background:var(--roam-accent,#4a6c53);color:#fff;box-shadow:0 2px 8px rgba(74,108,83,0.35);transition:opacity 0.1s" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">Add Stop</button>`;
+    return `<div style="font-family:inherit;min-width:180px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
         <div style="width:28px;height:28px;border-radius:8px;background:${cfg.color};display:grid;place-items:center;flex-shrink:0">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="${ICON_PATHS[cfg.icon] ?? ICON_PATHS.pin}"/></svg>
         </div>
         <div>
           <div style="font-size:14px;font-weight:900;letter-spacing:-0.2px;color:var(--roam-text)">${escapeHtml(name)}</div>
-          <div style="font-size:11px;font-weight:700;color:var(--roam-text-muted);text-transform:capitalize;margin-top:1px">${escapeHtml(category.replace("_", " "))}</div>
+          <div style="font-size:11px;font-weight:700;color:var(--roam-text-muted);text-transform:capitalize;margin-top:1px">${escapeHtml(category.replace(/_/g, " "))}</div>
         </div>
       </div>
-      <button data-roam-guide-place="${escapeHtml(
-        placeId,
-      )}" style="display:block;width:100%;margin-top:8px;padding:8px 0;border:none;border-radius:10px;cursor:pointer;font-size:12px;font-weight:950;letter-spacing:0.2px;background:var(--roam-accent,#4a6c53);color:#fff;box-shadow:0 2px 8px rgba(74,108,83,0.35);transition:opacity 0.1s" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">View in Guide</button>
+      ${addBtn}
+      <button data-roam-guide-place="${escapeHtml(placeId)}" data-roam-guide-name="${escapeHtml(name)}" style="display:block;width:100%;margin-top:4px;padding:8px 0;border:none;border-radius:10px;cursor:pointer;font-size:12px;font-weight:950;letter-spacing:0.2px;background:transparent;color:var(--roam-text-muted,#888);border:1.5px solid var(--roam-border,rgba(255,255,255,0.1));transition:opacity 0.1s" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'">${escapeHtml(guideLabel)}</button>
     </div>`;
   }, []);
 
@@ -887,14 +909,25 @@ export function TripMap(props: Props) {
       longPressPos = null;
     });
 
-    // Global click handler for popup "View in Guide" button
+    // Global click handler for popup action buttons
     document.addEventListener("click", (e) => {
       const target = e.target as HTMLElement;
-      const placeId = target?.getAttribute?.("data-roam-guide-place");
-      if (placeId) {
+      const guidePlaceId = target?.getAttribute?.("data-roam-guide-place");
+      if (guidePlaceId) {
         e.preventDefault();
         e.stopPropagation();
-        onNavToGuideRef.current?.(placeId);
+        const guidePlaceName = target?.getAttribute?.("data-roam-guide-name") ?? undefined;
+        onNavToGuideRef.current?.(guidePlaceId, guidePlaceName);
+        return;
+      }
+      const addStopPlaceId = target?.getAttribute?.("data-roam-add-stop");
+      if (addStopPlaceId) {
+        e.preventDefault();
+        e.stopPropagation();
+        // Swap button to "Adding…" immediately for feedback
+        (target as HTMLButtonElement).disabled = true;
+        target.textContent = "Adding…";
+        onAddStopFromMapRef.current?.(addStopPlaceId);
       }
     });
 
@@ -1879,6 +1912,7 @@ export function TripMap(props: Props) {
 
     if (!id) {
       // Clear focus highlight
+      lastFocusFlewToRef.current = null;
       const src = map.getSource(SUG_FOCUS_SRC) as any;
       if (src?.setData) src.setData(emptyFC);
       popupRef.current?.remove();
@@ -1917,6 +1951,10 @@ export function TripMap(props: Props) {
       if (!coord && props.focusFallbackCoord) {
         coord = props.focusFallbackCoord;
       }
+      // Fallback name
+      if (!name && props.focusFallbackName) {
+        name = props.focusFallbackName;
+      }
     }
 
     if (!coord) {
@@ -1925,8 +1963,13 @@ export function TripMap(props: Props) {
       return;
     }
 
-    // 1. Zoom close - 14.5 so the icon is clearly visible
-    easeToCoord(map, coord, { zoom: Math.max(map.getZoom(), 14.5), duration: 500 });
+    // 1. Zoom close — only fly the camera if this is a newly focused place.
+    //    If the user has panned away and the effect re-runs (e.g. places reloaded),
+    //    we must NOT re-yank the camera back to the same place.
+    if (lastFocusFlewToRef.current !== id) {
+      lastFocusFlewToRef.current = id;
+      easeToCoord(map, coord, { zoom: Math.max(map.getZoom(), 14.5), duration: 500 });
+    }
 
     // 2. Set the focus highlight source
     const focusFC: GeoJSON.FeatureCollection = {
@@ -1988,7 +2031,7 @@ export function TripMap(props: Props) {
       }
       clearTimeout(popupTimer);
     };
-  }, [props.focusedSuggestionId, props.suggestions, props.focusFallbackCoord, buildSuggestionPopupHtml]);
+  }, [props.focusedSuggestionId, props.suggestions, props.focusFallbackCoord, props.focusFallbackName, buildSuggestionPopupHtml]);
 
   /* ── Highlighted alert → in-place pulse ring (no camera move) ────────── */
   useEffect(() => {
