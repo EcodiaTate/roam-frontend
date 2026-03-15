@@ -474,7 +474,7 @@ export function enrichAlerts(
       relevanceScore: relevanceScore(sev.order, dUser, dRoute, ahead, impact),
       routeImpact: impact,
       isAhead,
-      rawGeometry: ev.geometry,
+      rawGeometry: ev.geometry ?? undefined,
     });
   }
 
@@ -502,7 +502,7 @@ export function enrichAlerts(
       relevanceScore: relevanceScore(sev.order, dUser, dRoute, ahead, impact),
       routeImpact: impact,
       isAhead,
-      rawGeometry: ev.geometry,
+      rawGeometry: ev.geometry ?? undefined,
     });
   }
 

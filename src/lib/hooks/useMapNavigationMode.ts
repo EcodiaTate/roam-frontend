@@ -237,6 +237,7 @@ export function useMapNavigationMode({ mapRef, position, active, bbox }: Opts): 
     if (!hasEnteredRef.current) {
       hasEnteredRef.current = true;
       isTrackingRef.current = true;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: deferred entry when first GPS fix arrives after active=true
       setIsTracking(true);
       lockTracking(ENTRY_MS + 100);
 
