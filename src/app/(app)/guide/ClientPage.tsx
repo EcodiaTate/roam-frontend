@@ -505,7 +505,7 @@ export default function GuideClientPage(props: {
 
                 markers.push({
                   pct: 0,
-                  visited: tripProgress.visited_stop_ids.includes(stops[0]?.id),
+                  visited: tripProgress.visited_stop_ids.includes(stops[0]?.id ?? ""),
                   name: stops[0]?.name ?? "",
                 });
 
