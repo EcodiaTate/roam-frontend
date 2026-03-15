@@ -27,17 +27,7 @@ import {
 
 /* ── Types ────────────────────────────────────────────────────────────── */
 
-type OfflineBuildPhase =
-  | "idle"
-  | "routing"
-  | "corridor_ensure"
-  | "corridor_get"
-  | "places_corridor"
-  | "traffic_poll"
-  | "hazards_poll"
-  | "bundle_build"
-  | "ready"
-  | "error";
+import type { BuildPhase as OfflineBuildPhase } from "@/lib/offline/buildPlanBundle";
 
 /* ── Build pipeline step definitions ─────────────────────────────────── */
 
