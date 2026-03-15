@@ -515,7 +515,7 @@ export default function GuideClientPage(props: {
                   if (stop) {
                     markers.push({
                       pct: (cumKm / tripProgress.total_km) * 100,
-                      visited: tripProgress.visited_stop_ids.includes(stop.id),
+                      visited: tripProgress.visited_stop_ids.includes(stop.id ?? ""),
                       name: stop.name ?? "",
                     });
                   }
