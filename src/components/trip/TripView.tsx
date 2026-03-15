@@ -1,7 +1,7 @@
 // src/components/trip/TripView.tsx
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState, useCallback, useRef } from "react";
 import type { NavPack, CorridorGraphPack, TrafficOverlay, HazardOverlay } from "@/lib/types/navigation";
 import type { TripStop } from "@/lib/types/trip";
 import type { PlacesPack, PlaceItem } from "@/lib/types/places";
@@ -185,14 +185,26 @@ export function TripView({
   } = useAlerts(traffic, hazards, routeGeometry, userPosition, stopsForProjection);
 
   /* ── Stop editing ───────────────────────────────────────────────────── */
-  /* ── Auto-rebuild helper ───────────────────────────────────────────── */
-  // Fires an immediate rebuild for the given stops list, showing the
-  // spinner and clearing dirty on success.  Used by moveStop, removeStop
-  // and addStopFromPlace so the route updates without the user having to
-  // tap "Save Route".
-  const autoRebuild = useCallback(
+  /* ── Auto-rebuild helper (debounced + optimistic) ────────────────── */
+  // UI updates (stops reorder) are instant.  The actual route rebuild is
+  // debounced by 600ms so rapid changes coalesce into a single request.
+  // Buttons stay enabled while the rebuild runs in the background — if
+  // the user makes another change mid-flight, we queue a follow-up
+  // rebuild with the latest stops once the current one settles.
+  const rebuildTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingStops = useRef<TripStop[] | null>(null);
+  const rebuildInFlight = useRef(false);
+
+  const flushRebuild = useCallback(
     (nextStops: TripStop[]) => {
       if (nextStops.length < 2 || !onRebuildRequested) return;
+      // If a rebuild is already in flight, just stash the latest stops —
+      // the in-flight completion handler will kick off a follow-up.
+      if (rebuildInFlight.current) {
+        pendingStops.current = nextStops;
+        return;
+      }
+      rebuildInFlight.current = true;
       setBusy("rebuilding");
       setErr(null);
       onRebuildRequested({ stops: ensureStopIds(nextStops), mode })
@@ -205,46 +217,187 @@ export function TripView({
           setErr(e instanceof Error ? e.message : "Rebuild failed");
           haptic.error();
         })
-        .finally(() => setBusy(null));
+        .finally(() => {
+          rebuildInFlight.current = false;
+          // If the user made more changes while we were rebuilding,
+          // kick off another rebuild with the latest stops.
+          const queued = pendingStops.current;
+          if (queued) {
+            pendingStops.current = null;
+            flushRebuild(queued);
+          } else {
+            setBusy(null);
+          }
+        });
     },
     [onRebuildRequested, mode],
   );
 
+  const autoRebuild = useCallback(
+    (nextStops: TripStop[]) => {
+      // Clear any pending debounce so we always use the latest stops.
+      if (rebuildTimer.current) clearTimeout(rebuildTimer.current);
+      setDirty(true);
+      rebuildTimer.current = setTimeout(() => {
+        rebuildTimer.current = null;
+        flushRebuild(nextStops);
+      }, 600);
+    },
+    [flushRebuild],
+  );
+
+  // Cleanup debounce timer on unmount.
+  useEffect(() => () => { if (rebuildTimer.current) clearTimeout(rebuildTimer.current); }, []);
+
+  /* ── Reorder & remove animation ───────────────────────────────────── */
+  const stopElsRef = useRef<Map<string, HTMLDivElement>>(new Map());
+  const flipSnapshot = useRef<Map<string, DOMRect>>(new Map());
+  // Which stop id was actively moved (gets the "lifted" highlight)
+  const movedIdRef = useRef<string | null>(null);
+  // Which stop id was just added (gets the entrance animation)
+  const addedIdRef = useRef<string | null>(null);
+
+  const capturePositions = useCallback(() => {
+    const snap = new Map<string, DOMRect>();
+    stopElsRef.current.forEach((el, id) => snap.set(id, el.getBoundingClientRect()));
+    flipSnapshot.current = snap;
+  }, []);
+
+  // FLIP: after stops change, animate cards from old → new positions.
+  // Also handles entrance animation for newly added stops.
+  useLayoutEffect(() => {
+    const prev = flipSnapshot.current;
+    const movedId = movedIdRef.current;
+    const addedId = addedIdRef.current;
+    movedIdRef.current = null;
+    addedIdRef.current = null;
+
+    // Entrance animation for newly added stop
+    if (addedId) {
+      const el = stopElsRef.current.get(addedId);
+      if (el) {
+        el.style.transition = "none";
+        el.style.opacity = "0";
+        el.style.transform = "translateY(-12px) scale(0.96)";
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            el.style.transition = "opacity 280ms ease, transform 320ms cubic-bezier(0.34, 1.4, 0.64, 1)";
+            el.style.opacity = "1";
+            el.style.transform = "";
+            const cleanup = () => { el.style.transition = ""; };
+            el.addEventListener("transitionend", cleanup, { once: true });
+            setTimeout(cleanup, 350);
+          });
+        });
+      }
+    }
+
+    if (prev.size === 0) return;
+
+    stopElsRef.current.forEach((el, id) => {
+      if (id === addedId) return; // already handled above
+      const oldRect = prev.get(id);
+      if (!oldRect) return;
+      const newRect = el.getBoundingClientRect();
+      const dy = oldRect.top - newRect.top;
+      if (Math.abs(dy) < 1) return;
+
+      const isMoved = id === movedId;
+      // Invert: snap to old position
+      el.style.transition = "none";
+      el.style.transform = `translateY(${dy}px)${isMoved ? " scale(1.03)" : ""}`;
+      if (isMoved) {
+        el.style.zIndex = "10";
+        el.style.boxShadow = "0 8px 24px rgba(0,0,0,0.18)";
+      }
+      // Play: animate to final position
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const dur = isMoved ? "320ms" : "280ms";
+          const ease = isMoved
+            ? "cubic-bezier(0.34, 1.4, 0.64, 1)"   // slight overshoot for moved card
+            : "cubic-bezier(0.25, 0.1, 0.25, 1)";
+          el.style.transition = [
+            `transform ${dur} ${ease}`,
+            isMoved ? `box-shadow ${dur} ${ease}` : "",
+          ].filter(Boolean).join(", ");
+          el.style.transform = "";
+          if (isMoved) el.style.boxShadow = "";
+          // Clean up after animation finishes
+          const cleanup = () => {
+            el.style.zIndex = "";
+            el.style.transition = "";
+          };
+          el.addEventListener("transitionend", cleanup, { once: true });
+          setTimeout(cleanup, 350);
+        });
+      });
+    });
+    flipSnapshot.current = new Map();
+  }, [stops]);
+
   const moveStop = useCallback(
     (fromIdx: number, dir: -1 | 1) => {
       haptic.selection();
+      capturePositions();
       setStops((prev) => {
         const toIdx = fromIdx + dir;
         if (toIdx < 0 || toIdx >= prev.length) return prev;
         const from = prev[fromIdx];
         const to = prev[toIdx];
         if (!from || !to || isLockedStop(from) || isLockedStop(to)) return prev;
+        movedIdRef.current = from.id ?? null;
         const out = [...prev];
         const [moved] = out.splice(fromIdx, 1);
         out.splice(toIdx, 0, moved);
-        // Auto-rebuild with reordered stops
         autoRebuild(out);
         return out;
       });
     },
-    [autoRebuild],
+    [autoRebuild, capturePositions],
   );
 
   const removeStop = useCallback(
     (id?: string | null) => {
       if (!id) return;
       haptic.medium();
-      setStops((prev) => {
-        const found = prev.find((x) => x.id === id);
-        if (!found || isLockedStop(found)) return prev;
-        const out = prev.filter((x) => x.id !== id);
-        // Auto-rebuild with remaining stops
-        autoRebuild(out);
-        return out;
-      });
-      if (focusedStopId === id) onFocusStop(null);
+      const el = stopElsRef.current.get(id);
+      const doRemove = () => {
+        capturePositions();
+        setStops((prev) => {
+          const found = prev.find((x) => x.id === id);
+          if (!found || isLockedStop(found)) return prev;
+          const out = prev.filter((x) => x.id !== id);
+          autoRebuild(out);
+          return out;
+        });
+        if (focusedStopId === id) onFocusStop(null);
+      };
+      if (el) {
+        let fired = false;
+        const once = () => { if (fired) return; fired = true; doRemove(); };
+        // Slide out to the right + fade + collapse height
+        const h = el.offsetHeight;
+        el.style.height = `${h}px`;
+        el.style.overflow = "hidden";
+        el.style.transition = "transform 250ms ease, opacity 200ms ease";
+        el.style.transform = "translateX(60px)";
+        el.style.opacity = "0";
+        // After the slide-out, collapse the height for remaining items
+        setTimeout(() => {
+          el.style.transition = "height 200ms ease, margin 200ms ease, padding 200ms ease";
+          el.style.height = "0px";
+          el.style.marginTop = "0px";
+          el.style.marginBottom = "0px";
+          el.style.paddingTop = "0px";
+          el.style.paddingBottom = "0px";
+        }, 200);
+        setTimeout(once, 420);
+      } else {
+        doRemove();
+      }
     },
-    [focusedStopId, onFocusStop, autoRebuild],
+    [focusedStopId, onFocusStop, autoRebuild, capturePositions],
   );
 
   const addStopFromPlace = useCallback(
@@ -259,16 +412,19 @@ export function TripView({
       const prev = ensureStopIds(stops);
       const out = [...prev];
       const endIdx = out.findIndex((st) => (st.type ?? "poi") === "end");
-      const next: TripStop = { id: shortId(), type: "poi", name: p.name, lat: p.lat, lng: p.lng };
+      const newId = shortId();
+      const next: TripStop = { id: newId, type: "poi", name: p.name, lat: p.lat, lng: p.lng };
       if (endIdx >= 0) out.splice(endIdx, 0, next);
       else out.push(next);
 
+      capturePositions();
+      addedIdRef.current = newId;
       setStops(out);
       hideKeyboard();
       setActiveSection("route");
       autoRebuild(out);
     },
-    [onAddSuggestion, stops, autoRebuild],
+    [onAddSuggestion, stops, autoRebuild, capturePositions],
   );
 
   const reset = useCallback(() => {
@@ -447,7 +603,16 @@ export function TripView({
               const legAlerts =
               index < stops.length - 1 ? alertsForLeg(index, index + 1) : [];
               return (
-                <div key={stop.id ?? index} className={s.stopEntry}>
+                <div
+                  key={stop.id ?? index}
+                  className={s.stopEntry}
+                  ref={(el) => {
+                    const id = stop.id;
+                    if (!id) return;
+                    if (el) stopElsRef.current.set(id, el);
+                    else stopElsRef.current.delete(id);
+                  }}
+                >
                   {/* Stop card */}
                   <div
                     className={cx(s.stopCard, isFocused && s.stopCardFocused)}
@@ -487,7 +652,6 @@ export function TripView({
                           <button
                             type="button"
                             className={s.controlBtn}
-                            disabled={!!busy}
                             onClick={(e) => {
                               e.stopPropagation();
                               moveStop(index, -1);
@@ -501,7 +665,6 @@ export function TripView({
                           <button
                             type="button"
                             className={s.controlBtn}
-                            disabled={!!busy}
                             onClick={(e) => {
                               e.stopPropagation();
                               moveStop(index, 1);
@@ -514,7 +677,6 @@ export function TripView({
                         <button
                           type="button"
                           className={s.controlBtnDanger}
-                          disabled={!!busy}
                           onClick={(e) => {
                             e.stopPropagation();
                             removeStop(stop.id);
@@ -551,7 +713,6 @@ export function TripView({
             <button
               type="button"
               className={s.addStopBtn}
-              disabled={!!busy}
               onClick={() => {
                 haptic.tap();
                 setActiveSection("places");

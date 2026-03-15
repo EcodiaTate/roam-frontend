@@ -19,11 +19,14 @@ export type PlaceCategory =
   // Nature & outdoors
   | "viewpoint" | "waterfall" | "swimming_hole" | "beach"
   | "national_park" | "hiking" | "picnic" | "hot_spring"
+  | "cave" | "fishing" | "surf"
   // Family & recreation
   | "playground" | "pool" | "zoo" | "theme_park"
+  | "dog_park" | "golf" | "cinema"
   // Culture & sightseeing
   | "visitor_info" | "museum" | "gallery" | "heritage"
   | "winery" | "brewery" | "attraction" | "market" | "park"
+  | "library" | "showground"
   // Geocoding (Mapbox)
   | "address" | "place" | "region";
 

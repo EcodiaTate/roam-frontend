@@ -187,11 +187,70 @@ const RULES: CategoryRule[] = [
   },
   {
     keywords: [
-      "beach", "surf", "coast", "coastal", "swim", "swimming",
+      "beach", "coast", "coastal", "swim", "swimming",
       "ocean", "seaside", "shore",
     ],
-    categories: ["beach"],
+    categories: ["beach", "swimming_hole"],
     weight: 9,
+  },
+  {
+    keywords: [
+      "surf", "surfing", "surf break", "surf spot", "waves",
+    ],
+    categories: ["surf", "beach"],
+    weight: 9,
+  },
+  {
+    keywords: [
+      "cave", "caves", "cavern", "caverns", "grotto",
+      "show cave", "limestone",
+    ],
+    categories: ["cave"],
+    weight: 9,
+  },
+  {
+    keywords: [
+      "fish", "fishing", "angling", "boat ramp", "boat launch",
+      "ramp", "slipway",
+    ],
+    categories: ["fishing"],
+    weight: 9,
+  },
+  {
+    keywords: [
+      "dog park", "dog", "off leash", "off-leash",
+    ],
+    categories: ["dog_park"],
+    weight: 8,
+  },
+  {
+    keywords: [
+      "golf", "golf course",
+    ],
+    categories: ["golf"],
+    weight: 8,
+  },
+  {
+    keywords: [
+      "cinema", "movie", "movies", "drive-in", "drive in", "film",
+    ],
+    categories: ["cinema"],
+    weight: 8,
+  },
+  {
+    keywords: [
+      "library", "libraries", "wifi", "wi-fi",
+    ],
+    categories: ["library"],
+    weight: 7,
+  },
+  {
+    keywords: [
+      "showground", "showgrounds", "racecourse", "rodeo",
+      "country show",
+    ],
+    categories: ["showground"],
+    weight: 7,
   },
   {
     keywords: [

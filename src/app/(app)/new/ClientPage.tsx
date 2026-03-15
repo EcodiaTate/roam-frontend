@@ -56,9 +56,11 @@ export default function NewTripClientPage() {
   const [isLastFreeTrip, setIsLastFreeTrip] = useState(false);
   const [_gateChecked, setGateChecked] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
+  const [unlocked, setUnlocked] = useState<boolean | null>(null);
 
   useEffect(() => {
     checkTripGate().then((gate) => {
+      setUnlocked(gate.unlocked);
       if (gate.allowed) {
         // Trip 2 (tripsUsed === 1): show "last free trip" warning
         // But skip this for unlocked (Untethered) users — they have unlimited trips.
@@ -247,6 +249,8 @@ export default function NewTripClientPage() {
         canDownloadOffline={false}
         savingOffline={bundle.building}
         savedOffline={bundle.isReady}
+        unlocked={unlocked}
+        onUpgrade={() => { setPaywallOpen(true); }}
       />
 
       {/* Planning overlay */}
@@ -296,7 +300,7 @@ export default function NewTripClientPage() {
         open={paywallOpen}
         variant="gate"
         onClose={() => setPaywallOpen(false)}
-        onUnlocked={() => setPaywallOpen(false)}
+        onUnlocked={() => { setPaywallOpen(false); setUnlocked(true); }}
       />
     </div>
   );

@@ -59,6 +59,17 @@ export default function GuideClientPage(props: {
   const sp = useSearchParams();
   const isOnline = useOnlineStatus();
 
+  const headerRef = useRef<HTMLDivElement>(null);
+  const [headerHeight, setHeaderHeight] = useState(60);
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setHeaderHeight(el.offsetHeight));
+    ro.observe(el);
+    setHeaderHeight(el.offsetHeight);
+    return () => ro.disconnect();
+  }, []);
+
   const planIdFromUrl = sp.get("plan_id");
   const focusFromUrl = sp.get("focus_place_id");
   const askAboutFromUrl = sp.get("ask_about");
@@ -177,8 +188,8 @@ export default function GuideClientPage(props: {
           : null;
 
         const greetingPrompt = totalKm
-          ? `[SYSTEM: The user just opened the guide for their trip from ${origin} to ${dest} (${totalKm}km). Give them a warm, brief welcome — mention one or two highlights or heads-ups for this route. Keep it to 2-4 sentences. Be the mate riding shotgun who's excited about this trip.]`
-          : `[SYSTEM: The user just opened the guide for their trip from ${origin} to ${dest}. Give them a warm, brief welcome. Keep it to 2-4 sentences.]`;
+          ? `[SYSTEM: The user just opened the guide for their trip from ${origin} to ${dest} (${totalKm}km). Give them a warm welcome — mention highlights or heads-ups you know about this route from your own knowledge. Then search for more interesting stops, current conditions, or anything useful. Reply immediately with what you know, and use tools to find more — you can do both at once.]`
+          : `[SYSTEM: The user just opened the guide for their trip from ${origin} to ${dest}. Give them a warm welcome with what you know about this route, and search for interesting things along the way. Reply and search at the same time.]`;
 
         setBusy("chat");
         try {
@@ -193,6 +204,7 @@ export default function GuideClientPage(props: {
             maxSteps: 2,
             progress: null,
             corridorPlaces,
+            onPackUpdate: (p) => { if (!cancelled) setGuidePack(p); },
           });
           if (!cancelled) setGuidePack(res.pack);
         } catch {
@@ -272,9 +284,10 @@ export default function GuideClientPage(props: {
           context: freshContext,
           userText: text,
           preferredCategories,
-          maxSteps: 4,
+          maxSteps: 3,
           progress: latestProgress,
           corridorPlaces,
+          onPackUpdate: (p) => setGuidePack(p),
         });
 
         setGuidePack(res.pack);
@@ -392,14 +405,13 @@ export default function GuideClientPage(props: {
     >
       {/* ── Sticky header ───────────────────────────────────────── */}
       <div
+        ref={headerRef}
         style={{
           position: "sticky",
           top: 0,
           zIndex: 50,
           padding: "16px 16px 12px",
-          background: "linear-gradient(to bottom, var(--roam-bg) 78%, transparent)",
-          backdropFilter: "blur(10px)",
-          WebkitBackdropFilter: "blur(10px)",
+          background: "var(--roam-bg)",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -413,7 +425,6 @@ export default function GuideClientPage(props: {
           </div>
 
           <div style={{ minWidth: 0, flex: 1 }}>
-
             <div
               className="trip-truncate"
               style={{
@@ -425,6 +436,17 @@ export default function GuideClientPage(props: {
               {headerTitle}
             </div>
           </div>
+
+          {tripProgress && tripProgress.total_km > 0 ? (
+            <>
+              <span style={{ fontSize: 11, fontWeight: 900, color: "var(--roam-text-muted)", whiteSpace: "nowrap" }}>
+                {tripProgress.km_from_start.toFixed(0)} km done
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 900, color: "var(--roam-text-muted)", whiteSpace: "nowrap" }}>
+                {tripProgress.km_remaining.toFixed(0)} km to go
+              </span>
+            </>
+          ) : null}
 
           <div
             style={{
@@ -438,6 +460,7 @@ export default function GuideClientPage(props: {
               display: "inline-flex",
               alignItems: "center",
               gap: 6,
+              flexShrink: 0,
             }}
           >
             {isOnline ? <Wifi size={14} /> : <WifiOff size={14} />}
@@ -448,19 +471,6 @@ export default function GuideClientPage(props: {
         {/* ── Progress bar ────────────────────────────────────── */}
         {tripProgress && tripProgress.total_km > 0 ? (
           <div style={{ marginTop: 10 }}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                fontSize: 11,
-                fontWeight: 900,
-                color: "var(--roam-text-muted)",
-                marginBottom: 4,
-              }}
-            >
-              <span>{tripProgress.km_from_start.toFixed(0)} km travelled</span>
-              <span>{tripProgress.km_remaining.toFixed(0)} km to go</span>
-            </div>
 
             <div
               style={{
@@ -595,6 +605,7 @@ export default function GuideClientPage(props: {
           onShowOnMap={handleShowOnMap}
           initialTab={askAboutFromUrl && !isOnline ? "discoveries" : "chat"}
           autoAskMessage={askAboutFromUrl && isOnline ? decodeURIComponent(askAboutFromUrl) : null}
+          stickyTabsTop={headerHeight}
         />
       </div>
     </div>

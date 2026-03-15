@@ -263,7 +263,7 @@ export function StopRow(props: {
               type="button"
               onClick={() => { haptic.selection(); props.onMoveUp(); }}
               className="trip-interactive trip-btn-icon"
-              style={{ width: 34, height: 34 }}
+              style={{ width: 34, height: 34, background: "var(--roam-surface-raised)" }}
               aria-label="Move up"
             >
               <ChevronUp size={16} />
@@ -274,7 +274,7 @@ export function StopRow(props: {
               type="button"
               onClick={() => { haptic.selection(); props.onMoveDown(); }}
               className="trip-interactive trip-btn-icon"
-              style={{ width: 34, height: 34 }}
+              style={{ width: 34, height: 34, background: "var(--roam-surface-raised)" }}
               aria-label="Move down"
             >
               <ChevronDown size={16} />

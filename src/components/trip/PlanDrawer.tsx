@@ -1,7 +1,7 @@
 // src/components/trip/PlanDrawer.tsx
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Check,
@@ -553,6 +553,18 @@ export function PlanDrawer({
   const [inviteMode, setInviteMode] = useState<"create" | "redeem">("redeem");
   const [invitePlanId, setInvitePlanId] = useState<string | null>(null);
 
+  /* ── FLIP animation for plan card reorder ────────────────────────── */
+  const planElsRef = useRef<Map<string, HTMLDivElement>>(new Map());
+  const planFlipSnapshot = useRef<Map<string, DOMRect>>(new Map());
+
+  const capturePlanPositions = useCallback(() => {
+    const snap = new Map<string, DOMRect>();
+    planElsRef.current.forEach((el, id) => {
+      snap.set(id, el.getBoundingClientRect());
+    });
+    planFlipSnapshot.current = snap;
+  }, []);
+
   const refresh = useCallback(async () => {
     try {
       const [p, cur] = await Promise.all([
@@ -584,12 +596,35 @@ export function PlanDrawer({
     return copy;
   }, [plans, currentId]);
 
+  // FLIP: after sorted changes, animate cards from old to new positions
+  useLayoutEffect(() => {
+    const prev = planFlipSnapshot.current;
+    if (prev.size === 0) return;
+    planElsRef.current.forEach((el, id) => {
+      const oldRect = prev.get(id);
+      if (!oldRect) return;
+      const newRect = el.getBoundingClientRect();
+      const dy = oldRect.top - newRect.top;
+      if (Math.abs(dy) < 1) return;
+      el.style.transform = `translateY(${dy}px)`;
+      el.style.transition = "none";
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          el.style.transition = "transform 300ms cubic-bezier(0.25, 0.1, 0.25, 1)";
+          el.style.transform = "";
+        });
+      });
+    });
+    planFlipSnapshot.current = new Map();
+  }, [sorted]);
+
   const handleSetActive = useCallback(async (planId: string) => {
     haptic.medium();
     setBusyId(planId);
     setErr(null);
     try {
       await setCurrentPlanId(planId);
+      capturePlanPositions();
       setCurrentIdLocal(planId);
     } catch (e) {
       const err = e instanceof Error ? e.message : String(e);
@@ -597,7 +632,7 @@ export function PlanDrawer({
     } finally {
       setBusyId(null);
     }
-  }, []);
+  }, [capturePlanPositions]);
 
   const handleDelete = useCallback(
     async (planId: string) => {
@@ -606,8 +641,17 @@ export function PlanDrawer({
       setBusyId(planId);
       setErr(null);
       try {
+        // Animate the card out before removing
+        const el = planElsRef.current.get(planId);
+        if (el) {
+          el.style.transition = "opacity 180ms ease, transform 180ms ease";
+          el.style.opacity = "0";
+          el.style.transform = "scale(0.96)";
+          await new Promise((r) => setTimeout(r, 180));
+        }
         await deleteOfflinePlan(planId);
         haptic.success();
+        capturePlanPositions();
         await refresh();
       } catch (e) {
         const err = e instanceof Error ? e.message : String(e);
@@ -617,7 +661,7 @@ export function PlanDrawer({
         setBusyId(null);
       }
     },
-    [refresh],
+    [refresh, capturePlanPositions],
   );
 
   const handleOpen = useCallback(
@@ -837,17 +881,24 @@ export function PlanDrawer({
               </div>
             ) : (
               sorted.map((p) => (
-                <PlanCard
+                <div
                   key={p.plan_id}
-                  plan={p}
-                  isCurrent={p.plan_id === currentId}
-                  busy={busyId === p.plan_id}
-                  onOpen={() => handleOpen(p.plan_id)}
-                  onSetActive={() => handleSetActive(p.plan_id)}
-                  onDelete={() => handleDelete(p.plan_id)}
-                  onShare={() => handleShare(p.plan_id)}
-                  onLabelChanged={(label) => handleLabelChanged(p.plan_id, label)}
-                />
+                  ref={(el) => {
+                    if (el) planElsRef.current.set(p.plan_id, el);
+                    else planElsRef.current.delete(p.plan_id);
+                  }}
+                >
+                  <PlanCard
+                    plan={p}
+                    isCurrent={p.plan_id === currentId}
+                    busy={busyId === p.plan_id}
+                    onOpen={() => handleOpen(p.plan_id)}
+                    onSetActive={() => handleSetActive(p.plan_id)}
+                    onDelete={() => handleDelete(p.plan_id)}
+                    onShare={() => handleShare(p.plan_id)}
+                    onLabelChanged={(label) => handleLabelChanged(p.plan_id, label)}
+                  />
+                </div>
               ))
             )}
           </div>

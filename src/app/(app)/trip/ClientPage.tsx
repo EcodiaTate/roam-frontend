@@ -43,7 +43,7 @@ import { navApi } from "@/lib/api/nav";
 
 import { analyzeFuel, computeFuelTracking } from "@/lib/nav/fuelAnalysis";
 import { decodePolyline6 } from "@/lib/nav/polyline6";
-import { cumulativeKm, snapToPolyline } from "@/lib/nav/snapToRoute";
+import { cumulativeKm, buildPolylineIndex, snapToPolylineIndexed } from "@/lib/nav/snapToRoute";
 import { shortId } from "@/lib/utils/ids";
 
 import type { NavPack, CorridorGraphPack, TrafficOverlay, HazardOverlay, ElevationResponse } from "@/lib/types/navigation";
@@ -336,27 +336,54 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   // Use active nav position if navigating, else regular geo
   const effectivePosition = activeNav.isActive ? activeNav.lastPosition : geo.position;
 
-  const fuelTracking = useMemo(() => {
-    if (!fuelAnalysis || !effectivePosition || !navpack?.primary?.geometry) return null;
-
+  // Cache decoded polyline + cumulative km — only recompute when the route changes,
+  // NOT on every GPS tick. For long routes (e.g. 1700km SC→Cairns) decoding +
+  // cumulativeKm can produce 20-50k points with haversine per segment.
+  // Build a spatial index over the route — O(n) once, then snap is O(1).
+  const routeIndex = useMemo(() => {
+    const geom = navpack?.primary?.geometry;
+    if (!geom) return null;
     try {
-      const decoded = decodePolyline6(navpack.primary.geometry);
-      const cumKm = cumulativeKm(decoded);
-      const snap = snapToPolyline(
-        { lat: effectivePosition.lat, lng: effectivePosition.lng },
-        decoded,
-        cumKm,
-      );
-
-      // Only track if within 2km of the route
-      if (snap.distance_m > 2000) return null;
-
-      return computeFuelTracking(fuelAnalysis, snap.km, fuelAnalysis.profile);
+      const decoded = decodePolyline6(geom);
+      const cumKmArr = cumulativeKm(decoded);
+      return buildPolylineIndex(decoded, cumKmArr);
     } catch {
-      // Non-fatal - just skip this update
       return null;
     }
-  }, [fuelAnalysis, effectivePosition, navpack]);
+  }, [navpack?.primary?.geometry]);
+
+  // Throttled fuel tracking — debounce GPS ticks to once per 2s.
+  const [fuelTracking, setFuelTracking] = useState<ReturnType<typeof computeFuelTracking> | null>(null);
+  const fuelSnapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!fuelAnalysis || !effectivePosition || !routeIndex) {
+      setFuelTracking(null);
+      return;
+    }
+
+    // Debounce: wait 2s after last position change before snapping.
+    if (fuelSnapTimerRef.current) clearTimeout(fuelSnapTimerRef.current);
+    fuelSnapTimerRef.current = setTimeout(() => {
+      try {
+        const snap = snapToPolylineIndexed(
+          { lat: effectivePosition.lat, lng: effectivePosition.lng },
+          routeIndex,
+        );
+        if (snap.distance_m > 2000) {
+          setFuelTracking(null);
+        } else {
+          setFuelTracking(computeFuelTracking(fuelAnalysis, snap.km, fuelAnalysis.profile));
+        }
+      } catch {
+        setFuelTracking(null);
+      }
+    }, 2000);
+
+    return () => {
+      if (fuelSnapTimerRef.current) clearTimeout(fuelSnapTimerRef.current);
+    };
+  }, [fuelAnalysis, effectivePosition, routeIndex]);
 
   // ── Overlay polling ─────────────────────────────────────────────
   const pollOverlays = useCallback(async () => {
@@ -1156,32 +1183,6 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
             </div>
           </div>
 
-          {/* ── Start Navigation button (shown when NOT actively navigating) ── */}
-          {!activeNav.isActive && navpack && (
-            <div style={{ marginTop: 12 }}>
-              <StartNavigationButton
-                onStart={activeNav.start}
-                disabled={!navpack?.primary?.legs?.some((l) => l.steps && l.steps.length > 0)}
-              />
-              {!navpack?.primary?.legs?.some((l) => l.steps && l.steps.length > 0) && (
-                <div style={{ marginTop: 6, fontSize: 11, fontWeight: 700, color: "var(--roam-text-muted)", textAlign: "center" }}>
-                  Turn-by-turn data not available. Rebuild route to enable navigation.
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ── Elevation strip ── */}
-          {elevation?.profile && (
-            <div style={{ marginTop: 12 }}>
-              <ElevationStrip
-                profile={elevation.profile}
-                gradeSegments={elevation.grade_segments}
-                currentKm={activeNav.isActive ? activeNav.nav.kmAlongRoute : currentKm || null}
-                compact
-              />
-            </div>
-          )}
         </div>
 
         {/* Scrollable content */}
@@ -1194,6 +1195,33 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
               padding: "0 20px calc(var(--bottom-nav-height) + 20px)",
             }}
           >
+            {/* ── Start Navigation button (shown when NOT actively navigating) ── */}
+            {!activeNav.isActive && navpack && (
+              <div style={{ marginBottom: 16 }}>
+                <StartNavigationButton
+                  onStart={activeNav.start}
+                  disabled={!navpack?.primary?.legs?.some((l) => l.steps && l.steps.length > 0)}
+                />
+                {!navpack?.primary?.legs?.some((l) => l.steps && l.steps.length > 0) && (
+                  <div style={{ marginTop: 6, fontSize: 11, fontWeight: 700, color: "var(--roam-text-muted)", textAlign: "center" }}>
+                    Turn-by-turn data not available. Rebuild route to enable navigation.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Elevation strip ── */}
+            {elevation?.profile && (
+              <div style={{ marginBottom: 16 }}>
+                <ElevationStrip
+                  profile={elevation.profile}
+                  gradeSegments={elevation.grade_segments}
+                  currentKm={activeNav.isActive ? activeNav.nav.kmAlongRoute : currentKm || null}
+                  compact
+                />
+              </div>
+            )}
+
             <TripView
               planId={plan.plan_id}
               navpack={navpack}

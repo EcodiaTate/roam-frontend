@@ -140,6 +140,124 @@ function computeSide(
   return cross >= 0 ? "right" : "left";
 }
 
+/* ── Spatial grid index for fast snap on long polylines ──────────────── */
+
+/**
+ * Pre-built spatial index that partitions polyline segments into grid cells.
+ * Build once with `buildPolylineIndex()`, then pass to `snapToPolylineIndexed()`
+ * for O(1) amortised snap instead of O(n) linear scan.
+ */
+export type PolylineIndex = {
+  decoded: Array<{ lat: number; lng: number }>;
+  cumKm: number[];
+  /** Map from "gridRow,gridCol" → array of segment indices in that cell */
+  grid: Map<string, number[]>;
+  cellSize: number; // degrees per cell
+  minLat: number;
+  minLng: number;
+};
+
+/**
+ * Build a spatial grid index over the polyline segments.
+ * Each segment is placed into every grid cell its bounding box touches.
+ * Cost: O(n) — do this once when the route loads.
+ */
+export function buildPolylineIndex(
+  decoded: Array<{ lat: number; lng: number }>,
+  cumKm: number[],
+  cellSizeDeg = 0.1, // ~11km at equator, ~9km at -27° (QLD)
+): PolylineIndex {
+  let minLat = Infinity, minLng = Infinity;
+  for (const p of decoded) {
+    if (p.lat < minLat) minLat = p.lat;
+    if (p.lng < minLng) minLng = p.lng;
+  }
+
+  const grid = new Map<string, number[]>();
+
+  for (let i = 0; i < decoded.length - 1; i++) {
+    const a = decoded[i];
+    const b = decoded[i + 1];
+
+    const rMin = Math.floor((Math.min(a.lat, b.lat) - minLat) / cellSizeDeg);
+    const rMax = Math.floor((Math.max(a.lat, b.lat) - minLat) / cellSizeDeg);
+    const cMin = Math.floor((Math.min(a.lng, b.lng) - minLng) / cellSizeDeg);
+    const cMax = Math.floor((Math.max(a.lng, b.lng) - minLng) / cellSizeDeg);
+
+    for (let r = rMin; r <= rMax; r++) {
+      for (let c = cMin; c <= cMax; c++) {
+        const key = `${r},${c}`;
+        let bucket = grid.get(key);
+        if (!bucket) { bucket = []; grid.set(key, bucket); }
+        bucket.push(i);
+      }
+    }
+  }
+
+  return { decoded, cumKm, grid, cellSize: cellSizeDeg, minLat, minLng };
+}
+
+/**
+ * Snap a point using a pre-built spatial index.
+ * Only checks segments in nearby grid cells — typically 5-50 segments
+ * instead of 20,000-50,000 for a long route.
+ */
+export function snapToPolylineIndexed(
+  point: { lat: number; lng: number },
+  idx: PolylineIndex,
+): {
+  km: number;
+  distance_m: number;
+  side: "left" | "right" | "on_route";
+  segIdx: number;
+  t: number;
+} {
+  const { decoded, cumKm, grid, cellSize, minLat, minLng } = idx;
+
+  const pRow = Math.floor((point.lat - minLat) / cellSize);
+  const pCol = Math.floor((point.lng - minLng) / cellSize);
+
+  // Search the point's cell + 1-ring of neighbours
+  const checked = new Set<number>();
+  let bestDist = Infinity;
+  let bestKm = 0;
+  let bestSeg = 0;
+  let bestT = 0;
+  let bestSide: "left" | "right" | "on_route" = "on_route";
+
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      const bucket = grid.get(`${pRow + dr},${pCol + dc}`);
+      if (!bucket) continue;
+      for (const i of bucket) {
+        if (checked.has(i)) continue;
+        checked.add(i);
+
+        const a = decoded[i];
+        const b = decoded[i + 1];
+        const proj = projectPointOnSegment(point, a, b);
+
+        if (proj.distance_m < bestDist) {
+          bestDist = proj.distance_m;
+          bestSeg = i;
+          bestT = proj.t;
+          const segLenKm = cumKm[i + 1] - cumKm[i];
+          bestKm = cumKm[i] + proj.t * segLenKm;
+          bestSide = proj.distance_m < 15 ? "on_route" : computeSide(point, a, b);
+        }
+      }
+    }
+  }
+
+  // Fallback: if point is far from all grid cells (shouldn't happen on-route),
+  // fall back to full linear scan
+  if (bestDist === Infinity) {
+    return snapToPolyline(point, decoded, cumKm);
+  }
+
+  return { km: bestKm, distance_m: bestDist, side: bestSide, segIdx: bestSeg, t: bestT };
+}
+
 /**
  * Interpolate a lat/lng position at a given km along the route.
  */

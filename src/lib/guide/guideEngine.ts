@@ -41,9 +41,9 @@ async function hashString(s: string): Promise<string> {
 // Wire payload limits
 // ──────────────────────────────────────────────────────────────
 
-const WIRE_MAX_THREAD = 10;
-const WIRE_MAX_TOOL_RESULTS = 6;
-const WIRE_MAX_ITEMS_PER_RESULT = 15;
+const WIRE_MAX_THREAD = 20;
+const WIRE_MAX_TOOL_RESULTS = 4;
+const WIRE_MAX_ITEMS_PER_RESULT = 20;
 const WIRE_MAX_RELEVANT_PLACES = 40;
 const MAX_DISCOVERED_PLACES = 500;
 
@@ -581,15 +581,18 @@ export async function guideSendMessage(args: {
   progress?: TripProgress | null;
   /** Full corridor places from IDB - used for intent-based pre-filtering */
   corridorPlaces?: PlaceItem[];
+  /** Called whenever the pack is updated mid-loop so the UI can re-render */
+  onPackUpdate?: (pack: GuidePack) => void;
 }): Promise<{ pack: GuidePack; assistantText: string }> {
   const {
     planId,
     guideKey,
     userText,
     preferredCategories = [],
-    maxSteps = 4,
+    maxSteps = 3,
     progress,
     corridorPlaces = [],
+    onPackUpdate,
   } = args;
 
   const context: GuideContext = {
@@ -608,17 +611,22 @@ export async function guideSendMessage(args: {
 
   let assistantText = "";
   let steps = 0;
+  // Track only THIS turn's tool results — don't re-send old ones
+  let currentTurnToolResults: GuideToolResult[] = [];
 
   while (steps < maxSteps) {
     steps++;
 
-    const turnReq = buildWireRequest(context, pack, preferredCategories, corridorPlaces, progress ?? null);
+    // Build wire request, but override tool_results to only include
+    // results from this turn's tool loop (not historical ones)
+    const baseReq = buildWireRequest(context, pack, preferredCategories, corridorPlaces, progress ?? null);
+    const turnReq: GuideTurnRequest = {
+      ...baseReq,
+      tool_results: currentTurnToolResults.slice(-WIRE_MAX_TOOL_RESULTS).map(trimToolResultForWire),
+    };
     const turn: GuideTurnResponse = await guideApi.turn(turnReq);
 
-    assistantText = turn.assistant ?? "";
-
-    // Store structured actions directly on the assistant message so the
-    // frontend can render them as pills without parsing markdown.
+    const newText = turn.assistant ?? "";
     const actions: GuideAction[] = Array.isArray(turn.actions) ? turn.actions : [];
 
     // Extract places from "save" actions → merge into discovered_places
@@ -627,28 +635,55 @@ export async function guideSendMessage(args: {
       ? mergeDiscoveries(pack.discovered_places, savedPlaces)
       : pack.discovered_places;
 
-    const assistantMsg: GuideMsg = {
-      role: "assistant",
-      content: assistantText,
-      resolved_tool_id: null,
-      actions,
-    };
+    // On step 1: create a new assistant message.
+    // On step 2+: merge into the existing assistant message (one bubble, not two).
+    const lastMsg = pack.thread[pack.thread.length - 1];
+    const isFollowUp = steps > 1 && lastMsg?.role === "assistant";
+
+    let updatedThread: GuideMsg[];
+    if (isFollowUp && newText) {
+      // Append new text and merge actions into the existing bubble
+      const merged: GuideMsg = {
+        ...lastMsg,
+        content: lastMsg.content + "\n\n" + newText,
+        actions: [...(lastMsg.actions ?? []), ...actions],
+      };
+      updatedThread = [...pack.thread.slice(0, -1), merged];
+      assistantText = merged.content;
+    } else {
+      const assistantMsg: GuideMsg = {
+        role: "assistant",
+        content: newText,
+        resolved_tool_id: null,
+        actions,
+      };
+      updatedThread = [...pack.thread, assistantMsg];
+      assistantText = newText;
+    }
 
     pack = {
       ...pack,
       updated_at: nowIso(),
-      thread: [...pack.thread, assistantMsg],
+      thread: updatedThread,
       tool_calls: [...pack.tool_calls, ...(turn.tool_calls ?? [])],
       discovered_places: mergedFromSaves,
     };
     await putGuidePack(planId ?? null, guideKey, pack);
+    onPackUpdate?.(pack);
 
-    if (turn.done || !turn.tool_calls || turn.tool_calls.length === 0) break;
+    if (!turn.tool_calls || turn.tool_calls.length === 0) break;
 
-    // Execute all tool calls in parallel (up to 3 per turn).
+    // Yield to the browser so React can paint the first message before
+    // we start the tool call round-trip (which can take 10+ seconds).
+    await new Promise((r) => setTimeout(r, 0));
+
+    // Execute all tool calls in parallel (up to 4 per turn).
     const toolResults = await Promise.all(
-      turn.tool_calls.slice(0, 3).map((call) => execToolCall(call, context))
+      turn.tool_calls.slice(0, 4).map((call) => execToolCall(call, context))
     );
+
+    // Accumulate this turn's tool results (for the next loop iteration)
+    currentTurnToolResults = [...currentTurnToolResults, ...toolResults];
 
     let mergedPlaces = pack.discovered_places;
     for (const toolRes of toolResults) {
@@ -657,11 +692,11 @@ export async function guideSendMessage(args: {
     }
 
     // Tag the last assistant message with the first tool call id (for display)
-    const updatedThread = [...pack.thread];
-    const lastMsg = updatedThread[updatedThread.length - 1];
-    if (lastMsg && lastMsg.role === "assistant") {
-      updatedThread[updatedThread.length - 1] = {
-        ...lastMsg,
+    const taggedThread = [...pack.thread];
+    const tagTarget = taggedThread[taggedThread.length - 1];
+    if (tagTarget && tagTarget.role === "assistant") {
+      taggedThread[taggedThread.length - 1] = {
+        ...tagTarget,
         resolved_tool_id: turn.tool_calls[0].id ?? null,
       };
     }
@@ -669,11 +704,15 @@ export async function guideSendMessage(args: {
     pack = {
       ...pack,
       updated_at: nowIso(),
-      thread: updatedThread,
+      thread: taggedThread,
       tool_results: [...pack.tool_results, ...toolResults],
       discovered_places: mergedPlaces,
     };
     await putGuidePack(planId ?? null, guideKey, pack);
+    onPackUpdate?.(pack);
+
+    // If done=true, stop looping
+    if (turn.done) break;
   }
 
   return { pack, assistantText };

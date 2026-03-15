@@ -53,6 +53,11 @@ import {
   Store,
   Globe,
   Compass,
+  Dog,
+  Film,
+  Fish,
+  BookOpen,
+  Flag,
   ExternalLink,
   Plus,
   Send,
@@ -101,11 +106,17 @@ const CAT_COLORS: Record<string, ColorDef> = {
   hiking:       { bg: "rgba(16,185,129,0.10)", fg: "#059669", accent: "#10b981", soft: "rgba(16,185,129,0.06)" },
   picnic:       { bg: "rgba(16,185,129,0.10)", fg: "#059669", accent: "#10b981", soft: "rgba(16,185,129,0.06)" },
   hot_spring:   { bg: "rgba(249,115,22,0.10)", fg: "#ea580c", accent: "#f97316", soft: "rgba(249,115,22,0.06)" },
+  cave:         { bg: "rgba(100,116,139,0.10)", fg: "#475569", accent: "#64748b", soft: "rgba(100,116,139,0.06)" },
+  fishing:      { bg: "rgba(6,182,212,0.10)",  fg: "#0891b2", accent: "#06b6d4", soft: "rgba(6,182,212,0.06)" },
+  surf:         { bg: "rgba(6,182,212,0.10)",  fg: "#0891b2", accent: "#06b6d4", soft: "rgba(6,182,212,0.06)" },
   // Family - pink
   playground:   { bg: "rgba(236,72,153,0.10)", fg: "#db2777", accent: "#ec4899", soft: "rgba(236,72,153,0.06)" },
   pool:         { bg: "rgba(6,182,212,0.10)",  fg: "#0891b2", accent: "#06b6d4", soft: "rgba(6,182,212,0.06)" },
   zoo:          { bg: "rgba(236,72,153,0.10)", fg: "#db2777", accent: "#ec4899", soft: "rgba(236,72,153,0.06)" },
   theme_park:   { bg: "rgba(236,72,153,0.10)", fg: "#db2777", accent: "#ec4899", soft: "rgba(236,72,153,0.06)" },
+  dog_park:     { bg: "rgba(236,72,153,0.10)", fg: "#db2777", accent: "#ec4899", soft: "rgba(236,72,153,0.06)" },
+  golf:         { bg: "rgba(16,185,129,0.10)", fg: "#059669", accent: "#10b981", soft: "rgba(16,185,129,0.06)" },
+  cinema:       { bg: "rgba(99,102,241,0.10)", fg: "#4f46e5", accent: "#6366f1", soft: "rgba(99,102,241,0.06)" },
   // Culture - indigo
   visitor_info: { bg: "rgba(99,102,241,0.10)", fg: "#4f46e5", accent: "#6366f1", soft: "rgba(99,102,241,0.06)" },
   museum:       { bg: "rgba(99,102,241,0.10)", fg: "#4f46e5", accent: "#6366f1", soft: "rgba(99,102,241,0.06)" },
@@ -116,6 +127,8 @@ const CAT_COLORS: Record<string, ColorDef> = {
   attraction:   { bg: "rgba(99,102,241,0.10)", fg: "#4f46e5", accent: "#6366f1", soft: "rgba(99,102,241,0.06)" },
   market:       { bg: "rgba(249,115,22,0.10)", fg: "#ea580c", accent: "#f97316", soft: "rgba(249,115,22,0.06)" },
   park:         { bg: "rgba(16,185,129,0.10)", fg: "#059669", accent: "#10b981", soft: "rgba(16,185,129,0.06)" },
+  library:      { bg: "rgba(99,102,241,0.10)", fg: "#4f46e5", accent: "#6366f1", soft: "rgba(99,102,241,0.06)" },
+  showground:   { bg: "rgba(249,115,22,0.10)", fg: "#ea580c", accent: "#f97316", soft: "rgba(249,115,22,0.06)" },
   // Supplies - slate
   grocery:      { bg: "rgba(100,116,139,0.10)", fg: "#475569", accent: "#64748b", soft: "rgba(100,116,139,0.06)" },
   town:         { bg: "rgba(100,116,139,0.10)", fg: "#475569", accent: "#64748b", soft: "rgba(100,116,139,0.06)" },
@@ -157,10 +170,16 @@ const CHIPS: Chip[] = [
   { key: "hiking", label: "Hiking", Icon: Mountain },
   { key: "picnic", label: "Picnic", Icon: TreePine },
   { key: "hot_spring", label: "Hot Spring", Icon: Thermometer },
+  { key: "cave", label: "Cave", Icon: Mountain },
+  { key: "fishing", label: "Fishing", Icon: Fish },
+  { key: "surf", label: "Surf", Icon: Waves },
   { key: "playground", label: "Kids", Icon: Baby },
   { key: "pool", label: "Pool", Icon: Waves },
   { key: "zoo", label: "Zoo", Icon: Compass },
   { key: "theme_park", label: "Theme Park", Icon: Star },
+  { key: "dog_park", label: "Dog Park", Icon: Dog },
+  { key: "golf", label: "Golf", Icon: Flag },
+  { key: "cinema", label: "Cinema", Icon: Film },
   { key: "winery", label: "Wine", Icon: Wine },
   { key: "brewery", label: "Brew", Icon: Beer },
   { key: "visitor_info", label: "Info", Icon: Info },
@@ -169,6 +188,8 @@ const CHIPS: Chip[] = [
   { key: "heritage", label: "Heritage", Icon: Landmark },
   { key: "attraction", label: "Sights", Icon: Camera },
   { key: "market", label: "Market", Icon: Store },
+  { key: "library", label: "Library", Icon: BookOpen },
+  { key: "showground", label: "Showground", Icon: Flag },
   { key: "grocery", label: "Grocery", Icon: ShoppingCart },
   { key: "town", label: "Towns", Icon: Building2 },
   { key: "atm", label: "ATM", Icon: Banknote },
@@ -765,8 +786,43 @@ function PlaceCard({
           </div>
 
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--roam-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {place.name}
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--roam-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>
+                {place.name}
+              </div>
+              <div style={{ display: "flex", gap: 5, flexShrink: 0 }} onPointerDown={stop} onTouchStart={stop}>
+                <button
+                  type="button"
+                  onClick={(e) => { stop(e); haptic.medium(); onAdd(); }}
+                  style={{
+                    borderRadius: 8, height: 28, padding: "0 10px",
+                    fontWeight: 700, fontSize: 11, border: "none",
+                    background: cc.accent, color: "white",
+                    cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4,
+                    WebkitTapHighlightColor: "transparent",
+                  }}
+                >
+                  <Plus size={11} />
+                  Add
+                </button>
+                {onShowOnMap ? (
+                  <button
+                    type="button"
+                    onClick={(e) => { stop(e); haptic.selection(); onFocus(); onShowOnMap?.(); }}
+                    style={{
+                      borderRadius: 8, height: 28, padding: "0 10px",
+                      fontWeight: 700, fontSize: 11,
+                      border: `1px solid var(--roam-border, rgba(255,255,255,0.08))`,
+                      background: "transparent", color: "var(--roam-text)", cursor: "pointer",
+                      display: "inline-flex", alignItems: "center", gap: 4,
+                      WebkitTapHighlightColor: "transparent",
+                    }}
+                  >
+                    <MapPin size={11} />
+                    Map
+                  </button>
+                ) : null}
+              </div>
             </div>
             <div style={{ fontSize: 12, color: "var(--roam-text-muted)", marginTop: 2, display: "flex", gap: 6, flexWrap: "wrap", fontWeight: 500 }}>
               <span style={{ color: cc.fg, fontWeight: 600 }}>{fmtCategory(place.category)}</span>
@@ -789,50 +845,9 @@ function PlaceCard({
           </div>
         ) : null}
 
-        {/* Action buttons */}
+        {/* Secondary action buttons (call, web) */}
+        {(phone || (isOnline && website)) ? (
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          <button
-            type="button"
-            onPointerDown={stop} onTouchStart={stop}
-            onClick={(e) => { stop(e); haptic.medium(); onAdd(); }}
-            style={{
-              borderRadius: 10,
-              minHeight: 34,
-              padding: "0 12px",
-              fontWeight: 700,
-              fontSize: 12,
-              border: "none",
-              background: cc.accent,
-              color: "white",
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 5,
-              WebkitTapHighlightColor: "transparent",
-            }}
-          >
-            <Plus size={13} />
-            Add stop
-          </button>
-
-          {onShowOnMap ? (
-            <button
-              type="button"
-              onPointerDown={stop} onTouchStart={stop}
-              onClick={(e) => { stop(e); haptic.selection(); onFocus(); onShowOnMap?.(); }}
-              style={{
-                borderRadius: 10, minHeight: 34, padding: "0 12px",
-                fontWeight: 700, fontSize: 12,
-                border: `1px solid var(--roam-border, rgba(255,255,255,0.08))`,
-                background: "transparent", color: "var(--roam-text)", cursor: "pointer",
-                display: "inline-flex", alignItems: "center", gap: 5,
-              }}
-            >
-              <MapPin size={13} />
-              Map
-            </button>
-          ) : null}
-
           {phone ? (
             <a
               href={`tel:${phone}`}
@@ -868,6 +883,7 @@ function PlaceCard({
             </button>
           ) : null}
         </div>
+        ) : null}
       </div>
     </div>
   );
@@ -928,7 +944,7 @@ function DiscoveryGroup({
 export function GuideView({
   focusedPlaceId, onFocusPlace, onAddStop, isOnline = true, onShowOnMap,
   guideReady = false, guidePack, tripProgress, onSendMessage, chatBusy = false,
-  initialTab, autoAskMessage,
+  initialTab, autoAskMessage, stickyTabsTop = 0,
 }: {
   focusedPlaceId: string | null;
   onFocusPlace: (id: string | null) => void; onAddStop: (place: PlaceItem) => void;
@@ -940,6 +956,8 @@ export function GuideView({
   initialTab?: "chat" | "discoveries";
   /** If set and online, auto-send this message once guide is ready */
   autoAskMessage?: string | null;
+  /** px offset for sticky tab bar (header height) */
+  stickyTabsTop?: number;
 }) {
   const [chatInput, setChatInput] = useState("");
   const [activeTab, setActiveTab] = useState<ViewTab>(initialTab ?? "chat");
@@ -953,6 +971,14 @@ export function GuideView({
     ),
     [guidePack?.thread],
   );
+
+  // Clear optimistic pending message once it appears in the actual thread
+  // (pack updates via onPackUpdate before the full send completes)
+  useEffect(() => {
+    if (pendingUserMsg && thread.some((m) => m.role === "user" && m.content === pendingUserMsg)) {
+      setPendingUserMsg(null);
+    }
+  }, [thread, pendingUserMsg]);
   const prevThreadLen = useRef(-1);
   useEffect(() => {
     if (thread.length !== prevThreadLen.current) {
@@ -1089,6 +1115,7 @@ export function GuideView({
       `}</style>
 
       {/* ── Tab switcher ────────────────────────────────────── */}
+      <div style={{ position: "sticky", top: stickyTabsTop, zIndex: 40, background: "var(--roam-bg)", paddingBottom: 4 }}>
       <div style={{ display: "flex", gap: 2, background: "var(--roam-surface)", borderRadius: 14, padding: 3, border: "1px solid var(--roam-border, rgba(255,255,255,0.06))" }}>
         {([
           { key: "chat" as ViewTab, label: "Guide", Icon: Sparkles, badge: null },
@@ -1124,6 +1151,7 @@ export function GuideView({
             </button>
           );
         })}
+      </div>
       </div>
 
       {/* ════════════════════════════════════════════════════════

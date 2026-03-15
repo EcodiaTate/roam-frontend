@@ -1,7 +1,7 @@
 // src/components/trip/TripMap.tsx
 "use client";
 
-import { useEffect, useMemo, useRef, useCallback } from "react";
+import { useEffect, useMemo, useRef, useCallback, useState } from "react";
 import { rewriteStyleForLocalServer, isFullyOfflineCapable } from "@/lib/offline/basemapManager";
 
 import maplibregl, { type Map as MLMap, type LngLatBoundsLike, type MapLayerMouseEvent, GeoJSONSource } from "maplibre-gl";
@@ -133,6 +133,45 @@ const FUEL_CLUSTER_COUNT = "roam-fuel-cluster-count";
 const FUEL_CIRCLE_LAYER = "roam-fuel-circle";
 const FUEL_ICON_LAYER = "roam-fuel-icon";
 const FUEL_LABEL_LAYER = "roam-fuel-label";
+
+/** Layer groups by category */
+const LAYER_GROUPS = {
+  stops: [STOPS_SHADOW, STOPS_OUTER, STOPS_INNER, STOP_PULSE, STOP_ICON_LAYER, STOP_LABELS, STOP_FOCUS_RING],
+  places: [SUG_CLUSTER_CIRCLE, SUG_CLUSTER_COUNT, SUG_UNCLUSTERED, SUG_ICON_LAYER, SUG_LABEL_LAYER, SUG_FOCUS_RING, SUG_FOCUS_PING, SUG_FOCUS_DOT],
+  fuel: [FUEL_CLUSTER_CIRCLE, FUEL_CLUSTER_COUNT, FUEL_CIRCLE_LAYER, FUEL_ICON_LAYER, FUEL_LABEL_LAYER],
+  traffic: [TRAFFIC_POLY_LAYER, TRAFFIC_LINE_CASING, TRAFFIC_LINE_LAYER, TRAFFIC_PULSE_LAYER, TRAFFIC_POINT_LAYER],
+  hazards: [HAZARD_POLY_LAYER, HAZARD_POLY_OUTLINE, HAZARD_ICON_LAYER, ALERT_HIGHLIGHT_RING, ALERT_HIGHLIGHT_PING],
+} as const;
+
+type OverlayKey = keyof typeof LAYER_GROUPS;
+const ALL_OVERLAY_KEYS: OverlayKey[] = ["stops", "places", "fuel", "traffic", "hazards"];
+type OverlayVisibility = Record<OverlayKey, boolean>;
+
+const DEFAULT_VIS: OverlayVisibility = { stops: true, places: true, fuel: true, traffic: true, hazards: true };
+
+function applyAllOverlayVisibility(map: MLMap, vis: OverlayVisibility) {
+  for (const key of ALL_OVERLAY_KEYS) {
+    const v = vis[key] ? "visible" : "none";
+    for (const id of LAYER_GROUPS[key]) {
+      if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", v);
+    }
+  }
+}
+
+const STORAGE_KEY = "roam:overlayVis";
+
+function readStoredVis(): OverlayVisibility {
+  if (typeof window === "undefined") return DEFAULT_VIS;
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return DEFAULT_VIS;
+    return { ...DEFAULT_VIS, ...JSON.parse(raw) };
+  } catch { return DEFAULT_VIS; }
+}
+
+function writeStoredVis(v: OverlayVisibility) {
+  try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(v)); } catch {}
+}
 
 /* ══════════════════════════════════════════════════════════════════════
    SVG Icon System - clean vector icons, no emojis
@@ -276,11 +315,17 @@ const CATEGORY_CONFIG: Record<string, CatConfig> = {
   hiking: { icon: "boot", color: "#65a30d", size: "md" },
   picnic: { icon: "basket", color: "#84cc16", size: "sm" },
   hot_spring: { icon: "thermometer", color: "#ea580c", size: "md" },
+  cave: { icon: "mountain", color: "#475569", size: "md" },
+  fishing: { icon: "wave", color: "#0891b2", size: "md" },
+  surf: { icon: "wave", color: "#0284c7", size: "md" },
   // ── Family & recreation ─────────────────────────────────────────────
   playground: { icon: "paw", color: "#f59e0b", size: "sm" },
   pool: { icon: "swim", color: "#0ea5e9", size: "md" },
   zoo: { icon: "paw", color: "#22c55e", size: "md" },
   theme_park: { icon: "star", color: "#ec4899", size: "md" },
+  dog_park: { icon: "paw", color: "#db2777", size: "sm" },
+  golf: { icon: "flag_end", color: "#059669", size: "sm" },
+  cinema: { icon: "star", color: "#4f46e5", size: "sm" },
   // ── Culture & sightseeing ───────────────────────────────────────────
   visitor_info: { icon: "pin", color: "#4f46e5", size: "sm" },
   museum: { icon: "columns", color: "#8b5cf6", size: "md" },
@@ -291,6 +336,8 @@ const CATEGORY_CONFIG: Record<string, CatConfig> = {
   attraction: { icon: "star", color: "#eab308", size: "md" },
   market: { icon: "cart", color: "#65a30d", size: "md" },
   park: { icon: "tree", color: "#22c55e", size: "md" },
+  library: { icon: "columns", color: "#4f46e5", size: "sm" },
+  showground: { icon: "flag_end", color: "#ea580c", size: "sm" },
   // ── Geocoding (Mapbox) ──────────────────────────────────────────────
   address: { icon: "pin", color: "#64748b", size: "sm" },
   place: { icon: "pin", color: "#64748b", size: "sm" },
@@ -727,6 +774,12 @@ export function TripMap(props: Props) {
   const sugFocusRaf = useRef<number | null>(null);
   /** Tracks the last place ID we flew the camera to — prevents re-fly on same ID */
   const lastFocusFlewToRef = useRef<string | null>(null);
+
+  const [overlayVis, setOverlayVis] = useState<OverlayVisibility>(readStoredVis);
+  const overlayVisRef = useRef(overlayVis);
+  overlayVisRef.current = overlayVis;
+  const [layerMenuOpen, setLayerMenuOpen] = useState(false);
+  useEffect(() => { writeStoredVis(overlayVis); }, [overlayVis]);
 
   const onNavToGuideRef = useRef(props.onNavigateToGuide);
   onNavToGuideRef.current = props.onNavigateToGuide;
@@ -1754,6 +1807,9 @@ export function TripMap(props: Props) {
       map.on("mouseenter", FUEL_CLUSTER_CIRCLE, () => (map.getCanvas().style.cursor = "pointer"));
       map.on("mouseleave", FUEL_CLUSTER_CIRCLE, () => (map.getCanvas().style.cursor = ""));
 
+      // Restore overlay visibility after layers are (re)created
+      applyAllOverlayVisibility(map, overlayVisRef.current);
+
       // Initial fit
       try {
         map.fitBounds(bboxToBounds(props.bbox), { padding: 60, duration: 0 });
@@ -1827,6 +1883,13 @@ export function TripMap(props: Props) {
     if (!map) return;
     if (map.getLayer(STOP_FOCUS_RING)) map.setFilter(STOP_FOCUS_RING, ["==", ["get", "id"], props.focusedStopId ?? ""]);
   }, [props.focusedStopId]);
+
+  /* ── Toggle overlay layer visibility per category ─────────────────── */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    applyAllOverlayVisibility(map, overlayVis);
+  }, [overlayVis]);
 
   useEffect(() => {
     const s = mapRef.current?.getSource(SUG_SRC) as GeoJSONSource | undefined;
@@ -2137,6 +2200,125 @@ export function TripMap(props: Props) {
   return (
     <div className="trip-map-fullscreen">
       <div ref={containerRef} className="trip-map-inner" />
+
+      {/* ── Layer visibility control ── */}
+      {(() => {
+        const allOn = ALL_OVERLAY_KEYS.every((k) => overlayVis[k]);
+        const anyOff = ALL_OVERLAY_KEYS.some((k) => !overlayVis[k]);
+        return (
+          <div style={{
+            position: "absolute",
+            top: "calc(env(safe-area-inset-top, 0px) + 64px)",
+            right: 12,
+            zIndex: 5,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-end",
+            gap: 6,
+          }}>
+            {/* Main layers button */}
+            <button
+              type="button"
+              aria-label="Map layers"
+              onClick={() => setLayerMenuOpen((v) => !v)}
+              style={{
+                width: 40, height: 40, borderRadius: 12, border: "none",
+                cursor: "pointer", display: "grid", placeItems: "center",
+                background: anyOff ? "rgba(74,108,83,0.9)" : "rgba(30,30,30,0.88)",
+                color: "white",
+                backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
+                boxShadow: "0 4px 16px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.15)",
+                transition: "transform 0.1s ease, background 0.2s ease",
+              }}
+              onPointerDown={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(0.92)"; }}
+              onPointerUp={(e) => { (e.currentTarget as HTMLElement).style.transform = ""; }}
+              onPointerLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = ""; }}
+            >
+              {/* Layers icon */}
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" />
+                <path d="m2 12 8.58 3.91a2 2 0 0 0 1.66 0L20.74 12" opacity=".6" />
+                <path d="m2 17 8.58 3.91a2 2 0 0 0 1.66 0L20.74 17" opacity=".35" />
+              </svg>
+            </button>
+
+            {/* Expanded menu */}
+            {layerMenuOpen && (
+              <div style={{
+                background: "rgba(20,20,20,0.92)",
+                backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
+                borderRadius: 14, padding: "6px 4px",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2)",
+                display: "flex", flexDirection: "column", gap: 2,
+                minWidth: 150,
+              }}>
+                {/* Toggle All */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = allOn
+                      ? { stops: false, places: false, fuel: false, traffic: false, hazards: false }
+                      : { ...DEFAULT_VIS };
+                    setOverlayVis(next);
+                  }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 10,
+                    padding: "8px 12px", borderRadius: 10, border: "none",
+                    background: "transparent", color: "white", cursor: "pointer",
+                    fontSize: 13, fontWeight: 700, width: "100%", textAlign: "left",
+                    borderBottom: "1px solid rgba(255,255,255,0.08)",
+                  }}
+                >
+                  <span style={{
+                    width: 18, height: 18, borderRadius: 5,
+                    border: allOn ? "none" : "2px solid rgba(255,255,255,0.4)",
+                    background: allOn ? "#4a6c53" : "transparent",
+                    display: "grid", placeItems: "center", flexShrink: 0,
+                  }}>
+                    {allOn && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>}
+                  </span>
+                  All layers
+                </button>
+
+                {([
+                  ["stops",   "Stops",   "#2563eb"],
+                  ["places",  "Places",  "#22c55e"],
+                  ["fuel",    "Fuel",    "#f59e0b"],
+                  ["traffic", "Traffic", "#fb923c"],
+                  ["hazards", "Hazards", "#ef4444"],
+                ] as const).map(([key, label, color]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setOverlayVis((prev) => ({ ...prev, [key]: !prev[key] }))}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 10,
+                      padding: "8px 12px", borderRadius: 10, border: "none",
+                      background: "transparent", color: "white", cursor: "pointer",
+                      fontSize: 13, fontWeight: 500, width: "100%", textAlign: "left",
+                    }}
+                  >
+                    <span style={{
+                      width: 18, height: 18, borderRadius: 5,
+                      border: overlayVis[key] ? "none" : "2px solid rgba(255,255,255,0.4)",
+                      background: overlayVis[key] ? color : "transparent",
+                      display: "grid", placeItems: "center", flexShrink: 0,
+                      transition: "background 0.15s ease",
+                    }}>
+                      {overlayVis[key] && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>}
+                    </span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: 4, background: color, flexShrink: 0 }} />
+                      {label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       <style>{`
         .trip-map-popup .maplibregl-popup-content {
           border-radius: 16px;

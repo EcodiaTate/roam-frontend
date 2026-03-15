@@ -20,7 +20,6 @@ import {
   Loader2,
   X,
   ArrowLeft,
-  UserRound,
   Link,
   Library,
 } from "lucide-react";
@@ -411,6 +410,11 @@ export function StopsEditor(props: {
 
   savingOffline: boolean;
   savedOffline: boolean;
+
+  /** Whether user has Roam Untethered. null = still loading. */
+  unlocked?: boolean | null;
+  /** Called when user taps the upgrade button. */
+  onUpgrade?: () => void;
 }) {
   const router = useRouter();
 
@@ -575,30 +579,42 @@ export function StopsEditor(props: {
                 <Link size={18} />
               </button>
 
-              <button
-                type="button"
-                className="trip-interactive trip-btn-icon"
-                aria-label="Account"
-                title="Account"
-                onPointerDown={(e) => e.stopPropagation()} // Prevent drag conflict
-                onClick={() => {
-                  haptic.selection();
-                  router.push("/untethered");
-                }}
-                style={{
-                  borderRadius: 999,
-                  width: 40,
-                  height: 40,
-                  display: "grid",
-                  placeItems: "center",
-                  background: "var(--brand-ochre)",
-                  color: "#fff",
-                  border: "none",
-                  WebkitTapHighlightColor: "transparent",
-                }}
-              >
-                <UserRound size={18} />
-              </button>
+              {props.unlocked ? (
+                <div
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => { haptic.selection(); router.push("/untethered"); }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 5,
+                    background: "linear-gradient(135deg, var(--brand-ochre, #b5452e) 0%, #d4664a 100%)",
+                    borderRadius: 999, padding: "6px 14px",
+                    height: 40, border: "none", cursor: "pointer",
+                    boxShadow: "0 2px 8px rgba(181,69,46,0.25)",
+                  }}
+                  title="Roam Untethered"
+                >
+                  <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                    Untethered
+                  </span>
+                </div>
+              ) : props.unlocked === false ? (
+                <button
+                  type="button"
+                  className="trip-interactive"
+                  aria-label="Upgrade to Roam Untethered"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => { haptic.selection(); props.onUpgrade?.(); }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 5,
+                    background: "linear-gradient(135deg, var(--brand-eucalypt-dark, #1f5236) 0%, var(--brand-eucalypt, #2d6e40) 100%)",
+                    borderRadius: 999, padding: "6px 12px",
+                    height: 40, border: "none", cursor: "pointer",
+                  }}
+                >
+                  <span style={{ fontSize: 12, fontWeight: 800, color: "#fff", letterSpacing: "0.02em" }}>
+                    Upgrade
+                  </span>
+                </button>
+              ) : null}
             </div>
           </div>
         </div>
