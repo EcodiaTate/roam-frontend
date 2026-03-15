@@ -2,14 +2,14 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useCallback } from "react";
-import maplibregl, { type Map as MLMap, type GeoJSONSource } from "maplibre-gl";
+import maplibregl, { type Map as MLMap, type GeoJSONSource, type StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { Protocol } from "pmtiles";
 
 import type { TripStop } from "@/lib/types/trip";
 import type { NavPack, CorridorGraphPack, TrafficOverlay, HazardOverlay } from "@/lib/types/navigation";
 import type { PlacesPack } from "@/lib/types/places";
-import type { NavCoord } from "@/lib/types/geo";
+import type { NavCoord, BBox4 } from "@/lib/types/geo";
 import type { RoamPosition } from "@/lib/native/geolocation";
 import { assetsApi } from "@/lib/api/assets";
 import { polyline6ToGeoJSONLine } from "@/lib/nav/polyline6";
@@ -144,11 +144,11 @@ function mapReady(map: MLMap | null): map is MLMap {
  * Fetch a style JSON and rewrite it for the local tile server if available.
  * Falls back to the raw style JSON if the tile server isn't running.
  */
-async function fetchAndRewriteStyle(styleUrl: string): Promise<Record<string, unknown>> {
+async function fetchAndRewriteStyle(styleUrl: string): Promise<StyleSpecification> {
   const res = await fetch(styleUrl);
-  let styleJson = await res.json() as Record<string, unknown>;
+  let styleJson = await res.json() as StyleSpecification;
   if (isFullyOfflineCapable()) {
-    styleJson = rewriteStyleForLocalServer(styleJson) as Record<string, unknown>;
+    styleJson = rewriteStyleForLocalServer(styleJson) as StyleSpecification;
   }
   return styleJson;
 }
@@ -223,7 +223,7 @@ export function NewTripMap(props: {
     (async () => {
       try {
         const styleJson = await fetchAndRewriteStyle(styleAbsUrl);
-        map.setStyle(styleJson);
+        map.setStyle(styleJson as import("maplibre-gl").StyleSpecification);
       } catch (e) {
         console.error("[NewTripMap] style load failed, falling back to URL:", e);
         map.setStyle(styleAbsUrl);
@@ -536,8 +536,9 @@ function syncRoute(map: MLMap, navPack: NavPack | null) {
     null;
 
   if (b && typeof b === "object" && "minLng" in b) {
+    const bb = b as BBox4;
     map.fitBounds(
-      [[b.minLng, b.minLat], [b.maxLng, b.maxLat]],
+      [[bb.minLng, bb.minLat], [bb.maxLng, bb.maxLat]],
       { padding: 80, duration: 600 },
     );
   }

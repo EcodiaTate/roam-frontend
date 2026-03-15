@@ -2,6 +2,7 @@
 "use client";
 
 import type { NavPack, NavLeg, NavRoute, CorridorGraphPack } from "@/lib/types/navigation";
+import type { FuelAnalysis } from "@/lib/types/fuel";
 import type { TripStop } from "@/lib/types/trip";
 import type { BBox4 } from "@/lib/types/geo";
 
@@ -137,7 +138,7 @@ export async function rebuildNavpackOfflineWithFuel(args: {
 
   // Optional: override analysis reason label
   reason?: string;
-}): Promise<{ navpack: NavPack; fuelAnalysis?: unknown }> {
+}): Promise<{ navpack: NavPack; fuelAnalysis?: FuelAnalysis }> {
   const navpack = rebuildNavpackOffline({
     prevNavpack: args.prevNavpack,
     corridor: args.corridor,

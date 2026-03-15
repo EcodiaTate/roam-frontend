@@ -96,7 +96,7 @@ export function analyzeFuel(
       snap_distance_m: snap.distance_m,
       side: snap.side,
       brand: p.extra?.brand ?? undefined,
-      hours: p.extra?.hours ?? undefined,
+      hours: (p.extra?.hours as string | undefined) ?? undefined,
       has_diesel: p.extra?.has_diesel ?? undefined,
       has_unleaded: p.extra?.has_unleaded ?? undefined,
     };
