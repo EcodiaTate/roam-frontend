@@ -826,7 +826,7 @@ function PlaceCard({
             </div>
             <div style={{ fontSize: 12, color: "var(--roam-text-muted)", marginTop: 2, display: "flex", gap: 6, flexWrap: "wrap", fontWeight: 500 }}>
               <span style={{ color: cc.fg, fontWeight: 600 }}>{fmtCategory(place.category)}</span>
-              {suburb ? <span>· {typeof suburb === "string" ? suburb.split(",")[0] : suburb}</span> : null}
+              {typeof suburb === "string" && suburb ? <span>· {suburb.split(",")[0]}</span> : null}
               {dist ? <span style={{ fontWeight: 600 }}>· {dist}</span> : null}
             </div>
             <ExtraBadges place={place} />

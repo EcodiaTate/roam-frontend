@@ -25,6 +25,9 @@ export type BuildPhase =
   | "routing"
   | "corridor_ensure"
   | "corridor_get"
+  | "places_corridor"
+  | "traffic_poll"
+  | "hazards_poll"
   | "fuel_analysis"
   | "bundle_build"
   | "downloading"
@@ -73,6 +76,9 @@ export function phaseLabel(phase: BuildPhase, error?: string | null): string {
     case "routing":          return "Building route…";
     case "corridor_ensure":
     case "corridor_get":     return "Preparing offline corridor…";
+    case "places_corridor":  return "Finding stops along the way…";
+    case "traffic_poll":     return "Checking live traffic…";
+    case "hazards_poll":     return "Checking road hazards…";
     case "fuel_analysis":    return "Analysing fuel coverage…";
     case "bundle_build":     return "Packaging offline bundle…";
     case "downloading":      return "Downloading bundle…";
@@ -145,6 +151,14 @@ export async function buildPlanBundle(args: BuildPlanBundleArgs): Promise<BuildP
     buffer_m,
     max_edges,
   });
+  emit("corridor_get");
+
+  // ─── Places / traffic / hazards (bundled inside bundle/build) ────────
+  // These phases are emitted for UI progress only; the actual work happens
+  // concurrently inside the bundle/build endpoint.
+  emit("places_corridor");
+  emit("traffic_poll");
+  emit("hazards_poll");
 
   // ─── 4. Fuel analysis (client-side, no network) ─────────────────────
   // Places are fetched inside bundle/build — run fuel analysis optimistically
