@@ -161,6 +161,7 @@ export function useMapNavigationMode({ mapRef, position, active, bbox }: Opts): 
     if (active) {
       hasEnteredRef.current = false;
       isTrackingRef.current = true;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: syncs tracking state with map animation on active toggle
       setIsTracking(true);
       lastCameraPosRef.current = null;
 
@@ -189,6 +190,7 @@ export function useMapNavigationMode({ mapRef, position, active, bbox }: Opts): 
         cooldownTimerRef.current = null;
       }
       isTrackingRef.current = false;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: syncs tracking state with map animation on active toggle
       setIsTracking(false);
       lastCameraPosRef.current = null;
 

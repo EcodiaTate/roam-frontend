@@ -215,11 +215,11 @@ export function extractCoord(geo: Record<string, unknown> | null | undefined, bb
       const mid = geo.coordinates[Math.floor(geo.coordinates.length / 2)];
       return Array.isArray(mid) ? { lng: mid[0], lat: mid[1] } : null;
     }
-    if ((geo.type === "Polygon" || geo.type === "MultiPolygon") && geo.coordinates) {
-      const ring = geo.type === "Polygon" ? geo.coordinates[0] : geo.coordinates[0]?.[0];
+    if ((geo.type === "Polygon" || geo.type === "MultiPolygon") && Array.isArray(geo.coordinates)) {
+      const ring = geo.type === "Polygon" ? geo.coordinates[0] : (geo.coordinates[0] as unknown[])?.[0];
       if (Array.isArray(ring) && ring.length) {
         let sLng = 0, sLat = 0;
-        for (const c of ring) { sLng += c[0]; sLat += c[1]; }
+        for (const c of ring) { sLng += (c as number[])[0]; sLat += (c as number[])[1]; }
         return { lng: sLng / ring.length, lat: sLat / ring.length };
       }
     }

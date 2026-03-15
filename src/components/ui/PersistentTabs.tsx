@@ -254,11 +254,11 @@ export function PersistentTabs({ children }: { children: React.ReactNode }) {
       if (commit && dx < 0 && activeIndex < TAB_ROUTES.length - 1) {
         haptic.selection();
         // For draggable panes: clear inline styles so CSS animation takes over cleanly
-        if (canDrag) { activePaneEl && (activePaneEl.style.cssText = ""); neighbourEl && (neighbourEl.style.cssText = ""); }
+        if (canDrag) { if (activePaneEl) activePaneEl.style.cssText = ""; if (neighbourEl) neighbourEl.style.cssText = ""; }
         router.push(TAB_ROUTES[activeIndex + 1]);
       } else if (commit && dx > 0 && activeIndex > 0) {
         haptic.selection();
-        if (canDrag) { activePaneEl && (activePaneEl.style.cssText = ""); neighbourEl && (neighbourEl.style.cssText = ""); }
+        if (canDrag) { if (activePaneEl) activePaneEl.style.cssText = ""; if (neighbourEl) neighbourEl.style.cssText = ""; }
         router.push(TAB_ROUTES[activeIndex - 1]);
       } else {
         if (canDrag) resetDrag(activePaneEl, neighbourEl, true);

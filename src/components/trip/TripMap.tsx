@@ -2105,7 +2105,7 @@ export function TripMap(props: Props) {
       }
       clearTimeout(popupTimer);
     };
-  }, [props.focusedSuggestionId, props.suggestions, props.focusFallbackCoord, props.focusFallbackName, buildSuggestionPopupHtml]);
+  }, [props.focusedSuggestionId, props.suggestions, props.focusFallbackCoord, props.focusFallbackName, props.navigationMode, buildSuggestionPopupHtml]);
 
   /* ── Highlighted alert → in-place pulse ring (no camera move) ────────── */
   useEffect(() => {

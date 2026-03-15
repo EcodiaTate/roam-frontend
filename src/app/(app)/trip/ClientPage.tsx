@@ -357,13 +357,14 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   const fuelSnapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    if (fuelSnapTimerRef.current) clearTimeout(fuelSnapTimerRef.current);
+
     if (!fuelAnalysis || !effectivePosition || !routeIndex) {
-      setFuelTracking(null);
-      return;
+      fuelSnapTimerRef.current = setTimeout(() => setFuelTracking(null), 0);
+      return () => { if (fuelSnapTimerRef.current) clearTimeout(fuelSnapTimerRef.current); };
     }
 
     // Debounce: wait 2s after last position change before snapping.
-    if (fuelSnapTimerRef.current) clearTimeout(fuelSnapTimerRef.current);
     fuelSnapTimerRef.current = setTimeout(() => {
       try {
         const snap = snapToPolylineIndexed(

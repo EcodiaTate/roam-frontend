@@ -904,8 +904,6 @@ export default function UntetheredPage() {
   const [entered, setEntered] = useState(false);
   const { session } = useAuth();
 
-  const busy = buying || restoring;
-
   // Entrance animation
   useEffect(() => {
     const raf = requestAnimationFrame(() => {
