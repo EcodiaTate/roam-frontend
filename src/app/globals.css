@@ -1234,6 +1234,21 @@ input, textarea, [contenteditable] {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
+.sos-retry-loc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: var(--r-btn);
+  background: var(--roam-surface-hover);
+  color: var(--roam-text);
+  border: none;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
 .sos-msg-btn {
   width: 100%;
   height: 88px;

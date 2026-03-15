@@ -691,6 +691,7 @@ export function PlanDrawer({
         <div
           style={{
             padding: "16px 16px 12px",
+            paddingTop: "max(16px, env(safe-area-inset-top, 0px) + 16px)",
             borderBottom: "1px solid var(--roam-border)",
             background: "var(--roam-surface)",
             flexShrink: 0,

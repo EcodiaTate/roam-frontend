@@ -7,6 +7,7 @@ import { AuthProvider } from "@/lib/supabase/auth";
 import { SyncBootstrap } from "@/components/auth/SyncBootstrap";
 import { NativeBootstrap } from "@/components/native/NativeBootstrap";
 import { BasemapBootstrap } from "@/components/native/BasemapBootstrap";
+import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 
 const outbackFont = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -82,6 +83,7 @@ export default function RootLayout({
         }}
       >
         <AuthProvider>
+          <ServiceWorkerRegistration />
           <NativeBootstrap />
           <SyncBootstrap />
           <BasemapBootstrap />

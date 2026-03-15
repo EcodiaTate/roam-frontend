@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Capacitor } from "@capacitor/core";
 import { useAuth } from "@/lib/supabase/auth";
+import { useNetworkStatus } from "@/lib/hooks/useNetworkStatus";
 
 export default function LoginPage() {
   const {
@@ -26,6 +27,7 @@ export default function LoginPage() {
   const [signupSuccess, setSignupSuccess] = useState(false);
 
   const isNative = useMemo(() => Capacitor.isNativePlatform(), []);
+  const { deviceOnline } = useNetworkStatus();
 
   // After sign-in, always redirect to /new
   useEffect(() => {
@@ -107,6 +109,23 @@ export default function LoginPage() {
       gap: 0,
     }}>
       <div className="trip-card" style={{ gap: 12, width: "100%", maxWidth: 400 }}>
+        {!deviceOnline && (
+          <div
+            style={{
+              padding: "10px 14px",
+              borderRadius: 10,
+              background: "var(--bg-warn, #2a1f00)",
+              color: "var(--text-warn, #f5c542)",
+              fontSize: 13,
+              fontWeight: 600,
+              textAlign: "center",
+              lineHeight: 1.4,
+            }}
+          >
+            You&apos;re offline — sign-in requires a connection.
+            Once signed in, Roam works without any signal.
+          </div>
+        )}
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 4 }}>
           <img
             src="/img/roam-app-icon.png"

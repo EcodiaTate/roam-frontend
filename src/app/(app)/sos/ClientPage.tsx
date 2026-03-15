@@ -11,7 +11,7 @@ import { emergencySyncOnce } from "@/lib/offline/emergencySync";
 import { saveEmergencyContactLocalFirst, deleteEmergencyContactLocalFirst } from "@/lib/emergency/emergencyActions";
 
 import type { EmergencyContactLocal } from "@/lib/types/emergency";
-import { PhoneCall, MessageSquareText, Plus, Pencil, Trash2, Satellite, MapPin } from "lucide-react";
+import { PhoneCall, MessageSquareText, Plus, Pencil, Trash2, Satellite, MapPin, RefreshCw } from "lucide-react";
 
 function nowIso() {
   return new Date().toISOString();
@@ -64,6 +64,10 @@ function mapsLink(lat: number, lon: number) {
 
 type GeoResult = { lat: number; lon: number; accuracy_m: number | null };
 
+function isLocationGranted(perms: { location: string; coarseLocation: string }) {
+  return perms.location === "granted" || perms.coarseLocation === "granted";
+}
+
 async function getPositionNative(timeoutMs = 120_000): Promise<GeoResult> {
   // 1. Try Native Capacitor Geolocation first
   try {
@@ -72,11 +76,11 @@ async function getPositionNative(timeoutMs = 120_000): Promise<GeoResult> {
 
       // Mobile OS requires explicit permission checks before getting location
       let perms = await Geolocation.checkPermissions();
-      if (perms.location !== "granted") {
-        perms = await Geolocation.requestPermissions();
+      if (!isLocationGranted(perms)) {
+        perms = await Geolocation.requestPermissions({ permissions: ["location", "coarseLocation"] });
       }
-      if (perms.location !== "granted") {
-        throw new Error("Location permission denied. Please allow it in settings.");
+      if (!isLocationGranted(perms)) {
+        throw new Error("Location permission denied. Please allow it in Settings → Roam → Location.");
       }
 
       return await new Promise<GeoResult>((resolve, reject) => {
@@ -292,8 +296,9 @@ export default function EmergencyClientPage() {
     }
   }, [user, isOnline, refresh]);
 
-  const fetchLocationAuto = useCallback(async () => {
-    if (locInFlightRef.current) return;
+  const fetchLocationAuto = useCallback(async (force = false) => {
+    // force=true allows the retry button to bypass the in-flight guard
+    if (locInFlightRef.current && !force) return;
     locInFlightRef.current = true;
     setLocating(true);
     setErr(null);
@@ -534,12 +539,39 @@ export default function EmergencyClientPage() {
               </div>
             </div>
           ) : lat == null || lon == null ? (
-            "Location unavailable"
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 4 }}>
+              <div className="trip-muted">Location unavailable</div>
+              <button
+                type="button"
+                className="trip-interactive sos-retry-loc-btn"
+                onClick={() => {
+                  haptic.medium();
+                  fetchLocationAuto(true);
+                }}
+              >
+                <RefreshCw size={16} />
+                Retry location
+              </button>
+              <div className="trip-muted" style={{ fontSize: 13 }}>
+                If this keeps failing, go to Settings → Roam → Location and set to &quot;While Using&quot;.
+              </div>
+            </div>
           ) : (
-            <>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <MapPin size={28} />
-              {fmt5(lat)}, {fmt5(lon)}{accuracyM ? ` (±${Math.round(accuracyM)}m)` : ""}
-            </>
+              <span>{fmt5(lat)}, {fmt5(lon)}{accuracyM ? ` (±${Math.round(accuracyM)}m)` : ""}</span>
+              <button
+                type="button"
+                className="trip-interactive sos-retry-loc-btn"
+                onClick={() => {
+                  haptic.light();
+                  fetchLocationAuto(true);
+                }}
+                title="Refresh location"
+              >
+                <RefreshCw size={16} />
+              </button>
+            </div>
           )}
         </div>
       </div>

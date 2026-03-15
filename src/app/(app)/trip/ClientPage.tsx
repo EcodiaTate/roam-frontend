@@ -33,7 +33,7 @@ import { useMapNavigationMode } from "@/lib/hooks/useMapNavigationMode";
 import { useNetworkStatus } from "@/lib/hooks/useNetworkStatus";
 
 import { haptic } from "@/lib/native/haptics";
-import { getCurrentPlanId, getOfflinePlan, updateOfflinePlan, type OfflinePlanRecord } from "@/lib/offline/plansStore";
+import { getCurrentPlanId, getOfflinePlan, listOfflinePlans, setCurrentPlanId, updateOfflinePlan, type OfflinePlanRecord } from "@/lib/offline/plansStore";
 import { getAllPacks, hasCorePacks, putPack, putPacksAtomic } from "@/lib/offline/packsStore";
 import { unpackAndStoreBundle } from "@/lib/offline/unpackBundle";
 import { getVehicleFuelProfile } from "@/lib/offline/fuelProfileStore";
@@ -64,7 +64,7 @@ const OVERLAY_POLL_INTERVAL_MS = 90_000;
 
 /* ── Boot phases ──────────────────────────────────────────────────────── */
 
-type BootPhase = "resolving" | "no-plan" | "hydrating" | "ready" | "error";
+type BootPhase = "resolving" | "hydrating" | "ready" | "error";
 
 /* ── Component ────────────────────────────────────────────────────────── */
 
@@ -192,13 +192,38 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
 
     async function boot() {
       try {
-        const resolvedId = desiredPlanId ?? (await getCurrentPlanId());
+        const preferredId = desiredPlanId ?? (await getCurrentPlanId());
         if (cancelled) return;
-        if (!resolvedId) { setPhase("no-plan"); return; }
 
-        const rec = await getOfflinePlan(resolvedId);
+        // Find the first plan that has a usable local bundle.
+        // A plan is usable if its packs are already in IDB, or if it has a
+        // zip_blob we can unpack. Cloud-synced stubs (no zip, no packs) are
+        // skipped so they never surface the "Plan has no zip blob" error.
+        let rec: OfflinePlanRecord | undefined;
+        if (preferredId) {
+          const preferred = await getOfflinePlan(preferredId);
+          if (preferred) {
+            const hasPacks = await hasCorePacks(preferred.plan_id);
+            if (hasPacks || preferred.zip_blob) rec = preferred;
+          }
+        }
+
+        if (!rec) {
+          // Preferred plan wasn't usable — scan all plans for one that is
+          const all = await listOfflinePlans();
+          for (const candidate of all) {
+            const hasPacks = await hasCorePacks(candidate.plan_id);
+            if (hasPacks || candidate.zip_blob) { rec = candidate; break; }
+          }
+        }
+
         if (cancelled) return;
-        if (!rec) { setPhase("no-plan"); return; }
+        if (!rec) { router.replace("/new"); return; }
+
+        // If we fell back to a different plan, update the current pointer
+        if (rec.plan_id !== preferredId) {
+          await setCurrentPlanId(rec.plan_id);
+        }
 
         setPhase("hydrating");
 
@@ -259,12 +284,6 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     boot();
     return () => { cancelled = true; };
   }, [desiredPlanId]);
-
-  // Redirect if no plan - /plans is now a drawer; send to /new to create one
-  useEffect(() => {
-    if (phase !== "no-plan") return;
-    router.replace("/new");
-  }, [phase, router]);
 
   // Focus place from URL
   useEffect(() => {
@@ -695,7 +714,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   }, [fuelTracking]);
 
   // ── Render gates ────────────────────────────────────────────────
-  if (phase === "resolving" || phase === "no-plan") {
+  if (phase === "resolving") {
     return <TripSkeleton />;
   }
 
@@ -795,7 +814,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       />
 
       {!activeNav.isActive && (
-        <div style={{ position: "absolute", top: 12, left: 12, right: 12, zIndex: 15, pointerEvents: "auto" }}>
+        <div style={{ position: "absolute", top: 56, left: 12, right: 12, zIndex: 15, pointerEvents: "auto" }}>
           <BasemapDownloadCard region="australia"/>
         </div>
       )}

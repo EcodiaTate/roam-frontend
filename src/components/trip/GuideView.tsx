@@ -1193,7 +1193,7 @@ export function GuideView({
               display: "flex", flexDirection: "column", gap: 8,
               // Deduct: sticky header (~120px incl. progress bar) + tab switcher (42px) +
               // input bar (50px) + gaps (36px) + bottom nav + safe-area notch
-              maxHeight: "calc(100dvh - 248px - var(--bottom-nav-height, 80px) - env(safe-area-inset-bottom, 0px))",
+              maxHeight: "calc(100dvh - 248px - var(--bottom-nav-height, 80px) - env(safe-area-inset-bottom, 0px) - var(--roam-keyboard-h, 0px))",
               overflowY: "auto", paddingRight: 2,
               WebkitOverflowScrolling: "touch", overscrollBehavior: "contain",
             }}>
@@ -1298,70 +1298,82 @@ export function GuideView({
             </div>
           ) : null}
 
-          {/* Input - always visible on chat tab */}
-          <form onSubmit={handleSubmit} style={{ display: "flex", gap: 8 }}>
-            <div style={{
-              flex: 1, display: "flex", alignItems: "center",
-              background: "var(--roam-surface)", borderRadius: 14,
-              border: "1px solid var(--roam-border, rgba(255,255,255,0.06))",
-              padding: "0 4px 0 16px",
-              transition: "border-color 0.15s",
-            }}>
-              <input
-                type="text"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Ask about your route…"
-                style={{
-                  flex: 1, padding: "13px 0", border: "none", outline: "none",
-                  fontSize: 14, fontWeight: 500, background: "transparent",
-                  color: "var(--roam-text)",
-                }}
-              />
-              <button
-                type="submit"
-                disabled={!guideReady || chatBusy || !chatInput.trim()}
-                style={{
-                  width: 36, height: 36, borderRadius: 10, border: "none",
-                  background: chatInput.trim() ? "var(--brand-sky)" : "transparent",
-                  color: chatInput.trim() ? "white" : "var(--roam-text-muted)",
-                  cursor: chatInput.trim() ? "pointer" : "default",
-                  display: "grid", placeItems: "center",
-                  transition: "all 0.15s ease",
-                  opacity: !guideReady || chatBusy ? 0.4 : 1,
-                }}
-              >
-                <Send size={16} />
-              </button>
-            </div>
-          </form>
+          {/* Input bar - sticky so keyboard pushes it up */}
+          <div style={{
+            position: "sticky",
+            bottom: 0,
+            zIndex: 10,
+            background: "var(--roam-bg)",
+            paddingTop: 4,
+            paddingBottom: "env(safe-area-inset-bottom, 0px)",
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+          }}>
+            <form onSubmit={handleSubmit} style={{ display: "flex", gap: 8 }}>
+              <div style={{
+                flex: 1, display: "flex", alignItems: "center",
+                background: "var(--roam-surface)", borderRadius: 14,
+                border: "1px solid var(--roam-border, rgba(255,255,255,0.06))",
+                padding: "0 4px 0 16px",
+                transition: "border-color 0.15s",
+              }}>
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder="Ask about your route…"
+                  style={{
+                    flex: 1, padding: "13px 0", border: "none", outline: "none",
+                    fontSize: 14, fontWeight: 500, background: "transparent",
+                    color: "var(--roam-text)",
+                  }}
+                />
+                <button
+                  type="submit"
+                  disabled={!guideReady || chatBusy || !chatInput.trim()}
+                  style={{
+                    width: 36, height: 36, borderRadius: 10, border: "none",
+                    background: chatInput.trim() ? "var(--brand-sky)" : "transparent",
+                    color: chatInput.trim() ? "white" : "var(--roam-text-muted)",
+                    cursor: chatInput.trim() ? "pointer" : "default",
+                    display: "grid", placeItems: "center",
+                    transition: "all 0.15s ease",
+                    opacity: !guideReady || chatBusy ? 0.4 : 1,
+                  }}
+                >
+                  <Send size={16} />
+                </button>
+              </div>
+            </form>
 
-          {/* Quick suggestions - compact row when thread has messages */}
-          {thread.length > 0 && !chatBusy ? (
-            <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2, WebkitOverflowScrolling: "touch" }}>
-              {quickSuggestions.slice(0, 4).map((s, i) => {
-                const SI = s.Icon;
-                return (
-                  <button
-                    key={i} type="button"
-                    onClick={() => handleAsk(s.query)}
-                    disabled={!guideReady}
-                    style={{
-                      flex: "0 0 auto", borderRadius: 10, border: "none",
-                      padding: "7px 11px", fontSize: 12, fontWeight: 700,
-                      background: `${s.color}0D`, color: s.color,
-                      cursor: "pointer", whiteSpace: "nowrap",
-                      display: "flex", alignItems: "center", gap: 5,
-                      opacity: guideReady ? 1 : 0.5,
-                    }}
-                  >
-                    <SI size={13} />
-                    {s.label}
-                  </button>
-                );
-              })}
-            </div>
-          ) : null}
+            {/* Quick suggestions - compact row when thread has messages */}
+            {thread.length > 0 && !chatBusy ? (
+              <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2, WebkitOverflowScrolling: "touch" }}>
+                {quickSuggestions.slice(0, 4).map((s, i) => {
+                  const SI = s.Icon;
+                  return (
+                    <button
+                      key={i} type="button"
+                      onClick={() => handleAsk(s.query)}
+                      disabled={!guideReady}
+                      style={{
+                        flex: "0 0 auto", borderRadius: 10, border: "none",
+                        padding: "7px 11px", fontSize: 12, fontWeight: 700,
+                        background: `${s.color}0D`, color: s.color,
+                        cursor: "pointer", whiteSpace: "nowrap",
+                        display: "flex", alignItems: "center", gap: 5,
+                        opacity: guideReady ? 1 : 0.5,
+                      }}
+                    >
+                      <SI size={13} />
+                      {s.label}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
+          </div>
         </div>
       ) : null}
 

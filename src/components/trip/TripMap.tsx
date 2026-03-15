@@ -116,6 +116,8 @@ const USER_LOC_HEADING_SRC = "roam-user-heading-src";
 const USER_LOC_HEADING = "roam-user-loc-heading";
 
 const FUEL_SRC = "roam-fuel-src";
+const FUEL_CLUSTER_CIRCLE = "roam-fuel-cluster-circle";
+const FUEL_CLUSTER_COUNT = "roam-fuel-cluster-count";
 const FUEL_CIRCLE_LAYER = "roam-fuel-circle";
 const FUEL_ICON_LAYER = "roam-fuel-icon";
 const FUEL_LABEL_LAYER = "roam-fuel-label";
@@ -1249,7 +1251,7 @@ export function TripMap(props: Props) {
       map.on("mouseenter", HAZARD_POLY_LAYER, () => (map.getCanvas().style.cursor = "pointer"));
       map.on("mouseleave", HAZARD_POLY_LAYER, () => (map.getCanvas().style.cursor = ""));
       /* ── 4. Suggestions (clustered + icon layer) ───────────────────── */
-      addOrUpdateGeoJsonSource(map, SUG_SRC, sugFC, { cluster: true, clusterMaxZoom: 13, clusterRadius: 50 });
+      addOrUpdateGeoJsonSource(map, SUG_SRC, sugFC, { cluster: true, clusterMaxZoom: 10, clusterRadius: 30 });
 
       if (!map.getLayer(SUG_CLUSTER_CIRCLE)) {
         map.addLayer({
@@ -1611,12 +1613,33 @@ export function TripMap(props: Props) {
         });
       }
 
-      // ── Fuel station layers ──
-      if (!map.getSource(FUEL_SRC)) {
-        map.addSource(FUEL_SRC, { type: "geojson", data: fuelFC });
-      } else {
-        const s: any = map.getSource(FUEL_SRC);
-        s?.setData?.(fuelFC);
+      // ── Fuel station layers (clustered) ──
+      addOrUpdateGeoJsonSource(map, FUEL_SRC, fuelFC, { cluster: true, clusterMaxZoom: 10, clusterRadius: 30 });
+
+      if (!map.getLayer(FUEL_CLUSTER_CIRCLE)) {
+        map.addLayer({
+          id: FUEL_CLUSTER_CIRCLE,
+          type: "circle",
+          source: FUEL_SRC,
+          filter: ["has", "point_count"],
+          paint: {
+            "circle-color": ["step", ["get", "point_count"], "rgba(217,119,6,0.88)", 10, "rgba(180,83,9,0.88)", 50, "rgba(184,74,57,0.88)"],
+            "circle-radius": ["step", ["get", "point_count"], 16, 10, 20, 50, 26],
+            "circle-stroke-color": "rgba(255,255,255,0.3)",
+            "circle-stroke-width": 2,
+            "circle-opacity": 0.92,
+          },
+        });
+      }
+      if (!map.getLayer(FUEL_CLUSTER_COUNT)) {
+        map.addLayer({
+          id: FUEL_CLUSTER_COUNT,
+          type: "symbol",
+          source: FUEL_SRC,
+          filter: ["has", "point_count"],
+          layout: { "text-field": ["get", "point_count_abbreviated"], "text-font": ["Noto Sans Bold"], "text-size": 12, "text-allow-overlap": true },
+          paint: { "text-color": "#ffffff" },
+        });
       }
 
       if (!map.getLayer(FUEL_CIRCLE_LAYER)) {
@@ -1624,6 +1647,7 @@ export function TripMap(props: Props) {
           id: FUEL_CIRCLE_LAYER,
           type: "circle",
           source: FUEL_SRC,
+          filter: ["!", ["has", "point_count"]],
           paint: {
             "circle-radius": 12,
             "circle-color": "rgba(0,0,0,0.08)",
@@ -1637,6 +1661,7 @@ export function TripMap(props: Props) {
           id: FUEL_ICON_LAYER,
           type: "symbol",
           source: FUEL_SRC,
+          filter: ["!", ["has", "point_count"]],
           layout: {
             "icon-image": ["match", ["get", "fuel_level"], "warn", "roam-fuel-warn", "critical", "roam-fuel-critical", "roam-fuel-ok"],
             "icon-size": 1,
@@ -1651,6 +1676,7 @@ export function TripMap(props: Props) {
           id: FUEL_LABEL_LAYER,
           type: "symbol",
           source: FUEL_SRC,
+          filter: ["!", ["has", "point_count"]],
           layout: {
             "text-field": ["get", "name"],
             "text-font": ["Open Sans Bold"],
@@ -1667,6 +1693,24 @@ export function TripMap(props: Props) {
           minzoom: 9,
         });
       }
+
+      // Fuel cluster click → expand
+      map.on("click", FUEL_CLUSTER_CIRCLE, (e: any) => {
+        const features = map.queryRenderedFeatures(e.point, { layers: [FUEL_CLUSTER_CIRCLE] });
+        if (!features.length) return;
+        const clusterId = features[0].properties?.cluster_id;
+        if (clusterId == null) return;
+        const source = map.getSource(FUEL_SRC) as any;
+        if (!source?.getClusterExpansionZoom) return;
+        source.getClusterExpansionZoom(clusterId, (err: any, zoom: number) => {
+          if (err) return;
+          const coords = (features[0].geometry as any)?.coordinates;
+          if (coords) map.easeTo({ center: coords, zoom: Math.min(zoom, 16), duration: 350 });
+        });
+      });
+
+      map.on("mouseenter", FUEL_CLUSTER_CIRCLE, () => (map.getCanvas().style.cursor = "pointer"));
+      map.on("mouseleave", FUEL_CLUSTER_CIRCLE, () => (map.getCanvas().style.cursor = ""));
 
       // Initial fit
       try {

@@ -243,8 +243,12 @@ export async function downloadBasemap(
     _downloadListenerRemove = null;
   }
 
+  // The plugin receives region as "australia/tiles" (subdirectory path) so events
+  // will carry that same string. Match on startsWith so the progress filter works.
+  const pluginRegion = `${region}/tiles`;
+
   const listener = await RoamTileServer.addListener("downloadProgress", async (event) => {
-    if (event.region !== region) return;
+    if (event.region !== pluginRegion) return;
     const s = await loadStatus(region);
     s.downloadProgress = event.progress >= 0 ? event.progress : -1;
     s.downloadedBytes = event.bytesReceived;
@@ -258,11 +262,9 @@ export async function downloadBasemap(
 
     // Download to {region}/tiles/ subdirectory so URL paths resolve correctly.
     // The native plugin creates the subdirectory automatically.
-    // We use a modified region path: "australia/tiles" as the region param
-    // so the file lands at basemapsRoot/australia/tiles/australia.pmtiles
     const result = await RoamTileServer.downloadFile({
       url: downloadUrl,
-      region: `${region}/tiles`,
+      region: pluginRegion,
       filename: TILE_FILENAME,
       sha256: options?.sha256,
     });

@@ -1,7 +1,7 @@
 // src/components/basemap/BasemapDownloadCard.tsx
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 import { useBasemapPack } from "@/lib/hooks/useBasemapPack";
 import { CloudDownload, Loader2, AlertTriangle } from "lucide-react";
 
@@ -22,11 +22,6 @@ export function BasemapDownloadCard({ region = "australia", onReady, className }
     onReady?.();
   }, [download, onReady]);
 
-  const progressPct = useMemo(() => {
-    if (status.downloadProgress <= 0) return 0;
-    return Math.min(Math.round(status.downloadProgress * 100), 100);
-  }, [status.downloadProgress]);
-
   // 1. Web users: Map streams from cloud, no offline pack needed. Show nothing.
   if (!isNative) return null;
 
@@ -37,7 +32,7 @@ export function BasemapDownloadCard({ region = "australia", onReady, className }
     <div className={className} style={styles.wrapper}>
       <style>{`
         @keyframes roam-spin { 100% { transform: rotate(360deg); } }
-        .roam-spin { animation: roam-spin 1s linear infinite; }
+        .roam-spin { animation: roam-spin 2.5s linear infinite; }
       `}</style>
 
       {/* 3. Downloading state */}
@@ -45,9 +40,8 @@ export function BasemapDownloadCard({ region = "australia", onReady, className }
         <div style={styles.container}>
           <button onClick={cancel} style={styles.pill} title="Tap to cancel">
             <Loader2 size={16} className="roam-spin" style={{ opacity: 0.7 }} />
-            <span>Saving offline map... {progressPct}%</span>
+            <span>Saving offline map…</span>
           </button>
-          <div style={{ ...styles.progressBg, width: `${progressPct}%` }} />
         </div>
       )}
 
@@ -61,7 +55,7 @@ export function BasemapDownloadCard({ region = "australia", onReady, className }
         </div>
       )}
 
-      {/* 5. Not Installed state - FIXED FROM "none" to "not_installed" */}
+      {/* 5. Not installed */}
       {(status.state === "not_installed" || !status.state) && (
         <div style={styles.container}>
           <button onClick={handleDownload} style={styles.pill}>
@@ -78,7 +72,6 @@ export function BasemapDownloadCard({ region = "australia", onReady, className }
 
 const styles: Record<string, React.CSSProperties> = {
   wrapper: {
-    // Allows the pill to size itself to its content without stretching
     display: "flex",
     justifyContent: "center",
   },
@@ -86,7 +79,7 @@ const styles: Record<string, React.CSSProperties> = {
     position: "relative",
     display: "inline-flex",
     overflow: "hidden",
-    borderRadius: 999, // Perfect pill shape
+    borderRadius: 999,
     background: "rgba(0, 0, 0, 0.65)",
     backdropFilter: "blur(12px)",
     WebkitBackdropFilter: "blur(12px)",
@@ -109,14 +102,5 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     outline: "none",
     WebkitTapHighlightColor: "transparent",
-  },
-  progressBg: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    bottom: 0,
-    background: "rgba(255, 255, 255, 0.15)",
-    zIndex: 1,
-    transition: "width 0.3s ease-out",
   },
 };

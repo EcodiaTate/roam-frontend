@@ -5,13 +5,11 @@ const config: CapacitorConfig = {
   appId: "au.ecodia.roam",
   appName: "Roam Nav",
 
-  // Fallback webDir (unused while server.url is set, but required by Capacitor)
+  // Static bundle built via `npm run build:static` → `out/`
+  // Capacitor serves this from device storage — fully offline, no network required.
   webDir: "out",
 
-  // Wrap the deployed Vercel app - works for TestFlight iteration.
-  // Switch back to a static bundle (remove this server block) before production.
   server: {
-    url: "https://roam.ecodia.au/trip",
     cleartext: false,
     allowNavigation: ["*.ecodia.au", "*.supabase.co", "*.supabase.in"],
   },

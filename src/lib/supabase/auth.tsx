@@ -58,7 +58,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    // Race getSession() against a short timeout so the app never hangs on
+    // cold start when there is no network. Supabase persists the session in
+    // localStorage so this resolves instantly from cache in the happy path;
+    // the timeout only fires when the SDK tries to reach the server and stalls.
+    const sessionTimeout = new Promise<{ data: { session: Session | null } }>(
+      (resolve) => setTimeout(() => resolve({ data: { session: null } }), 2500),
+    );
+
+    Promise.race([supabase.auth.getSession(), sessionTimeout]).then(({ data }) => {
       setSession(data.session);
       setLoading(false);
     });

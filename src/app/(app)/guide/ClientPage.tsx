@@ -95,11 +95,10 @@ export default function GuideClientPage(props: {
   const [busy, setBusy] = useState<null | "boot" | "chat" | "add">(null);
   const [err, setErr] = useState<string | null>(null);
 
-  const didBootstrapRef = useRef(false);
-
   useEffect(() => setFocusedPlaceId(desiredFocusPlaceId), [desiredFocusPlaceId]);
 
-  // ── Boot packs from IDB ──────────────────────────────────────
+  // ── Boot packs from IDB, create guide pack, and kick off greeting ──
+  const didGreetRef = useRef(false);
   useEffect(() => {
     let cancelled = false;
 
@@ -127,24 +126,89 @@ export default function GuideClientPage(props: {
         const packs = await getAllPacks(rec.plan_id);
         if (cancelled) return;
 
+        const navpackLoaded = (packs as any).navpack ?? null;
+        const corridorLoaded = (packs as any).corridor ?? null;
+        const placesLoaded = (packs as any).places ?? null;
+        const trafficLoaded = (packs as any).traffic ?? null;
+        const hazardsLoaded = (packs as any).hazards ?? null;
+        const manifestLoaded = (packs as any).manifest ?? null;
+
         setPlan(rec);
-        setNavpack((packs as any).navpack ?? null);
-        setCorridor((packs as any).corridor ?? null);
-        setPlaces((packs as any).places ?? null);
-        setTraffic((packs as any).traffic ?? null);
-        setHazards((packs as any).hazards ?? null);
-        setManifest((packs as any).manifest ?? null);
+        setNavpack(navpackLoaded);
+        setCorridor(corridorLoaded);
+        setPlaces(placesLoaded);
+        setTraffic(trafficLoaded);
+        setHazards(hazardsLoaded);
+        setManifest(manifestLoaded);
+
+        // ── Bootstrap guide pack immediately (no extra render cycle) ──
+        const stops = (navpackLoaded?.req?.stops ?? rec.preview?.stops ?? []) as any[];
+        if (stops.length === 0) return;
+
+        const { guideKey: gk, pack, context } = await createGuidePack({
+          planId: rec.plan_id,
+          label: rec.label ?? null,
+          stops,
+          navpack: navpackLoaded,
+          corridor: corridorLoaded,
+          places: placesLoaded,
+          traffic: trafficLoaded,
+          hazards: hazardsLoaded,
+          manifest: manifestLoaded,
+          progress: null,
+        });
+
+        if (cancelled) return;
+
+        setGuideKey(gk);
+        setGuidePack(pack);
+        setGuideContext(context);
+
+        // ── Auto-greeting if thread is empty ──────────────────────
+        if (pack.thread.length > 0 || didGreetRef.current) return;
+        didGreetRef.current = true;
+
+        const origin = stops[0]?.name ?? "your starting point";
+        const dest = stops[stops.length - 1]?.name ?? "your destination";
+        const totalKm = navpackLoaded?.primary?.distance_m
+          ? Math.round(navpackLoaded.primary.distance_m / 1000)
+          : null;
+
+        const greetingPrompt = totalKm
+          ? `[SYSTEM: The user just opened the guide for their trip from ${origin} to ${dest} (${totalKm}km). Give them a warm, brief welcome — mention one or two highlights or heads-ups for this route. Keep it to 2-4 sentences. Be the mate riding shotgun who's excited about this trip.]`
+          : `[SYSTEM: The user just opened the guide for their trip from ${origin} to ${dest}. Give them a warm, brief welcome. Keep it to 2-4 sentences.]`;
+
+        setBusy("chat");
+        try {
+          const corridorPlaces: PlaceItem[] = placesLoaded?.items ?? [];
+          const res = await guideSendMessage({
+            planId: rec.plan_id,
+            guideKey: gk,
+            pack,
+            context,
+            userText: greetingPrompt,
+            preferredCategories: [],
+            maxSteps: 2,
+            progress: null,
+            corridorPlaces,
+          });
+          if (!cancelled) setGuidePack(res.pack);
+        } catch {
+          // Non-critical — guide still works without greeting
+        } finally {
+          if (!cancelled) setBusy(null);
+        }
       } catch (e: any) {
-        setErr(e?.message ?? String(e));
+        if (!cancelled) setErr(e?.message ?? String(e));
       } finally {
-        if (!cancelled) setBusy(null);
+        if (!cancelled) setBusy((b) => (b === "boot" ? null : b));
       }
     }
 
     boot();
     return () => {
       cancelled = true;
-      didBootstrapRef.current = false;
+      didGreetRef.current = false;
     };
   }, [desiredPlanId]);
 
@@ -165,96 +229,6 @@ export default function GuideClientPage(props: {
     setTripProgress(progress);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [geo.position, plan, navpack]);
-
-  // ── Bootstrap Guide pack (with IDB restore) ──────────────────
-  useEffect(() => {
-    let cancelled = false;
-
-    async function bootstrapGuide() {
-      if (didBootstrapRef.current) return;
-      if (!plan) return;
-
-      const stops = (navpack?.req?.stops ?? plan.preview?.stops ?? []) as any[];
-      if (!stops || stops.length === 0) return;
-
-      didBootstrapRef.current = true;
-      try {
-        const { guideKey, pack, context } = await createGuidePack({
-          planId: plan.plan_id,
-          label: plan.label ?? null,
-          stops,
-          navpack,
-          corridor,
-          places,
-          traffic,
-          hazards,
-          manifest,
-          progress: tripProgress,
-        });
-
-        if (cancelled) return;
-
-        setGuideKey(guideKey);
-        setGuidePack(pack);
-        setGuideContext(context);
-      } catch (e: any) {
-        if (!cancelled) setErr(e?.message ?? String(e));
-      }
-    }
-
-    bootstrapGuide();
-    return () => {
-      cancelled = true;
-    };
-  }, [plan, navpack, corridor, places, traffic, hazards, manifest, tripProgress]);
-
-  // ── Auto-greeting ─────────────────────────────────────────────
-  // When the guide boots with an empty thread, send a greeting prompt
-  // so the guide introduces itself with trip-aware context.
-  const didGreetRef = useRef(false);
-  useEffect(() => {
-    if (didGreetRef.current) return;
-    if (!guideKey || !guidePack || !guideContext) return;
-    if (guidePack.thread.length > 0) return; // already has conversation
-    if (busy) return;
-
-    didGreetRef.current = true;
-
-    const stops = (navpack?.req?.stops ?? plan?.preview?.stops ?? []) as any[];
-    const origin = stops[0]?.name ?? "your starting point";
-    const dest = stops[stops.length - 1]?.name ?? "your destination";
-    const totalKm = navpack?.primary?.distance_m
-      ? Math.round(navpack.primary.distance_m / 1000)
-      : null;
-
-    const greetingPrompt = totalKm
-      ? `[SYSTEM: The user just opened the guide for their trip from ${origin} to ${dest} (${totalKm}km). Give them a warm, brief welcome — mention one or two highlights or heads-ups for this route. Keep it to 2-4 sentences. Be the mate riding shotgun who's excited about this trip.]`
-      : `[SYSTEM: The user just opened the guide for their trip from ${origin} to ${dest}. Give them a warm, brief welcome. Keep it to 2-4 sentences.]`;
-
-    (async () => {
-      setBusy("chat");
-      try {
-        const corridorPlaces: PlaceItem[] = places?.items ?? [];
-        const res = await guideSendMessage({
-          planId: plan?.plan_id ?? null,
-          guideKey,
-          pack: guidePack,
-          context: guideContext,
-          userText: greetingPrompt,
-          preferredCategories: [],
-          maxSteps: 2,
-          progress: tripProgress,
-          corridorPlaces,
-        });
-        setGuidePack(res.pack);
-      } catch {
-        // Non-critical — guide still works without greeting
-      } finally {
-        setBusy(null);
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [guideKey, guidePack, guideContext]);
 
   // ── Handlers ─────────────────────────────────────────────────
 

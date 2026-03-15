@@ -1,14 +1,6 @@
 // src/app/guide/page.tsx
-import { Suspense } from "react";
-import GuideClientPage from "./ClientPage";
-
+// Rendered by PersistentTabs in (app)/layout.tsx — this route page is a no-op.
+// Kept so Next.js registers the /guide route for URL resolution + static export.
 export default function GuidePage() {
-  return (
-    <Suspense>
-      <GuideClientPage
-        initialPlanId={null}
-        initialFocusPlaceId={null}
-      />
-    </Suspense>
-  );
+  return null;
 }

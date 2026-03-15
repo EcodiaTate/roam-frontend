@@ -172,6 +172,7 @@ export const BottomTabBar = memo(function BottomTabBar() {
               data-active={active ? "true" : "false"}
               draggable={false}
               prefetch={false}
+              scroll={false}
               onPointerDown={() => {
                 if (!active) haptic.tap();
               }}
