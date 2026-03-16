@@ -5,6 +5,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { PlaceCategory, PlaceItem, PlacesPack } from "@/lib/types/places";
 import { haptic } from "@/lib/native/haptics";
 
+import { CATEGORY_ICON } from "@/lib/places/categoryMeta";
+import { fmtCat } from "@/lib/places/format";
+
 import type { LucideIcon } from "lucide-react";
 import {
   Search,
@@ -42,10 +45,6 @@ import {
   Store,
   MapPin,
 } from "lucide-react";
-
-function fmtCat(c: PlaceCategory) {
-  return c.replace(/_/g, " ");
-}
 
 // ──────────────────────────────────────────────────────────────
 // All categories - matches backend _CORRIDOR_DEFAULT_CATS exactly.
@@ -134,8 +133,7 @@ const CHIP_DEFS: ChipDef[] = [
   { key: "park",          label: "Park",        Icon: TreePine },
 ];
 
-const CATEGORY_ICON: Record<string, LucideIcon> = {};
-for (const c of CHIP_DEFS) CATEGORY_ICON[c.key] = c.Icon;
+// CATEGORY_ICON imported from @/lib/places/categoryMeta
 
 // ──────────────────────────────────────────────────────────────
 // Score: priority sort when no search query is active.
@@ -359,6 +357,7 @@ export function TripSuggestionsPanel(props: {
                 alignItems: "center",
                 cursor: "pointer",
                 whiteSpace: "nowrap",
+                transition: "background 100ms ease, color 100ms ease, box-shadow 100ms ease",
               }}
             >
               <CI size={14} />
@@ -374,6 +373,7 @@ export function TripSuggestionsPanel(props: {
                     padding: "1px 5px",
                     minWidth: 16,
                     textAlign: "center",
+                    transition: "background 100ms ease, color 100ms ease",
                   }}
                 >
                   {count}

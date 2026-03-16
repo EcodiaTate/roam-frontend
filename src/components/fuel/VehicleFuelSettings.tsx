@@ -173,16 +173,27 @@ export function VehicleFuelSettings({
     setProfile((prev) => ({ ...prev, [key]: value }));
   }, []);
 
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   const handleSave = useCallback(async () => {
     haptic.medium();
+    setSaveError(null);
+
+    // Optimistic: close modal and notify parent immediately
+    const savedProfile = { ...profile };
+    onSaved?.(savedProfile);
+    onClose();
+
+    // Persist in background — revert on failure
     try {
-      await setVehicleFuelProfile(profile);
-      onSaved?.(profile);
-      onClose();
+      await setVehicleFuelProfile(savedProfile);
       haptic.success();
     } catch (e) {
       console.error("[FuelSettings] save failed:", e);
       haptic.error();
+      // The profile wasn't actually saved — the parent still has the
+      // optimistic value. On next open, useEffect will reload the
+      // real profile from IDB, effectively reverting the UI.
     }
   }, [profile, onSaved, onClose]);
 

@@ -103,6 +103,136 @@ const ATTRIBUTION_GROUPS: AttributionGroup[] = [
     ],
   },
   {
+    title: "Fuel & Charging",
+    entries: [
+      {
+        name: "PetrolSpy",
+        url: "https://petrolspy.com.au",
+        licence: "Proprietary (PetrolSpy ToS)",
+        description:
+          "Real-time fuel station locations and prices across Australia.",
+      },
+      {
+        name: "Open Charge Map",
+        url: "https://openchargemap.org",
+        licence: "Creative Commons BY-SA 4.0",
+        description:
+          "Open database of EV charging station locations and availability. © Open Charge Map Contributors.",
+      },
+      {
+        name: "Informed Sources",
+        url: "https://informedsources.com",
+        licence: "Proprietary (Informed Sources ToS)",
+        description:
+          "National city-level average fuel price data for Australian capital cities.",
+      },
+      {
+        name: "Australian Institute of Petroleum (AIP)",
+        url: "https://aip.com.au",
+        licence: "Proprietary (AIP ToS)",
+        description:
+          "Terminal gate (benchmark) fuel price data for Australian cities. © Australian Institute of Petroleum.",
+      },
+      {
+        name: "NSW Fuel Check API",
+        url: "https://api.nsw.gov.au",
+        licence: "Creative Commons BY 4.0",
+        description:
+          "Official NSW Government real-time fuel price data for New South Wales and the ACT. © NSW Government.",
+      },
+      {
+        name: "WA FuelWatch",
+        url: "https://www.fuelwatch.wa.gov.au",
+        licence: "Creative Commons BY 4.0",
+        description:
+          "Official Western Australian Government fuel price monitoring service. © Government of Western Australia.",
+      },
+    ],
+  },
+  {
+    title: "Mobile Coverage",
+    entries: [
+      {
+        name: "OpenCelliD",
+        url: "https://opencellid.org",
+        licence: "Creative Commons BY-SA 4.0",
+        description:
+          "Open database of cell tower locations used for mobile network coverage estimation across Australia. © OpenCelliD Contributors.",
+      },
+    ],
+  },
+  {
+    title: "Rest Areas & Facilities",
+    entries: [
+      {
+        name: "Queensland Government — Rest Areas",
+        url: "https://spatial-gis.information.qld.gov.au",
+        licence: "Creative Commons BY 4.0",
+        description:
+          "Queensland government-maintained rest area locations and facilities via ArcGIS spatial services. © Queensland Government.",
+      },
+      {
+        name: "Main Roads Western Australia — Rest Areas",
+        url: "https://www.mainroads.wa.gov.au",
+        licence: "Creative Commons BY 4.0",
+        description:
+          "Heavy vehicle and general rest area locations across Western Australia via ArcGIS services. © Government of Western Australia.",
+      },
+      {
+        name: "Transport for NSW — Rest Areas",
+        url: "https://opendata.transport.nsw.gov.au",
+        licence: "Creative Commons BY 4.0",
+        description:
+          "NSW government rest area data including facilities and locations. © NSW Government.",
+      },
+      {
+        name: "Australian National Toilet Map",
+        url: "https://toiletmap.gov.au",
+        licence: "Creative Commons BY 3.0 AU",
+        description:
+          "National public toilet locations and accessibility data. © Commonwealth of Australia, Department of Health and Aged Care.",
+      },
+    ],
+  },
+  {
+    title: "Parks & National Roadworks",
+    entries: [
+      {
+        name: "RADAR — National Roadworks & Closures",
+        url: "https://www.radar.gov.au",
+        licence: "Creative Commons BY 4.0",
+        description:
+          "Federal roadworks and road closure data aggregated across all Australian states. © Commonwealth of Australia.",
+      },
+      {
+        name: "Queensland Parks and Wildlife Service",
+        url: "https://parks.des.qld.gov.au",
+        licence: "Creative Commons BY 4.0",
+        description:
+          "National park closure and alert data for Queensland parks via RSS feed. © Queensland Government.",
+      },
+      {
+        name: "NSW National Parks and Wildlife Service",
+        url: "https://www.nationalparks.nsw.gov.au",
+        licence: "Creative Commons BY 4.0",
+        description:
+          "Park closure and alert data for New South Wales national parks. © NSW Government.",
+      },
+    ],
+  },
+  {
+    title: "Media & Images",
+    entries: [
+      {
+        name: "Wikimedia Commons",
+        url: "https://commons.wikimedia.org",
+        licence: "Various (CC BY-SA, Public Domain, etc.)",
+        description:
+          "Thumbnail images for points of interest sourced from the free media repository. Individual image licences apply as specified by their uploaders.",
+      },
+    ],
+  },
+  {
     title: "Australian Government Data",
     entries: [
       {
@@ -110,7 +240,7 @@ const ATTRIBUTION_GROUPS: AttributionGroup[] = [
         url: "http://www.bom.gov.au",
         licence: "Creative Commons BY 3.0 AU",
         description:
-          "Weather warnings and hazard data for all Australian states and territories. © Commonwealth of Australia, Bureau of Meteorology.",
+          "Weather warnings, hazard data, real-time river height monitoring (KiWIS API), flood watch/warning catchment boundaries, and state-based RSS warning feeds for all Australian states and territories. © Commonwealth of Australia, Bureau of Meteorology.",
       },
       {
         name: "Digital Earth Australia — Geoscience Australia",

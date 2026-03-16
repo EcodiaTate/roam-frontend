@@ -221,7 +221,7 @@ export class GpsInterpolator {
     const predicted = predict(fix, predictDt);
 
     // Target heading: use the fix's heading
-    let targetHeading = fix.heading;
+    const targetHeading = fix.heading;
 
     // If we have a blend in progress (new fix just arrived), blend from
     // the old visual position to the new predicted position

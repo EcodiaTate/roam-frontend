@@ -118,6 +118,12 @@ export type GuideContext = {
 
   traffic_summary?: Record<string, unknown> | null;
   hazards_summary?: Record<string, unknown> | null;
+  route_score_summary?: Record<string, unknown> | null;
+  flood_summary?: Record<string, unknown> | null;
+  coverage_summary?: Record<string, unknown> | null;
+  wildlife_summary?: Record<string, unknown> | null;
+  weather_summary?: Record<string, unknown> | null;
+  fuel_benchmarks?: Record<string, Record<string, number>> | null;
 };
 
 // ──────────────────────────────────────────────────────────────
@@ -141,10 +147,37 @@ export type WirePlace = {
   phone: string | null;
 
   /**
-   * NEW: allow backend to output clean "Website · <Place>" actions.
+   * Allow backend to output clean "Website · <Place>" actions.
    * Keep optional for backward compat.
    */
   website?: string | null;
+
+  // ── Camp extras (populated for category="camp") ───────────
+  free?: boolean;
+  powered_sites?: boolean;
+  has_water?: boolean;
+  has_toilets?: boolean;
+  has_showers?: boolean;
+  has_dump_point?: boolean;
+  has_bbq?: boolean;
+  has_laundry?: boolean;
+  has_wifi?: boolean;
+  has_swimming?: boolean;
+  has_phone_reception?: boolean;
+  reception_carriers?: string[];
+  pets_allowed?: boolean | "on_lead";
+  fires_allowed?: boolean | "seasonal";
+  caravans?: boolean;
+  motorhomes?: boolean;
+  max_vehicle_length_m?: number;
+  num_sites?: number;
+  camp_type?: string;
+  max_stay_days?: number;
+  price_per_night_aud?: number;
+  // ── Overnight legality (rest_area + free camps) ───────────
+  overnight_allowed?: boolean | "check" | "prohibited";
+  overnight_max_hours?: number;
+  overnight_notes?: string;
 };
 
 // ──────────────────────────────────────────────────────────────

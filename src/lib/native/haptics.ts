@@ -115,14 +115,3 @@ export const haptic = {
   },
 };
 
-/**
- * Legacy API (backwards compatible with older code)
- */
-export const haptics = {
-  light: haptic.tap,
-  medium: haptic.medium,
-  heavy: haptic.heavy,
-  success: haptic.success,
-  error: haptic.error,
-  selection: haptic.selection,
-};

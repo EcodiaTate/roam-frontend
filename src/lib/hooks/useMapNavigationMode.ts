@@ -59,9 +59,18 @@ const ZOOM_LERP_RATE = 0.05; // 5% per frame → smooth ~300ms convergence
 // Helpers
 // ──────────────────────────────────────────────────────────────
 
+// Cache lookahead padding to avoid recalculating on every 60fps frame.
+// Only recalculates when canvas height actually changes.
+let _cachedHeight = 0;
+let _cachedPadding = { top: 150, bottom: 0, left: 0, right: 0 };
+
 function getLookaheadPadding(map: MLMap) {
   const h = map.getCanvas()?.clientHeight ?? 600;
-  return { top: Math.round(h * LOOKAHEAD_FRACTION), bottom: 0, left: 0, right: 0 };
+  if (h !== _cachedHeight) {
+    _cachedHeight = h;
+    _cachedPadding = { top: Math.round(h * LOOKAHEAD_FRACTION), bottom: 0, left: 0, right: 0 };
+  }
+  return _cachedPadding;
 }
 
 function adaptiveZoom(speed: number): number {

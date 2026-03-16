@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { haptic } from "@/lib/native/haptics";
 import { useGeolocation } from "@/lib/native/geolocation";
+import { useOnlineStatus } from "@/lib/hooks/useOnlineStatus";
 import { getCurrentPlanId, getOfflinePlan, type OfflinePlanRecord } from "@/lib/offline/plansStore";
 import { getAllPacks, hasCorePacks } from "@/lib/offline/packsStore";
 import { unpackAndStoreBundle } from "@/lib/offline/unpackBundle";
@@ -14,38 +15,27 @@ import type { NavPack, CorridorGraphPack, TrafficOverlay, HazardOverlay } from "
 import type { PlacesPack, PlaceItem } from "@/lib/types/places";
 import type { OfflineBundleManifest } from "@/lib/types/bundle";
 import type { GuidePack, GuideContext, TripProgress } from "@/lib/types/guide";
+import type {
+  WeatherOverlay,
+  FloodOverlay,
+  CoverageOverlay,
+  WildlifeOverlay,
+  RestAreaOverlay,
+  RouteIntelligenceScore,
+  FuelOverlay,
+} from "@/lib/types/overlays";
 import type { TripStop } from "@/lib/types/trip";
 
 import { createGuidePack, guideSendMessage } from "@/lib/guide/guideEngine";
 import { computeTripProgress } from "@/lib/guide/tripProgress";
 import { addPlaceToTrip } from "@/lib/guide/addToTrip";
+import { usePlaceDetail } from "@/lib/context/PlaceDetailContext";
 
 import { GuideView } from "@/components/trip/GuideView";
 
 import Image from "next/image";
 import { Wifi, WifiOff, Satellite, AlertTriangle } from "lucide-react";
 import { GuideSkeleton } from "./GuideSkeleton";
-
-// ──────────────────────────────────────────────────────────────
-// Online status hook
-// ──────────────────────────────────────────────────────────────
-
-function useOnlineStatus() {
-  const [online, setOnline] = useState<boolean>(() =>
-    typeof navigator !== "undefined" ? navigator.onLine : true,
-  );
-  useEffect(() => {
-    const on = () => setOnline(true);
-    const off = () => setOnline(false);
-    window.addEventListener("online", on);
-    window.addEventListener("offline", off);
-    return () => {
-      window.removeEventListener("online", on);
-      window.removeEventListener("offline", off);
-    };
-  }, []);
-  return online;
-}
 
 // ──────────────────────────────────────────────────────────────
 // Component
@@ -58,6 +48,7 @@ export default function GuideClientPage(props: {
   const router = useRouter();
   const sp = useSearchParams();
   const isOnline = useOnlineStatus();
+  const { registerNavigateHandler } = usePlaceDetail();
 
   const headerRef = useRef<HTMLDivElement>(null);
   const [headerHeight, setHeaderHeight] = useState(60);
@@ -94,6 +85,13 @@ export default function GuideClientPage(props: {
   const [_traffic, setTraffic] = useState<TrafficOverlay | null>(null);
   const [_hazards, setHazards] = useState<HazardOverlay | null>(null);
   const [_manifest, setManifest] = useState<OfflineBundleManifest | null>(null);
+  const [weather, setWeather] = useState<WeatherOverlay | null>(null);
+  const [flood, setFlood] = useState<FloodOverlay | null>(null);
+  const [coverage, setCoverage] = useState<CoverageOverlay | null>(null);
+  const [wildlife, setWildlife] = useState<WildlifeOverlay | null>(null);
+  const [restAreas, setRestAreas] = useState<RestAreaOverlay | null>(null);
+  const [routeScore, setRouteScore] = useState<RouteIntelligenceScore | null>(null);
+  const [fuelOverlay, setFuelOverlay] = useState<FuelOverlay | null>(null);
 
   const [focusedPlaceId, setFocusedPlaceId] = useState<string | null>(desiredFocusPlaceId);
 
@@ -145,6 +143,13 @@ export default function GuideClientPage(props: {
         const trafficLoaded = packs.traffic ?? null;
         const hazardsLoaded = packs.hazards ?? null;
         const manifestLoaded = packs.manifest ?? null;
+        const weatherLoaded = packs.weather ?? null;
+        const floodLoaded = packs.flood ?? null;
+        const coverageLoaded = packs.coverage ?? null;
+        const wildlifeLoaded = packs.wildlife ?? null;
+        const restAreasLoaded = packs.rest_areas ?? null;
+        const routeScoreLoaded = packs.route_score ?? null;
+        const fuelOverlayLoaded = packs.fuel ?? null;
 
         setPlan(rec);
         setNavpack(navpackLoaded);
@@ -153,6 +158,13 @@ export default function GuideClientPage(props: {
         setTraffic(trafficLoaded);
         setHazards(hazardsLoaded);
         setManifest(manifestLoaded);
+        setWeather(weatherLoaded);
+        setFlood(floodLoaded);
+        setCoverage(coverageLoaded);
+        setWildlife(wildlifeLoaded);
+        setRestAreas(restAreasLoaded);
+        setRouteScore(routeScoreLoaded);
+        setFuelOverlay(fuelOverlayLoaded);
 
         // ── Bootstrap guide pack immediately (no extra render cycle) ──
         const stops = (navpackLoaded?.req?.stops ?? rec.preview?.stops ?? []) as TripStop[];
@@ -168,6 +180,13 @@ export default function GuideClientPage(props: {
           traffic: trafficLoaded,
           hazards: hazardsLoaded,
           manifest: manifestLoaded,
+          weather: weatherLoaded,
+          flood: floodLoaded,
+          coverage: coverageLoaded,
+          wildlife: wildlifeLoaded,
+          rest_areas: restAreasLoaded,
+          route_score: routeScoreLoaded,
+          fuel: fuelOverlayLoaded,
           progress: null,
         });
 
@@ -329,6 +348,15 @@ export default function GuideClientPage(props: {
     },
     [plan, navpack, corridor, router],
   );
+
+  // Register "Add to trip" as the navigate handler for PlaceDetailSheet while on this page
+  useEffect(() => {
+    registerNavigateHandler((placeId, lat, lng, name) => {
+      // Only id/lat/lng/name are used by addPlaceToTrip; category is not needed
+      handleAddStop({ id: placeId, lat, lng, name, category: "attraction" } as PlaceItem);
+    });
+    return () => registerNavigateHandler(null);
+  }, [handleAddStop, registerNavigateHandler]);
 
   const handleShowOnMap = useCallback(
     (placeId: string, lat: number, lng: number) => {
@@ -605,6 +633,7 @@ export default function GuideClientPage(props: {
           initialTab={askAboutFromUrl && !isOnline ? "discoveries" : "chat"}
           autoAskMessage={askAboutFromUrl && isOnline ? decodeURIComponent(askAboutFromUrl) : null}
           stickyTabsTop={headerHeight}
+          places={places}
         />
       </div>
     </div>

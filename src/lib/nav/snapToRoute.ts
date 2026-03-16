@@ -261,7 +261,7 @@ export function snapToPolylineIndexed(
 /**
  * Interpolate a lat/lng position at a given km along the route.
  */
-export function interpolateAlongRoute(
+function interpolateAlongRoute(
   km: number,
   decoded: Array<{ lat: number; lng: number }>,
   cumKm: number[],

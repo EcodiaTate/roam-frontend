@@ -258,6 +258,7 @@ export default function NewTripClientPage() {
         onPlans={() => {
           setDrawOpen(true);
         }}
+        navPack={navPack}
         onBuildRoute={requestRoute}
         canBuildRoute={canRoute}
         routing={routing}

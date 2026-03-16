@@ -1,11 +1,13 @@
 // src/components/trip/PlanDrawer.tsx
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useFLIP } from "@/lib/hooks/useFLIP";
 import { useRouter } from "next/navigation";
 import {
   Check,
   Clock,
+  Image as ImageIcon,
   Link2,
   MapPin,
   Navigation,
@@ -20,6 +22,8 @@ import {
 } from "lucide-react";
 
 import { InviteCodeModal } from "@/components/plans/InviteCodeModal";
+import { TripShareModal } from "@/components/share/TripShareModal";
+import type { ShareCardData } from "@/components/share/TripShareCard";
 import { haptic } from "@/lib/native/haptics";
 import type { OfflinePlanRecord } from "@/lib/offline/plansStore";
 import {
@@ -91,15 +95,21 @@ function InlineRename({
 
   const save = useCallback(async () => {
     const trimmed = value.trim();
+    const prevLabel = currentLabel?.trim() || null;
+
+    // Optimistic: update UI immediately and close editor
+    haptic.light();
+    onDone(trimmed || null);
+    setEditing(false);
+
+    // Persist in background — revert on failure
     try {
       await renameOfflinePlan(planId, trimmed);
-      haptic.light();
-      onDone(trimmed || null);
     } catch {
-      // revert silently
+      onDone(prevLabel);
+      haptic.error();
     }
-    setEditing(false);
-  }, [planId, value, onDone]);
+  }, [planId, value, onDone, currentLabel]);
 
   const cancel = useCallback(() => {
     setValue(currentLabel?.trim() || "");
@@ -255,6 +265,7 @@ function PlanCard({
   onSetActive,
   onDelete,
   onShare,
+  onInvite,
   onLabelChanged,
 }: {
   plan: OfflinePlanRecord;
@@ -264,6 +275,7 @@ function PlanCard({
   onSetActive: () => void;
   onDelete: () => void;
   onShare: () => void;
+  onInvite: () => void;
   onLabelChanged: (label: string | null) => void;
 }) {
   const stops = stopCount(plan);
@@ -486,8 +498,35 @@ function PlanCard({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            padding: "12px 12px",
-            fontSize: 12,
+            gap: 4,
+            padding: "12px 11px",
+            fontSize: 11,
+            fontWeight: 700,
+            color: "var(--brand-amber)",
+            cursor: busy ? "default" : "pointer",
+            opacity: busy ? 0.4 : 1,
+            borderRight: "1px solid var(--roam-border)",
+            WebkitTapHighlightColor: "transparent",
+          }}
+        >
+          <ImageIcon size={12} />
+        </button>
+
+        <button
+          type="button"
+          disabled={busy}
+          onClick={(e) => {
+            e.stopPropagation();
+            onInvite();
+          }}
+          style={{
+            all: "unset",
+            flex: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "12px 11px",
+            fontSize: 11,
             fontWeight: 700,
             color: "var(--brand-shared)",
             cursor: busy ? "default" : "pointer",
@@ -553,17 +592,8 @@ export function PlanDrawer({
   const [inviteMode, setInviteMode] = useState<"create" | "redeem">("redeem");
   const [invitePlanId, setInvitePlanId] = useState<string | null>(null);
 
-  /* ── FLIP animation for plan card reorder ────────────────────────── */
-  const planElsRef = useRef<Map<string, HTMLDivElement>>(new Map());
-  const planFlipSnapshot = useRef<Map<string, DOMRect>>(new Map());
-
-  const capturePlanPositions = useCallback(() => {
-    const snap = new Map<string, DOMRect>();
-    planElsRef.current.forEach((el, id) => {
-      snap.set(id, el.getBoundingClientRect());
-    });
-    planFlipSnapshot.current = snap;
-  }, []);
+  // Share card state
+  const [shareCardData, setShareCardData] = useState<ShareCardData | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -596,72 +626,70 @@ export function PlanDrawer({
     return copy;
   }, [plans, currentId]);
 
-  // FLIP: after sorted changes, animate cards from old to new positions
-  useLayoutEffect(() => {
-    const prev = planFlipSnapshot.current;
-    if (prev.size === 0) return;
-    planElsRef.current.forEach((el, id) => {
-      const oldRect = prev.get(id);
-      if (!oldRect) return;
-      const newRect = el.getBoundingClientRect();
-      const dy = oldRect.top - newRect.top;
-      if (Math.abs(dy) < 1) return;
-      el.style.transform = `translateY(${dy}px)`;
-      el.style.transition = "none";
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          el.style.transition = "transform 300ms cubic-bezier(0.25, 0.1, 0.25, 1)";
-          el.style.transform = "";
-        });
-      });
-    });
-    planFlipSnapshot.current = new Map();
-  }, [sorted]);
+  /* ── FLIP animation for plan card reorder ────────────────────────── */
+  const { registerEl: registerPlanEl, capturePositions: capturePlanPositions, getEl: getPlanEl } = useFLIP(sorted, { duration: 300 });
 
   const handleSetActive = useCallback(async (planId: string) => {
     haptic.medium();
-    setBusyId(planId);
     setErr(null);
+
+    // Optimistic: update UI immediately
+    const prevId = currentId;
+    capturePlanPositions();
+    setCurrentIdLocal(planId);
+
+    // Persist in background — revert on failure
     try {
       await setCurrentPlanId(planId);
-      capturePlanPositions();
-      setCurrentIdLocal(planId);
     } catch (e) {
+      // Revert
+      capturePlanPositions();
+      setCurrentIdLocal(prevId);
       const err = e instanceof Error ? e.message : String(e);
       setErr(err || "Failed to set active");
-    } finally {
-      setBusyId(null);
+      haptic.error();
     }
-  }, [capturePlanPositions]);
+  }, [capturePlanPositions, currentId]);
 
   const handleDelete = useCallback(
     async (planId: string) => {
       if (!window.confirm("Delete this plan and all its offline data from this device?")) return;
       haptic.medium();
-      setBusyId(planId);
       setErr(null);
+
+      // Snapshot for rollback
+      const prevPlans = plans;
+      const prevCurrentId = currentId;
+
+      // Animate the card out before removing from state
+      const el = getPlanEl(planId);
+      if (el) {
+        el.style.transition = "opacity 180ms ease, transform 180ms ease";
+        el.style.opacity = "0";
+        el.style.transform = "scale(0.96)";
+        await new Promise((r) => setTimeout(r, 180));
+      }
+
+      // Optimistic: remove from list immediately
+      capturePlanPositions();
+      setPlans((prev) => prev.filter((p) => p.plan_id !== planId));
+      if (currentId === planId) setCurrentIdLocal(null);
+      haptic.success();
+
+      // Persist in background — revert on failure
       try {
-        // Animate the card out before removing
-        const el = planElsRef.current.get(planId);
-        if (el) {
-          el.style.transition = "opacity 180ms ease, transform 180ms ease";
-          el.style.opacity = "0";
-          el.style.transform = "scale(0.96)";
-          await new Promise((r) => setTimeout(r, 180));
-        }
         await deleteOfflinePlan(planId);
-        haptic.success();
-        capturePlanPositions();
-        await refresh();
       } catch (e) {
+        // Revert
+        capturePlanPositions();
+        setPlans(prevPlans);
+        setCurrentIdLocal(prevCurrentId);
         const err = e instanceof Error ? e.message : String(e);
         setErr(err || "Failed to delete");
         haptic.error();
-      } finally {
-        setBusyId(null);
       }
     },
-    [refresh, capturePlanPositions],
+    [plans, currentId, capturePlanPositions, getPlanEl],
   );
 
   const handleOpen = useCallback(
@@ -673,7 +701,23 @@ export function PlanDrawer({
     [router, onClose],
   );
 
-  const handleShare = useCallback((planId: string) => {
+  const handleShare = useCallback(
+    (planId: string) => {
+      haptic.medium();
+      const plan = plans.find((p) => p.plan_id === planId);
+      if (!plan?.preview) return;
+      setShareCardData({
+        stops: plan.preview.stops,
+        geometry: plan.preview.geometry,
+        distance_m: plan.preview.distance_m,
+        duration_s: plan.preview.duration_s,
+        label: plan.label,
+      });
+    },
+    [plans],
+  );
+
+  const handleInvite = useCallback((planId: string) => {
     haptic.light();
     setInvitePlanId(planId);
     setInviteMode("create");
@@ -726,7 +770,6 @@ export function PlanDrawer({
           boxShadow: open ? "-4px 0 16px rgba(0,0,0,0.2)" : "none",
           transform: open ? "translateX(0)" : "translateX(100%)",
           transition: "transform 0.35s cubic-bezier(0.4,0,0.2,1)",
-          overflow: "hidden",
           display: "flex",
           flexDirection: "column",
         }}
@@ -858,9 +901,11 @@ export function PlanDrawer({
               overflowY: "auto",
               WebkitOverflowScrolling: "touch",
               padding: "12px",
+              paddingBottom: "max(12px, env(safe-area-inset-bottom, 0px) + 12px)",
               display: "flex",
               flexDirection: "column",
               gap: 10,
+              boxSizing: "border-box",
             }}
           >
             {sorted.length === 0 ? (
@@ -883,10 +928,7 @@ export function PlanDrawer({
               sorted.map((p) => (
                 <div
                   key={p.plan_id}
-                  ref={(el) => {
-                    if (el) planElsRef.current.set(p.plan_id, el);
-                    else planElsRef.current.delete(p.plan_id);
-                  }}
+                  ref={(el) => registerPlanEl(p.plan_id, el)}
                 >
                   <PlanCard
                     plan={p}
@@ -896,6 +938,7 @@ export function PlanDrawer({
                     onSetActive={() => handleSetActive(p.plan_id)}
                     onDelete={() => handleDelete(p.plan_id)}
                     onShare={() => handleShare(p.plan_id)}
+                    onInvite={() => handleInvite(p.plan_id)}
                     onLabelChanged={(label) => handleLabelChanged(p.plan_id, label)}
                   />
                 </div>
@@ -919,6 +962,13 @@ export function PlanDrawer({
           setInvitePlanId(null);
           refresh();
         }}
+      />
+
+      {/* Share card modal */}
+      <TripShareModal
+        open={shareCardData !== null}
+        data={shareCardData}
+        onClose={() => setShareCardData(null)}
       />
 
       {/* fadeIn animation now handled by roam-fade-in in globals.css */}

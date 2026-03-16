@@ -87,13 +87,6 @@ function ConfettiBurst({ active }: { active: boolean }) {
           />
         );
       })}
-      <style>{`
-        @keyframes confetti-fall {
-          0%   { opacity: 1; transform: translateY(-30px) translateX(0) rotate(0deg) scale(0.2); }
-          12%  { opacity: 1; transform: translateY(8vh) translateX(calc(var(--c-drift) * 0.3)) rotate(calc(var(--c-rot) * 0.2)) scale(1.1); }
-          100% { opacity: 0; transform: translateY(var(--c-end)) translateX(calc(var(--c-drift) * 1.6)) rotate(var(--c-rot)) scale(0.5); }
-        }
-      `}</style>
     </div>
   );
 }
@@ -633,6 +626,35 @@ function PurchaseSuccessInner() {
         @keyframes orb-breathe {
           0%   { transform: translateX(-50%) scale(1); opacity: 0.8; }
           100% { transform: translateX(-50%) scale(1.15); opacity: 1; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          *, *::before, *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+          }
+          /* Keep essential state visible — skip to final frame */
+          @keyframes fade-up {
+            from { opacity: 1; transform: none; }
+            to   { opacity: 1; transform: none; }
+          }
+          @keyframes success-pop {
+            from { opacity: 1; transform: scale(1); }
+            to   { opacity: 1; transform: scale(1); }
+          }
+          @keyframes check-draw {
+            to { stroke-dashoffset: 0; }
+          }
+          @keyframes pill-pop {
+            from { opacity: 1; transform: scale(1); }
+            to   { opacity: 1; transform: scale(1); }
+          }
+          @keyframes confetti-fall {
+            0%, 100% { opacity: 0; transform: none; }
+          }
+          @keyframes pulse-ring {
+            0%, 100% { opacity: 0; transform: none; }
+          }
         }
       `}</style>
     </div>

@@ -40,22 +40,21 @@ function initAxis(x: number): KalmanAxis {
  * @param t     Measurement timestamp (ms)
  * @param r     Measurement noise variance (higher = trust less)
  */
-function updateAxis(axis: KalmanAxis, z: number, t: number, r: number): KalmanAxis {
-  // dt in seconds; clamp to avoid huge jumps after pause
-  const dt = axis.lastT > 0 ? Math.min((t - axis.lastT) / 1000, 5) : 0.1;
+// Process noise constants (hoisted outside function to avoid re-evaluation)
+const Q_pos = 3e-10;     // position process noise (degrees²/s)
+const Q_vel = 8e-10;     // velocity process noise (degrees²/s²)
 
-  // Process noise (tune this for GPS smoothness vs. responsiveness)
-  // Lower Q = smoother but more lag; higher Q = more jitter but more responsive
-  // These values are tuned to be responsive enough for real-time navigation
-  // while the GpsInterpolator handles visual smoothness between ticks.
-  const Q_pos = 3e-10;     // position process noise (degrees²/s)  — 6x previous for faster response
-  const Q_vel = 8e-10;     // velocity process noise (degrees²/s²) — 4x previous for faster velocity adaptation
+/**
+ * Update a Kalman axis with a new GPS measurement.
+ * Mutates `axis` in place and returns it to avoid object allocation on every tick.
+ */
+function updateAxis(axis: KalmanAxis, z: number, t: number, r: number): KalmanAxis {
+  const dt = axis.lastT > 0 ? Math.min((t - axis.lastT) / 1000, 5) : 0.1;
 
   // ── Predict ──
   const xPred = axis.x + axis.v * dt;
   const vPred = axis.v;
 
-  // Predicted covariance (constant acceleration model)
   const dt2 = dt * dt;
   const p00Pred = axis.p00 + dt * (axis.p10 + axis.p01) + dt2 * axis.p11 + Q_pos * dt;
   const p01Pred = axis.p01 + dt * axis.p11;
@@ -63,27 +62,21 @@ function updateAxis(axis: KalmanAxis, z: number, t: number, r: number): KalmanAx
   const p11Pred = axis.p11 + Q_vel * dt;
 
   // ── Update ──
-  // Innovation (residual)
   const y = z - xPred;
-
-  // Innovation covariance
   const S = p00Pred + r;
+  const K0 = p00Pred / S;
+  const K1 = p10Pred / S;
 
-  // Kalman gain
-  const K0 = p00Pred / S;  // gain for position
-  const K1 = p10Pred / S;  // gain for velocity
+  // Mutate in place — avoids GC pressure in this hot path (~1 Hz)
+  axis.x = xPred + K0 * y;
+  axis.v = vPred + K1 * y;
+  axis.p00 = (1 - K0) * p00Pred;
+  axis.p01 = (1 - K0) * p01Pred;
+  axis.p10 = p10Pred - K1 * p00Pred;
+  axis.p11 = p11Pred - K1 * p01Pred;
+  axis.lastT = t;
 
-  // Updated state
-  const xNew = xPred + K0 * y;
-  const vNew = vPred + K1 * y;
-
-  // Updated covariance (Joseph form for numerical stability)
-  const p00New = (1 - K0) * p00Pred;
-  const p01New = (1 - K0) * p01Pred;
-  const p10New = p10Pred - K1 * p00Pred;
-  const p11New = p11Pred - K1 * p01Pred;
-
-  return { x: xNew, v: vNew, p00: p00New, p01: p01New, p10: p10New, p11: p11New, lastT: t };
+  return axis;
 }
 
 // ──────────────────────────────────────────────────────────────
@@ -127,40 +120,39 @@ export function smoothPosition(smoother: GpsSmoother, pos: RoamPosition): {
   const r = accuracyDeg * accuracyDeg;  // variance = σ²
 
   // Initialize axes on first call
-  let latAxis = smoother.lat.lastT === 0 ? initAxis(pos.lat) : smoother.lat;
-  let lngAxis = smoother.lng.lastT === 0 ? initAxis(pos.lng) : smoother.lng;
+  if (smoother.lat.lastT === 0) {
+    smoother.lat = initAxis(pos.lat);
+    smoother.lat.lastT = t;
+  }
+  if (smoother.lng.lastT === 0) {
+    smoother.lng = initAxis(pos.lng);
+    smoother.lng.lastT = t;
+  }
 
-  latAxis = updateAxis({ ...latAxis, lastT: latAxis.lastT || t }, pos.lat, t, r);
-  lngAxis = updateAxis({ ...lngAxis, lastT: lngAxis.lastT || t }, pos.lng, t, r);
+  // updateAxis mutates in place — no allocation
+  updateAxis(smoother.lat, pos.lat, t, r);
+  updateAxis(smoother.lng, pos.lng, t, r);
 
-  // Speed-adaptive heading EMA:
-  //   - At higher speeds GPS heading is reliable → trust it more (higher alpha)
-  //   - At low speeds GPS heading is noisy → trust it less (lower alpha)
-  //   - Below 0.5 m/s don't update at all (stationary jitter)
-  let headingEma = smoother.headingEma;
+  // Speed-adaptive heading EMA
   if (pos.heading != null && pos.speed != null && pos.speed > 0.5) {
-    if (headingEma === null) {
-      headingEma = pos.heading;
+    if (smoother.headingEma === null) {
+      smoother.headingEma = pos.heading;
     } else {
-      // Handle wraparound (e.g. 350° → 10° should average near 0°, not 180°)
-      let diff = pos.heading - headingEma;
+      let diff = pos.heading - smoother.headingEma;
       if (diff > 180) diff -= 360;
       if (diff < -180) diff += 360;
-      // Alpha: 0.4 at walking speed (2 m/s), 0.7 at driving speed (20+ m/s)
       const alpha = Math.min(0.7, 0.3 + (pos.speed / 30));
-      headingEma = (headingEma + alpha * diff + 360) % 360;
+      smoother.headingEma = (smoother.headingEma + alpha * diff + 360) % 360;
     }
   }
 
+  // Reuse a single object for the smoothed position to reduce GC pressure
   const smoothed: RoamPosition = {
     ...pos,
-    lat: latAxis.x,
-    lng: lngAxis.x,
-    heading: headingEma,
+    lat: smoother.lat.x,
+    lng: smoother.lng.x,
+    heading: smoother.headingEma,
   };
 
-  return {
-    smoothed,
-    smoother: { lat: latAxis, lng: lngAxis, headingEma },
-  };
+  return { smoothed, smoother };
 }

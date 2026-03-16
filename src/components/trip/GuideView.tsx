@@ -3,7 +3,8 @@
 
 import { useMemo, useRef, useState, useEffect } from "react";
 import Image from "next/image";
-import type { PlaceItem, PlaceCategory } from "@/lib/types/places";
+import type { PlaceItem, PlacesPack } from "@/lib/types/places";
+import { PlaceSearchPanel } from "@/components/places/PlaceSearchPanel";
 import type { MouseEvent, SyntheticEvent } from "react";
 
 import type {
@@ -12,6 +13,10 @@ import type {
   TripProgress, GuideMsg
 } from "@/lib/types/guide";
 import { haptic } from "@/lib/native/haptics";
+import { usePlaceDetail } from "@/lib/context/PlaceDetailContext";
+
+import { CATEGORY_ICON, getCategoryColor } from "@/lib/places/categoryMeta";
+import { fmtDist, fmtCategory, normalizeUrl, safeOpen, cleanPhone } from "@/lib/places/format";
 
 import type { LucideIcon } from "lucide-react";
 import {
@@ -22,14 +27,8 @@ import {
   Tent,
   Bath,
   Droplets,
-  Building2,
-  ShoppingCart,
-  Wrench,
-  Hospital,
-  Pill,
   Coffee,
   Utensils,
-  TreePine,
   Eye,
   Waves,
   Bed,
@@ -39,200 +38,30 @@ import {
   Target,
   Camera,
   Zap,
-  Wine,
   Beer,
-  Info,
-  Mountain,
-  Landmark,
   Baby,
   Trash2,
-  Banknote,
   Shirt,
-  Thermometer,
   Star,
-  Store,
   Globe,
   Compass,
   Dog,
-  Film,
-  Fish,
-  BookOpen,
-  Flag,
   ExternalLink,
   Plus,
   Send,
   ChevronRight,
   Bookmark,
   Check,
+  ShowerHead,
+  Flame,
+  Wifi,
+  Signal,
+  UtensilsCrossed,
 } from "lucide-react";
 
-// ══════════════════════════════════════════════════════════════
-// CATEGORY COLOR SYSTEM
-// Each category group gets a unique accent color for visual
-// differentiation across the entire UI.
-// ══════════════════════════════════════════════════════════════
+const catColor = getCategoryColor;
 
-type ColorDef = { bg: string; fg: string; accent: string; soft: string };
-
-const CAT_COLORS: Record<string, ColorDef> = {
-  // Safety - amber/warm
-  fuel:         { bg: "rgba(245,158,11,0.10)", fg: "#d97706", accent: "#f59e0b", soft: "rgba(245,158,11,0.06)" },
-  ev_charging:  { bg: "rgba(16,185,129,0.10)", fg: "#059669", accent: "#10b981", soft: "rgba(16,185,129,0.06)" },
-  rest_area:    { bg: "rgba(245,158,11,0.10)", fg: "#d97706", accent: "#f59e0b", soft: "rgba(245,158,11,0.06)" },
-  toilet:       { bg: "rgba(100,116,139,0.10)", fg: "#64748b", accent: "#94a3b8", soft: "rgba(100,116,139,0.06)" },
-  water:        { bg: "rgba(59,130,246,0.10)",  fg: "#2563eb", accent: "#3b82f6", soft: "rgba(59,130,246,0.06)" },
-  dump_point:   { bg: "rgba(100,116,139,0.10)", fg: "#64748b", accent: "#94a3b8", soft: "rgba(100,116,139,0.06)" },
-  mechanic:     { bg: "rgba(245,158,11,0.10)", fg: "#d97706", accent: "#f59e0b", soft: "rgba(245,158,11,0.06)" },
-  hospital:     { bg: "rgba(239,68,68,0.10)",  fg: "#dc2626", accent: "#ef4444", soft: "rgba(239,68,68,0.06)" },
-  pharmacy:     { bg: "rgba(239,68,68,0.10)",  fg: "#dc2626", accent: "#ef4444", soft: "rgba(239,68,68,0.06)" },
-  // Food - warm orange
-  bakery:       { bg: "rgba(249,115,22,0.10)", fg: "#ea580c", accent: "#f97316", soft: "rgba(249,115,22,0.06)" },
-  cafe:         { bg: "rgba(180,83,9,0.12)",   fg: "#92400e", accent: "#b45309", soft: "rgba(180,83,9,0.06)" },
-  restaurant:   { bg: "rgba(249,115,22,0.10)", fg: "#ea580c", accent: "#f97316", soft: "rgba(249,115,22,0.06)" },
-  fast_food:    { bg: "rgba(249,115,22,0.10)", fg: "#ea580c", accent: "#f97316", soft: "rgba(249,115,22,0.06)" },
-  pub:          { bg: "rgba(180,83,9,0.12)",   fg: "#92400e", accent: "#b45309", soft: "rgba(180,83,9,0.06)" },
-  bar:          { bg: "rgba(180,83,9,0.12)",   fg: "#92400e", accent: "#b45309", soft: "rgba(180,83,9,0.06)" },
-  // Sleep - purple
-  camp:         { bg: "rgba(139,92,246,0.10)", fg: "#7c3aed", accent: "#8b5cf6", soft: "rgba(139,92,246,0.06)" },
-  motel:        { bg: "rgba(139,92,246,0.10)", fg: "#7c3aed", accent: "#8b5cf6", soft: "rgba(139,92,246,0.06)" },
-  hotel:        { bg: "rgba(139,92,246,0.10)", fg: "#7c3aed", accent: "#8b5cf6", soft: "rgba(139,92,246,0.06)" },
-  hostel:       { bg: "rgba(139,92,246,0.10)", fg: "#7c3aed", accent: "#8b5cf6", soft: "rgba(139,92,246,0.06)" },
-  // Nature - emerald
-  viewpoint:    { bg: "rgba(16,185,129,0.10)", fg: "#059669", accent: "#10b981", soft: "rgba(16,185,129,0.06)" },
-  waterfall:    { bg: "rgba(6,182,212,0.10)",  fg: "#0891b2", accent: "#06b6d4", soft: "rgba(6,182,212,0.06)" },
-  swimming_hole:{ bg: "rgba(6,182,212,0.10)",  fg: "#0891b2", accent: "#06b6d4", soft: "rgba(6,182,212,0.06)" },
-  beach:        { bg: "rgba(6,182,212,0.10)",  fg: "#0891b2", accent: "#06b6d4", soft: "rgba(6,182,212,0.06)" },
-  national_park:{ bg: "rgba(16,185,129,0.10)", fg: "#059669", accent: "#10b981", soft: "rgba(16,185,129,0.06)" },
-  hiking:       { bg: "rgba(16,185,129,0.10)", fg: "#059669", accent: "#10b981", soft: "rgba(16,185,129,0.06)" },
-  picnic:       { bg: "rgba(16,185,129,0.10)", fg: "#059669", accent: "#10b981", soft: "rgba(16,185,129,0.06)" },
-  hot_spring:   { bg: "rgba(249,115,22,0.10)", fg: "#ea580c", accent: "#f97316", soft: "rgba(249,115,22,0.06)" },
-  cave:         { bg: "rgba(100,116,139,0.10)", fg: "#475569", accent: "#64748b", soft: "rgba(100,116,139,0.06)" },
-  fishing:      { bg: "rgba(6,182,212,0.10)",  fg: "#0891b2", accent: "#06b6d4", soft: "rgba(6,182,212,0.06)" },
-  surf:         { bg: "rgba(6,182,212,0.10)",  fg: "#0891b2", accent: "#06b6d4", soft: "rgba(6,182,212,0.06)" },
-  // Family - pink
-  playground:   { bg: "rgba(236,72,153,0.10)", fg: "#db2777", accent: "#ec4899", soft: "rgba(236,72,153,0.06)" },
-  pool:         { bg: "rgba(6,182,212,0.10)",  fg: "#0891b2", accent: "#06b6d4", soft: "rgba(6,182,212,0.06)" },
-  zoo:          { bg: "rgba(236,72,153,0.10)", fg: "#db2777", accent: "#ec4899", soft: "rgba(236,72,153,0.06)" },
-  theme_park:   { bg: "rgba(236,72,153,0.10)", fg: "#db2777", accent: "#ec4899", soft: "rgba(236,72,153,0.06)" },
-  dog_park:     { bg: "rgba(236,72,153,0.10)", fg: "#db2777", accent: "#ec4899", soft: "rgba(236,72,153,0.06)" },
-  golf:         { bg: "rgba(16,185,129,0.10)", fg: "#059669", accent: "#10b981", soft: "rgba(16,185,129,0.06)" },
-  cinema:       { bg: "rgba(99,102,241,0.10)", fg: "#4f46e5", accent: "#6366f1", soft: "rgba(99,102,241,0.06)" },
-  // Culture - indigo
-  visitor_info: { bg: "rgba(99,102,241,0.10)", fg: "#4f46e5", accent: "#6366f1", soft: "rgba(99,102,241,0.06)" },
-  museum:       { bg: "rgba(99,102,241,0.10)", fg: "#4f46e5", accent: "#6366f1", soft: "rgba(99,102,241,0.06)" },
-  gallery:      { bg: "rgba(99,102,241,0.10)", fg: "#4f46e5", accent: "#6366f1", soft: "rgba(99,102,241,0.06)" },
-  heritage:     { bg: "rgba(99,102,241,0.10)", fg: "#4f46e5", accent: "#6366f1", soft: "rgba(99,102,241,0.06)" },
-  winery:       { bg: "rgba(168,85,247,0.10)", fg: "#9333ea", accent: "#a855f7", soft: "rgba(168,85,247,0.06)" },
-  brewery:      { bg: "rgba(180,83,9,0.12)",   fg: "#92400e", accent: "#b45309", soft: "rgba(180,83,9,0.06)" },
-  attraction:   { bg: "rgba(99,102,241,0.10)", fg: "#4f46e5", accent: "#6366f1", soft: "rgba(99,102,241,0.06)" },
-  market:       { bg: "rgba(249,115,22,0.10)", fg: "#ea580c", accent: "#f97316", soft: "rgba(249,115,22,0.06)" },
-  park:         { bg: "rgba(16,185,129,0.10)", fg: "#059669", accent: "#10b981", soft: "rgba(16,185,129,0.06)" },
-  library:      { bg: "rgba(99,102,241,0.10)", fg: "#4f46e5", accent: "#6366f1", soft: "rgba(99,102,241,0.06)" },
-  showground:   { bg: "rgba(249,115,22,0.10)", fg: "#ea580c", accent: "#f97316", soft: "rgba(249,115,22,0.06)" },
-  // Supplies - slate
-  grocery:      { bg: "rgba(100,116,139,0.10)", fg: "#475569", accent: "#64748b", soft: "rgba(100,116,139,0.06)" },
-  town:         { bg: "rgba(100,116,139,0.10)", fg: "#475569", accent: "#64748b", soft: "rgba(100,116,139,0.06)" },
-  atm:          { bg: "rgba(100,116,139,0.10)", fg: "#475569", accent: "#64748b", soft: "rgba(100,116,139,0.06)" },
-  laundromat:   { bg: "rgba(100,116,139,0.10)", fg: "#475569", accent: "#64748b", soft: "rgba(100,116,139,0.06)" },
-};
-
-const DEFAULT_COLOR: ColorDef = { bg: "rgba(100,116,139,0.10)", fg: "#64748b", accent: "#94a3b8", soft: "rgba(100,116,139,0.06)" };
-
-function catColor(cat: string): ColorDef {
-  return CAT_COLORS[cat] ?? DEFAULT_COLOR;
-}
-
-// ──────────────────────────────────────────────────────────────
-// Constants - category chips + icon map
-// ──────────────────────────────────────────────────────────────
-
-type Chip = { key: PlaceCategory; label: string; Icon: LucideIcon };
-
-const CHIPS: Chip[] = [
-  { key: "fuel", label: "Fuel", Icon: Fuel },
-  { key: "ev_charging", label: "EV", Icon: Zap },
-  { key: "rest_area", label: "Rest", Icon: ParkingMeter },
-  { key: "toilet", label: "Toilets", Icon: Bath },
-  { key: "water", label: "Water", Icon: Droplets },
-  { key: "bakery", label: "Bakery", Icon: Star },
-  { key: "cafe", label: "Café", Icon: Coffee },
-  { key: "restaurant", label: "Food", Icon: Utensils },
-  { key: "fast_food", label: "Takeaway", Icon: Utensils },
-  { key: "pub", label: "Pub", Icon: Beer },
-  { key: "camp", label: "Camp", Icon: Tent },
-  { key: "motel", label: "Motel", Icon: Bed },
-  { key: "hotel", label: "Hotel", Icon: Bed },
-  { key: "viewpoint", label: "Views", Icon: Eye },
-  { key: "beach", label: "Beach", Icon: Waves },
-  { key: "swimming_hole", label: "Swim", Icon: Waves },
-  { key: "waterfall", label: "Waterfall", Icon: Droplets },
-  { key: "national_park", label: "Parks", Icon: TreePine },
-  { key: "hiking", label: "Hiking", Icon: Mountain },
-  { key: "picnic", label: "Picnic", Icon: TreePine },
-  { key: "hot_spring", label: "Hot Spring", Icon: Thermometer },
-  { key: "cave", label: "Cave", Icon: Mountain },
-  { key: "fishing", label: "Fishing", Icon: Fish },
-  { key: "surf", label: "Surf", Icon: Waves },
-  { key: "playground", label: "Kids", Icon: Baby },
-  { key: "pool", label: "Pool", Icon: Waves },
-  { key: "zoo", label: "Zoo", Icon: Compass },
-  { key: "theme_park", label: "Theme Park", Icon: Star },
-  { key: "dog_park", label: "Dog Park", Icon: Dog },
-  { key: "golf", label: "Golf", Icon: Flag },
-  { key: "cinema", label: "Cinema", Icon: Film },
-  { key: "winery", label: "Wine", Icon: Wine },
-  { key: "brewery", label: "Brew", Icon: Beer },
-  { key: "visitor_info", label: "Info", Icon: Info },
-  { key: "museum", label: "Museum", Icon: Landmark },
-  { key: "gallery", label: "Gallery", Icon: Landmark },
-  { key: "heritage", label: "Heritage", Icon: Landmark },
-  { key: "attraction", label: "Sights", Icon: Camera },
-  { key: "market", label: "Market", Icon: Store },
-  { key: "library", label: "Library", Icon: BookOpen },
-  { key: "showground", label: "Showground", Icon: Flag },
-  { key: "grocery", label: "Grocery", Icon: ShoppingCart },
-  { key: "town", label: "Towns", Icon: Building2 },
-  { key: "atm", label: "ATM", Icon: Banknote },
-  { key: "laundromat", label: "Laundry", Icon: Shirt },
-  { key: "dump_point", label: "Dump", Icon: Trash2 },
-  { key: "mechanic", label: "Mechanic", Icon: Wrench },
-  { key: "hospital", label: "Hospital", Icon: Hospital },
-  { key: "pharmacy", label: "Pharmacy", Icon: Pill },
-];
-
-const CATEGORY_ICON: Record<string, LucideIcon> = {};
-for (const c of CHIPS) CATEGORY_ICON[c.key] = c.Icon;
-
-type ViewTab = "chat" | "discoveries";
-
-// ──────────────────────────────────────────────────────────────
-// Helpers
-// ──────────────────────────────────────────────────────────────
-
-function fmtCategory(c?: string) {
-  return (c ?? "").replace(/_/g, " ");
-}
-
-function fmtDist(km?: number | null) {
-  if (km == null) return null;
-  if (km < 1) return `${Math.round(km * 1000)} m`;
-  return `${km.toFixed(1)} km`;
-}
-
-function safeOpen(url: string) {
-  try {
-    window.open(url, "_blank", "noopener,noreferrer");
-  } catch {}
-}
-
-function normalizeUrl(raw: string) {
-  const s = raw.trim();
-  if (!s) return null;
-  if (/^https?:\/\//i.test(s)) return s;
-  if (/^www\./i.test(s)) return `https://${s}`;
-  if (/^[a-z0-9.-]+\.[a-z]{2,}(\/|$)/i.test(s)) return `https://${s}`;
-  return null;
-}
+type ViewTab = "chat" | "discoveries" | "search";
 
 function normalizeUrlKey(normUrl: string) {
   try {
@@ -243,14 +72,6 @@ function normalizeUrlKey(normUrl: string) {
   } catch {
     return normUrl.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/+$/, "");
   }
-}
-
-function cleanPhone(raw: string) {
-  const trimmed = raw.trim();
-  const keepPlus = trimmed.startsWith("+");
-  const digits = trimmed.replace(/[^\d]/g, "");
-  if (digits.length < 8 || digits.length > 15) return null;
-  return (keepPlus ? "+" : "") + digits;
 }
 
 function stopEvent(e: SyntheticEvent) {
@@ -406,66 +227,151 @@ function MessageActionsRow({
   // Count how many save actions are in this message (for the "View in Found" CTA)
   const saveCount = structured.filter((a) => a.type === "save").length;
 
+  // Group structured actions by destination (place_id or place_name, fallback to ungrouped)
+  const groups = useMemo(() => {
+    if (structured.length === 0) return [];
+    const map = new Map<string, { name: string | null; actions: typeof structured }>();
+    for (const a of structured) {
+      const key = a.place_id ?? a.place_name ?? "__ungrouped__";
+      if (!map.has(key)) map.set(key, { name: a.place_name ?? null, actions: [] });
+      map.get(key)!.actions.push(a);
+    }
+    return Array.from(map.values());
+  }, [structured]);
+
   if (structured.length === 0 && fallback.length === 0) return null;
 
   return (
-    <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-        {structured.map((a, idx) => {
-          if (a.type === "web" && a.url) {
-            return (
-              <ActionPill
-                key={`sa_web_${idx}_${a.place_id ?? idx}`}
-                Icon={ExternalLink}
-                label={a.label}
-                onClick={isOnline ? () => { haptic.selection(); safeOpen(a.url!); } : () => haptic.selection()}
-                muted={!isOnline}
-              />
-            );
-          }
-          if (a.type === "call" && a.tel) {
-            return <ActionPill key={`sa_call_${idx}_${a.place_id ?? idx}`} Icon={Phone} label={a.label} href={`tel:${a.tel}`} color="#10b981" />;
-          }
-          if (a.type === "map" && a.lat != null && a.lng != null) {
-            return (
-              <ActionPill
-                key={`sa_map_${idx}_${a.place_id ?? idx}`}
-                Icon={MapPin}
-                label={a.label}
-                onClick={() => { haptic.selection(); onShowOnMap?.(a.lat!, a.lng!, a.place_id ?? undefined); }}
-                color="#6366f1"
-              />
-            );
-          }
-          if (a.type === "save") {
-            const isSaved = a.place_id ? discoveredIds?.has(a.place_id) : true;
-            return (
-              <ActionPill
-                key={`sa_save_${idx}_${a.place_id ?? idx}`}
-                Icon={isSaved ? Check : Bookmark}
-                label={isSaved ? `Saved · ${a.place_name ?? a.label}` : a.label}
-                onClick={() => { haptic.selection(); onSwitchToFound?.(); }}
-                color="#10b981"
-              />
-            );
-          }
-          return null;
-        })}
-        {fallback.map((a, idx) => {
-          if (a.type === "web") {
-            return (
-              <ActionPill
-                key={`fb_web_${idx}`}
-                Icon={Link2}
-                label={a.label}
-                onClick={isOnline ? () => { haptic.selection(); safeOpen(a.url); } : () => haptic.selection()}
-                muted={!isOnline}
-              />
-            );
-          }
-          return <ActionPill key={`fb_call_${idx}`} Icon={Phone} label={a.label} href={`tel:${a.tel}`} color="#10b981" />;
-        })}
-      </div>
+    <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+      {groups.map((group, gi) => (
+        <div
+          key={gi}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 0,
+            borderRadius: 20,
+            overflow: "hidden",
+            alignSelf: "flex-start",
+            border: "1px solid var(--roam-border, rgba(255,255,255,0.08))",
+            background: "var(--roam-surface, rgba(255,255,255,0.04))",
+          }}
+        >
+          {group.name ? (
+            <span style={{
+              padding: "6px 10px",
+              fontSize: 12,
+              fontWeight: 700,
+              color: "var(--roam-text-muted)",
+              borderRight: "1px solid var(--roam-border, rgba(255,255,255,0.08))",
+              whiteSpace: "nowrap",
+            }}>
+              {group.name}
+            </span>
+          ) : null}
+          {group.actions.map((a, idx) => {
+            const isLast = idx === group.actions.length - 1;
+            const dividerStyle = !isLast ? { borderRight: "1px solid var(--roam-border, rgba(255,255,255,0.08))" } : {};
+            if (a.type === "web" && a.url) {
+              return (
+                <button
+                  key={`sa_web_${gi}_${idx}`}
+                  type="button"
+                  onClick={isOnline ? () => { haptic.selection(); safeOpen(a.url!); } : () => haptic.selection()}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 5,
+                    padding: "6px 10px", background: "none", border: "none",
+                    cursor: isOnline ? "pointer" : "default",
+                    fontSize: 12, fontWeight: 700,
+                    color: isOnline ? "var(--roam-text)" : "var(--roam-text-muted)",
+                    opacity: isOnline ? 1 : 0.5,
+                    ...dividerStyle,
+                  }}
+                >
+                  <ExternalLink size={12} />
+                  <span>Website</span>
+                </button>
+              );
+            }
+            if (a.type === "call" && a.tel) {
+              return (
+                <a
+                  key={`sa_call_${gi}_${idx}`}
+                  href={`tel:${a.tel}`}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 5,
+                    padding: "6px 10px", textDecoration: "none",
+                    fontSize: 12, fontWeight: 700, color: "#10b981",
+                    ...dividerStyle,
+                  }}
+                >
+                  <Phone size={12} />
+                  <span>Call</span>
+                </a>
+              );
+            }
+            if (a.type === "map" && a.lat != null && a.lng != null) {
+              return (
+                <button
+                  key={`sa_map_${gi}_${idx}`}
+                  type="button"
+                  onClick={() => { haptic.selection(); onShowOnMap?.(a.lat!, a.lng!, a.place_id ?? undefined); }}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 5,
+                    padding: "6px 10px", background: "none", border: "none",
+                    cursor: "pointer", fontSize: 12, fontWeight: 700, color: "#6366f1",
+                    ...dividerStyle,
+                  }}
+                >
+                  <MapPin size={12} />
+                  <span>Map</span>
+                </button>
+              );
+            }
+            if (a.type === "save") {
+              const isSaved = a.place_id ? discoveredIds?.has(a.place_id) : true;
+              return (
+                <button
+                  key={`sa_save_${gi}_${idx}`}
+                  type="button"
+                  onClick={() => { haptic.selection(); onSwitchToFound?.(); }}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 5,
+                    padding: "6px 10px", background: "none", border: "none",
+                    cursor: "pointer", fontSize: 12, fontWeight: 700, color: "#10b981",
+                    ...dividerStyle,
+                  }}
+                >
+                  {isSaved ? <Check size={12} /> : <Bookmark size={12} />}
+                  <span>{isSaved ? "Saved" : "Save"}</span>
+                </button>
+              );
+            }
+            return null;
+          })}
+        </div>
+      ))}
+
+      {/* Fallback (markdown-extracted) actions */}
+      {fallback.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {fallback.map((a, idx) => {
+            if (a.type === "web") {
+              return (
+                <ActionPill
+                  key={`fb_web_${idx}`}
+                  Icon={Link2}
+                  label={a.label}
+                  onClick={isOnline ? () => { haptic.selection(); safeOpen(a.url); } : () => haptic.selection()}
+                  muted={!isOnline}
+                />
+              );
+            }
+            return <ActionPill key={`fb_call_${idx}`} Icon={Phone} label={a.label} href={`tel:${a.tel}`} color="#10b981" />;
+          })}
+        </div>
+      )}
 
       {/* Found tab CTA when places were saved */}
       {saveCount > 0 && onSwitchToFound ? (
@@ -643,12 +549,80 @@ function MarkdownBody({ text }: { text: string }) {
 function ExtraBadges({ place }: { place: PlaceItem }) {
   const extra: Record<string, unknown> = (place.extra ?? {}) as Record<string, unknown>;
   const cc = catColor(place.category);
-  const badges: { label: string; accent?: boolean }[] = [];
+  const badges: { label: string; accent?: boolean; warn?: boolean }[] = [];
 
   if (extra.free) badges.push({ label: "Free", accent: true });
+
+  // ── Dump point badges ─────────────────────────────────────
+  if (place.category === "dump_point") {
+    const acc = extra.dump_access as string | undefined;
+    if (acc === "public") badges.push({ label: "Public Access", accent: true });
+    else if (acc === "customers_only") badges.push({ label: "Customers Only", warn: true });
+    else if (acc === "key_required") badges.push({ label: "Key Required", warn: true });
+
+    const dumpType = extra.dump_type as string | undefined;
+    if (dumpType === "both") badges.push({ label: "Black + Grey Water" });
+    else if (dumpType === "black_water") badges.push({ label: "Black Water" });
+    else if (dumpType === "grey_water") badges.push({ label: "Grey Water" });
+
+    if (extra.has_potable_water_at_dump) badges.push({ label: "Potable Water", accent: true });
+    if (extra.has_rinse) badges.push({ label: "Rinse Water" });
+
+    const dumpFee = extra.dump_fee as string | undefined;
+    if (dumpFee && dumpFee !== "free") badges.push({ label: `Fee: ${dumpFee}` });
+  }
+
+  // ── Water point badges ────────────────────────────────────
+  if (place.category === "water") {
+    const wt = extra.water_type as string | undefined;
+    if (wt === "potable") badges.push({ label: "Potable", accent: true });
+    else if (wt === "non_potable") badges.push({ label: "Non-potable", warn: true });
+    else if (wt === "bore") badges.push({ label: "Bore Water" });
+    else if (wt === "rainwater") badges.push({ label: "Rainwater" });
+
+    const wf = extra.water_flow as string | undefined;
+    if (wf === "tap") badges.push({ label: "Tap" });
+    else if (wf === "tank") badges.push({ label: "Tank" });
+    else if (wf === "pump") badges.push({ label: "Pump" });
+    else if (wf === "bore") badges.push({ label: "Bore Pump" });
+
+    if (extra.water_treated) badges.push({ label: "Treated" });
+    if (extra.water_always_available === true) badges.push({ label: "Always On" });
+    else if (extra.water_always_available === false) badges.push({ label: "Seasonal", warn: true });
+  }
+
+  // ── Toilet badges ─────────────────────────────────────────
+  if (place.category === "toilet") {
+    const tt = extra.toilet_type as string | undefined;
+    if (tt === "flush") badges.push({ label: "Flush" });
+    else if (tt === "pit") badges.push({ label: "Pit Toilet" });
+    else if (tt === "composting") badges.push({ label: "Composting" });
+    else if (tt === "long_drop") badges.push({ label: "Long Drop" });
+
+    if (typeof extra.toilet_count === "number") badges.push({ label: `${extra.toilet_count} stalls` });
+    if (extra.has_disabled_access) badges.push({ label: "Accessible" });
+    if (extra.has_baby_change) badges.push({ label: "Baby Change" });
+    if (extra.has_hand_wash) badges.push({ label: "Hand Wash" });
+  }
+
+  // ── Shower badges ─────────────────────────────────────────
+  if (place.category === "shower") {
+    const st = extra.shower_type as string | undefined;
+    if (st === "hot") badges.push({ label: "Hot", accent: true });
+    else if (st === "solar") badges.push({ label: "Solar Hot" });
+    else if (st === "cold") badges.push({ label: "Cold Only", warn: true });
+
+    if (extra.shower_token) badges.push({ label: "Token/Coin" });
+    if (typeof extra.shower_count === "number") badges.push({ label: `${extra.shower_count} showers` });
+
+    const sf = extra.shower_fee as string | undefined;
+    if (sf && sf !== "free") badges.push({ label: `Fee: ${sf}` });
+  }
+
+  // ── Generic badges (all categories) ──────────────────────
   if (extra.powered_sites) badges.push({ label: "Powered" });
-  if (extra.has_water) badges.push({ label: "Water" });
-  if (extra.has_toilets) badges.push({ label: "Toilets" });
+  if (extra.has_water && place.category !== "water") badges.push({ label: "Water" });
+  if (extra.has_toilets && place.category !== "toilet") badges.push({ label: "Toilets" });
   if (extra.fuel_types && Array.isArray(extra.fuel_types)) {
     const fuels = extra.fuel_types as string[];
     if (fuels.includes("diesel")) badges.push({ label: "Diesel" });
@@ -676,8 +650,8 @@ function ExtraBadges({ place }: { place: PlaceItem }) {
             fontWeight: 700,
             padding: "2px 8px",
             borderRadius: 5,
-            background: b.accent ? "rgba(16,185,129,0.12)" : cc.bg,
-            color: b.accent ? "#059669" : cc.fg,
+            background: b.accent ? "rgba(16,185,129,0.12)" : b.warn ? "rgba(239,68,68,0.10)" : cc.bg,
+            color: b.accent ? "#059669" : b.warn ? "#dc2626" : cc.fg,
             whiteSpace: "nowrap",
             letterSpacing: 0.2,
           }}
@@ -685,6 +659,64 @@ function ExtraBadges({ place }: { place: PlaceItem }) {
           {b.label}
         </span>
       ))}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────
+// Camp amenities icon strip
+// ──────────────────────────────────────────────────────────────
+
+type AmenityDef = { key: string; icon: LucideIcon; label: string; trueColor: string };
+
+const CAMP_AMENITIES: AmenityDef[] = [
+  { key: "has_toilets",         icon: Bath,            label: "Toilets",  trueColor: "#7c3aed" },
+  { key: "has_showers",         icon: ShowerHead,      label: "Showers",  trueColor: "#2563eb" },
+  { key: "has_water",           icon: Droplets,        label: "Water",    trueColor: "#0891b2" },
+  { key: "powered_sites",       icon: Zap,             label: "Power",    trueColor: "#d97706" },
+  { key: "has_dump_point",      icon: Trash2,          label: "Dump",     trueColor: "#64748b" },
+  { key: "has_bbq",             icon: Flame,           label: "BBQ",      trueColor: "#ea580c" },
+  { key: "has_wifi",            icon: Wifi,            label: "WiFi",     trueColor: "#059669" },
+  { key: "has_swimming",        icon: Waves,           label: "Swim",     trueColor: "#0284c7" },
+  { key: "has_playground",      icon: Baby,            label: "Play",     trueColor: "#7c3aed" },
+  { key: "has_laundry",         icon: Shirt,           label: "Laundry",  trueColor: "#475569" },
+  { key: "has_kitchen",         icon: UtensilsCrossed, label: "Kitchen",  trueColor: "#92400e" },
+  { key: "pets_allowed",        icon: Dog,             label: "Pets",     trueColor: "#b45309" },
+  { key: "fires_allowed",       icon: Flame,           label: "Fires",    trueColor: "#dc2626" },
+  { key: "has_phone_reception", icon: Signal,          label: "Signal",   trueColor: "#16a34a" },
+];
+
+function CampAmenities({ place }: { place: PlaceItem }) {
+  if (place.category !== "camp") return null;
+  const extra = (place.extra ?? {}) as Record<string, unknown>;
+  const visible = CAMP_AMENITIES.filter((a) => extra[a.key] !== undefined).slice(0, 9);
+  if (visible.length === 0) return null;
+
+  return (
+    <div style={{
+      display: "flex", gap: 2, flexWrap: "wrap", marginTop: 6,
+      padding: "5px 6px", borderRadius: 10,
+      background: "rgba(139,92,246,0.05)", border: "1px solid rgba(139,92,246,0.10)",
+    }}>
+      {visible.map((a) => {
+        const val = extra[a.key];
+        const on = val === true || (typeof val === "string" && val !== "no" && val !== "false");
+        const Icon = a.icon;
+        const tip = val === "on_lead" ? " (on lead)" : val === "seasonal" ? " (seasonal)" : val === "hours_only" ? " (limited hours)" : "";
+        return (
+          <div key={a.key} title={a.label + tip} style={{
+            display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
+            padding: "3px 5px", borderRadius: 7, minWidth: 34, opacity: on ? 1 : 0.28,
+          }}>
+            <Icon size={13} color={on ? a.trueColor : "var(--roam-text-muted)"} strokeWidth={on ? 2.5 : 1.5} />
+            <span style={{
+              fontSize: 8, fontWeight: on ? 700 : 400,
+              color: on ? a.trueColor : "var(--roam-text-muted)",
+              whiteSpace: "nowrap", letterSpacing: 0.2,
+            }}>{a.label}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -723,6 +755,7 @@ function PlaceCard({
   onFocus,
   onAdd,
   onShowOnMap,
+  onDetail,
   isOnline,
 }: {
   place: PlaceItem | DiscoveredPlace;
@@ -730,6 +763,7 @@ function PlaceCard({
   onFocus: () => void;
   onAdd: () => void;
   onShowOnMap?: () => void;
+  onDetail?: () => void;
   isOnline: boolean;
 }) {
   const extra: Record<string, unknown> = (place.extra ?? {}) as Record<string, unknown>;
@@ -743,9 +777,9 @@ function PlaceCard({
 
   function handleCardClick(e: MouseEvent<HTMLDivElement>) {
     const t = e.target as HTMLElement | null;
-    if (!t) return onFocus();
+    if (!t) return onDetail ? onDetail() : onFocus();
     if (t.closest("button,a,input,textarea,select,[role='button']")) return;
-    onFocus();
+    if (onDetail) { haptic.selection(); onDetail(); } else { onFocus(); }
   }
 
   const stop = (e: SyntheticEvent) => e.stopPropagation();
@@ -830,6 +864,7 @@ function PlaceCard({
               {dist ? <span style={{ fontWeight: 600 }}>· {dist}</span> : null}
             </div>
             <ExtraBadges place={place} />
+            <CampAmenities place={place} />
           </div>
         </div>
 
@@ -894,11 +929,13 @@ function PlaceCard({
 // ──────────────────────────────────────────────────────────────
 
 function DiscoveryGroup({
-  category, places, focusedPlaceId, onFocusPlace, onAddStop, onShowOnMap, isOnline,
+  category, places, focusedPlaceId, onFocusPlace, onAddStop, onShowOnMap, onDetailPlace, isOnline,
 }: {
   category: string; places: DiscoveredPlace[]; focusedPlaceId: string | null;
   onFocusPlace: (id: string | null) => void; onAddStop: (place: PlaceItem) => void;
-  onShowOnMap?: (placeId: string, lat: number, lng: number) => void; isOnline: boolean;
+  onShowOnMap?: (placeId: string, lat: number, lng: number) => void;
+  onDetailPlace?: (place: DiscoveredPlace) => void;
+  isOnline: boolean;
 }) {
   const Icon = CATEGORY_ICON[category] ?? MapPin;
   const cc = catColor(category);
@@ -924,7 +961,9 @@ function DiscoveryGroup({
         <PlaceCard
           key={p.id} place={p} isFocused={focusedPlaceId === p.id}
           onFocus={() => onFocusPlace(p.id)} onAdd={() => onAddStop(p)}
-          onShowOnMap={onShowOnMap ? () => onShowOnMap(p.id, p.lat, p.lng) : undefined} isOnline={isOnline}
+          onShowOnMap={onShowOnMap ? () => onShowOnMap(p.id, p.lat, p.lng) : undefined}
+          onDetail={onDetailPlace ? () => onDetailPlace(p) : undefined}
+          isOnline={isOnline}
         />
       ))}
 
@@ -944,7 +983,8 @@ function DiscoveryGroup({
 export function GuideView({
   focusedPlaceId, onFocusPlace, onAddStop, isOnline = true, onShowOnMap,
   guideReady = false, guidePack, tripProgress, onSendMessage, chatBusy = false,
-  initialTab, autoAskMessage, stickyTabsTop = 0,
+  initialTab, autoAskMessage, stickyTabsTop: _stickyTabsTop = 0,
+  places, onFilteredIdsChange,
 }: {
   focusedPlaceId: string | null;
   onFocusPlace: (id: string | null) => void; onAddStop: (place: PlaceItem) => void;
@@ -953,23 +993,28 @@ export function GuideView({
   onSendMessage?: (text: string, preferredCategories: string[]) => Promise<string | undefined>;
   chatBusy?: boolean;
   /** If set, start on this tab (e.g. "discoveries" when offline) */
-  initialTab?: "chat" | "discoveries";
+  initialTab?: "chat" | "discoveries" | "search";
   /** If set and online, auto-send this message once guide is ready */
   autoAskMessage?: string | null;
+  /** Offline places pack for the Search tab */
+  places?: PlacesPack | null;
+  /** Called when filtered place IDs change (for map highlighting) */
+  onFilteredIdsChange?: (ids: Set<string> | null) => void;
   /** px offset for sticky tab bar (header height) */
   stickyTabsTop?: number;
 }) {
+  const { openPlace } = usePlaceDetail();
   const [chatInput, setChatInput] = useState("");
   const [activeTab, setActiveTab] = useState<ViewTab>(initialTab ?? "chat");
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [pendingUserMsg, setPendingUserMsg] = useState<string | null>(null);
-  const GUIDE_TABS: ViewTab[] = ["chat", "discoveries"];
+  const GUIDE_TABS: ViewTab[] = ["chat", "discoveries", "search"];
   const trackRef = useRef<HTMLDivElement>(null);
   const guideContainerRef = useRef<HTMLDivElement>(null);
   const guideSwipe = useRef<{ x: number; y: number; t: number; locked: boolean } | null>(null);
 
   function getTrackX(tab: ViewTab) {
-    return -GUIDE_TABS.indexOf(tab) * 100;
+    return -(GUIDE_TABS.indexOf(tab) * 100) / 3;
   }
 
   function setTrackTransform(pct: number, animated: boolean) {
@@ -1215,6 +1260,7 @@ export function GuideView({
         {([
           { key: "chat" as ViewTab, label: "Guide", Icon: Sparkles, badge: null },
           { key: "discoveries" as ViewTab, label: "Found", Icon: MapPin, badge: discoveredPlaces.length > 0 ? discoveredPlaces.length : null },
+          { key: "search" as ViewTab, label: "Search", Icon: Search, badge: (places?.items?.length ?? 0) > 0 ? (places?.items?.length ?? 0) : null },
         ] as const).map((tab) => {
           const active = activeTab === tab.key;
           const TIcon = tab.Icon;
@@ -1250,21 +1296,21 @@ export function GuideView({
       </div>
 
       {/* ════════════════════════════════════════════════════════
-          SLIDING TRACK — both tab panels always mounted
+          SLIDING TRACK — all tab panels always mounted
           ════════════════════════════════════════════════════════ */}
       <div style={{ overflow: "hidden" }}>
       <div
         ref={trackRef}
         style={{
           display: "flex",
-          width: "200%",
+          width: "300%",
           transform: `translateX(${getTrackX(activeTab)}%)`,
           willChange: "transform",
         }}
       >
 
       {/* ── TAB: CHAT (Guide) ─────────────────────────────── */}
-      <div style={{ width: "50%", minWidth: 0 }}>
+      <div style={{ width: "33.333%", minWidth: 0 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 
           {/* Welcome state - when no messages yet */}
@@ -1539,7 +1585,7 @@ export function GuideView({
       </div>{/* end chat panel */}
 
       {/* ── TAB: DISCOVERIES ─────────────────────────────── */}
-      <div style={{ width: "50%", minWidth: 0 }}>
+      <div style={{ width: "33.333%", minWidth: 0 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {discoveredPlaces.length === 0 ? (
             <div style={{
@@ -1609,13 +1655,26 @@ export function GuideView({
                 <DiscoveryGroup
                   key={g.category} category={g.category} places={g.places}
                   focusedPlaceId={focusedPlaceId} onFocusPlace={onFocusPlace}
-                  onAddStop={onAddStop} onShowOnMap={onShowOnMap} isOnline={isOnline}
+                  onAddStop={onAddStop} onShowOnMap={onShowOnMap}
+                  onDetailPlace={openPlace}
+                  isOnline={isOnline}
                 />
               ))}
             </>
           )}
         </div>
       </div>{/* end discoveries panel */}
+
+      {/* ── TAB: SEARCH ───────────────────────────────────── */}
+      <div style={{ width: "33.333%", minWidth: 0 }}>
+        <PlaceSearchPanel
+          places={places ?? null}
+          tripProgress={tripProgress ?? null}
+          onSelectPlace={(p) => { onFocusPlace(p.id); }}
+          onFilteredIdsChange={onFilteredIdsChange}
+          onShowOnMap={onShowOnMap ? () => setActiveTab("discoveries") : undefined}
+        />
+      </div>{/* end search panel */}
 
       </div>{/* end track */}
       </div>{/* end overflow wrapper */}

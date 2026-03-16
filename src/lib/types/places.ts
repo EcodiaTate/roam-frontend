@@ -9,7 +9,7 @@ import type { BBox4, NavCoord } from "./geo";
 export type PlaceCategory =
   // Essentials & safety
   | "fuel" | "ev_charging" | "rest_area" | "toilet" | "water"
-  | "dump_point" | "mechanic" | "hospital" | "pharmacy"
+  | "dump_point" | "shower" | "mechanic" | "hospital" | "pharmacy"
   // Supplies
   | "grocery" | "town" | "atm" | "laundromat"
   // Food & drink
@@ -64,6 +64,54 @@ export type PlaceExtra = {
   powered_sites?: boolean;
   has_water?: boolean;
   has_toilets?: boolean;
+
+  // ── Camping: site types & configuration ───────────────────
+  pets_allowed?: boolean | "on_lead";
+  fires_allowed?: boolean | "seasonal";
+  generators_allowed?: boolean | "hours_only";
+  caravans?: boolean;
+  motorhomes?: boolean;
+  tents?: boolean;
+  max_vehicle_length_m?: number;
+  num_sites?: number;
+  bookable?: boolean;
+
+  // ── Camping: facilities ───────────────────────────────────
+  has_showers?: boolean;
+  has_dump_point?: boolean;
+  has_bbq?: boolean;
+  has_laundry?: boolean;
+  has_kitchen?: boolean;
+  has_wifi?: boolean;
+  has_playground?: boolean;
+  has_swimming?: boolean;
+  has_phone_reception?: boolean;
+  reception_carriers?: string[];
+
+  // ── Camping: style ────────────────────────────────────────
+  camp_type?: "free" | "low_cost" | "commercial" | "bush" | "rest_area" | "station_stay" | "farm_stay" | "showground";
+  surface?: "grass" | "gravel" | "dirt" | "sand" | "concrete" | "mixed";
+  shelter?: boolean;
+  shade?: boolean;
+
+  // ── Camping: stay rules ───────────────────────────────────
+  max_stay_days?: number;
+  check_in?: string;
+  check_out?: string;
+  quiet_hours?: string;
+
+  // ── Camping: overnight legality (rest areas + some bush camps) ────────
+  /** Whether overnight stays are permitted. "check" = rules unclear / state-dependent */
+  overnight_allowed?: boolean | "check" | "prohibited";
+  /** Max consecutive hours allowed (e.g. 20 for QLD rest areas) */
+  overnight_max_hours?: number;
+  /** Free-text note about restrictions, e.g. "QLD 20hr limit" */
+  overnight_notes?: string;
+
+  // ── Camping: cost ─────────────────────────────────────────
+  price_per_night_aud?: number;
+  price_notes?: string;
+
   synthetic_name?: boolean;
   wheelchair?: "yes" | "limited";
   stars?: number;
@@ -74,6 +122,33 @@ export type PlaceExtra = {
   /** Thumbnail URL resolved from Wikimedia Commons / OSM image tag.
    *  ~400px wide — small enough for bundles, renders well in cards. */
   thumbnail_url?: string;
+
+  // ── Dump point specifics ──────────────────────────────────
+  dump_type?: "black_water" | "grey_water" | "both";
+  dump_fee?: string;
+  dump_access?: "public" | "customers_only" | "key_required";
+  has_rinse?: boolean;
+  has_potable_water_at_dump?: boolean;
+
+  // ── Water point specifics ─────────────────────────────────
+  water_type?: "potable" | "non_potable" | "bore" | "rainwater" | "river";
+  water_flow?: "tap" | "tank" | "pump" | "bore";
+  water_treated?: boolean;
+  water_always_available?: boolean;
+
+  // ── Toilet specifics ──────────────────────────────────────
+  toilet_type?: "flush" | "pit" | "composting" | "long_drop" | "portable";
+  toilet_count?: number;
+  has_baby_change?: boolean;
+  has_disabled_access?: boolean;
+  has_hand_wash?: boolean;
+  toilet_maintained?: boolean;
+
+  // ── Shower specifics ──────────────────────────────────────
+  shower_type?: "hot" | "cold" | "solar";
+  shower_fee?: string;
+  shower_token?: boolean;
+  shower_count?: number;
 };
 
 export type PlaceItem = {

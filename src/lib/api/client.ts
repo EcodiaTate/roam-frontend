@@ -93,9 +93,15 @@ function isTransient(err: unknown): boolean {
 
 export class ApiClient {
   private base: string;
+  private _getAuthHeaders: (() => Promise<Record<string, string>>) | null = null;
 
   constructor(base?: string) {
     this.base = (base ?? getApiBase()).replace(/\/+$/, "");
+  }
+
+  /** Register a callback that supplies auth headers for every request. */
+  setAuthProvider(fn: () => Promise<Record<string, string>>) {
+    this._getAuthHeaders = fn;
   }
 
   async http<T>(path: string, opts: ApiRequestOptions = {}): Promise<T> {
@@ -133,7 +139,10 @@ export class ApiClient {
       ? `${this.base}${path}${buildQueryString(opts.query)}`
       : `${path}${buildQueryString(opts.query)}`;
 
-    const headers: Record<string, string> = sanitizeHeaders(opts.headers);
+    const headers: Record<string, string> = {
+      ...(this._getAuthHeaders ? await this._getAuthHeaders() : {}),
+      ...sanitizeHeaders(opts.headers), // caller headers win
+    };
 
     let body: BodyInit | undefined;
 
@@ -265,3 +274,20 @@ export class ApiClient {
 }
 
 export const api = new ApiClient();
+
+/**
+ * Wire up Supabase auth so every request automatically carries the
+ * user's JWT.  Lazy-imported to avoid a circular-dep at module init.
+ */
+api.setAuthProvider(async (): Promise<Record<string, string>> => {
+  try {
+    const { supabase } = await import("@/lib/supabase/client");
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      return { Authorization: `Bearer ${session.access_token}` };
+    }
+  } catch {
+    // Supabase not initialised yet (SSR, tests, etc.) — proceed without auth
+  }
+  return {};
+});

@@ -1,7 +1,7 @@
 // src/components/trip/TripMap.tsx
 "use client";
 
-import { useEffect, useMemo, useRef, useCallback, useState } from "react";
+import React, { useEffect, useMemo, useRef, useCallback, useState } from "react";
 import { rewriteStyleForLocalServer, isFullyOfflineCapable } from "@/lib/offline/basemapManager";
 
 import maplibregl, { type Map as MLMap, type LngLatBoundsLike, type MapLayerMouseEvent, GeoJSONSource } from "maplibre-gl";
@@ -15,11 +15,30 @@ import type { PlaceItem } from "@/lib/types/places";
 import type { TrafficOverlay, HazardOverlay } from "@/lib/types/navigation";
 import type { RoamPosition } from "@/lib/native/geolocation";
 import type { FuelStation, FuelTrackingState } from "@/lib/types/fuel";
+import type {
+  FloodOverlay,
+  CoverageOverlay,
+  WildlifeOverlay,
+  RestAreaOverlay,
+  FuelOverlay,
+  WeatherOverlay,
+  EmergencyServicesOverlay,
+  HeritageOverlay,
+  AirQualityOverlay,
+  BushfireOverlay,
+  SpeedCamerasOverlay,
+  ToiletsOverlay,
+  SchoolZonesOverlay,
+  RoadkillOverlay,
+} from "@/lib/types/overlays";
 
 import { assetsApi } from "@/lib/api/assets";
+import { haptic } from "@/lib/native/haptics";
+import type { MapBaseMode, VectorTheme } from "@/components/trips/new/MapStyleSwitcher";
 
 type Props = {
   styleId: string;
+  onStyleChange?: (next: { mode: MapBaseMode; vectorTheme: VectorTheme }) => void;
 
   stops: TripStop[];
   geometry: string; // polyline6
@@ -67,12 +86,37 @@ type Props = {
   fuelStations?: FuelStation[] | null;
   fuelTracking?: FuelTrackingState | null;
 
+  // ── Overlay packs ──
+  flood?: FloodOverlay | null;
+  coverage?: CoverageOverlay | null;
+  wildlife?: WildlifeOverlay | null;
+  restAreas?: RestAreaOverlay | null;
+  fuelOverlay?: FuelOverlay | null;
+  weather?: WeatherOverlay | null;
+  emergency?: EmergencyServicesOverlay | null;
+  heritage?: HeritageOverlay | null;
+  airQuality?: AirQualityOverlay | null;
+  bushfire?: BushfireOverlay | null;
+  speedCameras?: SpeedCamerasOverlay | null;
+  toilets?: ToiletsOverlay | null;
+  schoolZones?: SchoolZonesOverlay | null;
+  roadkill?: RoadkillOverlay | null;
+
    // ── Active navigation mode ──
    /** When true, map is in heading-up tracking mode. Disables bbox refit. */
    navigationMode?: boolean;
    /** Ref that TripMap populates with the MapLibre instance for external control */
    mapInstanceRef?: React.MutableRefObject<import("maplibre-gl").Map | null>;
  };
+
+/* ── Hoisted style constants ───────────────────────────────────────── */
+
+const MAP_STYLE_BTN_BASE: React.CSSProperties = {
+  flex: 1, height: 34, borderRadius: 9, border: "none",
+  cursor: "pointer", fontSize: 12, fontWeight: 700,
+  display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+  transition: "background 140ms ease, color 140ms ease",
+};
 
 /* ── Layer / source IDs ─────────────────────────────────────────────── */
 
@@ -134,6 +178,59 @@ const FUEL_CIRCLE_LAYER = "roam-fuel-circle";
 const FUEL_ICON_LAYER = "roam-fuel-icon";
 const FUEL_LABEL_LAYER = "roam-fuel-label";
 
+// ── New overlay sources / layers ─────────────────────────────────────────
+const WILDLIFE_SRC = "roam-wildlife-src";
+const WILDLIFE_FILL_LAYER = "roam-wildlife-fill";
+const WILDLIFE_LABEL_LAYER = "roam-wildlife-label";
+
+const COVERAGE_SRC = "roam-coverage-src";
+const COVERAGE_LINE_LAYER = "roam-coverage-line";
+
+const FLOOD_SRC = "roam-flood-src";
+const FLOOD_CIRCLE_LAYER = "roam-flood-circle";
+const FLOOD_LABEL_LAYER = "roam-flood-label";
+const FLOOD_CATCH_SRC = "roam-flood-catch-src";
+const FLOOD_CATCH_FILL = "roam-flood-catch-fill";
+const FLOOD_CATCH_LINE = "roam-flood-catch-line";
+
+const REST_AREAS_SRC = "roam-rest-areas-src";
+const REST_AREAS_ICON_LAYER = "roam-rest-areas-icon";
+const REST_AREAS_LABEL_LAYER = "roam-rest-areas-label";
+
+const WEATHER_SRC = "roam-weather-src";
+const WEATHER_DOT_LAYER = "roam-weather-dot";
+const WEATHER_LABEL_LAYER = "roam-weather-label";
+
+const EMERGENCY_SRC = "roam-emergency-src";
+const EMERGENCY_ICON_LAYER = "roam-emergency-icon";
+const EMERGENCY_LABEL_LAYER = "roam-emergency-label";
+
+const HERITAGE_SRC = "roam-heritage-src";
+const HERITAGE_ICON_LAYER = "roam-heritage-icon";
+
+const AQI_SRC = "roam-aqi-src";
+const AQI_DOT_LAYER = "roam-aqi-dot";
+const AQI_LABEL_LAYER = "roam-aqi-label";
+
+const BUSHFIRE_SRC = "roam-bushfire-src";
+const BUSHFIRE_ICON_LAYER = "roam-bushfire-icon";
+const BUSHFIRE_HOTSPOT_SRC = "roam-bushfire-hotspot-src";
+const BUSHFIRE_HOTSPOT_LAYER = "roam-bushfire-hotspot";
+
+const CAMERAS_SRC = "roam-cameras-src";
+const CAMERAS_ICON_LAYER = "roam-cameras-icon";
+const BLACKSPOT_SRC = "roam-blackspot-src";
+const BLACKSPOT_LAYER = "roam-blackspot-dot";
+
+const TOILETS_SRC = "roam-toilets-src";
+const TOILETS_ICON_LAYER = "roam-toilets-icon";
+
+const SCHOOL_ZONES_SRC = "roam-school-zones-src";
+const SCHOOL_ZONES_ICON_LAYER = "roam-school-zones-icon";
+
+const ROADKILL_SRC = "roam-roadkill-src";
+const ROADKILL_DOT_LAYER = "roam-roadkill-dot";
+
 /** Layer groups by category */
 const LAYER_GROUPS = {
   stops: [STOPS_SHADOW, STOPS_OUTER, STOPS_INNER, STOP_PULSE, STOP_ICON_LAYER, STOP_LABELS, STOP_FOCUS_RING],
@@ -141,13 +238,34 @@ const LAYER_GROUPS = {
   fuel: [FUEL_CLUSTER_CIRCLE, FUEL_CLUSTER_COUNT, FUEL_CIRCLE_LAYER, FUEL_ICON_LAYER, FUEL_LABEL_LAYER],
   traffic: [TRAFFIC_POLY_LAYER, TRAFFIC_LINE_CASING, TRAFFIC_LINE_LAYER, TRAFFIC_PULSE_LAYER, TRAFFIC_POINT_LAYER],
   hazards: [HAZARD_POLY_LAYER, HAZARD_POLY_OUTLINE, HAZARD_ICON_LAYER, ALERT_HIGHLIGHT_RING, ALERT_HIGHLIGHT_PING],
+  wildlife: [WILDLIFE_FILL_LAYER, WILDLIFE_LABEL_LAYER],
+  coverage: [COVERAGE_LINE_LAYER],
+  flood: [FLOOD_CATCH_FILL, FLOOD_CATCH_LINE, FLOOD_CIRCLE_LAYER, FLOOD_LABEL_LAYER],
+  rest_areas: [REST_AREAS_ICON_LAYER, REST_AREAS_LABEL_LAYER],
+  weather: [WEATHER_DOT_LAYER, WEATHER_LABEL_LAYER],
+  emergency: [EMERGENCY_ICON_LAYER, EMERGENCY_LABEL_LAYER],
+  heritage: [HERITAGE_ICON_LAYER],
+  air_quality: [AQI_DOT_LAYER, AQI_LABEL_LAYER],
+  bushfire: [BUSHFIRE_ICON_LAYER, BUSHFIRE_HOTSPOT_LAYER],
+  cameras: [CAMERAS_ICON_LAYER, BLACKSPOT_LAYER],
+  toilets: [TOILETS_ICON_LAYER],
+  school_zones: [SCHOOL_ZONES_ICON_LAYER],
+  roadkill: [ROADKILL_DOT_LAYER],
 } as const;
 
 type OverlayKey = keyof typeof LAYER_GROUPS;
-const ALL_OVERLAY_KEYS: OverlayKey[] = ["stops", "places", "fuel", "traffic", "hazards"];
+const ALL_OVERLAY_KEYS: OverlayKey[] = [
+  "stops", "places", "fuel", "traffic", "hazards", "wildlife", "coverage", "flood", "rest_areas", "weather",
+  "emergency", "heritage", "air_quality", "bushfire", "cameras", "toilets", "school_zones", "roadkill",
+];
 type OverlayVisibility = Record<OverlayKey, boolean>;
 
-const DEFAULT_VIS: OverlayVisibility = { stops: true, places: true, fuel: true, traffic: true, hazards: true };
+const DEFAULT_VIS: OverlayVisibility = {
+  stops: true, places: true, fuel: true, traffic: true, hazards: true,
+  wildlife: true, coverage: true, flood: true, rest_areas: true, weather: true,
+  emergency: true, heritage: true, air_quality: true, bushfire: true, cameras: true,
+  toilets: true, school_zones: true, roadkill: true,
+};
 
 function applyAllOverlayVisibility(map: MLMap, vis: OverlayVisibility) {
   for (const key of ALL_OVERLAY_KEYS) {
@@ -471,6 +589,22 @@ function loadFuelIcons(map: MLMap): Promise<void> {
   return Promise.all(promises).then(() => {});
 }
 
+function loadNewOverlayIcons(map: MLMap): Promise<void> {
+  const defs = [
+    { id: "roam-flood-minor",    color: "#eab308" },
+    { id: "roam-flood-moderate", color: "#f97316" },
+    { id: "roam-flood-major",    color: "#ef4444" },
+    { id: "roam-rest-area",      color: "#6366f1" },
+  ];
+  const promises: Promise<void>[] = [];
+  for (const d of defs) {
+    if (map.hasImage(d.id)) continue;
+    const svg = makeIconSVG(d.id.startsWith("roam-flood") ? ICON_PATHS.flood_wave : ICON_PATHS.car, d.color, 32, "#fff");
+    promises.push(loadSVGImage(map, d.id, svg, 32));
+  }
+  return Promise.all(promises).then(() => {});
+}
+
 /* ── Helpers ─────────────────────────────────────────────────────────── */
 
 function bboxToBounds(b: BBox4): LngLatBoundsLike {
@@ -674,6 +808,141 @@ function hazardPolygonsGeoJSON(overlay: HazardOverlay | null): GeoJSON.FeatureCo
   };
 }
 
+/* ── New overlay GeoJSON builders ───────────────────────────────────────── */
+
+function wildlifeZonesGeoJSON(overlay: WildlifeOverlay | null | undefined): GeoJSON.FeatureCollection {
+  if (!overlay?.zones?.length) return { type: "FeatureCollection", features: [] };
+  return {
+    type: "FeatureCollection",
+    features: overlay.zones
+      .filter((z) => z.risk_level !== "none")
+      .map((z) => ({
+        type: "Feature" as const,
+        properties: {
+          risk_level: z.risk_level,
+          km_from: z.km_from,
+          km_to: z.km_to,
+          message: z.message ?? null,
+          is_twilight_risk: z.is_twilight_risk,
+          species_guess: z.species_guess ?? null,
+          photo: z.photos?.[0] ?? null,
+          attribution: z.attribution ?? null,
+          occurrence_count: z.occurrence_count,
+        },
+        // Represent zone as a circle approximation centred on midpoint lat/lng
+        geometry: { type: "Point" as const, coordinates: [z.lng, z.lat] },
+      })),
+  };
+}
+
+function coverageGapsLineGeoJSON(
+  overlay: CoverageOverlay | null | undefined,
+  routeCoords: Array<[number, number]>,
+  cumKm: number[],
+): GeoJSON.FeatureCollection {
+  if (!overlay?.gaps?.length || routeCoords.length < 2) return { type: "FeatureCollection", features: [] };
+
+  // Slice route coordinates between km_from and km_to for each gap
+  function coordsForRange(kmFrom: number, kmTo: number): Array<[number, number]> {
+    const pts: Array<[number, number]> = [];
+    for (let i = 0; i < routeCoords.length; i++) {
+      const km = cumKm[i] ?? 0;
+      if (km >= kmFrom && km <= kmTo) pts.push(routeCoords[i]);
+    }
+    return pts;
+  }
+
+  const features: GeoJSON.Feature[] = [];
+  for (const g of overlay.gaps) {
+    const coords = coordsForRange(g.km_from, g.km_to);
+    if (coords.length < 2) continue;
+    const isNoCoverage = g.carrier === "all" || g.message.toLowerCase().includes("no coverage");
+    const isWeak = !isNoCoverage && g.message.toLowerCase().includes("weak");
+    features.push({
+      type: "Feature",
+      properties: {
+        carrier: g.carrier,
+        gap_km: g.gap_km,
+        message: g.message,
+        signal_class: isNoCoverage ? "no_coverage" : isWeak ? "weak" : "voice_only",
+      },
+      geometry: { type: "LineString", coordinates: coords },
+    });
+  }
+  return { type: "FeatureCollection", features };
+}
+
+function floodGaugesGeoJSON(overlay: FloodOverlay | null | undefined): GeoJSON.FeatureCollection {
+  if (!overlay?.gauges?.length) return { type: "FeatureCollection", features: [] };
+  return {
+    type: "FeatureCollection",
+    features: overlay.gauges
+      .filter((g) => g.severity !== "normal")
+      .map((g) => ({
+        type: "Feature" as const,
+        properties: {
+          station_no: g.station_no,
+          station_name: g.station_name,
+          severity: g.severity,
+          trend: g.trend,
+          latest_height_m: g.latest_height_m ?? null,
+          reading_time_iso: g.reading_time_iso ?? null,
+        },
+        geometry: { type: "Point" as const, coordinates: [g.lng, g.lat] },
+      })),
+  };
+}
+
+function floodCatchmentsGeoJSON(overlay: FloodOverlay | null | undefined): GeoJSON.FeatureCollection {
+  if (!overlay?.catchments?.length) return { type: "FeatureCollection", features: [] };
+  return {
+    type: "FeatureCollection",
+    features: overlay.catchments.map((c) => ({
+      type: "Feature" as const,
+      properties: {
+        aac: c.aac,
+        dist_name: c.dist_name,
+        level: c.level,
+      },
+      geometry: c.geometry as GeoJSON.Geometry,
+    })),
+  };
+}
+
+function restAreaFacilitiesSummary(f: import("@/lib/types/overlays").RestFacilities): string {
+  const parts: string[] = [];
+  if (f.toilets) parts.push("Toilets");
+  if (f.drinking_water) parts.push("Water");
+  if (f.shower) parts.push("Shower");
+  if (f.bbq) parts.push("BBQ");
+  if (f.picnic_table) parts.push("Picnic");
+  if (f.power_supply) parts.push("Power");
+  if (f.internet) parts.push("WiFi");
+  if (f.shelter) parts.push("Shelter");
+  return parts.join(" · ") || "";
+}
+
+function restAreasGeoJSON(overlay: RestAreaOverlay | null | undefined): GeoJSON.FeatureCollection {
+  if (!overlay?.rest_areas?.length) return { type: "FeatureCollection", features: [] };
+  return {
+    type: "FeatureCollection",
+    features: overlay.rest_areas.map((r) => ({
+      type: "Feature" as const,
+      properties: {
+        id: r.id,
+        name: r.name ?? "",
+        type: r.type,
+        quality_score: r.quality_score,
+        km_along: r.km_along ?? null,
+        has_toilets: r.facilities.toilets ?? false,
+        has_water: r.facilities.drinking_water ?? false,
+        facilities_summary: restAreaFacilitiesSummary(r.facilities),
+      },
+      geometry: { type: "Point" as const, coordinates: [r.lng, r.lat] },
+    })),
+  };
+}
+
 /* ── User location GeoJSON ───────────────────────────────────────────── */
 
 function userLocGeoJSON(pos: RoamPosition | null | undefined): GeoJSON.FeatureCollection {
@@ -779,6 +1048,7 @@ export function TripMap(props: Props) {
   const overlayVisRef = useRef(overlayVis);
   overlayVisRef.current = overlayVis;
   const [layerMenuOpen, setLayerMenuOpen] = useState(false);
+  const [styleReady, setStyleReady] = useState(false);
   useEffect(() => { writeStoredVis(overlayVis); }, [overlayVis]);
 
   const onNavToGuideRef = useRef(props.onNavigateToGuide);
@@ -799,6 +1069,24 @@ export function TripMap(props: Props) {
   const routeFC = useMemo(() => routeGeoJSON(props.geometry), [props.geometry]);
   const stopsFC = useMemo(() => stopsGeoJSON(props.stops), [props.stops]);
   const activeFuelCats = useMemo(() => fuelLayerCats(props.fuelStations), [props.fuelStations]);
+
+  // Decode route once for coverage gap slicing
+  const routeCoords = useMemo<Array<[number, number]>>(() => {
+    try { return decodePolyline6(props.geometry); } catch { return []; }
+  }, [props.geometry]);
+  const routeCumKm = useMemo<number[]>(() => {
+    if (routeCoords.length === 0) return [];
+    const km: number[] = [0];
+    for (let i = 1; i < routeCoords.length; i++) {
+      const [lng1, lat1] = routeCoords[i - 1];
+      const [lng2, lat2] = routeCoords[i];
+      const dLat = ((lat2 - lat1) * Math.PI) / 180;
+      const dLng = ((lng2 - lng1) * Math.PI) / 180;
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+      km.push(km[i - 1] + 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+    }
+    return km;
+  }, [routeCoords]);
   const sugFC = useMemo(
     () => suggestionsGeoJSON(props.suggestions ?? [], props.filteredSuggestionIds ?? null, activeFuelCats),
     [props.suggestions, props.filteredSuggestionIds, activeFuelCats],
@@ -818,23 +1106,61 @@ export function TripMap(props: Props) {
     if (!stations || stations.length === 0) {
       return { type: "FeatureCollection", features: [] };
     }
+    // Build overlay lookup — per-station prices from PetrolSpy
+    // IDs come from different sources (Overpass vs PetrolSpy) so match by proximity
+    type OvStation = import("@/lib/types/overlays").FuelStationOverlay;
+    const overlayStations: OvStation[] = props.fuelOverlay?.stations ?? [];
+
+    function findNearestOverlay(lat: number, lng: number): OvStation | null {
+      let best: OvStation | null = null;
+      let bestDist = 0.005; // ~500m threshold in degrees
+      for (const os of overlayStations) {
+        const d = Math.abs(os.lat - lat) + Math.abs(os.lng - lng);
+        if (d < bestDist) { bestDist = d; best = os; }
+      }
+      return best;
+    }
+
     return {
       type: "FeatureCollection",
-      features: stations.map((st) => ({
-        type: "Feature" as const,
-        geometry: { type: "Point" as const, coordinates: [st.lng, st.lat] },
-        properties: {
-          id: st.place_id,
-          name: st.name,
-          km: st.km_along_route,
-          snap_m: st.snap_distance_m,
-          side: st.side,
-          // Determine color based on what comes AFTER this station
-          fuel_level: "ok", // will be overridden below
-        },
-      })),
+      features: stations.map((st) => {
+        const ov = findNearestOverlay(st.lat, st.lng);
+        // Serialize fuel_types array as JSON string for GeoJSON properties
+        const fuelTypesJson = ov?.fuel_types?.length ? JSON.stringify(ov.fuel_types) : null;
+        return {
+          type: "Feature" as const,
+          geometry: { type: "Point" as const, coordinates: [st.lng, st.lat] },
+          properties: {
+            id: st.place_id,
+            name: st.name,
+            km: st.km_along_route,
+            snap_m: st.snap_distance_m,
+            side: st.side,
+            brand: ov?.brand ?? st.brand ?? null,
+            address: ov?.address ?? null,
+            city_price: ov?.city_price ?? null,
+            fuel_types_json: fuelTypesJson,
+            is_open: ov?.is_open ?? null,
+            open_hours: ov?.open_hours ?? null,
+            has_diesel: ov?.has_diesel ?? st.has_diesel ?? false,
+            has_unleaded: ov?.has_unleaded ?? st.has_unleaded ?? false,
+            has_lpg: ov?.has_lpg ?? st.has_lpg ?? false,
+            // Determine color based on what comes AFTER this station
+            fuel_level: "ok", // will be overridden below
+          },
+        };
+      }),
     };
-  }, [props.fuelStations]);
+  }, [props.fuelStations, props.fuelOverlay]);
+
+  const wildlifeFC = useMemo(() => wildlifeZonesGeoJSON(props.wildlife), [props.wildlife]);
+  const coverageFC = useMemo(
+    () => coverageGapsLineGeoJSON(props.coverage, routeCoords, routeCumKm),
+    [props.coverage, routeCoords, routeCumKm],
+  );
+  const floodFC = useMemo(() => floodGaugesGeoJSON(props.flood), [props.flood]);
+  const floodCatchFC = useMemo(() => floodCatchmentsGeoJSON(props.flood), [props.flood]);
+  const restAreasFC = useMemo(() => restAreasGeoJSON(props.restAreas), [props.restAreas]);
 
   /* ── Build popup HTML ───────────────────────────────────────────────── */
 
@@ -898,6 +1224,7 @@ export function TripMap(props: Props) {
       center: [(props.bbox.minLng + props.bbox.maxLng) / 2, (props.bbox.minLat + props.bbox.maxLat) / 2],
       zoom: 6,
       attributionControl: false,
+      canvasContextAttributes: { preserveDrawingBuffer: true },
       transformRequest: (url) => {
         if (typeof url === "string" && url.startsWith("pmtiles://")) return { url: normalizePmtilesUrl(url, origin) };
         return { url };
@@ -987,7 +1314,7 @@ export function TripMap(props: Props) {
     });
 
     map.on("style.load", async () => {
-      await Promise.all([loadHeadingArrow(map), loadCategoryIcons(map), loadOverlayIcons(map), loadStopIcons(map), loadFuelIcons(map)]);
+      await Promise.all([loadHeadingArrow(map), loadCategoryIcons(map), loadOverlayIcons(map), loadStopIcons(map), loadFuelIcons(map), loadNewOverlayIcons(map)]);
 
       /* ════════════════════════════════════════════════════════════════
          LAYER ORDER (bottom → top):
@@ -1004,7 +1331,7 @@ export function TripMap(props: Props) {
       /* ── 1. Route layers - warm outback amber/gold ─────────────────── */
       addOrUpdateGeoJsonSource(map, ROUTE_SRC, routeFC);
 
-      // Outer glow - warm amber haze
+      // Outer glow - soft blue haze
       if (!map.getLayer(ROUTE_GLOW)) {
         map.addLayer({
           id: ROUTE_GLOW,
@@ -1012,15 +1339,15 @@ export function TripMap(props: Props) {
           source: ROUTE_SRC,
           layout: { "line-cap": "round", "line-join": "round" },
           paint: {
-            "line-color": "rgba(212,148,58,0.4)",
-            "line-width": ["interpolate", ["linear"], ["zoom"], 4, 10, 10, 16, 14, 24],
-            "line-blur": ["interpolate", ["linear"], ["zoom"], 4, 8, 14, 14],
-            "line-opacity": 0.5,
+            "line-color": "rgba(56,189,248,0.25)",
+            "line-width": ["interpolate", ["linear"], ["zoom"], 4, 5, 10, 8, 14, 12],
+            "line-blur": ["interpolate", ["linear"], ["zoom"], 4, 4, 14, 7],
+            "line-opacity": 0.6,
           },
         });
       }
 
-      // Dark casing - deep brown-black for contrast
+      // Dark casing - subtle dark border for contrast
       if (!map.getLayer(ROUTE_CASING)) {
         map.addLayer({
           id: ROUTE_CASING,
@@ -1028,14 +1355,14 @@ export function TripMap(props: Props) {
           source: ROUTE_SRC,
           layout: { "line-cap": "round", "line-join": "round" },
           paint: {
-            "line-color": "rgba(45,32,18,0.7)",
-            "line-width": ["interpolate", ["linear"], ["zoom"], 4, 5, 10, 9, 14, 13],
-            "line-opacity": 0.65,
+            "line-color": "rgba(12,74,110,0.6)",
+            "line-width": ["interpolate", ["linear"], ["zoom"], 4, 3, 10, 5, 14, 7],
+            "line-opacity": 0.55,
           },
         });
       }
 
-      // Main route line - warm golden amber
+      // Main route line - vivid sky blue
       if (!map.getLayer(ROUTE_LINE)) {
         map.addLayer({
           id: ROUTE_LINE,
@@ -1043,9 +1370,9 @@ export function TripMap(props: Props) {
           source: ROUTE_SRC,
           layout: { "line-cap": "round", "line-join": "round" },
           paint: {
-            "line-color": "rgba(218,165,72,0.95)",
-            "line-width": ["interpolate", ["linear"], ["zoom"], 4, 3, 10, 6.5, 14, 10],
-            "line-opacity": 0.95,
+            "line-color": "#38bdf8",
+            "line-width": ["interpolate", ["linear"], ["zoom"], 4, 2, 10, 4, 14, 6],
+            "line-opacity": 1,
           },
         });
       }
@@ -1077,7 +1404,7 @@ export function TripMap(props: Props) {
         });
       }
 
-      // Traffic line casing for extra weight
+      // Traffic line casing - same width as route casing so it perfectly replaces the segment
       if (!map.getLayer(TRAFFIC_LINE_CASING)) {
         map.addLayer({
           id: TRAFFIC_LINE_CASING,
@@ -1089,14 +1416,15 @@ export function TripMap(props: Props) {
               "match",
               ["get", "severity"],
               "major",
-              "rgba(153,27,27,0.5)",
+              "rgba(127,29,29,0.55)",
               "moderate",
-              "rgba(146,64,14,0.4)",
+              "rgba(120,53,15,0.45)",
               "minor",
-              "rgba(30,64,175,0.3)",
-              "rgba(51,65,85,0.25)",
+              "rgba(30,58,138,0.35)",
+              "rgba(30,41,59,0.3)",
             ],
-            "line-width": ["interpolate", ["linear"], ["zoom"], 6, 6, 12, 10, 16, 16],
+            // Match route casing width so traffic fully replaces the segment
+            "line-width": ["interpolate", ["linear"], ["zoom"], 4, 3, 10, 5, 14, 7],
             "line-opacity": 0.7,
           },
         });
@@ -1109,10 +1437,10 @@ export function TripMap(props: Props) {
           source: TRAFFIC_LINE_SRC,
           layout: { "line-cap": "round", "line-join": "round" },
           paint: {
-            "line-color": ["match", ["get", "severity"], "major", "#ef4444", "moderate", "#f59e0b", "minor", "#3b82f6", "#64748b"],
-            "line-width": ["interpolate", ["linear"], ["zoom"], 6, 4, 12, 7, 16, 12],
-            "line-opacity": 0.85,
-            "line-dasharray": [2, 1.5],
+            "line-color": ["match", ["get", "severity"], "major", "#ef4444", "moderate", "#f97316", "minor", "#facc15", "#94a3b8"],
+            // Match route line width exactly — traffic replaces rather than overlaps
+            "line-width": ["interpolate", ["linear"], ["zoom"], 4, 2, 10, 4, 14, 6],
+            "line-opacity": 1,
           },
         });
       }
@@ -1350,11 +1678,11 @@ export function TripMap(props: Props) {
           source: SUG_SRC,
           filter: ["has", "point_count"],
           paint: {
-            "circle-color": ["step", ["get", "point_count"], "rgba(74,108,83,0.88)", 20, "rgba(180,83,9,0.88)", 100, "rgba(184,74,57,0.88)"],
-            "circle-radius": ["step", ["get", "point_count"], 16, 20, 20, 100, 26],
-            "circle-stroke-color": "rgba(255,255,255,0.3)",
-            "circle-stroke-width": 2,
-            "circle-opacity": 0.92,
+            "circle-color": ["step", ["get", "point_count"], "rgba(34,165,90,0.92)", 10, "rgba(28,138,76,0.92)", 30, "rgba(22,112,62,0.92)", 80, "rgba(16,90,50,0.92)"],
+            "circle-radius": ["step", ["get", "point_count"], 18, 10, 22, 30, 26, 80, 32],
+            "circle-stroke-color": "rgba(255,255,255,0.4)",
+            "circle-stroke-width": 2.5,
+            "circle-opacity": 0.95,
           },
         });
       }
@@ -1364,7 +1692,12 @@ export function TripMap(props: Props) {
           type: "symbol",
           source: SUG_SRC,
           filter: ["has", "point_count"],
-          layout: { "text-field": ["get", "point_count_abbreviated"], "text-font": ["Noto Sans Bold"], "text-size": 12, "text-allow-overlap": true },
+          layout: {
+            "text-field": ["get", "point_count_abbreviated"],
+            "text-font": ["Noto Sans Bold"],
+            "text-size": ["step", ["get", "point_count"], 12, 10, 13, 30, 14.5, 80, 16],
+            "text-allow-overlap": true,
+          },
           paint: { "text-color": "#ffffff" },
         });
       }
@@ -1537,8 +1870,8 @@ export function TripMap(props: Props) {
           source: STOPS_SRC,
           minzoom: 5,
           paint: {
-            "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 6, 10, 10, 14, 15, 17, 20],
-            "circle-color": "rgba(0,0,0,0.25)",
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 8, 10, 14, 14, 20, 17, 26],
+            "circle-color": "rgba(0,0,0,0.3)",
             "circle-blur": 0.6,
             "circle-translate": [0, 2],
           },
@@ -1553,10 +1886,10 @@ export function TripMap(props: Props) {
           source: STOPS_SRC,
           minzoom: 3,
           paint: {
-            "circle-radius": ["interpolate", ["linear"], ["zoom"], 3, 4, 6, 5.5, 10, 8, 14, 12, 17, 16],
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 3, 6, 6, 8, 10, 12, 14, 16, 17, 22],
             "circle-color": "#fff",
             "circle-stroke-color": stopColor,
-            "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 3, 1.5, 10, 2.5, 14, 3.5],
+            "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 3, 2, 10, 3, 14, 4],
             "circle-opacity": 1,
           },
         });
@@ -1570,7 +1903,7 @@ export function TripMap(props: Props) {
           source: STOPS_SRC,
           minzoom: 3,
           paint: {
-            "circle-radius": ["interpolate", ["linear"], ["zoom"], 3, 2.5, 6, 3.5, 10, 5.5, 14, 8, 17, 11],
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 3, 4, 6, 5.5, 10, 8.5, 14, 12, 17, 16],
             "circle-color": stopColor,
             "circle-opacity": 1,
           },
@@ -1586,7 +1919,7 @@ export function TripMap(props: Props) {
           minzoom: 8,
           filter: ["any", ["==", ["get", "type"], "start"], ["==", ["get", "type"], "end"]],
           paint: {
-            "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 14, 14, 22],
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 18, 14, 28],
             "circle-color": "transparent",
             "circle-stroke-color": ["match", ["get", "type"], "start", "rgba(22,163,74,0.2)", "end", "rgba(220,38,38,0.2)", "transparent"],
             "circle-stroke-width": 2,
@@ -1604,7 +1937,7 @@ export function TripMap(props: Props) {
           minzoom: 11,
           layout: {
             "icon-image": ["get", "iconId"],
-            "icon-size": ["interpolate", ["linear"], ["zoom"], 11, 0.45, 14, 0.65, 17, 0.85],
+            "icon-size": ["interpolate", ["linear"], ["zoom"], 11, 0.55, 14, 0.75, 17, 1.0],
             "icon-allow-overlap": true,
             "icon-ignore-placement": true,
           },
@@ -1641,7 +1974,7 @@ export function TripMap(props: Props) {
           source: STOPS_SRC,
           filter: ["==", ["get", "id"], props.focusedStopId ?? ""],
           paint: {
-            "circle-radius": ["interpolate", ["linear"], ["zoom"], 4, 10, 10, 14, 14, 20, 17, 26],
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 4, 12, 10, 18, 14, 24, 17, 32],
             "circle-color": "transparent",
             "circle-stroke-color": "rgba(255,255,255,0.85)",
             "circle-stroke-width": 2.5,
@@ -1716,11 +2049,11 @@ export function TripMap(props: Props) {
           source: FUEL_SRC,
           filter: ["has", "point_count"],
           paint: {
-            "circle-color": ["step", ["get", "point_count"], "rgba(217,119,6,0.88)", 10, "rgba(180,83,9,0.88)", 50, "rgba(184,74,57,0.88)"],
-            "circle-radius": ["step", ["get", "point_count"], 16, 10, 20, 50, 26],
-            "circle-stroke-color": "rgba(255,255,255,0.3)",
-            "circle-stroke-width": 2,
-            "circle-opacity": 0.92,
+            "circle-color": ["step", ["get", "point_count"], "rgba(226,161,47,0.92)", 10, "rgba(200,140,32,0.92)", 30, "rgba(176,118,22,0.92)", 80, "rgba(148,96,16,0.92)"],
+            "circle-radius": ["step", ["get", "point_count"], 18, 10, 22, 30, 26, 80, 32],
+            "circle-stroke-color": "rgba(255,255,255,0.4)",
+            "circle-stroke-width": 2.5,
+            "circle-opacity": 0.95,
           },
         });
       }
@@ -1730,7 +2063,12 @@ export function TripMap(props: Props) {
           type: "symbol",
           source: FUEL_SRC,
           filter: ["has", "point_count"],
-          layout: { "text-field": ["get", "point_count_abbreviated"], "text-font": ["Noto Sans Bold"], "text-size": 12, "text-allow-overlap": true },
+          layout: {
+            "text-field": ["get", "point_count_abbreviated"],
+            "text-font": ["Noto Sans Bold"],
+            "text-size": ["step", ["get", "point_count"], 12, 10, 13, 30, 14.5, 80, 16],
+            "text-allow-overlap": true,
+          },
           paint: { "text-color": "#ffffff" },
         });
       }
@@ -1807,6 +2145,379 @@ export function TripMap(props: Props) {
       map.on("mouseenter", FUEL_CLUSTER_CIRCLE, () => (map.getCanvas().style.cursor = "pointer"));
       map.on("mouseleave", FUEL_CLUSTER_CIRCLE, () => (map.getCanvas().style.cursor = ""));
 
+      // Individual fuel station click → popup with per-station prices
+      map.on("click", FUEL_ICON_LAYER, (e: MapLayerMouseEvent) => {
+        const f = e?.features?.[0];
+        if (!f) return;
+        const p = f.properties;
+        const name = p?.name ? String(p.name) : "Fuel Station";
+        const brand = p?.brand ? String(p.brand) : null;
+        const km = typeof p?.km === "number" ? Math.round(p.km) : null;
+
+        // Parse per-station prices from JSON (GeoJSON can only store flat properties)
+        type FP = { fuel_type: string; price_cents: number; last_updated?: string | null };
+        let fuelPrices: FP[] = [];
+        try {
+          const raw = p?.fuel_types_json;
+          if (typeof raw === "string" && raw.length > 2) {
+            fuelPrices = JSON.parse(raw) as FP[];
+          }
+        } catch {}
+
+        const subtitle = [
+          brand,
+          km != null ? `${km}km along route` : null,
+        ].filter(Boolean).join(" · ");
+
+        // Build price lines from actual per-station data
+        const FUEL_LABELS: Record<string, string> = {
+          unleaded: "Unleaded 91",
+          e10: "E10",
+          premium_unleaded_95: "Premium 95",
+          premium_unleaded_98: "Premium 98",
+          diesel: "Diesel",
+          premium_diesel: "Prem Diesel",
+          lpg: "LPG",
+          adblue: "AdBlue",
+          truck_diesel: "Truck Diesel",
+        };
+
+        let priceHtml = "";
+        if (fuelPrices.length > 0) {
+          const rows = fuelPrices
+            .sort((a, b) => {
+              const order = ["unleaded", "e10", "premium_unleaded_95", "premium_unleaded_98", "diesel", "premium_diesel", "lpg"];
+              return (order.indexOf(a.fuel_type) === -1 ? 99 : order.indexOf(a.fuel_type)) - (order.indexOf(b.fuel_type) === -1 ? 99 : order.indexOf(b.fuel_type));
+            })
+            .map((fp) => {
+              const label = FUEL_LABELS[fp.fuel_type] ?? fp.fuel_type;
+              const dollars = (fp.price_cents / 100).toFixed(1);
+              return `<div style="display:flex;justify-content:space-between;gap:8px"><span>${escapeHtml(label)}</span><span style="font-weight:800;color:var(--roam-text)">${dollars}¢/L</span></div>`;
+            })
+            .join("");
+          priceHtml = `<div style="margin-top:6px;font-size:11px;font-weight:600;color:var(--roam-text-muted);line-height:1.7">${rows}</div>`;
+        } else {
+          // Fallback: show fuel type flags without prices
+          const types: string[] = [];
+          if (p?.has_unleaded) types.push("Unleaded");
+          if (p?.has_diesel) types.push("Diesel");
+          if (p?.has_lpg) types.push("LPG");
+          if (types.length > 0) {
+            priceHtml = `<div style="margin-top:4px;font-size:11px;font-weight:600;color:var(--roam-text-muted)">${types.join(" · ")}</div>`;
+          }
+        }
+
+        // Open status
+        const openHtml = p?.open_hours ? `<div style="margin-top:3px;font-size:10px;font-weight:700;color:#9ca3af">Hours: ${escapeHtml(String(p.open_hours))}</div>` : "";
+
+        try {
+          popupRef.current?.remove();
+          popupRef.current = new maplibregl.Popup({ closeButton: true, closeOnClick: true, className: "trip-map-popup" })
+            .setLngLat(e.lngLat)
+            .setHTML(buildOverlayPopupHtml(name, subtitle, "#d97706") + priceHtml + openHtml)
+            .addTo(map);
+        } catch {}
+      });
+      map.on("mouseenter", FUEL_ICON_LAYER, () => (map.getCanvas().style.cursor = "pointer"));
+      map.on("mouseleave", FUEL_ICON_LAYER, () => (map.getCanvas().style.cursor = ""));
+
+      /* ── Wildlife zones (amber fill + risk label) ───────────────────── */
+      addOrUpdateGeoJsonSource(map, WILDLIFE_SRC, wildlifeFC);
+
+      if (!map.getLayer(WILDLIFE_FILL_LAYER)) {
+        map.addLayer({
+          id: WILDLIFE_FILL_LAYER,
+          type: "circle",
+          source: WILDLIFE_SRC,
+          paint: {
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 16, 12, 28, 16, 44],
+            "circle-color": [
+              "match", ["get", "risk_level"],
+              "high",   "rgba(245,158,11,0.28)",
+              "medium", "rgba(234,179,8,0.18)",
+              "low",    "rgba(253,224,71,0.12)",
+              "rgba(253,224,71,0.08)",
+            ],
+            "circle-stroke-color": [
+              "match", ["get", "risk_level"],
+              "high",   "rgba(245,158,11,0.65)",
+              "medium", "rgba(234,179,8,0.45)",
+              "low",    "rgba(253,224,71,0.35)",
+              "rgba(253,224,71,0.25)",
+            ],
+            "circle-stroke-width": 1.5,
+            "circle-opacity": 0.85,
+          },
+        });
+      }
+
+      if (!map.getLayer(WILDLIFE_LABEL_LAYER)) {
+        map.addLayer({
+          id: WILDLIFE_LABEL_LAYER,
+          type: "symbol",
+          source: WILDLIFE_SRC,
+          layout: {
+            "text-field": ["upcase", ["get", "risk_level"]],
+            "text-font": ["Noto Sans Bold"],
+            "text-size": 9,
+            "text-offset": [0, 2.2],
+            "text-anchor": "top",
+          },
+          paint: {
+            "text-color": "#92400e",
+            "text-halo-color": "rgba(255,255,255,0.85)",
+            "text-halo-width": 1.5,
+          },
+          minzoom: 9,
+        });
+      }
+
+      map.on("click", WILDLIFE_FILL_LAYER, (e: MapLayerMouseEvent) => {
+        const f = e?.features?.[0];
+        if (!f) return;
+        const p = f.properties;
+        const title = p?.species_guess ?? p?.message ?? `Wildlife risk: ${p?.risk_level ?? "unknown"}`;
+        const photoHtml = p?.photo
+          ? `<img src="${escapeHtml(String(p.photo))}" alt="${escapeHtml(title)}" style="width:100%;max-height:120px;object-fit:cover;border-radius:6px;margin-top:6px;display:block" loading="lazy" />`
+          : "";
+        const countLine = p?.occurrence_count > 0
+          ? `<div style="margin-top:4px;font-size:11px;color:var(--roam-text-muted)">${escapeHtml(String(p.occurrence_count))} observation${p.occurrence_count !== 1 ? "s" : ""} nearby</div>`
+          : "";
+        const attrLine = p?.attribution
+          ? `<div style="margin-top:4px;font-size:9px;color:var(--roam-text-muted);line-height:1.3">${escapeHtml(String(p.attribution))}</div>`
+          : "";
+        try {
+          popupRef.current?.remove();
+          popupRef.current = new maplibregl.Popup({ closeButton: true, closeOnClick: true, className: "trip-map-popup" })
+            .setLngLat(e.lngLat)
+            .setHTML(buildOverlayPopupHtml(title, p?.risk_level ?? "unknown", "#f59e0b") + photoHtml + countLine + attrLine)
+            .addTo(map);
+        } catch {}
+      });
+      map.on("mouseenter", WILDLIFE_FILL_LAYER, () => (map.getCanvas().style.cursor = "pointer"));
+      map.on("mouseleave", WILDLIFE_FILL_LAYER, () => (map.getCanvas().style.cursor = ""));
+
+      /* ── Coverage gaps (line overlay on route) ──────────────────────── */
+      addOrUpdateGeoJsonSource(map, COVERAGE_SRC, coverageFC);
+
+      if (!map.getLayer(COVERAGE_LINE_LAYER)) {
+        map.addLayer({
+          id: COVERAGE_LINE_LAYER,
+          type: "line",
+          source: COVERAGE_SRC,
+          layout: { "line-cap": "round", "line-join": "round" },
+          paint: {
+            "line-color": [
+              "match", ["get", "signal_class"],
+              "no_coverage", "#ef4444",
+              "weak",        "#f97316",
+              "voice_only",  "#eab308",
+              "#64748b",
+            ],
+            "line-width": ["interpolate", ["linear"], ["zoom"], 6, 5, 12, 8, 16, 12],
+            "line-opacity": 0.75,
+            "line-dasharray": [3, 2],
+            "line-offset": 6,
+          },
+        });
+      }
+
+      map.on("click", COVERAGE_LINE_LAYER, (e: MapLayerMouseEvent) => {
+        const f = e?.features?.[0];
+        if (!f) return;
+        const p = f.properties;
+        const sevColor = p?.signal_class === "no_coverage" ? "#ef4444" : p?.signal_class === "weak" ? "#f97316" : "#eab308";
+        try {
+          popupRef.current?.remove();
+          popupRef.current = new maplibregl.Popup({ closeButton: true, closeOnClick: true, className: "trip-map-popup" })
+            .setLngLat(e.lngLat)
+            .setHTML(buildOverlayPopupHtml(p?.message ?? "Coverage gap", p?.signal_class ?? "unknown", sevColor))
+            .addTo(map);
+        } catch {}
+      });
+      map.on("mouseenter", COVERAGE_LINE_LAYER, () => (map.getCanvas().style.cursor = "pointer"));
+      map.on("mouseleave", COVERAGE_LINE_LAYER, () => (map.getCanvas().style.cursor = ""));
+
+      /* ── Flood catchment polygons (fill + outline) ────────────────── */
+      addOrUpdateGeoJsonSource(map, FLOOD_CATCH_SRC, floodCatchFC);
+
+      if (!map.getLayer(FLOOD_CATCH_FILL)) {
+        map.addLayer({
+          id: FLOOD_CATCH_FILL,
+          type: "fill",
+          source: FLOOD_CATCH_SRC,
+          paint: {
+            "fill-color": [
+              "match", ["get", "level"],
+              "warning", "rgba(239,68,68,0.15)",
+              "rgba(245,158,11,0.12)", // watch
+            ],
+            "fill-opacity": 0.6,
+          },
+        });
+      }
+
+      if (!map.getLayer(FLOOD_CATCH_LINE)) {
+        map.addLayer({
+          id: FLOOD_CATCH_LINE,
+          type: "line",
+          source: FLOOD_CATCH_SRC,
+          paint: {
+            "line-color": [
+              "match", ["get", "level"],
+              "warning", "#ef4444",
+              "#f59e0b", // watch
+            ],
+            "line-width": 1.5,
+            "line-opacity": 0.7,
+          },
+        });
+      }
+
+      map.on("click", FLOOD_CATCH_FILL, (e: MapLayerMouseEvent) => {
+        const f = e?.features?.[0];
+        if (!f) return;
+        const p = f.properties;
+        const lev = p?.level ?? "watch";
+        const color = lev === "warning" ? "#ef4444" : "#f59e0b";
+        try {
+          popupRef.current?.remove();
+          popupRef.current = new maplibregl.Popup({ closeButton: true, closeOnClick: true, className: "trip-map-popup" })
+            .setLngLat(e.lngLat)
+            .setHTML(buildOverlayPopupHtml(
+              `Flood ${lev.charAt(0).toUpperCase() + lev.slice(1)}`,
+              p?.dist_name ?? "",
+              color,
+            ))
+            .addTo(map);
+        } catch {}
+      });
+
+      /* ── Flood gauges (circle markers) ──────────────────────────────── */
+      addOrUpdateGeoJsonSource(map, FLOOD_SRC, floodFC);
+
+      if (!map.getLayer(FLOOD_CIRCLE_LAYER)) {
+        map.addLayer({
+          id: FLOOD_CIRCLE_LAYER,
+          type: "circle",
+          source: FLOOD_SRC,
+          paint: {
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 6, 7, 12, 11, 16, 14],
+            "circle-color": [
+              "match", ["get", "severity"],
+              "major",    "#ef4444",
+              "moderate", "#f97316",
+              "minor",    "#eab308",
+              "#3b82f6",
+            ],
+            "circle-stroke-color": "rgba(255,255,255,0.7)",
+            "circle-stroke-width": 2,
+            "circle-opacity": 0.9,
+          },
+        });
+      }
+
+      if (!map.getLayer(FLOOD_LABEL_LAYER)) {
+        map.addLayer({
+          id: FLOOD_LABEL_LAYER,
+          type: "symbol",
+          source: FLOOD_SRC,
+          layout: {
+            "text-field": ["get", "station_name"],
+            "text-font": ["Noto Sans Bold"],
+            "text-size": 10,
+            "text-offset": [0, 1.6],
+            "text-anchor": "top",
+            "text-max-width": 8,
+          },
+          paint: {
+            "text-color": "#1a1a1a",
+            "text-halo-color": "rgba(255,255,255,0.9)",
+            "text-halo-width": 1.5,
+          },
+          minzoom: 9,
+        });
+      }
+
+      map.on("click", FLOOD_CIRCLE_LAYER, (e: MapLayerMouseEvent) => {
+        const f = e?.features?.[0];
+        if (!f) return;
+        const p = f.properties;
+        const sevColor = p?.severity === "major" ? "#ef4444" : p?.severity === "moderate" ? "#f97316" : p?.severity === "minor" ? "#eab308" : "#3b82f6";
+        const heightStr = p?.latest_height_m != null ? ` — ${Number(p.latest_height_m).toFixed(2)}m` : "";
+        try {
+          popupRef.current?.remove();
+          popupRef.current = new maplibregl.Popup({ closeButton: true, closeOnClick: true, className: "trip-map-popup" })
+            .setLngLat(e.lngLat)
+            .setHTML(buildOverlayPopupHtml(`${p?.station_name ?? "Flood gauge"}${heightStr}`, `${p?.severity ?? "unknown"} (${p?.trend ?? "?"})`, sevColor))
+            .addTo(map);
+        } catch {}
+      });
+      map.on("mouseenter", FLOOD_CIRCLE_LAYER, () => (map.getCanvas().style.cursor = "pointer"));
+      map.on("mouseleave", FLOOD_CIRCLE_LAYER, () => (map.getCanvas().style.cursor = ""));
+
+      /* ── Rest area markers ───────────────────────────────────────────── */
+      addOrUpdateGeoJsonSource(map, REST_AREAS_SRC, restAreasFC);
+
+      if (!map.getLayer(REST_AREAS_ICON_LAYER)) {
+        map.addLayer({
+          id: REST_AREAS_ICON_LAYER,
+          type: "circle",
+          source: REST_AREAS_SRC,
+          paint: {
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 6, 5, 12, 9, 16, 12],
+            "circle-color": "#6366f1",
+            "circle-stroke-color": "rgba(255,255,255,0.7)",
+            "circle-stroke-width": 2,
+            "circle-opacity": 0.88,
+          },
+        });
+      }
+
+      if (!map.getLayer(REST_AREAS_LABEL_LAYER)) {
+        map.addLayer({
+          id: REST_AREAS_LABEL_LAYER,
+          type: "symbol",
+          source: REST_AREAS_SRC,
+          layout: {
+            "text-field": ["get", "name"],
+            "text-font": ["Open Sans Bold"],
+            "text-size": 10,
+            "text-offset": [0, 1.6],
+            "text-anchor": "top",
+            "text-max-width": 8,
+          },
+          paint: {
+            "text-color": "#1a1a1a",
+            "text-halo-color": "rgba(255,255,255,0.9)",
+            "text-halo-width": 1.5,
+          },
+          minzoom: 10,
+        });
+      }
+
+      map.on("click", REST_AREAS_ICON_LAYER, (e: MapLayerMouseEvent) => {
+        const f = e?.features?.[0];
+        if (!f) return;
+        const p = f.properties;
+        const label = p?.name ? String(p.name) : "Rest Area";
+        const typeStr = String(p?.type ?? "rest_area").replace(/_/g, " ");
+        const qs = typeof p?.quality_score === "number" ? p.quality_score : null;
+        const qualityLine = qs != null
+          ? `<div style="margin-top:4px;font-size:11px;font-weight:700;color:var(--roam-text-muted)">Quality: <span style="color:${qs >= 7 ? "#22c55e" : qs >= 4 ? "#f59e0b" : "#ef4444"};font-weight:800">${qs.toFixed(1)}/10</span></div>`
+          : "";
+        const facilitiesStr = p?.facilities_summary ? `<div style="margin-top:2px;font-size:10px;color:var(--roam-text-muted)">${escapeHtml(String(p.facilities_summary))}</div>` : "";
+        try {
+          popupRef.current?.remove();
+          popupRef.current = new maplibregl.Popup({ closeButton: true, closeOnClick: true, className: "trip-map-popup" })
+            .setLngLat(e.lngLat)
+            .setHTML(buildOverlayPopupHtml(label, typeStr, "#6366f1") + qualityLine + facilitiesStr)
+            .addTo(map);
+        } catch {}
+      });
+      map.on("mouseenter", REST_AREAS_ICON_LAYER, () => (map.getCanvas().style.cursor = "pointer"));
+      map.on("mouseleave", REST_AREAS_ICON_LAYER, () => (map.getCanvas().style.cursor = ""));
+
       // Restore overlay visibility after layers are (re)created
       applyAllOverlayVisibility(map, overlayVisRef.current);
 
@@ -1814,6 +2525,8 @@ export function TripMap(props: Props) {
       try {
         map.fitBounds(bboxToBounds(props.bbox), { padding: 60, duration: 0 });
       } catch {}
+
+      setStyleReady(true);
     });
 
     // Accuracy ring radius on zoom
@@ -1844,6 +2557,17 @@ export function TripMap(props: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /* ── Resize observer — keeps MapLibre canvas sized to its container ── */
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      mapRef.current?.resize();
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   /* ── Style change ───────────────────────────────────────────────────── */
   useEffect(() => {
     const map = mapRef.current;
@@ -1856,6 +2580,7 @@ export function TripMap(props: Props) {
         if (isFullyOfflineCapable()) {
           styleJson = rewriteStyleForLocalServer(styleJson);
         }
+        setStyleReady(false);
         map.setStyle(rewriteStyleForPMTiles(styleJson as StyleSpecification, origin), { diff: false });
       } catch (e: unknown) {
         console.error("[TripMap] style load failed", e);
@@ -1942,6 +2667,408 @@ export function TripMap(props: Props) {
     const s2 = map.getSource(HAZARD_POLY_SRC) as GeoJSONSource | undefined;
     s2?.setData(hazardPolyFC);
   }, [hazardPtFC, hazardPolyFC]);
+
+  useEffect(() => {
+    (mapRef.current?.getSource(WILDLIFE_SRC) as GeoJSONSource | undefined)?.setData(wildlifeFC);
+  }, [wildlifeFC]);
+  useEffect(() => {
+    (mapRef.current?.getSource(COVERAGE_SRC) as GeoJSONSource | undefined)?.setData(coverageFC);
+  }, [coverageFC]);
+  useEffect(() => {
+    (mapRef.current?.getSource(FLOOD_SRC) as GeoJSONSource | undefined)?.setData(floodFC);
+  }, [floodFC]);
+  useEffect(() => {
+    (mapRef.current?.getSource(FLOOD_CATCH_SRC) as GeoJSONSource | undefined)?.setData(floodCatchFC);
+  }, [floodCatchFC]);
+  useEffect(() => {
+    (mapRef.current?.getSource(REST_AREAS_SRC) as GeoJSONSource | undefined)?.setData(restAreasFC);
+  }, [restAreasFC]);
+
+  /* ── Weather overlay ────────────────────────────────────────────────── */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+
+    const emptyFC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+
+    if (!props.weather?.points?.length) {
+      const src = map.getSource(WEATHER_SRC) as GeoJSONSource | undefined;
+      if (src) src.setData(emptyFC);
+      return;
+    }
+
+    const weatherFC: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: props.weather.points.map((pt) => {
+        const temp = pt.temperature_c;
+        const precip = pt.precipitation_probability_pct;
+        const wind = pt.wind_speed_kmh;
+
+        let color =
+          precip < 20  ? "#22c55e" :
+          precip < 50  ? "#eab308" :
+          precip < 80  ? "#f97316" :
+                         "#3b82f6";
+        if (wind > 60) color = "#ef4444";
+
+        return {
+          type: "Feature" as const,
+          properties: {
+            temp,
+            precip_prob: precip,
+            wind,
+            code: pt.weather_code,
+            is_twilight: pt.is_twilight_danger,
+            has_rain: precip > 40,
+            has_wind: wind > 50,
+            color,
+          },
+          geometry: { type: "Point" as const, coordinates: [pt.lng, pt.lat] },
+        };
+      }),
+    };
+
+    // Determine a layer that exists in the stops group to use as beforeId
+    const beforeId = (() => {
+      for (const id of [STOPS_SHADOW, STOPS_OUTER, STOPS_INNER]) {
+        if (map.getLayer(id)) return id;
+      }
+      return undefined;
+    })();
+
+    const existingSrc = map.getSource(WEATHER_SRC) as GeoJSONSource | undefined;
+    if (existingSrc) {
+      existingSrc.setData(weatherFC);
+    } else {
+      map.addSource(WEATHER_SRC, { type: "geojson", data: weatherFC, cluster: false });
+
+      map.addLayer({
+        id: WEATHER_DOT_LAYER,
+        type: "circle",
+        source: WEATHER_SRC,
+        minzoom: 7,
+        paint: {
+          "circle-radius": 7,
+          "circle-color": ["get", "color"],
+          "circle-stroke-color": "rgba(255,255,255,0.7)",
+          "circle-stroke-width": 1.5,
+          "circle-opacity": 0.85,
+        },
+      }, beforeId);
+
+      map.addLayer({
+        id: WEATHER_LABEL_LAYER,
+        type: "symbol",
+        source: WEATHER_SRC,
+        minzoom: 8,
+        layout: {
+          "text-field": ["concat", ["to-string", ["round", ["get", "temp"]]], "°"],
+          "text-size": 10,
+          "text-offset": [0, 1.4],
+          "text-anchor": "top",
+        },
+        paint: {
+          "text-color": "#ffffff",
+          "text-halo-color": "rgba(0,0,0,0.6)",
+          "text-halo-width": 1,
+        },
+      }, beforeId);
+
+      // Apply current visibility
+      const v = overlayVisRef.current.weather ? "visible" : "none";
+      if (map.getLayer(WEATHER_DOT_LAYER)) map.setLayoutProperty(WEATHER_DOT_LAYER, "visibility", v);
+      if (map.getLayer(WEATHER_LABEL_LAYER)) map.setLayoutProperty(WEATHER_LABEL_LAYER, "visibility", v);
+    }
+  }, [props.weather, styleReady]);
+
+  /* ── Emergency services overlay ──────────────────────────────────────── */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+    const emptyFC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+    if (!props.emergency?.facilities?.length) {
+      const src = map.getSource(EMERGENCY_SRC) as GeoJSONSource | undefined;
+      if (src) src.setData(emptyFC);
+      return;
+    }
+    const fc: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: props.emergency.facilities.map((f) => ({
+        type: "Feature" as const,
+        properties: { id: f.id, name: f.name, facility_type: f.facility_type, suburb: f.suburb ?? "" },
+        geometry: { type: "Point" as const, coordinates: [f.lng, f.lat] },
+      })),
+    };
+    const beforeId = (() => { for (const id of [STOPS_SHADOW, STOPS_OUTER]) { if (map.getLayer(id)) return id; } return undefined; })();
+    const existingSrc = map.getSource(EMERGENCY_SRC) as GeoJSONSource | undefined;
+    if (existingSrc) { existingSrc.setData(fc); } else {
+      map.addSource(EMERGENCY_SRC, { type: "geojson", data: fc, cluster: false });
+      map.addLayer({ id: EMERGENCY_ICON_LAYER, type: "circle", source: EMERGENCY_SRC, minzoom: 8,
+        paint: { "circle-radius": 6, "circle-color": ["match", ["get", "facility_type"], "hospital", "#ef4444", "police", "#3b82f6", "fire", "#f97316", "ambulance", "#22c55e", "ses", "#eab308", "#9ca3af"], "circle-stroke-color": "#fff", "circle-stroke-width": 1.5, "circle-opacity": 0.9 },
+      }, beforeId);
+      map.addLayer({ id: EMERGENCY_LABEL_LAYER, type: "symbol", source: EMERGENCY_SRC, minzoom: 10,
+        layout: { "text-field": ["get", "name"], "text-size": 10, "text-offset": [0, 1.4], "text-anchor": "top", "text-max-width": 10 },
+        paint: { "text-color": "#ffffff", "text-halo-color": "rgba(0,0,0,0.6)", "text-halo-width": 1 },
+      }, beforeId);
+      const v = overlayVisRef.current.emergency ? "visible" : "none";
+      if (map.getLayer(EMERGENCY_ICON_LAYER)) map.setLayoutProperty(EMERGENCY_ICON_LAYER, "visibility", v);
+      if (map.getLayer(EMERGENCY_LABEL_LAYER)) map.setLayoutProperty(EMERGENCY_LABEL_LAYER, "visibility", v);
+    }
+  }, [props.emergency, styleReady]);
+
+  /* ── Heritage overlay ────────────────────────────────────────────────── */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+    const emptyFC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+    if (!props.heritage?.sites?.length) {
+      const src = map.getSource(HERITAGE_SRC) as GeoJSONSource | undefined;
+      if (src) src.setData(emptyFC);
+      return;
+    }
+    const fc: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: props.heritage.sites.filter((s) => s.lat != null && s.lng != null).map((s) => ({
+        type: "Feature" as const,
+        properties: { id: s.id, name: s.name, site_type: s.site_type },
+        geometry: { type: "Point" as const, coordinates: [s.lng!, s.lat!] },
+      })),
+    };
+    const beforeId = (() => { for (const id of [STOPS_SHADOW, STOPS_OUTER]) { if (map.getLayer(id)) return id; } return undefined; })();
+    const existingSrc = map.getSource(HERITAGE_SRC) as GeoJSONSource | undefined;
+    if (existingSrc) { existingSrc.setData(fc); } else {
+      map.addSource(HERITAGE_SRC, { type: "geojson", data: fc, cluster: false });
+      map.addLayer({ id: HERITAGE_ICON_LAYER, type: "circle", source: HERITAGE_SRC, minzoom: 8,
+        paint: { "circle-radius": 6, "circle-color": "#a855f7", "circle-stroke-color": "#fff", "circle-stroke-width": 1.5, "circle-opacity": 0.85 },
+      }, beforeId);
+      const v = overlayVisRef.current.heritage ? "visible" : "none";
+      if (map.getLayer(HERITAGE_ICON_LAYER)) map.setLayoutProperty(HERITAGE_ICON_LAYER, "visibility", v);
+    }
+  }, [props.heritage, styleReady]);
+
+  /* ── Air Quality overlay ─────────────────────────────────────────────── */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+    const emptyFC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+    if (!props.airQuality?.points?.length) {
+      const src = map.getSource(AQI_SRC) as GeoJSONSource | undefined;
+      if (src) src.setData(emptyFC);
+      return;
+    }
+    const fc: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: props.airQuality.points.map((pt) => {
+        const color = pt.aqi <= 1 ? "#22c55e" : pt.aqi <= 2 ? "#eab308" : pt.aqi <= 3 ? "#f97316" : pt.aqi <= 4 ? "#ef4444" : "#7c3aed";
+        return {
+          type: "Feature" as const,
+          properties: { aqi: pt.aqi, aqi_label: pt.aqi_label, color },
+          geometry: { type: "Point" as const, coordinates: [pt.lng, pt.lat] },
+        };
+      }),
+    };
+    const beforeId = (() => { for (const id of [STOPS_SHADOW, STOPS_OUTER]) { if (map.getLayer(id)) return id; } return undefined; })();
+    const existingSrc = map.getSource(AQI_SRC) as GeoJSONSource | undefined;
+    if (existingSrc) { existingSrc.setData(fc); } else {
+      map.addSource(AQI_SRC, { type: "geojson", data: fc, cluster: false });
+      map.addLayer({ id: AQI_DOT_LAYER, type: "circle", source: AQI_SRC, minzoom: 7,
+        paint: { "circle-radius": 7, "circle-color": ["get", "color"], "circle-stroke-color": "rgba(255,255,255,0.7)", "circle-stroke-width": 1.5, "circle-opacity": 0.85 },
+      }, beforeId);
+      map.addLayer({ id: AQI_LABEL_LAYER, type: "symbol", source: AQI_SRC, minzoom: 8,
+        layout: { "text-field": ["get", "aqi_label"], "text-size": 9, "text-offset": [0, 1.4], "text-anchor": "top" },
+        paint: { "text-color": "#ffffff", "text-halo-color": "rgba(0,0,0,0.6)", "text-halo-width": 1 },
+      }, beforeId);
+      const v = overlayVisRef.current.air_quality ? "visible" : "none";
+      if (map.getLayer(AQI_DOT_LAYER)) map.setLayoutProperty(AQI_DOT_LAYER, "visibility", v);
+      if (map.getLayer(AQI_LABEL_LAYER)) map.setLayoutProperty(AQI_LABEL_LAYER, "visibility", v);
+    }
+  }, [props.airQuality, styleReady]);
+
+  /* ── Bushfire overlay ────────────────────────────────────────────────── */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+    const emptyFC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+    if (!props.bushfire?.incidents?.length && !props.bushfire?.hotspots?.length) {
+      const src1 = map.getSource(BUSHFIRE_SRC) as GeoJSONSource | undefined;
+      if (src1) src1.setData(emptyFC);
+      const src2 = map.getSource(BUSHFIRE_HOTSPOT_SRC) as GeoJSONSource | undefined;
+      if (src2) src2.setData(emptyFC);
+      return;
+    }
+    const incidentFC: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: (props.bushfire?.incidents ?? []).map((inc) => ({
+        type: "Feature" as const,
+        properties: { id: inc.id, title: inc.title, alert_level: inc.alert_level ?? "unknown", status: inc.status ?? "" },
+        geometry: { type: "Point" as const, coordinates: [inc.lng, inc.lat] },
+      })),
+    };
+    const hotspotFC: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: (props.bushfire?.hotspots ?? []).map((h) => ({
+        type: "Feature" as const,
+        properties: { brightness: h.brightness ?? 0, confidence: h.confidence ?? "nominal" },
+        geometry: { type: "Point" as const, coordinates: [h.lng, h.lat] },
+      })),
+    };
+    const beforeId = (() => { for (const id of [STOPS_SHADOW, STOPS_OUTER]) { if (map.getLayer(id)) return id; } return undefined; })();
+    const s1 = map.getSource(BUSHFIRE_SRC) as GeoJSONSource | undefined;
+    if (s1) { s1.setData(incidentFC); } else {
+      map.addSource(BUSHFIRE_SRC, { type: "geojson", data: incidentFC, cluster: false });
+      map.addLayer({ id: BUSHFIRE_ICON_LAYER, type: "circle", source: BUSHFIRE_SRC, minzoom: 6,
+        paint: { "circle-radius": 8, "circle-color": ["match", ["get", "alert_level"], "Emergency Warning", "#dc2626", "Watch and Act", "#f97316", "Advice", "#eab308", "#f97316"], "circle-stroke-color": "#fff", "circle-stroke-width": 1.5, "circle-opacity": 0.9 },
+      }, beforeId);
+    }
+    const s2 = map.getSource(BUSHFIRE_HOTSPOT_SRC) as GeoJSONSource | undefined;
+    if (s2) { s2.setData(hotspotFC); } else {
+      map.addSource(BUSHFIRE_HOTSPOT_SRC, { type: "geojson", data: hotspotFC, cluster: false });
+      map.addLayer({ id: BUSHFIRE_HOTSPOT_LAYER, type: "circle", source: BUSHFIRE_HOTSPOT_SRC, minzoom: 7,
+        paint: { "circle-radius": 4, "circle-color": "#ef4444", "circle-stroke-color": "rgba(255,255,255,0.5)", "circle-stroke-width": 1, "circle-opacity": 0.7 },
+      }, beforeId);
+    }
+    const v = overlayVisRef.current.bushfire ? "visible" : "none";
+    if (map.getLayer(BUSHFIRE_ICON_LAYER)) map.setLayoutProperty(BUSHFIRE_ICON_LAYER, "visibility", v);
+    if (map.getLayer(BUSHFIRE_HOTSPOT_LAYER)) map.setLayoutProperty(BUSHFIRE_HOTSPOT_LAYER, "visibility", v);
+  }, [props.bushfire, styleReady]);
+
+  /* ── Speed Cameras + Black Spots overlay ──────────────────────────────── */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+    const emptyFC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+    if (!props.speedCameras?.cameras?.length && !props.speedCameras?.black_spots?.length) {
+      const src1 = map.getSource(CAMERAS_SRC) as GeoJSONSource | undefined;
+      if (src1) src1.setData(emptyFC);
+      const src2 = map.getSource(BLACKSPOT_SRC) as GeoJSONSource | undefined;
+      if (src2) src2.setData(emptyFC);
+      return;
+    }
+    const camerasFC: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: (props.speedCameras?.cameras ?? []).map((c) => ({
+        type: "Feature" as const,
+        properties: { id: c.id, camera_type: c.camera_type, road: c.road ?? "", is_school_zone: c.is_school_zone },
+        geometry: { type: "Point" as const, coordinates: [c.lng, c.lat] },
+      })),
+    };
+    const blackspotFC: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: (props.speedCameras?.black_spots ?? []).map((b) => ({
+        type: "Feature" as const,
+        properties: { id: b.id, road: b.road ?? "", crash_count: b.crash_count ?? 0 },
+        geometry: { type: "Point" as const, coordinates: [b.lng, b.lat] },
+      })),
+    };
+    const beforeId = (() => { for (const id of [STOPS_SHADOW, STOPS_OUTER]) { if (map.getLayer(id)) return id; } return undefined; })();
+    const s1 = map.getSource(CAMERAS_SRC) as GeoJSONSource | undefined;
+    if (s1) { s1.setData(camerasFC); } else {
+      map.addSource(CAMERAS_SRC, { type: "geojson", data: camerasFC, cluster: false });
+      map.addLayer({ id: CAMERAS_ICON_LAYER, type: "circle", source: CAMERAS_SRC, minzoom: 9,
+        paint: { "circle-radius": 5, "circle-color": "#6366f1", "circle-stroke-color": "#fff", "circle-stroke-width": 1.5, "circle-opacity": 0.9 },
+      }, beforeId);
+    }
+    const s2 = map.getSource(BLACKSPOT_SRC) as GeoJSONSource | undefined;
+    if (s2) { s2.setData(blackspotFC); } else {
+      map.addSource(BLACKSPOT_SRC, { type: "geojson", data: blackspotFC, cluster: false });
+      map.addLayer({ id: BLACKSPOT_LAYER, type: "circle", source: BLACKSPOT_SRC, minzoom: 9,
+        paint: { "circle-radius": 5, "circle-color": "#dc2626", "circle-stroke-color": "#fff", "circle-stroke-width": 1, "circle-opacity": 0.8 },
+      }, beforeId);
+    }
+    const v = overlayVisRef.current.cameras ? "visible" : "none";
+    if (map.getLayer(CAMERAS_ICON_LAYER)) map.setLayoutProperty(CAMERAS_ICON_LAYER, "visibility", v);
+    if (map.getLayer(BLACKSPOT_LAYER)) map.setLayoutProperty(BLACKSPOT_LAYER, "visibility", v);
+  }, [props.speedCameras, styleReady]);
+
+  /* ── Toilets overlay ─────────────────────────────────────────────────── */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+    const emptyFC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+    if (!props.toilets?.toilets?.length) {
+      const src = map.getSource(TOILETS_SRC) as GeoJSONSource | undefined;
+      if (src) src.setData(emptyFC);
+      return;
+    }
+    const fc: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: props.toilets.toilets.map((t) => ({
+        type: "Feature" as const,
+        properties: { id: t.id, name: t.name ?? "", is_accessible: t.is_accessible, is_dump_point: t.is_dump_point },
+        geometry: { type: "Point" as const, coordinates: [t.lng, t.lat] },
+      })),
+    };
+    const beforeId = (() => { for (const id of [STOPS_SHADOW, STOPS_OUTER]) { if (map.getLayer(id)) return id; } return undefined; })();
+    const existingSrc = map.getSource(TOILETS_SRC) as GeoJSONSource | undefined;
+    if (existingSrc) { existingSrc.setData(fc); } else {
+      map.addSource(TOILETS_SRC, { type: "geojson", data: fc, cluster: false });
+      map.addLayer({ id: TOILETS_ICON_LAYER, type: "circle", source: TOILETS_SRC, minzoom: 9,
+        paint: { "circle-radius": 5, "circle-color": "#06b6d4", "circle-stroke-color": "#fff", "circle-stroke-width": 1.5, "circle-opacity": 0.85 },
+      }, beforeId);
+      const v = overlayVisRef.current.toilets ? "visible" : "none";
+      if (map.getLayer(TOILETS_ICON_LAYER)) map.setLayoutProperty(TOILETS_ICON_LAYER, "visibility", v);
+    }
+  }, [props.toilets, styleReady]);
+
+  /* ── School Zones overlay ────────────────────────────────────────────── */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+    const emptyFC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+    if (!props.schoolZones?.zones?.length) {
+      const src = map.getSource(SCHOOL_ZONES_SRC) as GeoJSONSource | undefined;
+      if (src) src.setData(emptyFC);
+      return;
+    }
+    const fc: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: props.schoolZones.zones.map((z) => ({
+        type: "Feature" as const,
+        properties: { id: z.id, school_name: z.school_name ?? "", is_active: z.is_currently_active, speed_limit: z.speed_limit_active_kmh },
+        geometry: { type: "Point" as const, coordinates: [z.lng, z.lat] },
+      })),
+    };
+    const beforeId = (() => { for (const id of [STOPS_SHADOW, STOPS_OUTER]) { if (map.getLayer(id)) return id; } return undefined; })();
+    const existingSrc = map.getSource(SCHOOL_ZONES_SRC) as GeoJSONSource | undefined;
+    if (existingSrc) { existingSrc.setData(fc); } else {
+      map.addSource(SCHOOL_ZONES_SRC, { type: "geojson", data: fc, cluster: false });
+      map.addLayer({ id: SCHOOL_ZONES_ICON_LAYER, type: "circle", source: SCHOOL_ZONES_SRC, minzoom: 9,
+        paint: { "circle-radius": 6, "circle-color": ["case", ["get", "is_active"], "#ef4444", "#f59e0b"], "circle-stroke-color": "#fff", "circle-stroke-width": 1.5, "circle-opacity": 0.9 },
+      }, beforeId);
+      const v = overlayVisRef.current.school_zones ? "visible" : "none";
+      if (map.getLayer(SCHOOL_ZONES_ICON_LAYER)) map.setLayoutProperty(SCHOOL_ZONES_ICON_LAYER, "visibility", v);
+    }
+  }, [props.schoolZones, styleReady]);
+
+  /* ── Roadkill hotspots overlay ───────────────────────────────────────── */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+    const emptyFC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+    if (!props.roadkill?.hotspots?.length) {
+      const src = map.getSource(ROADKILL_SRC) as GeoJSONSource | undefined;
+      if (src) src.setData(emptyFC);
+      return;
+    }
+    const fc: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: props.roadkill.hotspots.map((h) => ({
+        type: "Feature" as const,
+        properties: { id: h.id, risk_level: h.risk_level, count: h.observation_count, species: h.species.join(", ") },
+        geometry: { type: "Point" as const, coordinates: [h.lng, h.lat] },
+      })),
+    };
+    const beforeId = (() => { for (const id of [STOPS_SHADOW, STOPS_OUTER]) { if (map.getLayer(id)) return id; } return undefined; })();
+    const existingSrc = map.getSource(ROADKILL_SRC) as GeoJSONSource | undefined;
+    if (existingSrc) { existingSrc.setData(fc); } else {
+      map.addSource(ROADKILL_SRC, { type: "geojson", data: fc, cluster: false });
+      map.addLayer({ id: ROADKILL_DOT_LAYER, type: "circle", source: ROADKILL_SRC, minzoom: 8,
+        paint: { "circle-radius": 5, "circle-color": ["match", ["get", "risk_level"], "high", "#dc2626", "medium", "#f97316", "#eab308"], "circle-stroke-color": "#fff", "circle-stroke-width": 1, "circle-opacity": 0.8 },
+      }, beforeId);
+      const v = overlayVisRef.current.roadkill ? "visible" : "none";
+      if (map.getLayer(ROADKILL_DOT_LAYER)) map.setLayoutProperty(ROADKILL_DOT_LAYER, "visibility", v);
+    }
+  }, [props.roadkill, styleReady]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -2213,11 +3340,7 @@ export function TripMap(props: Props) {
             position: "absolute",
             top: "calc(env(safe-area-inset-top, 0px) + 64px)",
             right: 12,
-            zIndex: 5,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "flex-end",
-            gap: 6,
+            zIndex: 25,
           }}>
             {/* Main layers button */}
             <button
@@ -2227,7 +3350,7 @@ export function TripMap(props: Props) {
               style={{
                 width: 40, height: 40, borderRadius: 12, border: "none",
                 cursor: "pointer", display: "grid", placeItems: "center",
-                background: anyOff ? "rgba(74,108,83,0.9)" : "rgba(30,30,30,0.88)",
+                background: anyOff ? "rgba(34,165,90,0.9)" : "rgba(30,30,30,0.88)",
                 color: "white",
                 backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
                 boxShadow: "0 4px 16px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.15)",
@@ -2245,22 +3368,35 @@ export function TripMap(props: Props) {
               </svg>
             </button>
 
-            {/* Expanded menu */}
+            {/* Expanded menu — opens downward, constrained above the bottom sheet peek */}
             {layerMenuOpen && (
               <div style={{
+                position: "absolute",
+                top: "calc(100% + 6px)",
+                right: 0,
                 background: "rgba(20,20,20,0.92)",
                 backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
-                borderRadius: 14, padding: "6px 4px",
+                borderRadius: 14,
                 boxShadow: "0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2)",
-                display: "flex", flexDirection: "column", gap: 2,
                 minWidth: 150,
+                maxHeight: "calc(100vh - 64px - 40px - 6px - 160px - var(--roam-safe-bottom, 0px) - var(--bottom-nav-height, 60px))",
+                display: "flex", flexDirection: "column",
+                overflow: "hidden",
+              }}>
+              <div style={{
+                overflowY: "auto",
+                flex: 1,
+                padding: "6px 4px",
+                display: "flex", flexDirection: "column", gap: 2,
+                maskImage: "linear-gradient(to bottom, black calc(100% - 52px), transparent 100%)",
+                WebkitMaskImage: "linear-gradient(to bottom, black calc(100% - 52px), transparent 100%)",
               }}>
                 {/* Toggle All */}
                 <button
                   type="button"
                   onClick={() => {
                     const next = allOn
-                      ? { stops: false, places: false, fuel: false, traffic: false, hazards: false }
+                      ? Object.fromEntries(ALL_OVERLAY_KEYS.map((k) => [k, false])) as OverlayVisibility
                       : { ...DEFAULT_VIS };
                     setOverlayVis(next);
                   }}
@@ -2275,20 +3411,33 @@ export function TripMap(props: Props) {
                   <span style={{
                     width: 18, height: 18, borderRadius: 5,
                     border: allOn ? "none" : "2px solid rgba(255,255,255,0.4)",
-                    background: allOn ? "#4a6c53" : "transparent",
+                    background: allOn ? "white" : "transparent",
                     display: "grid", placeItems: "center", flexShrink: 0,
                   }}>
-                    {allOn && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>}
+                    {allOn && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#111" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>}
                   </span>
                   All layers
                 </button>
 
                 {([
-                  ["stops",   "Stops",   "#2563eb"],
-                  ["places",  "Places",  "#22c55e"],
-                  ["fuel",    "Fuel",    "#f59e0b"],
-                  ["traffic", "Traffic", "#fb923c"],
-                  ["hazards", "Hazards", "#ef4444"],
+                  ["stops",        "Stops",        "#e04e4e"],
+                  ["places",       "Places",       "#22a55a"],
+                  ["fuel",         "Fuel",         "#e2a12f"],
+                  ["traffic",      "Traffic",      "#f57c24"],
+                  ["hazards",      "Hazards",      "#d42e5b"],
+                  ["wildlife",     "Wildlife",     "#a87b32"],
+                  ["coverage",     "Coverage",     "#8b5cf6"],
+                  ["flood",        "Flood",        "#3b82f6"],
+                  ["rest_areas",   "Rest Areas",   "#14b8a6"],
+                  ["weather",      "Weather",      "#0ea5e9"],
+                  ["emergency",    "Emergency",    "#ef4444"],
+                  ["heritage",     "Heritage",     "#a855f7"],
+                  ["air_quality",  "Air Quality",  "#10b981"],
+                  ["bushfire",     "Bushfire",     "#f97316"],
+                  ["cameras",      "Cameras",      "#6366f1"],
+                  ["toilets",      "Toilets",      "#06b6d4"],
+                  ["school_zones", "School Zones", "#f59e0b"],
+                  ["roadkill",     "Roadkill",     "#b45309"],
                 ] as const).map(([key, label, color]) => (
                   <button
                     key={key}
@@ -2311,11 +3460,59 @@ export function TripMap(props: Props) {
                       {overlayVis[key] && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>}
                     </span>
                     <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ width: 8, height: 8, borderRadius: 4, background: color, flexShrink: 0 }} />
                       {label}
+                      {key === "weather" && props.weather && props.weather.warnings.length > 0 && (
+                        <span className="ml-1 h-2 w-2 rounded-full bg-red-500 inline-block" />
+                      )}
                     </span>
                   </button>
                 ))}
+              </div>
+
+              {/* Map style switcher */}
+              {props.onStyleChange && (() => {
+                const styleId = props.styleId;
+                const mode: MapBaseMode = styleId === "roam-basemap-hybrid" ? "hybrid" : "vector";
+                const vectorTheme: VectorTheme = styleId === "roam-basemap-vector-dark" ? "dark" : "bright";
+                const btnBase = MAP_STYLE_BTN_BASE;
+                return (
+                  <div style={{
+                    padding: "8px 8px 6px",
+                    borderTop: "1px solid rgba(255,255,255,0.08)",
+                    display: "flex", flexDirection: "column", gap: 6,
+                  }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", letterSpacing: "0.08em", padding: "0 4px" }}>MAP STYLE</span>
+                    {/* Map / Sat row */}
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <button type="button" onClick={() => { haptic.selection(); props.onStyleChange!({ mode: "vector", vectorTheme }); }}
+                        style={{ ...btnBase, background: mode === "vector" ? "rgba(255,255,255,0.18)" : "transparent", color: "white" }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z"/><path d="M9 3v15M15 6v15"/></svg>
+                        Map
+                      </button>
+                      <button type="button" onClick={() => { haptic.selection(); props.onStyleChange!({ mode: "hybrid", vectorTheme }); }}
+                        style={{ ...btnBase, background: mode === "hybrid" ? "rgba(255,255,255,0.18)" : "transparent", color: "white" }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m2 12 4-4 4 4 4-4 4 4"/><path d="m6 16 2-2 4 2 4-2 2 2"/></svg>
+                        Sat
+                      </button>
+                    </div>
+                    {/* Bright / Dark row — animates in when vector mode is active */}
+                    <div className={mode === "vector" ? "style-theme-row style-theme-row--open" : "style-theme-row"}>
+                      <div style={{ display: "flex", gap: 4 }}>
+                        <button type="button" onClick={() => { haptic.selection(); props.onStyleChange!({ mode: "vector", vectorTheme: "bright" }); }}
+                          style={{ ...btnBase, background: vectorTheme === "bright" ? "rgba(255,255,255,0.18)" : "transparent", color: "white" }}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+                          Bright
+                        </button>
+                        <button type="button" onClick={() => { haptic.selection(); props.onStyleChange!({ mode: "vector", vectorTheme: "dark" }); }}
+                          style={{ ...btnBase, background: vectorTheme === "dark" ? "rgba(255,255,255,0.18)" : "transparent", color: "white" }}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+                          Dark
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
               </div>
             )}
           </div>
@@ -2323,6 +3520,16 @@ export function TripMap(props: Props) {
       })()}
 
       <style>{`
+        .style-theme-row {
+          max-height: 0;
+          opacity: 0;
+          overflow: hidden;
+          transition: max-height 220ms cubic-bezier(0.4,0,0.2,1), opacity 180ms ease;
+        }
+        .style-theme-row--open {
+          max-height: 48px;
+          opacity: 1;
+        }
         .trip-map-popup .maplibregl-popup-content {
           border-radius: 16px;
           padding: 14px 16px;

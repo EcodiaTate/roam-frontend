@@ -23,6 +23,7 @@
     "@capacitor/browser": "^8.0.1",
     "@capacitor/cli": "^8.1.0",
     "@capacitor/core": "^8.1.0",
+    "@capacitor/filesystem": "^8.1.2",
     "@capacitor/geolocation": "^8.1.0",
     "@capacitor/haptics": "^8.0.0",
     "@capacitor/ios": "^8.1.0",
@@ -35,7 +36,6 @@
     "@capacitor/status-bar": "^8.0.1",
     "@revenuecat/purchases-capacitor": "^12.2.4",
     "@supabase/supabase-js": "^2.95.3",
-    "@what3words/api": "^5.4.0",
     "fflate": "^0.8.2",
     "idb": "^8.0.3",
     "lucide-react": "^0.564.0",
@@ -44,7 +44,6 @@
     "pmtiles": "^4.4.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "stripe": "^20.4.1",
     "zod": "^4.3.6"
   },
   "devDependencies": {

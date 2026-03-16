@@ -16,7 +16,6 @@ import { planSync } from "@/lib/offline/planSync";
 import { mergeLocalTripsToServer } from "@/lib/paywall/tripGate";
 
 import { Capacitor } from "@capacitor/core";
-import { SignInWithApple } from "@capacitor-community/apple-sign-in";
 
 export type AuthState = {
   loading: boolean;
@@ -153,6 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // clientId is ignored by the native iOS plugin (ASAuthorizationAppleIDProvider
       // has no client ID concept) - Apple always sets aud = Bundle ID in the JWT.
       // Supabase must have au.ecodia.roam listed under Apple provider → Authorized Client IDs.
+      const { SignInWithApple } = await import("@capacitor-community/apple-sign-in");
       const result = await SignInWithApple.authorize({
         clientId: "au.ecodia.roam",
         redirectURI: "https://roam.ecodia.au/auth/callback", // unused on native, required by plugin types

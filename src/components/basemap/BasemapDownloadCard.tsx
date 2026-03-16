@@ -39,11 +39,6 @@ export function BasemapDownloadCard({ region = "australia", onReady, className }
 
   return (
     <div className={className} style={styles.wrapper}>
-      <style>{`
-        @keyframes roam-spin { 100% { transform: rotate(360deg); } }
-        .roam-spin { animation: roam-spin 2.5s linear infinite; }
-      `}</style>
-
       {/* 3. Downloading state */}
       {status.state === "downloading" && (
         <div style={styles.container}>

@@ -4,6 +4,15 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { networkMonitor } from "@/lib/offline/networkMonitor";
 
+// Stable selector functions — defined outside the component so they never
+// change identity, preventing useSyncExternalStore from re-subscribing.
+const subscribe = (cb: () => void) => networkMonitor.subscribe(cb);
+const getOnline = () => networkMonitor.online;
+const getDeviceOnline = () => networkMonitor.deviceOnline;
+const getBackendReachable = () => networkMonitor.backendReachable;
+const ssrOnline = () => true;
+const ssrOffline = () => false;
+
 /**
  * React hook that reactively tracks online/offline state.
  *
@@ -15,30 +24,13 @@ import { networkMonitor } from "@/lib/offline/networkMonitor";
  * Starts the network monitor on first mount (idempotent).
  */
 export function useNetworkStatus() {
-  // Ensure the monitor is running (idempotent — safe to call many times)
   useEffect(() => {
     networkMonitor.start();
   }, []);
 
-  // Subscribe to the singleton's changes via useSyncExternalStore
-  // so React re-renders on transitions.
-  const online = useSyncExternalStore(
-    (cb) => networkMonitor.subscribe(cb),
-    () => networkMonitor.online,
-    () => true, // SSR snapshot: assume online
-  );
-
-  const deviceOnline = useSyncExternalStore(
-    (cb) => networkMonitor.subscribe(cb),
-    () => networkMonitor.deviceOnline,
-    () => true,
-  );
-
-  const backendReachable = useSyncExternalStore(
-    (cb) => networkMonitor.subscribe(cb),
-    () => networkMonitor.backendReachable,
-    () => false,
-  );
+  const online = useSyncExternalStore(subscribe, getOnline, ssrOnline);
+  const deviceOnline = useSyncExternalStore(subscribe, getDeviceOnline, ssrOnline);
+  const backendReachable = useSyncExternalStore(subscribe, getBackendReachable, ssrOffline);
 
   return { online, deviceOnline, backendReachable };
 }

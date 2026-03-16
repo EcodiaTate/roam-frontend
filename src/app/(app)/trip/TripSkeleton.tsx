@@ -45,7 +45,7 @@ export function TripSkeleton() {
         }}
       />
 
-      {/* ── Bottom sheet ────────────────────────────────────────────── */}
+      {/* ── Bottom sheet — collapsed position matching ClientPage peek ── */}
       <div
         className="trip-bottom-sheet"
         style={{
@@ -53,35 +53,31 @@ export function TripSkeleton() {
           bottom: 0,
           left: 0,
           right: 0,
-          height: "calc(220px + var(--roam-safe-bottom, 0px))",
+          height: "calc(100% - 80px)",
           zIndex: 20,
-          display: "flex",
-          flexDirection: "column",
+          transform: "translateY(calc(100% - 220px - var(--roam-safe-bottom, 0px)))",
         }}
       >
-        {/* Drag handle area */}
-        <div style={{ padding: "16px 20px 6px", display: "flex", justifyContent: "center" }}>
+        {/* Drag handle */}
+        <div style={{ padding: "16px 20px 6px", touchAction: "none" }}>
           <div className="trip-drag-handle" />
         </div>
 
-        {/* Sheet header */}
-        <div style={{ padding: "0 20px 12px", display: "flex", flexDirection: "column", gap: 12 }}>
-          {/* Title row + icon buttons */}
+        {/* Header: title + icon buttons */}
+        <div style={{ padding: "0 20px 14px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-            {/* Title */}
-            <Skel w={160} h={20} r={8} delay={0.05} style={{ flex: "none" }} />
+            <Skel w={160} h={18} r={8} delay={0.05} />
 
-            {/* 3 icon buttons */}
-            <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-              {[0, 1].map((i) => (
-                <Skel key={i} w={40} h={40} r={999} delay={0.1 + i * 0.05} />
+            <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+              {[0, 1, 2].map((i) => (
+                <Skel key={i} w={32} h={32} r={10} delay={0.1 + i * 0.05} />
               ))}
-              {/* Account button (ochre) */}
+              {/* Ochre account/upgrade button */}
               <div
                 style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 999,
+                  width: 32,
+                  height: 32,
+                  borderRadius: 10,
                   background: "var(--brand-ochre, #b5452e)",
                   opacity: 0.35,
                   animation: "trip-skel-pulse 1.6s ease-in-out infinite 0.2s",
@@ -90,65 +86,11 @@ export function TripSkeleton() {
               />
             </div>
           </div>
-
-          {/* Start navigation button */}
-          <Skel w="100%" h={48} r={14} delay={0.15} />
         </div>
 
-        {/* Stop list rows */}
-        <div
-          style={{
-            flex: 1,
-            padding: "0 20px",
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
-            overflow: "hidden",
-          }}
-        >
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div
-              key={i}
-              style={{
-                borderRadius: "var(--r-card)",
-                background: "var(--roam-surface-hover)",
-                padding: "14px 16px",
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                animation: `trip-skel-pulse 1.6s ease-in-out infinite ${0.1 + i * 0.08}s`,
-              }}
-            >
-              {/* Stop number circle */}
-              <div
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 16,
-                  background: "var(--roam-surface)",
-                  flexShrink: 0,
-                }}
-              />
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-                <div
-                  style={{
-                    height: 16,
-                    borderRadius: 6,
-                    background: "var(--roam-surface)",
-                    width: `${55 + (i % 3) * 12}%`,
-                  }}
-                />
-                <div
-                  style={{
-                    height: 11,
-                    borderRadius: 6,
-                    background: "var(--roam-surface)",
-                    width: `${35 + (i % 2) * 15}%`,
-                  }}
-                />
-              </div>
-            </div>
-          ))}
+        {/* Start navigation button placeholder */}
+        <div style={{ padding: "0 20px" }}>
+          <Skel w="100%" h={48} r={14} delay={0.15} />
         </div>
       </div>
 

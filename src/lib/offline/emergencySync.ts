@@ -13,7 +13,7 @@ import { mergeEmergencyFromCloud } from "@/lib/offline/emergencyStore";
 import { peekEmergencyOps, removeEmergencyOp } from "@/lib/offline/emergencyQueue";
 
 // Pull cloud -> merge into local
-export async function emergencyPull(user: User | null): Promise<void> {
+async function emergencyPull(user: User | null): Promise<void> {
   if (!user) return;
   const remote = await cloudListEmergencyContacts(user);
   await mergeEmergencyFromCloud(remote);

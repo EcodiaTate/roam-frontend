@@ -32,7 +32,7 @@ export async function getGuidePack(planId: string | null, guideKey: string): Pro
   return row?.payload;
 }
 
-export async function deleteGuidePack(planId: string | null, guideKey: string): Promise<void> {
+async function deleteGuidePack(planId: string | null, guideKey: string): Promise<void> {
   await idbDel(idbStores.packs, makeKey(planId, guideKey));
 }
 

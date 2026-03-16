@@ -40,10 +40,31 @@ const RULES: CategoryRule[] = [
       "camp", "camping", "campsite", "camp site", "campground",
       "caravan", "caravan park", "rv park", "motorhome", "camper",
       "glamping", "tent", "swag", "free camp", "freecamp",
-      "bush camp", "rest area", "overnight", "sleep rough",
+      "bush camp", "bush camping", "dispersed camping",
+      "overnight", "sleep rough",
+      "station stay", "farm stay", "farmstay",
     ],
     categories: ["camp"],
     weight: 10,
+  },
+  // Free/cheap camping — specific sub-intents (high weight so they beat generic "camp")
+  {
+    keywords: [
+      "free camping", "free campsite", "free camp ground",
+      "cheap camp", "cheap camping", "low cost camp", "budget camp",
+      "no fee camp", "cost nothing",
+    ],
+    categories: ["camp"],
+    weight: 11,
+  },
+  // Rest area overnight — maps to rest_area category
+  {
+    keywords: [
+      "rest area camping", "sleep at rest area", "overnight rest area",
+      "rest area overnight", "camp at rest area", "can i sleep at rest area",
+    ],
+    categories: ["rest_area"],
+    weight: 11,
   },
   {
     keywords: [
@@ -60,23 +81,59 @@ const RULES: CategoryRule[] = [
     weight: 9,
   },
 
+  // ── Dump points ───────────────────────────────────────────
+  {
+    keywords: [
+      "dump station", "dump point", "dump site", "dump",
+      "black water", "blackwater", "grey water", "greywater",
+      "waste dump", "waste station", "chemical toilet",
+      "empty toilet", "cassette", "sewer dump",
+    ],
+    categories: ["dump_point"],
+    weight: 10,
+  },
+
   // ── Water ─────────────────────────────────────────────────
   {
     keywords: [
-      "water", "drinking water", "tap water", "refill water",
-      "water tank", "bore water", "potable",
+      "drinking water", "potable water", "fill up water", "water tap",
+      "tap water", "refill water", "water tank", "bore water",
+      "water point", "fresh water", "freshwater", "water station",
     ],
     categories: ["water"],
     weight: 10,
+  },
+  {
+    keywords: ["water"],
+    categories: ["water"],
+    weight: 8,
   },
 
   // ── Toilets ───────────────────────────────────────────────
   {
     keywords: [
-      "toilet", "toilets", "bathroom", "restroom", "rest room",
-      "loo", "dunny", "wc", "amenities", "public toilet",
+      "public toilet", "public toilets", "rest room", "restroom",
+      "toilet block", "dunny", "loo", "wc", "amenities block",
     ],
     categories: ["toilet"],
+    weight: 10,
+  },
+  {
+    keywords: [
+      "toilet", "toilets", "bathroom",
+    ],
+    categories: ["toilet"],
+    weight: 9,
+  },
+
+  // ── Showers ───────────────────────────────────────────────
+  {
+    keywords: [
+      "shower", "showers", "hot shower", "free shower", "public shower",
+      "wash up", "wash off", "beach shower", "truck stop shower",
+      "clean up",
+    ],
+    categories: ["shower"],
     weight: 10,
   },
 
@@ -279,7 +336,7 @@ const RULES: CategoryRule[] = [
       "stop", "stops", "break", "rest", "pull over",
       "stretch", "stretch legs",
     ],
-    categories: ["fuel", "cafe", "toilet", "camp", "town"],
+    categories: ["fuel", "cafe", "toilet", "shower", "camp", "town"],
     weight: 5,
   },
   {
@@ -306,6 +363,33 @@ export type ExtractedIntent = {
   proximityQuery: boolean;
   /** Rough max distance in km if the user specified one (null otherwise) */
   maxDistanceKm: number | null;
+  /** Compound filters: extra field conditions to apply when filtering places */
+  filters?: {
+    free?: true;
+    has_potable_water_at_dump?: true;
+    dump_access?: "public";
+    shower_type?: "hot";
+    water_type?: "potable";
+  };
+  /** Camp-specific attribute filters — only applied when categories includes "camp" or "rest_area" */
+  campFilters?: {
+    pets?: true;
+    free?: true;
+    powered?: true;
+    showers?: true;
+    dump_point?: true;
+    caravans?: true;
+    phone_reception?: true;
+    bbq?: true;
+    wifi?: true;
+    fires?: true;
+    has_toilets?: true;
+    has_water?: true;
+    /** Filter by specific camp sub-type */
+    camp_type?: "free" | "low_cost" | "bush" | "station_stay" | "showground";
+    /** Only show places where overnight stays are permitted */
+    overnight_allowed?: true;
+  };
 };
 
 /**
@@ -349,11 +433,103 @@ export function extractIntent(text: string): ExtractedIntent {
     if (maxDistanceKm > 2000) maxDistanceKm = null; // sanity check
   }
 
+  // Compound intent filters
+  const filters: ExtractedIntent["filters"] = {};
+  if (lower.includes("free dump") || lower.includes("free dump station") || lower.includes("no charge dump")) {
+    filters.free = true;
+  }
+  if (lower.includes("potable") || lower.includes("drinking water at dump") || lower.includes("water at dump")) {
+    filters.has_potable_water_at_dump = true;
+  }
+  if (lower.includes("free dump") || lower.includes("public dump")) {
+    filters.dump_access = "public";
+  }
+  if (lower.includes("hot shower") || lower.includes("warm shower")) {
+    filters.shower_type = "hot";
+  }
+  if (lower.includes("potable water") || lower.includes("drinking water")) {
+    filters.water_type = "potable";
+  }
+
+  // Camp-specific attribute filters
+  const campFilters: NonNullable<ExtractedIntent["campFilters"]> = {};
+
+  if (lower.match(/\bdog[- ]?friendly\b/) || lower.match(/\bpets?\s+allowed\b/) || lower.match(/\bdog[s]?\s+(ok|welcome|allowed)\b/)) {
+    campFilters.pets = true;
+  }
+  if (lower.match(/\bfree\s+camp/) || lower.match(/\bfreecamp/) || lower.match(/\bno[- ]?fee\b/) || lower.match(/\bno[- ]?cost\b/)) {
+    campFilters.free = true;
+    campFilters.camp_type = "free";
+  }
+  if (lower.match(/\b(cheap|budget|low[- ]?cost)\s+(camp|camping)/) || lower.match(/\bunder\s+\$\d+\s*(a\s*)?night\b/)) {
+    campFilters.camp_type = campFilters.camp_type ?? "low_cost";
+  }
+  if (lower.match(/\bbush\s+camp/) || lower.match(/\bdispersed\s+camp/) || lower.match(/\bbush\s+camping\b/)) {
+    campFilters.camp_type = "bush";
+  }
+  if (lower.match(/\bstation\s+stay\b/) || lower.match(/\bstation\s+camp\b/)) {
+    campFilters.camp_type = "station_stay";
+  }
+  if (lower.match(/\bshowground[s]?\b/) && (lower.includes("camp") || lower.includes("stay") || lower.includes("overnight"))) {
+    campFilters.camp_type = "showground";
+  }
+  if (lower.match(/\bovernight\s+(rest\s+area|at\s+rest)/) || lower.match(/\brest\s+area\s+(camp|overnight|sleep)/)) {
+    campFilters.overnight_allowed = true;
+  }
+  // Legal camping query — show only overnight-permitted places
+  if (lower.match(/\bcan\s+i\s+camp\b/) || lower.match(/\blegal\s+camp/) || lower.match(/\bis\s+it\s+legal\s+to\s+camp/)) {
+    campFilters.overnight_allowed = true;
+  }
+  if (lower.match(/\bpowered\s+(site|sites|up)/) || lower.match(/\b(power|electricity|electric)\s+(hook.?up|connection|plug)\b/)) {
+    campFilters.powered = true;
+  }
+  if (lower.match(/\bwith\s+shower/) || lower.match(/\bhas\s+shower/) || lower.match(/\bshowers?\s+(available|on.?site)\b/)) {
+    campFilters.showers = true;
+  }
+  if (lower.match(/\bdump\s*point/) || lower.match(/\bdump\s*station/) || lower.match(/\bsanitary\s*dump\b/)) {
+    campFilters.dump_point = true;
+  }
+  if (lower.match(/\bcaravan[s]?\b/) || lower.match(/\bvan[- ]?friendly\b/) || lower.match(/\brig\b/)) {
+    campFilters.caravans = true;
+  }
+  if (lower.match(/\btelstra\b/) || lower.match(/\bcoverage\b/) || lower.match(/\bphone\s+(signal|reception|service)\b/) || lower.match(/\bcoverage\b/)) {
+    campFilters.phone_reception = true;
+  }
+  if (lower.match(/\bbbq\b/) || lower.match(/\bbarbe?que?\b/)) {
+    campFilters.bbq = true;
+  }
+  if (lower.match(/\bwifi\b/) || lower.match(/\bwi-?fi\b/) || lower.match(/\binternet\b/)) {
+    campFilters.wifi = true;
+  }
+  if (lower.match(/\bfire[s]?\s+(allowed|ok|permitted)\b/) || lower.match(/\bcampfire[s]?\b/)) {
+    campFilters.fires = true;
+  }
+  // Compound: free camp with specific facilities
+  if (lower.match(/\bfree\s+camp.*(with\s+toilet|has\s+toilet)/) || lower.match(/\b(with\s+toilet).*(free\s+camp)/)) {
+    campFilters.free = true;
+    campFilters.has_toilets = true;
+  }
+  if (lower.match(/\bfree\s+camp.*(with\s+water|has\s+water)/) || lower.match(/\b(with\s+water).*(free\s+camp)/)) {
+    campFilters.free = true;
+    campFilters.has_water = true;
+  }
+  if (lower.match(/\bdog[- ]?friendly\s+free\s+camp/) || lower.match(/\bfree\s+camp.*dog[- ]?friendly/)) {
+    campFilters.free = true;
+    campFilters.pets = true;
+  }
+
+  // If camp filters matched, ensure "camp" is in categories
+  if (Object.keys(campFilters).length > 0 && !catSet.has("camp")) {
+    catSet.add("camp");
+  }
+
   return {
     categories: Array.from(catSet),
     confidence: sorted.length > 0 ? sorted[0].weight : 0,
     proximityQuery,
     maxDistanceKm,
+    filters: Object.keys(filters).length > 0 ? filters : undefined,
+    campFilters: Object.keys(campFilters).length > 0 ? campFilters : undefined,
   };
 }
 
@@ -380,6 +556,20 @@ export type RankedPlace = {
   hours: string | null;
   /** Phone if available */
   phone: string | null;
+  // ── Free camping fields (populated for camp + rest_area) ──
+  camp_type?: string;
+  free?: boolean;
+  price_per_night_aud?: number;
+  overnight_allowed?: boolean | "check" | "prohibited";
+  overnight_max_hours?: number;
+  overnight_notes?: string;
+  has_toilets?: boolean;
+  has_water?: boolean;
+  has_showers?: boolean;
+  has_bbq?: boolean;
+  pets_allowed?: boolean | "on_lead";
+  fires_allowed?: boolean | "seasonal";
+  max_stay_days?: number;
 };
 
 function extractLocality(p: PlaceItem): string | null {
@@ -424,6 +614,63 @@ export function filterAndRankPlaces(
     filtered = items;
   }
 
+  // Step 1b: Compound attribute filters (best-effort — places missing the field still pass)
+  if (intent.filters && Object.keys(intent.filters).length > 0) {
+    const f = intent.filters;
+    filtered = filtered.filter((p) => {
+      const ex = (p.extra ?? {}) as Record<string, unknown>;
+      if (f.free && ex.free !== true) return false;
+      if (f.has_potable_water_at_dump && ex.has_potable_water_at_dump !== true) return false;
+      if (f.dump_access && ex.dump_access !== f.dump_access) return false;
+      if (f.shower_type && ex.shower_type !== f.shower_type) return false;
+      if (f.water_type && ex.water_type !== f.water_type) return false;
+      return true;
+    });
+    // If the filter wiped everything, fall back to unfiltered category results
+    if (filtered.length === 0) {
+      if (intent.categories.length > 0) {
+        const catSet = new Set(intent.categories);
+        filtered = items.filter((p) => catSet.has(p.category));
+      } else {
+        filtered = items;
+      }
+    }
+  }
+
+  // Step 1c: Camp-specific attribute filters
+  if (intent.campFilters && Object.keys(intent.campFilters).length > 0) {
+    const cf = intent.campFilters;
+    const campFiltered = filtered.filter((p) => {
+      if (p.category !== "camp") return true; // only apply to camps
+      const ex = (p.extra ?? {}) as Record<string, unknown>;
+      if (cf.pets && !ex.pets_allowed) return false;
+      if (cf.free && ex.free !== true && ex.camp_type !== "free") return false;
+      if (cf.powered && ex.powered_sites !== true) return false;
+      if (cf.showers && ex.has_showers !== true) return false;
+      if (cf.dump_point && ex.has_dump_point !== true) return false;
+      if (cf.caravans && ex.caravans !== true) return false;
+      if (cf.phone_reception && ex.has_phone_reception !== true) return false;
+      if (cf.bbq && ex.has_bbq !== true) return false;
+      if (cf.wifi && ex.has_wifi !== true) return false;
+      if (cf.fires && !ex.fires_allowed) return false;
+      if (cf.has_toilets && ex.has_toilets !== true) return false;
+      if (cf.has_water && ex.has_water !== true) return false;
+      if (cf.camp_type) {
+        // "free" filter accepts both "free" and "bush" camp types
+        const acceptedTypes = cf.camp_type === "free"
+          ? ["free", "bush"]
+          : [cf.camp_type];
+        if (ex.camp_type && !acceptedTypes.includes(ex.camp_type as string)) return false;
+      }
+      if (cf.overnight_allowed && ex.overnight_allowed !== true) return false;
+      return true;
+    });
+    // If filters wiped all camps, keep unfiltered so user gets some results
+    if (campFiltered.length > 0) {
+      filtered = campFiltered;
+    }
+  }
+
   // Step 2: Compute distance + ahead status
   const ranked: RankedPlace[] = filtered.map((p) => {
     let dist_km: number | null = null;
@@ -451,6 +698,9 @@ export function filterAndRankPlaces(
       }
     }
 
+    const ex = (p.extra ?? {}) as Record<string, unknown>;
+    const isCampLike = p.category === "camp" || p.category === "rest_area";
+
     return {
       id: p.id,
       name: p.name,
@@ -463,6 +713,22 @@ export function filterAndRankPlaces(
       locality: extractLocality(p),
       hours: extractHours(p),
       phone: extractPhone(p),
+      // Include free camping fields for camp/rest_area categories
+      ...(isCampLike && {
+        camp_type: ex.camp_type as string | undefined,
+        free: ex.free as boolean | undefined,
+        price_per_night_aud: ex.price_per_night_aud as number | undefined,
+        overnight_allowed: ex.overnight_allowed as boolean | "check" | "prohibited" | undefined,
+        overnight_max_hours: ex.overnight_max_hours as number | undefined,
+        overnight_notes: ex.overnight_notes as string | undefined,
+        has_toilets: ex.has_toilets as boolean | undefined,
+        has_water: ex.has_water as boolean | undefined,
+        has_showers: ex.has_showers as boolean | undefined,
+        has_bbq: ex.has_bbq as boolean | undefined,
+        pets_allowed: ex.pets_allowed as boolean | "on_lead" | undefined,
+        fires_allowed: ex.fires_allowed as boolean | "seasonal" | undefined,
+        max_stay_days: ex.max_stay_days as number | undefined,
+      }),
     };
   });
 

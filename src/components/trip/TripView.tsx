@@ -1,7 +1,8 @@
 // src/components/trip/TripView.tsx
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useFLIP } from "@/lib/hooks/useFLIP";
 import type { NavPack, CorridorGraphPack, TrafficOverlay, HazardOverlay } from "@/lib/types/navigation";
 import type { TripStop } from "@/lib/types/trip";
 import type { PlacesPack, PlaceItem } from "@/lib/types/places";
@@ -33,7 +34,7 @@ import {
   LegAlertStrip,
   type AlertHighlightEvent,
 } from "@/components/trip/TripAlertsPanel";
-import { TripSuggestionsPanel } from "@/components/trip/TripSuggestionsPanel";
+import { PlaceSearchPanel } from "@/components/places/PlaceSearchPanel";
 import { FuelSummaryCard } from "@/components/fuel/FuelSummaryCard";
 
 import s from "./Tripview.module.css";
@@ -106,7 +107,7 @@ export function TripView({
   hazards,
   focusedStopId,
   onFocusStop,
-  focusedPlaceId,
+  focusedPlaceId: _focusedPlaceId,
   onFocusPlace,
   onRebuildRequested,
   onAddSuggestion,
@@ -117,6 +118,7 @@ export function TripView({
   onOpenFuelSettings,
   offlineRouted,
   isOnline,
+  onFilteredIdsChange,
 }: {
   planId: string;
   navpack: NavPack | null;
@@ -137,6 +139,7 @@ export function TripView({
   onOpenFuelSettings?: () => void;
   offlineRouted?: boolean;
   isOnline?: boolean;
+  onFilteredIdsChange?: (ids: Set<string> | null) => void;
 }) {
   /* ── Editor state ───────────────────────────────────────────────────── */
   const [stops, setStops] = useState<TripStop[]>(() => ensureStopIds(navpack?.req?.stops ?? []));
@@ -247,92 +250,8 @@ export function TripView({
   // Cleanup debounce timer on unmount.
   useEffect(() => () => { if (rebuildTimer.current) clearTimeout(rebuildTimer.current); }, []);
 
-  /* ── Reorder & remove animation ───────────────────────────────────── */
-  const stopElsRef = useRef<Map<string, HTMLDivElement>>(new Map());
-  const flipSnapshot = useRef<Map<string, DOMRect>>(new Map());
-  // Which stop id was actively moved (gets the "lifted" highlight)
-  const movedIdRef = useRef<string | null>(null);
-  // Which stop id was just added (gets the entrance animation)
-  const addedIdRef = useRef<string | null>(null);
-
-  const capturePositions = useCallback(() => {
-    const snap = new Map<string, DOMRect>();
-    stopElsRef.current.forEach((el, id) => snap.set(id, el.getBoundingClientRect()));
-    flipSnapshot.current = snap;
-  }, []);
-
-  // FLIP: after stops change, animate cards from old → new positions.
-  // Also handles entrance animation for newly added stops.
-  useLayoutEffect(() => {
-    const prev = flipSnapshot.current;
-    const movedId = movedIdRef.current;
-    const addedId = addedIdRef.current;
-    movedIdRef.current = null;
-    addedIdRef.current = null;
-
-    // Entrance animation for newly added stop
-    if (addedId) {
-      const el = stopElsRef.current.get(addedId);
-      if (el) {
-        el.style.transition = "none";
-        el.style.opacity = "0";
-        el.style.transform = "translateY(-12px) scale(0.96)";
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            el.style.transition = "opacity 280ms ease, transform 320ms cubic-bezier(0.34, 1.4, 0.64, 1)";
-            el.style.opacity = "1";
-            el.style.transform = "";
-            const cleanup = () => { el.style.transition = ""; };
-            el.addEventListener("transitionend", cleanup, { once: true });
-            setTimeout(cleanup, 350);
-          });
-        });
-      }
-    }
-
-    if (prev.size === 0) return;
-
-    stopElsRef.current.forEach((el, id) => {
-      if (id === addedId) return; // already handled above
-      const oldRect = prev.get(id);
-      if (!oldRect) return;
-      const newRect = el.getBoundingClientRect();
-      const dy = oldRect.top - newRect.top;
-      if (Math.abs(dy) < 1) return;
-
-      const isMoved = id === movedId;
-      // Invert: snap to old position
-      el.style.transition = "none";
-      el.style.transform = `translateY(${dy}px)${isMoved ? " scale(1.03)" : ""}`;
-      if (isMoved) {
-        el.style.zIndex = "10";
-        el.style.boxShadow = "0 8px 24px rgba(0,0,0,0.18)";
-      }
-      // Play: animate to final position
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          const dur = isMoved ? "320ms" : "280ms";
-          const ease = isMoved
-            ? "cubic-bezier(0.34, 1.4, 0.64, 1)"   // slight overshoot for moved card
-            : "cubic-bezier(0.25, 0.1, 0.25, 1)";
-          el.style.transition = [
-            `transform ${dur} ${ease}`,
-            isMoved ? `box-shadow ${dur} ${ease}` : "",
-          ].filter(Boolean).join(", ");
-          el.style.transform = "";
-          if (isMoved) el.style.boxShadow = "";
-          // Clean up after animation finishes
-          const cleanup = () => {
-            el.style.zIndex = "";
-            el.style.transition = "";
-          };
-          el.addEventListener("transitionend", cleanup, { once: true });
-          setTimeout(cleanup, 350);
-        });
-      });
-    });
-    flipSnapshot.current = new Map();
-  }, [stops]);
+  /* ── Reorder & remove animation (shared FLIP hook) ───────────────── */
+  const { registerEl: registerStopEl, capturePositions, setMovedId, setAddedId, getEl } = useFLIP(stops, { entrance: true });
 
   const moveStop = useCallback(
     (fromIdx: number, dir: -1 | 1) => {
@@ -344,7 +263,7 @@ export function TripView({
         const from = prev[fromIdx];
         const to = prev[toIdx];
         if (!from || !to || isLockedStop(from) || isLockedStop(to)) return prev;
-        movedIdRef.current = from.id ?? null;
+        setMovedId(from.id ?? null);
         const out = [...prev];
         const [moved] = out.splice(fromIdx, 1);
         out.splice(toIdx, 0, moved);
@@ -352,14 +271,14 @@ export function TripView({
         return out;
       });
     },
-    [autoRebuild, capturePositions],
+    [autoRebuild, capturePositions, setMovedId],
   );
 
   const removeStop = useCallback(
     (id?: string | null) => {
       if (!id) return;
       haptic.medium();
-      const el = stopElsRef.current.get(id);
+      const el = getEl(id);
       const doRemove = () => {
         capturePositions();
         setStops((prev) => {
@@ -395,10 +314,10 @@ export function TripView({
         doRemove();
       }
     },
-    [focusedStopId, onFocusStop, autoRebuild, capturePositions],
+    [focusedStopId, onFocusStop, autoRebuild, capturePositions, getEl],
   );
 
-  const addStopFromPlace = useCallback(
+  const _addStopFromPlace = useCallback(
     (p: PlaceItem) => {
       haptic.tap();
       if (onAddSuggestion) {
@@ -416,13 +335,13 @@ export function TripView({
       else out.push(next);
 
       capturePositions();
-      addedIdRef.current = newId;
+      setAddedId(newId);
       setStops(out);
       hideKeyboard();
       setActiveSection("route");
       autoRebuild(out);
     },
-    [onAddSuggestion, stops, autoRebuild, capturePositions],
+    [onAddSuggestion, stops, autoRebuild, capturePositions, setAddedId],
   );
 
   const reset = useCallback(() => {
@@ -592,10 +511,7 @@ export function TripView({
                   key={stop.id ?? index}
                   className={s.stopEntry}
                   ref={(el) => {
-                    const id = stop.id;
-                    if (!id) return;
-                    if (el) stopElsRef.current.set(id, el);
-                    else stopElsRef.current.delete(id);
+                    if (stop.id) registerStopEl(stop.id, el);
                   }}
                 >
                   {/* Stop card */}
@@ -742,13 +658,12 @@ export function TripView({
       {activeSection === "places" && (
         <div className={s.placesSection}>
           {places && placesCount > 0 ? (
-            <TripSuggestionsPanel
+            <PlaceSearchPanel
               places={places}
-              enableSearch={true}
+              userPosition={userPosition ? { lat: userPosition.lat, lng: userPosition.lng, heading: userPosition.heading ?? null } : undefined}
+              onSelectPlace={(p) => { onFocusPlace?.(p.id); }}
+              onFilteredIdsChange={onFilteredIdsChange}
               maxHeight="50vh"
-              focusedPlaceId={focusedPlaceId ?? null}
-              onFocusPlace={onFocusPlace}
-              onAddStopFromPlace={addStopFromPlace}
             />
           ) : (
             <div className={s.emptyPlaces}>

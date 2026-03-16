@@ -120,6 +120,6 @@ export function isBackgroundTracking(): boolean {
  * Get the last known position from background tracking.
  * Returns null if not tracking or no position received yet.
  */
-export function getLastBackgroundPosition(): RoamPosition | null {
+function getLastBackgroundPosition(): RoamPosition | null {
   return lastPosition;
 }

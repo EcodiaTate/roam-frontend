@@ -894,7 +894,7 @@ function PurchasePage({
 
 export default function UntetheredPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const isNative = useMemo(() => Capacitor.isNativePlatform(), []);
 
   const [unlocked, setUnlocked] = useState<boolean | null>(null);
@@ -902,7 +902,6 @@ export default function UntetheredPage() {
   const [restoring, setRestoring] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [entered, setEntered] = useState(false);
-  const { session } = useAuth();
 
   // Entrance animation
   useEffect(() => {

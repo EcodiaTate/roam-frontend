@@ -2,9 +2,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import type { MapBaseMode, VectorTheme } from "@/components/trips/new/MapStyleSwitcher";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Map as MLMap, GeoJSONSource } from "maplibre-gl";
+import maplibregl from "maplibre-gl";
 
 import { TripMap } from "@/components/trip/TripMap";
 import { TripView, type TripEditorRebuildMode } from "@/components/trip/TripView";
@@ -23,6 +25,11 @@ import { NavigationControls } from "@/components/nav/NavigationControls";
 import { OffRouteBanner } from "@/components/nav/OffRouteBanner";
 import { StartNavigationButton } from "@/components/nav/StartNavigationButton";
 import { ElevationStrip } from "@/components/nav/ElevationStrip";
+import { RouteScoreCard } from "@/components/trip/RouteScoreCard";
+import { NearbyRoamersIndicator } from "@/components/trip/NearbyRoamersIndicator";
+import { ReportPanel } from "@/components/trip/ReportPanel";
+import { ExchangePanel } from "@/components/trip/ExchangePanel";
+import { QuickReportWheel } from "@/components/trip/QuickReportWheel";
 
 // ── Hooks ──
 import { useGeolocation } from "@/lib/native/geolocation";
@@ -30,9 +37,13 @@ import { useKeepAwake } from "@/lib/native/keepAwake";
 import { useActiveNavigation } from "@/lib/hooks/useActiveNavigation";
 import { useMapNavigationMode } from "@/lib/hooks/useMapNavigationMode";
 import { useNetworkStatus } from "@/lib/hooks/useNetworkStatus";
+import { useNearbyRoamers } from "@/lib/hooks/useNearbyRoamers";
+import { useObservations } from "@/lib/hooks/useObservations";
 import type { InterpolatedPosition } from "@/lib/nav/gpsInterpolator";
 
 import { haptic } from "@/lib/native/haptics";
+import { presenceBeacon } from "@/lib/offline/presenceBeacon";
+import { syncPeerDelta } from "@/lib/offline/peerSync";
 import { getCurrentPlanId, getOfflinePlan, listOfflinePlans, setCurrentPlanId, updateOfflinePlan, type OfflinePlanRecord } from "@/lib/offline/plansStore";
 import { getAllPacks, hasCorePacks, putPack, putPacksAtomic } from "@/lib/offline/packsStore";
 import { unpackAndStoreBundle } from "@/lib/offline/unpackBundle";
@@ -40,6 +51,7 @@ import { getVehicleFuelProfile } from "@/lib/offline/fuelProfileStore";
 import { rebuildNavpackOfflineWithFuel } from "@/lib/offline/rebuildNavpack";
 
 import { navApi } from "@/lib/api/nav";
+import { bundleApi } from "@/lib/api/bundle";
 
 import { analyzeFuel, computeFuelTracking } from "@/lib/nav/fuelAnalysis";
 import { decodePolyline6 } from "@/lib/nav/polyline6";
@@ -50,17 +62,39 @@ import type { NavPack, CorridorGraphPack, TrafficOverlay, HazardOverlay, Elevati
 import type { PlacesPack } from "@/lib/types/places";
 import type { TripStop } from "@/lib/types/trip";
 import type { FuelAnalysis, VehicleFuelProfile } from "@/lib/types/fuel";
+import type {
+  WeatherOverlay,
+  FloodOverlay,
+  CoverageOverlay,
+  WildlifeOverlay,
+  RestAreaOverlay,
+  RouteIntelligenceScore,
+  FuelOverlay,
+  EmergencyServicesOverlay,
+  HeritageOverlay,
+  AirQualityOverlay,
+  BushfireOverlay,
+  SpeedCamerasOverlay,
+  ToiletsOverlay,
+  SchoolZonesOverlay,
+  RoadkillOverlay,
+} from "@/lib/types/overlays";
 
 // Updated icons here
-import { UserPlus, Library, WifiOff } from "lucide-react";
+import { Image as ImageIcon, UserPlus, Library, WifiOff, Megaphone, Radio } from "lucide-react";
 import { TripSkeleton } from "./TripSkeleton";
 import { isUnlocked as checkIsUnlocked, checkTripGate } from "@/lib/paywall/tripGate";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
+import { TripShareModal } from "@/components/share/TripShareModal";
+import type { ShareCardData } from "@/components/share/TripShareCard";
+import { captureMapSnapshot } from "@/lib/share/captureMapSnapshot";
 
 /* ── Constants ────────────────────────────────────────────────────────── */
 
 /** Poll overlays every 90 seconds */
 const OVERLAY_POLL_INTERVAL_MS = 90_000;
+/** Refresh route score every 10 minutes */
+const SCORE_POLL_INTERVAL_MS = 10 * 60_000;
 
 /* ── Boot phases ──────────────────────────────────────────────────────── */
 
@@ -101,9 +135,24 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   // Overlay state
   const [traffic, setTraffic] = useState<TrafficOverlay | null>(null);
   const [hazards, setHazards] = useState<HazardOverlay | null>(null);
+  const [weather, setWeather] = useState<WeatherOverlay | null>(null);
+  const [flood, setFlood] = useState<FloodOverlay | null>(null);
+  const [coverage, setCoverage] = useState<CoverageOverlay | null>(null);
+  const [wildlife, setWildlife] = useState<WildlifeOverlay | null>(null);
+  const [restAreas, setRestAreas] = useState<RestAreaOverlay | null>(null);
+  const [routeScore, setRouteScore] = useState<RouteIntelligenceScore | null>(null);
+  const [emergency, setEmergency] = useState<EmergencyServicesOverlay | null>(null);
+  const [heritage, setHeritage] = useState<HeritageOverlay | null>(null);
+  const [airQuality, setAirQuality] = useState<AirQualityOverlay | null>(null);
+  const [bushfire, setBushfire] = useState<BushfireOverlay | null>(null);
+  const [speedCameras, setSpeedCameras] = useState<SpeedCamerasOverlay | null>(null);
+  const [toilets, setToilets] = useState<ToiletsOverlay | null>(null);
+  const [schoolZones, setSchoolZones] = useState<SchoolZonesOverlay | null>(null);
+  const [roadkill, setRoadkill] = useState<RoadkillOverlay | null>(null);
 
   // Fuel state
   const [fuelAnalysis, setFuelAnalysis] = useState<FuelAnalysis | null>(null);
+  const [fuelOverlay, setFuelOverlay] = useState<FuelOverlay | null>(null);
   // fuelTracking is derived from props, not stored in state — see computedFuelTracking below
   const [fuelSettingsOpen, setFuelSettingsOpen] = useState(false);
 
@@ -117,6 +166,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   const [focusedStopId, setFocusedStopId] = useState<string | null>(null);
   const [focusedPlaceId, setFocusedPlaceId] = useState<string | null>(null);
   const [highlightedAlertId, setHighlightedAlertId] = useState<string | null>(null);
+  const [filteredPlaceIds, setFilteredPlaceIds] = useState<Set<string> | null>(null);
 
   // Invite modal state
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -132,6 +182,23 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
 
   // Offline modal
   const [offlineModalOpen, setOfflineModalOpen] = useState(false);
+
+  // Report panel state
+  const [reportOpen, setReportOpen] = useState(false);
+  const [exchangeOpen, setExchangeOpen] = useState(false);
+  const [reportMarker, setReportMarker] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Share card modal
+  const [shareCardData, setShareCardData] = useState<ShareCardData | null>(null);
+
+  // Map style
+  const [baseMode, setBaseMode] = useState<MapBaseMode>("hybrid");
+  const [vectorTheme, setVectorTheme] = useState<VectorTheme>("bright");
+  const styleId = useMemo(() => {
+    if (baseMode === "hybrid") return "roam-basemap-hybrid";
+    return vectorTheme === "dark" ? "roam-basemap-vector-dark" : "roam-basemap-vector-bright";
+  }, [baseMode, vectorTheme]);
+  const [shareMapImageUrl, setShareMapImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
     checkIsUnlocked().then((result) => {
@@ -152,8 +219,9 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   const [isDraggingState, setIsDraggingState] = useState(false);
   const dragData = useRef({ startY: 0 });
 
-  // Overlay polling ref
+  // Overlay polling refs
   const overlayTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const scoreTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Track which plan has been booted so URL-param changes (focus_place_id etc.) don't re-boot
   const bootedPlanIdRef = useRef<string | null>(null);
@@ -316,6 +384,46 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         setPlaces(packs.places ?? null);
         setTraffic(packs.traffic ?? null);
         setHazards(packs.hazards ?? null);
+        setWeather(packs.weather ?? null);
+        setFlood(packs.flood ?? null);
+        setCoverage(packs.coverage ?? null);
+        setWildlife(packs.wildlife ?? null);
+        setRestAreas(packs.rest_areas ?? null);
+        setRouteScore(packs.route_score ?? null);
+        setFuelOverlay(packs.fuel ?? null);
+        setEmergency(packs.emergency ?? null);
+        setHeritage(packs.heritage ?? null);
+        setAirQuality(packs.air_quality ?? null);
+        setBushfire(packs.bushfire ?? null);
+        setSpeedCameras(packs.speed_cameras ?? null);
+        setToilets(packs.toilets ?? null);
+        setSchoolZones(packs.school_zones ?? null);
+        setRoadkill(packs.roadkill ?? null);
+
+        // ── Coverage: refresh if IDB has no points (stale/empty pack) ──
+        const geometry = packs.navpack?.primary?.geometry;
+        const coverageStale = !packs.coverage?.points?.length;
+        if (coverageStale && geometry) {
+          navApi.coverageAlongRoute({ geometry }).then((fresh) => {
+            if (cancelled) return;
+            if (fresh.points.length > 0) {
+              setCoverage(fresh);
+              putPack(rec.plan_id, "coverage", fresh).catch(() => {});
+            }
+          }).catch(() => {});
+        }
+
+        // ── Wildlife: refresh if IDB has no zones (stale/empty pack) ──
+        const wildlifeStale = !packs.wildlife?.zones?.length;
+        if (wildlifeStale && geometry) {
+          navApi.wildlifeAlongRoute({ polyline6: geometry }).then((fresh) => {
+            if (cancelled) return;
+            if (fresh.zones.length > 0) {
+              setWildlife(fresh);
+              putPack(rec.plan_id, "wildlife", fresh).catch(() => {});
+            }
+          }).catch(() => {});
+        }
 
         // ── Elevation: load from IDB ──
         if (packs.elevation) {
@@ -380,6 +488,105 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   // ── Live fuel tracking from GPS ──────────────────────────────────
   // Use active nav position if navigating, else regular geo
   const effectivePosition = activeNav.isActive ? activeNav.lastPosition : geo.position;
+
+  // ── Feed GPS position into presence beacon ──
+  useEffect(() => {
+    if (effectivePosition) presenceBeacon.updatePosition(effectivePosition);
+  }, [effectivePosition]);
+
+  // ── Nearby roamers (dead-reckoning proximity) ──
+  const { roamers: nearbyRoamers } = useNearbyRoamers({ radiusKm: 50, enabled: !!effectivePosition });
+
+  // ── Peer sync: pull delta when a new roamer is detected ──
+  const prevRoamerCountRef = useRef(0);
+  useEffect(() => {
+    if (nearbyRoamers.length > prevRoamerCountRef.current && effectivePosition) {
+      void syncPeerDelta(effectivePosition.lat, effectivePosition.lng);
+    }
+    prevRoamerCountRef.current = nearbyRoamers.length;
+  }, [nearbyRoamers.length, effectivePosition]);
+
+  // ── User observations (crowd-sourced road intel) ──
+  const observations = useObservations({
+    lat: effectivePosition?.lat,
+    lng: effectivePosition?.lng,
+    radiusKm: 50,
+    autoFetch: true,
+  });
+
+  // ── Report mode: zoom in, show draggable marker, listen for map taps ──
+  const reportMarkerRef = useRef<maplibregl.Marker | null>(null);
+  const prevCameraRef = useRef<{ center: [number, number]; zoom: number } | null>(null);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    if (reportOpen && !activeNav.isActive) {
+      // Save current camera so we can restore on close
+      const c = map.getCenter();
+      prevCameraRef.current = { center: [c.lng, c.lat], zoom: map.getZoom() };
+
+      // Zoom in around the user's position (or map center if no GPS)
+      const pos = geo.position;
+      const target: [number, number] = pos ? [pos.lng, pos.lat] : [c.lng, c.lat];
+      map.easeTo({ center: target, zoom: Math.max(map.getZoom(), 15), duration: 500 });
+
+      // Place a draggable marker
+      const marker = new maplibregl.Marker({ color: "#4a6c53", draggable: true })
+        .setLngLat(target)
+        .addTo(map);
+      reportMarkerRef.current = marker;
+      setReportMarker({ lat: target[1], lng: target[0] });
+
+      // Update state when marker is dragged
+      const onDragEnd = () => {
+        const ll = marker.getLngLat();
+        setReportMarker({ lat: ll.lat, lng: ll.lng });
+      };
+      marker.on("dragend", onDragEnd);
+
+      // Tap map to move the marker
+      const onClick = (e: maplibregl.MapMouseEvent) => {
+        marker.setLngLat(e.lngLat);
+        setReportMarker({ lat: e.lngLat.lat, lng: e.lngLat.lng });
+      };
+      map.on("click", onClick);
+
+      return () => {
+        marker.off("dragend", onDragEnd);
+        map.off("click", onClick);
+        marker.remove();
+        reportMarkerRef.current = null;
+      };
+    }
+
+    // Report closed — restore camera
+    if (!reportOpen && prevCameraRef.current) {
+      map.easeTo({
+        center: prevCameraRef.current.center,
+        zoom: prevCameraRef.current.zoom,
+        duration: 400,
+      });
+      prevCameraRef.current = null;
+    }
+    setReportMarker(null);
+  }, [reportOpen, activeNav.isActive]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Build a synthetic RoamPosition from the marker for the ReportPanel
+  const reportPosition = useMemo(() => {
+    if (!reportMarker) return effectivePosition;
+    return {
+      lat: reportMarker.lat,
+      lng: reportMarker.lng,
+      accuracy: 0,
+      altitude: null,
+      altitudeAccuracy: null,
+      heading: effectivePosition?.heading ?? null,
+      speed: null,
+      timestamp: Date.now(),
+    } satisfies import("@/lib/native/geolocation").RoamPosition;
+  }, [reportMarker, effectivePosition]);
 
   // Cache decoded polyline + cumulative km — only recompute when the route changes,
   // NOT on every GPS tick. For long routes (e.g. 1700km SC→Cairns) decoding +
@@ -475,6 +682,37 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       }
     };
   }, [phase, navpack, pollOverlays]);
+
+  // ── Route score polling ──────────────────────────────────────────
+  const pollRouteScore = useCallback(async () => {
+    if (!isOnline) return;
+    if (!navpack?.primary?.bbox || !navpack.primary.route_key) return;
+
+    const currentPlanId = plan?.plan_id;
+    try {
+      const fresh = await bundleApi.scoreRefresh({
+        route_key: navpack.primary.route_key,
+        bbox: navpack.primary.bbox,
+      });
+      setRouteScore(fresh);
+      if (currentPlanId) putPack(currentPlanId, "route_score", fresh).catch(() => {});
+    } catch (e) {
+      console.warn("[Trip] score poll failed:", e);
+    }
+  }, [navpack, plan, isOnline]);
+
+  useEffect(() => {
+    if (phase !== "ready" || !navpack?.primary?.bbox) return;
+
+    scoreTimerRef.current = setInterval(pollRouteScore, SCORE_POLL_INTERVAL_MS);
+
+    return () => {
+      if (scoreTimerRef.current) {
+        clearInterval(scoreTimerRef.current);
+        scoreTimerRef.current = null;
+      }
+    };
+  }, [phase, navpack, pollRouteScore]);
 
   // ── Rebuild handler ─────────────────────────────────────────────
   // Falls back to offline corridor A* routing when the backend is unreachable.
@@ -926,13 +1164,15 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       {/* Map Layer */}
       <div style={{ position: "absolute", inset: 0, zIndex: 1 }}>
         <TripMap
-          styleId="roam-basemap-hybrid"
+          styleId={styleId}
+          onStyleChange={(next) => { setBaseMode(next.mode); setVectorTheme(next.vectorTheme); }}
           stops={effectiveStops}
           geometry={effectiveGeom}
           bbox={effectiveBbox}
           focusedStopId={focusedStopId}
           onStopPress={(id) => { haptic.selection(); setFocusedStopId(id); }}
           suggestions={places?.items ?? null}
+          filteredSuggestionIds={filteredPlaceIds}
           focusedSuggestionId={focusedPlaceId}
           focusFallbackCoord={focusLatFromUrl && focusLngFromUrl ? [parseFloat(focusLngFromUrl), parseFloat(focusLatFromUrl)] : null}
           focusFallbackName={focusPlaceFromUrl ? (places?.items?.find((x) => x.id === focusPlaceFromUrl)?.name ?? focusPlaceNameFromUrl ?? null) : null}
@@ -950,10 +1190,105 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           highlightedAlertId={highlightedAlertId}
           fuelStations={fuelAnalysis?.stations ?? null}
           fuelTracking={fuelTracking}
+          flood={flood}
+          coverage={coverage}
+          wildlife={wildlife}
+          restAreas={restAreas}
+          fuelOverlay={fuelOverlay}
+          weather={weather}
+          emergency={emergency}
+          heritage={heritage}
+          airQuality={airQuality}
+          bushfire={bushfire}
+          speedCameras={speedCameras}
+          toilets={toilets}
+          schoolZones={schoolZones}
+          roadkill={roadkill}
           navigationMode={activeNav.isActive}
           mapInstanceRef={mapInstanceRef}
         />
       </div>
+
+      {/* ── Nearby Roamers Indicator ── */}
+      {!activeNav.isActive && <NearbyRoamersIndicator roamers={nearbyRoamers} />}
+
+      {/* ── FAB Stack (Report + Exchange) ── */}
+      {!activeNav.isActive && !reportOpen && (
+        <div style={{
+          position: "absolute",
+          bottom: "calc(220px + var(--roam-safe-bottom, 0px) + 24px)",
+          right: 12,
+          zIndex: 18,
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+          alignItems: "flex-end",
+        }}>
+          {/* Exchange / Listen FAB */}
+          <button
+            type="button"
+            onClick={() => { haptic.selection(); setExchangeOpen(true); }}
+            aria-label="Exchange data with nearby roamer"
+            style={{
+              width: 48, height: 48,
+              borderRadius: 14,
+              background: "rgba(30, 30, 30, 0.88)",
+              color: "rgba(255, 255, 255, 0.9)",
+              border: "none",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.15)",
+              display: "grid",
+              placeItems: "center",
+              cursor: "pointer",
+            }}
+          >
+            <Radio size={20} strokeWidth={2.5} />
+          </button>
+          {/* Report FAB */}
+          <button
+            type="button"
+            onClick={() => { haptic.selection(); setReportOpen(true); }}
+            aria-label="Report road condition"
+            style={{
+              width: 48, height: 48,
+              borderRadius: 14,
+              background: "rgba(30, 30, 30, 0.88)",
+              color: "rgba(255, 255, 255, 0.9)",
+              border: "none",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.15)",
+              display: "grid",
+              placeItems: "center",
+              cursor: "pointer",
+            }}
+          >
+            <Megaphone size={20} strokeWidth={2.5} />
+          </button>
+        </div>
+      )}
+
+      {/* ── Report Panel Overlay ── */}
+      {reportOpen && (
+        <div style={{
+          position: "absolute",
+          top: "calc(var(--roam-safe-top, 0px) + 60px)",
+          left: 12, right: 12,
+          zIndex: 25,
+          display: "flex",
+          justifyContent: "center",
+        }}>
+          <ReportPanel
+            position={reportPosition}
+            onSubmit={observations.submit}
+            onClose={() => setReportOpen(false)}
+          />
+        </div>
+      )}
+
+      {/* ── Exchange Panel (ultrasonic peer transfer) ── */}
+      <ExchangePanel open={exchangeOpen} onClose={() => setExchangeOpen(false)} />
 
       {/* ── Active Navigation Overlays ── */}
       <NavigationHUD
@@ -974,6 +1309,21 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         onRecenter={mapNavMode.recenter}
         onEnd={activeNav.stop}
       />
+      {/* ── Quick Report Wheel (active nav only) ── */}
+      {activeNav.isActive && (
+        <div style={{
+          position: "absolute",
+          bottom: "calc(env(safe-area-inset-bottom, 0px) + var(--roam-tab-h, 64px) + 130px)",
+          right: 12,
+          zIndex: 31,
+          pointerEvents: "auto",
+        }}>
+          <QuickReportWheel
+            position={effectivePosition}
+            onSubmit={observations.submit}
+          />
+        </div>
+      )}
       <NavigationBar
         nav={activeNav.nav}
         fuelTracking={fuelTracking}
@@ -1028,6 +1378,13 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         onRedeemed={(joinedPlanId) => {
           router.replace(`/trip?plan_id=${encodeURIComponent(joinedPlanId)}`);
         }}
+      />
+
+      <TripShareModal
+        open={shareCardData !== null}
+        data={shareCardData}
+        mapImageUrl={shareMapImageUrl}
+        onClose={() => { setShareCardData(null); setShareMapImageUrl(null); }}
       />
 
       <PaywallModal
@@ -1197,6 +1554,37 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
                 <UserPlus size={16} strokeWidth={1.8} />
               </button>
 
+              <button
+                type="button"
+                className="trip-interactive trip-btn-icon"
+                aria-label="Share trip card"
+                onClick={() => {
+                  haptic.selection();
+                  const preview = plan?.preview;
+                  if (!preview) return;
+                  // Open modal immediately, then load map snapshot async
+                  setShareMapImageUrl(null);
+                  setShareCardData({
+                    stops: preview.stops,
+                    geometry: preview.geometry,
+                    distance_m: preview.distance_m,
+                    duration_s: preview.duration_s,
+                    label: plan?.label ?? null,
+                  });
+                  captureMapSnapshot(preview.bbox).then((url) => {
+                    setShareMapImageUrl(url);
+                  });
+                }}
+                style={{
+                  borderRadius: 10, width: 32, height: 32,
+                  display: "grid", placeItems: "center",
+                  background: "transparent", color: "var(--roam-text-muted)",
+                  border: "none",
+                }}
+              >
+                <ImageIcon size={16} strokeWidth={1.8} />
+              </button>
+
               {unlocked ? (
                 <button
                   type="button"
@@ -1275,6 +1663,61 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
               </div>
             )}
 
+            {/* ── Route intelligence score ── */}
+            {routeScore && !activeNav.isActive && (
+              <div style={{ marginBottom: 16 }}>
+                <RouteScoreCard score={routeScore} />
+              </div>
+            )}
+
+            {/* ── Flood route warning banner ── */}
+            {flood?.route_passes_through_warning && (
+              <div style={{
+                marginBottom: 12,
+                padding: "10px 14px",
+                borderRadius: 12,
+                background: "rgba(239,68,68,0.1)",
+                border: "1px solid rgba(239,68,68,0.25)",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+              }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                  <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: "#ef4444" }}>
+                    Flood Warning on Route
+                  </div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: "var(--roam-text-muted)", marginTop: 2 }}>
+                    Your route passes through an active flood warning catchment. Check conditions before travel.
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Fatigue gap warnings from backend ── */}
+            {restAreas?.fatigue_warnings?.filter((w) => w.type === "long_gap").map((w, i) => (
+              <div key={`fatigue-${i}`} style={{
+                marginBottom: 8,
+                padding: "10px 14px",
+                borderRadius: 12,
+                background: "rgba(245,158,11,0.1)",
+                border: "1px solid rgba(245,158,11,0.2)",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+              }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                  <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+                </svg>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--roam-text)", lineHeight: 1.4 }}>
+                  {w.message}
+                </div>
+              </div>
+            ))}
+
             <TripView
               planId={plan.plan_id}
               navpack={navpack}
@@ -1297,6 +1740,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
               onOpenFuelSettings={() => setFuelSettingsOpen(true)}
               offlineRouted={offlineRouted}
               isOnline={isOnline}
+              onFilteredIdsChange={setFilteredPlaceIds}
             />
           </div>
         </div>

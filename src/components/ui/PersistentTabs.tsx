@@ -3,13 +3,23 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-
-import { TripClientPage } from "@/app/(app)/trip/ClientPage";
-import GuideClientPage from "@/app/(app)/guide/ClientPage";
-import EmergencyClientPage from "@/app/(app)/sos/ClientPage";
+import dynamic from "next/dynamic";
 
 import { TripSkeleton } from "@/app/(app)/trip/TripSkeleton";
 import { GuideSkeleton } from "@/app/(app)/guide/GuideSkeleton";
+
+const TripClientPage = dynamic(
+  () => import("@/app/(app)/trip/ClientPage").then((m) => ({ default: m.TripClientPage })),
+  { ssr: false }
+);
+const GuideClientPage = dynamic(
+  () => import("@/app/(app)/guide/ClientPage"),
+  { ssr: false }
+);
+const EmergencyClientPage = dynamic(
+  () => import("@/app/(app)/sos/ClientPage"),
+  { ssr: false }
+);
 /* ── Tab definitions ─────────────────────────────────────────────────── */
 
 const TAB_ROUTES = ["/guide", "/trip", "/sos"] as const;
@@ -22,29 +32,7 @@ function normalizeTabRoute(path: string): TabRoute | null {
   return TAB_ROUTES.includes(clean as TabRoute) ? (clean as TabRoute) : null;
 }
 
-/* ── CSS ─────────────────────────────────────────────────────────────── */
-
-const STYLES = `
-  .pt-wrap { position: absolute; inset: 0; overflow: hidden; }
-
-  .pt-pane {
-    position: absolute; inset: 0;
-    will-change: transform, opacity;
-  }
-  .pt-pane-hidden { display: none; }
-
-  /* Commit animations — used when trip is involved or on snap-back */
-  @keyframes pt-in-right  { from { opacity:0; transform:translateX( 48px) } to { opacity:1; transform:translateX(0) } }
-  @keyframes pt-in-left   { from { opacity:0; transform:translateX(-48px) } to { opacity:1; transform:translateX(0) } }
-  @keyframes pt-out-left  { from { opacity:1; transform:translateX(0) } to { opacity:0; transform:translateX(-48px) } }
-  @keyframes pt-out-right { from { opacity:1; transform:translateX(0) } to { opacity:0; transform:translateX( 48px) } }
-
-  .pt-anim-in-right  { animation: pt-in-right  0.26s cubic-bezier(0.25,0.46,0.45,0.94) both; }
-  .pt-anim-in-left   { animation: pt-in-left   0.26s cubic-bezier(0.25,0.46,0.45,0.94) both; }
-  .pt-anim-out-left  { animation: pt-out-left  0.26s cubic-bezier(0.25,0.46,0.45,0.94) both; }
-  .pt-anim-out-right { animation: pt-out-right 0.26s cubic-bezier(0.25,0.46,0.45,0.94) both; }
-
-`;
+/* ── CSS is in globals.css §19 (cacheable, not re-injected per render) ── */
 
 type AnimState =
   | "hidden" | "visible"
@@ -55,6 +43,8 @@ type AnimState =
 
 export function PersistentTabs({ children }: { children: React.ReactNode }) {
   const rawPathname = usePathname();
+  const [isClient, setIsClient] = useState(false);
+  useEffect(() => { setIsClient(true); }, []);
 
   // Normalize: strip trailing slash so "/trip/" matches "/trip"
   const activeTab = normalizeTabRoute(rawPathname);
@@ -128,6 +118,7 @@ export function PersistentTabs({ children }: { children: React.ReactNode }) {
   }, [activeTab]);
 
   if (!activeTab) return <>{children}</>;
+  if (!isClient) return null;
 
   function paneClass(route: TabRoute) {
     const s = animStates[route];
@@ -148,8 +139,6 @@ export function PersistentTabs({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="pt-wrap">
-      <style>{STYLES}</style>
-
       <div ref={setPaneRef("/guide")} className={paneClass("/guide")}>
         {mounted.has("/guide") && (
           <Suspense fallback={<GuideSkeleton />}>

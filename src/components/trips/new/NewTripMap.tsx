@@ -219,6 +219,11 @@ export function NewTripMap(props: {
       onCenterRef.current?.({ lat: c.lat, lng: c.lng });
     });
 
+    // Resize the map whenever its container changes size (fixes partial render
+    // when the container height isn't fully settled at init time).
+    const ro = new ResizeObserver(() => { try { map.resize(); } catch {} });
+    ro.observe(elRef.current!);
+
     // Fetch, rewrite for local tile server, then set style
     (async () => {
       try {
@@ -237,6 +242,7 @@ export function NewTripMap(props: {
     });
 
     return () => {
+      ro.disconnect();
       mapRef.current = null;
       initRef.current = false;
       try { map.remove(); } catch {}

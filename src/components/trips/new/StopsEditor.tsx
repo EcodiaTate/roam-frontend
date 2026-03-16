@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import type { TripStop } from "@/lib/types/trip";
+import type { NavPack } from "@/lib/types/navigation";
 import type { OfflineBundleManifest } from "@/lib/types/bundle";
 import { StopRow } from "./StopRow";
 import { haptic } from "@/lib/native/haptics";
@@ -404,6 +405,9 @@ export function StopsEditor(props: {
   savingOffline: boolean;
   savedOffline: boolean;
 
+  /** Calculated route for preview (distance/duration summary) */
+  navPack?: NavPack | null;
+
   /** Whether user has Roam Untethered. null = still loading. */
   unlocked?: boolean | null;
   /** Called when user taps the upgrade button. */
@@ -494,12 +498,6 @@ export function StopsEditor(props: {
         transition: isDraggingState ? "none" : "transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)",
       }}
     >
-      <style>{`
-        @keyframes roam-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @keyframes roam-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.7; transform: scale(0.92); } }
-        @keyframes roam-pop { 0% { transform: scale(0.5); opacity: 0; } 70% { transform: scale(1.15); } 100% { transform: scale(1); opacity: 1; } }
-      `}</style>
-
       <div className="trip-bottom-sheet">
         {/* DRAG HEADER */}
         <div
@@ -515,7 +513,7 @@ export function StopsEditor(props: {
           <div className="trip-row-between">
             <div>
               <h1 className="trip-h1">{isBuilding ? "Building Trip" : "Plan Trip"}</h1>
-              <div className="trip-muted" style={{ marginTop: 2 }}>
+              <div className="trip-muted-small" style={{ marginTop: 2 }}>
                 {isBuilding ? "Getting your trip ready for the road" : "Add stops. Tap save. Done."}
               </div>
             </div>
@@ -683,6 +681,48 @@ export function StopsEditor(props: {
                   />
                 ))}
               </div>
+
+              {/* ── Route preview summary ── */}
+              {props.navPack?.primary && (
+                <div style={{
+                  marginTop: 8,
+                  padding: "12px 14px",
+                  borderRadius: 12,
+                  background: "var(--roam-surface-hover)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                }}>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: 10,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    background: "rgba(59,130,246,0.1)",
+                    flexShrink: 0,
+                  }}>
+                    <Route size={16} style={{ color: "#3b82f6" }} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: "var(--roam-text)", letterSpacing: "-0.1px" }}>
+                      {(props.navPack.primary.distance_m / 1000).toFixed(0)} km
+                      <span style={{ fontWeight: 600, color: "var(--roam-text-muted)", marginLeft: 6 }}>·</span>
+                      <span style={{ fontWeight: 700, color: "var(--roam-text-muted)", marginLeft: 6, fontSize: 13 }}>
+                        {(() => {
+                          const s = props.navPack.primary.duration_s;
+                          const h = Math.floor(s / 3600);
+                          const m = Math.round((s % 3600) / 60);
+                          return h > 0 ? `${h}h ${m}m` : `${m} min`;
+                        })()}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--roam-text-muted)", marginTop: 2 }}>
+                      {props.navPack.primary.legs?.length ?? 1} leg{(props.navPack.primary.legs?.length ?? 1) > 1 ? "s" : ""}
+                      {props.navPack.primary.legs?.length && props.navPack.primary.legs.length > 1 && (
+                        <span> · {props.stops.filter((s) => s.type === "poi" || s.type === "via").length} stop{props.stops.filter((s) => s.type === "poi" || s.type === "via").length !== 1 ? "s" : ""}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="trip-actions" style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
                 {/* Start Roaming — full offline bundle, the hero action */}

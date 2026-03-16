@@ -3,6 +3,8 @@
 import { useEffect } from "react";
 import { BottomTabBar } from "@/components/ui/BottomTabBar";
 import { PersistentTabs } from "@/components/ui/PersistentTabs";
+import { PlaceDetailProvider } from "@/lib/context/PlaceDetailContext";
+import { PlaceDetailSheet } from "@/components/places/PlaceDetailSheet";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
@@ -11,11 +13,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <div className="roam-shell">
-      <main className="roam-main">
-        <PersistentTabs>{children}</PersistentTabs>
-      </main>
-      <BottomTabBar />
-    </div>
+    <PlaceDetailProvider>
+      <div className="roam-shell">
+        <main className="roam-main">
+          <PersistentTabs>{children}</PersistentTabs>
+        </main>
+        <BottomTabBar />
+        {/* Global place detail sheet — opened via usePlaceDetail().openPlace() from anywhere */}
+        <PlaceDetailSheet />
+      </div>
+    </PlaceDetailProvider>
   );
 }

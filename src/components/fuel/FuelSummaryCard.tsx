@@ -6,16 +6,9 @@ import { Fuel, AlertTriangle, ChevronDown, ChevronUp, Settings2 } from "lucide-r
 import { haptic } from "@/lib/native/haptics";
 
 import type { FuelAnalysis } from "@/lib/types/fuel";
+import { cardBase, cardTitle, cardSubtitle } from "@/components/ui/cardStyles";
 
 /* ── Styles ────────────────────────────────────────────────────────────── */
-
-const card: React.CSSProperties = {
-  background: "var(--roam-surface-hover)",
-  borderRadius: "var(--r-card, 14px)",
-  padding: "14px",
-  marginBottom: 0,
-  border: "none",
-};
 
 const headerRow: React.CSSProperties = {
   display: "flex",
@@ -29,20 +22,6 @@ const titleGroup: React.CSSProperties = {
   alignItems: "center",
   gap: 10,
   minWidth: 0,
-};
-
-const titleText: React.CSSProperties = {
-  fontSize: 14,
-  fontWeight: 800,
-  color: "var(--roam-text)",
-  letterSpacing: "-0.1px",
-};
-
-const subtitleText: React.CSSProperties = {
-  fontSize: 11,
-  fontWeight: 600,
-  color: "var(--roam-text-muted)",
-  marginTop: 1,
 };
 
 const statsRow: React.CSSProperties = {
@@ -201,7 +180,7 @@ export function FuelSummaryCard({
   const totalKm = legs.reduce((sum, l) => sum + l.distance_km, 0);
 
   return (
-    <div style={card}>
+    <div style={cardBase}>
       {/* Header */}
       <div style={headerRow}>
         <div style={titleGroup}>
@@ -209,8 +188,8 @@ export function FuelSummaryCard({
             <Fuel size={16} strokeWidth={2} style={{ color: statusColor, display: "block" }} />
           </div>
           <div>
-            <div style={titleText}>Fuel Coverage</div>
-            <div style={subtitleText}>
+            <div style={cardTitle}>Fuel Coverage</div>
+            <div style={cardSubtitle}>
               {stations.length} station{stations.length !== 1 ? "s" : ""} on route
             </div>
           </div>

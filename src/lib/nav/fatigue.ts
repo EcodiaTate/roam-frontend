@@ -35,7 +35,7 @@ export type FatigueState = {
   warningLevel: FatigueWarningLevel;
 };
 
-export function initialFatigueState(): FatigueState {
+function initialFatigueState(): FatigueState {
   return {
     tripStartedAt: null,
     totalDriveTime_s: 0,
@@ -177,7 +177,7 @@ export function formatDriveSinceRest(state: FatigueState): string {
  * Format total drive time.
  *   "Total: 4h 15m"
  */
-export function formatTotalDriveTime(state: FatigueState): string {
+function formatTotalDriveTime(state: FatigueState): string {
   const mins = Math.round(state.totalDriveTime_s / 60);
   if (mins < 60) return `Total: ${mins}m`;
   const hrs = Math.floor(mins / 60);
@@ -202,7 +202,8 @@ export function fatigueColor(level: FatigueWarningLevel): string {
  * Whether the fatigue state has crossed a new warning threshold
  * compared to a previous state - used to trigger one-time voice/haptic.
  */
+const WARNING_ORDER: FatigueWarningLevel[] = ["none", "suggested", "recommended", "urgent"];
+
 export function fatigueEscalated(prev: FatigueState, next: FatigueState): boolean {
-  const order: FatigueWarningLevel[] = ["none", "suggested", "recommended", "urgent"];
-  return order.indexOf(next.warningLevel) > order.indexOf(prev.warningLevel);
+  return WARNING_ORDER.indexOf(next.warningLevel) > WARNING_ORDER.indexOf(prev.warningLevel);
 }

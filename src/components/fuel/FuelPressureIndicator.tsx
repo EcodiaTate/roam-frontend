@@ -111,15 +111,6 @@ export function FuelPressureIndicator({
       />
       <span>{label}</span>
 
-      {/* Inline keyframes for pulse animation */}
-      {level === "critical" && (
-        <style>{`
-          @keyframes roam-fuel-pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.85; transform: scale(1.03); }
-          }
-        `}</style>
-      )}
     </div>
   );
 }

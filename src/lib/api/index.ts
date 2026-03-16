@@ -5,3 +5,5 @@ export { healthApi } from "./health";
 export { navApi } from "./nav";
 export { placesApi } from "./places";
 export { bundleApi } from "./bundle";
+export { guideApi } from "./guide";
+export { assetsApi } from "./assets";

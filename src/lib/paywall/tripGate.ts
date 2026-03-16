@@ -21,9 +21,15 @@
 //   unlocked == true → skip gate entirely
 
 import { Capacitor } from "@capacitor/core";
-import { Purchases, LOG_LEVEL } from "@revenuecat/purchases-capacitor";
 import { supabase } from "@/lib/supabase/client";
 import { api } from "@/lib/api";
+
+// Lazy-loaded to keep RevenueCat (~120KB) out of the initial bundle.
+// Only loaded on native platforms when actually needed.
+async function getPurchases() {
+  const mod = await import("@revenuecat/purchases-capacitor");
+  return mod;
+}
 
 const KEY_TRIPS_USED = "roam_trips_used";
 const KEY_UNLOCKED   = "roam_unlimited_unlocked";
@@ -99,6 +105,7 @@ let _rcReady = false;
 export async function initRevenueCat(apiKey: string): Promise<void> {
   if (!isNativePlatform() || _rcReady) return;
   try {
+    const { Purchases, LOG_LEVEL } = await getPurchases();
     await Purchases.setLogLevel({ level: LOG_LEVEL.ERROR });
     await Purchases.configure({ apiKey });
     _rcReady = true;
@@ -111,6 +118,7 @@ export async function initRevenueCat(apiKey: string): Promise<void> {
 async function syncUnlockFromRC(): Promise<boolean> {
   if (!isNativePlatform() || !_rcReady) return false;
   try {
+    const { Purchases } = await getPurchases();
     const { customerInfo } = await Purchases.getCustomerInfo();
     const unlocked = RC_ENTITLEMENT_ID in customerInfo.entitlements.active;
     if (unlocked) {
@@ -145,8 +153,9 @@ export async function purchaseUnlimited(): Promise<{ success: boolean; error?: s
     return { success: false, error: "Use Stripe on web." };
   }
   try {
+    const { Purchases } = await getPurchases();
     const { customerInfo } = await Purchases.purchaseStoreProduct({
-      product: { productIdentifier: RC_PRODUCT_ID } as unknown as Parameters<typeof Purchases.purchaseStoreProduct>[0]["product"],
+      product: { productIdentifier: RC_PRODUCT_ID } as never,
     });
     const unlocked = RC_ENTITLEMENT_ID in customerInfo.entitlements.active;
     if (unlocked) {
@@ -167,6 +176,7 @@ export async function restorePurchases(): Promise<{ success: boolean; error?: st
     return { success: false, error: "Restore is only available in the app." };
   }
   try {
+    const { Purchases } = await getPurchases();
     const { customerInfo } = await Purchases.restorePurchases();
     const unlocked = RC_ENTITLEMENT_ID in customerInfo.entitlements.active;
     if (unlocked) {
@@ -200,7 +210,7 @@ export async function redirectToStripeCheckout(): Promise<{ error: string }> {
 
 /* ── Trip counter ────────────────────────────────────────────────── */
 
-export async function getTripsUsed(): Promise<number> {
+async function getTripsUsed(): Promise<number> {
   // Server is authoritative — local is fallback when offline / unauthenticated
   const serverCount = await fetchTripCountFromSupabase();
   if (serverCount !== null) {
@@ -249,6 +259,10 @@ export async function isUnlocked(): Promise<boolean> {
  */
 export async function mergeLocalTripsToServer(): Promise<void> {
   try {
+    // Skip merge entirely for entitled users — trip count is irrelevant
+    const unlocked = await isUnlocked();
+    if (unlocked) return;
+
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) return;
 
@@ -286,10 +300,11 @@ export async function checkTripGate(): Promise<GateResult> {
     await syncUnlockFromRC();
   }
 
-  // Supabase is the authoritative source for both unlock and trip count
-  const [unlocked, tripsUsed] = await Promise.all([isUnlocked(), getTripsUsed()]);
+  // Check unlock first — skip trip count query entirely for entitled users
+  const unlocked = await isUnlocked();
+  if (unlocked) return { allowed: true, tripsUsed: 0, unlocked: true };
 
-  if (unlocked) return { allowed: true, tripsUsed, unlocked: true };
+  const tripsUsed = await getTripsUsed();
 
   if (tripsUsed >= 2) return { allowed: false, reason: "paywall", tripsUsed, unlocked: false };
 

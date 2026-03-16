@@ -208,13 +208,6 @@ export function NavigationHUD({ nav, visible }: Props) {
         )}
       </div>
 
-      {/* Pulse animation for imminent turns */}
-      <style>{`
-        @keyframes hud-pulse {
-          0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.08); }
-        }
-      `}</style>
     </div>
   );
 }

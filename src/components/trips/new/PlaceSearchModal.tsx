@@ -5,12 +5,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { NavCoord } from "@/lib/types/geo";
 import { placesApi } from "@/lib/api/places";
 import type { PlaceItem } from "@/lib/types/places";
-import { Search } from "lucide-react"
+import { Search } from "lucide-react";
 
 import { haptic } from "@/lib/native/haptics";
 import { hideKeyboard } from "@/lib/native/keyboard";
+import { useDebounceSearch } from "@/lib/hooks/useDebounceSearch";
 
-const DEBOUNCE_MS = 300;
 const MIN_QUERY_LEN = 2;
 
 export function PlaceSearchModal(props: {
@@ -21,24 +21,34 @@ export function PlaceSearchModal(props: {
   onPick: (args: { stopId: string; name: string; lat: number; lng: number }) => void;
 }) {
   const [q, setQ] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [items, setItems] = useState<PlaceItem[]>([]);
-  const [err, setErr] = useState<string | null>(null);
-  const [hasSearched, setHasSearched] = useState(false);
-
-  const abortRef = useRef<AbortController | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  const enabled = props.open && !!props.stopId;
+  const searchFn = useCallback(
+    async (query: string) => {
+      const center = props.mapCenter ?? { lat: -27.4705, lng: 153.026 };
+      const res = await placesApi.search({ center, radius_m: 50000, query, limit: 10, categories: [] });
+      return res.items ?? [];
+    },
+    [props.mapCenter],
+  );
+
+  const {
+    results: items,
+    loading,
+    error: err,
+    hasSearched,
+    search: debouncedSearch,
+    searchNow,
+    reset,
+  } = useDebounceSearch<PlaceItem>({ searchFn });
 
   useEffect(() => {
     if (!props.open) {
-      setQ(""); setItems([]); setErr(null); setHasSearched(false);
-      abortRef.current?.abort();
-      if (debounceRef.current) clearTimeout(debounceRef.current);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: reset state when modal closes
+      setQ("");
+      reset();
     }
-  }, [props.open]);
+  }, [props.open, reset]);
 
   useEffect(() => {
     if (props.open) {
@@ -47,44 +57,18 @@ export function PlaceSearchModal(props: {
     }
   }, [props.open]);
 
-  const doSearch = useCallback(async (query: string) => {
-    if (!enabled) return;
-    const trimmed = query.trim();
-    if (trimmed.length < MIN_QUERY_LEN) { setItems([]); setHasSearched(false); return; }
-
-    abortRef.current?.abort();
-    const ac = new AbortController(); abortRef.current = ac;
-    setLoading(true); setErr(null);
-
-    try {
-      const center = props.mapCenter ?? { lat: -27.4705, lng: 153.026 };
-      const res = await placesApi.search({ center, radius_m: 50000, query: trimmed, limit: 10, categories: [] });
-      if (ac.signal.aborted) return;
-      setItems(res.items ?? []); setHasSearched(true);
-    } catch (e: unknown) {
-      if (ac.signal.aborted) return;
-      setItems([]); setHasSearched(true); setErr(e instanceof Error ? e.message : "Search failed");
-    } finally {
-      if (!ac.signal.aborted) setLoading(false);
-    }
-  }, [enabled, props.mapCenter]);
-
   const onInput = useCallback((value: string) => {
     setQ(value);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (value.trim().length < MIN_QUERY_LEN) { setItems([]); setHasSearched(false); setLoading(false); return; }
-    setLoading(true);
-    debounceRef.current = setTimeout(() => doSearch(value), DEBOUNCE_MS);
-  }, [doSearch]);
+    debouncedSearch(value);
+  }, [debouncedSearch]);
 
   const onKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      if (debounceRef.current) clearTimeout(debounceRef.current);
       hideKeyboard();
-      doSearch(q);
+      searchNow(q);
     }
-  }, [doSearch, q]);
+  }, [searchNow, q]);
 
   const handleClose = () => {
     haptic.tap();
@@ -119,7 +103,7 @@ export function PlaceSearchModal(props: {
           />
           {q.length > 0 && (
             <button type="button"
-              onClick={() => { haptic.tap(); setQ(""); setItems([]); setHasSearched(false); setErr(null); inputRef.current?.focus(); }}
+              onClick={() => { haptic.tap(); setQ(""); reset(); inputRef.current?.focus(); }}
               className="trip-interactive" style={{ background: "none", border: "none", color: "var(--roam-text-muted)", fontSize: "1.2rem", padding: "8px" }}>✕</button>
           )}
         </div>
@@ -148,7 +132,6 @@ export function PlaceSearchModal(props: {
           })}
         </div>
       </div>
-      <style>{`@keyframes roam-pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }`}</style>
     </div>
   );
 }

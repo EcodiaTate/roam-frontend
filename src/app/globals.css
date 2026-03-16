@@ -1025,6 +1025,8 @@ input, textarea, [contenteditable] {
   display: inline-block;
 }
 
+.roam-spin { animation: roam-spin 2.5s linear infinite; }
+
 /* Keyframes (prefixed with roam- to avoid collisions) */
 @keyframes roam-slideUp {
   from { transform: translateY(100%); }
@@ -1045,6 +1047,27 @@ input, textarea, [contenteditable] {
 @keyframes roam-fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+@keyframes roam-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+@keyframes roam-pop {
+  0% { transform: scale(0.5); opacity: 0; }
+  70% { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes roam-fuel-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.03); }
+}
+
+@keyframes hud-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
 }
 
 /* ── Reduced motion ───────────────────────────────────────── */
@@ -1106,7 +1129,7 @@ input, textarea, [contenteditable] {
   height: var(--roam-tab-h);
   padding-top: 8px;
   padding-bottom: 0;
-  border-radius: 24px 24px 0 0;
+  border-radius: 0;
   isolation: isolate;
 }
 
@@ -1408,3 +1431,48 @@ input, textarea, [contenteditable] {
   backdrop-filter: blur(20px) saturate(170%);
   -webkit-backdrop-filter: blur(20px) saturate(170%);
 }
+
+/* ==========================================================================
+   18. OPTIMISTIC UI TRANSITIONS
+   Instant-feeling transitions for filter chips, toggles, and action states.
+   All kept under 150ms so changes feel immediate.
+   ========================================================================== */
+
+/* ── Contact card optimistic removal ──────────────────────── */
+.sos-contact-card {
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+/* ── List row focus transitions ───────────────────────────── */
+.trip-list-row {
+  transition: background var(--dur-fast) ease,
+              padding var(--dur-fast) ease;
+}
+
+/* ── Compact list for suggestions ─────────────────────────── */
+.trip-list-compact {
+  scroll-behavior: smooth;
+}
+
+
+/* ==========================================================================
+   19. PERSISTENT TABS (tab pane switching with slide animations)
+   Moved from inline <style> in PersistentTabs.tsx for proper caching.
+   ========================================================================== */
+.pt-wrap { position: absolute; inset: 0; overflow: hidden; }
+
+.pt-pane {
+  position: absolute; inset: 0;
+  will-change: transform, opacity;
+}
+.pt-pane-hidden { display: none; }
+
+@keyframes pt-in-right  { from { opacity:0; transform:translateX( 48px) } to { opacity:1; transform:translateX(0) } }
+@keyframes pt-in-left   { from { opacity:0; transform:translateX(-48px) } to { opacity:1; transform:translateX(0) } }
+@keyframes pt-out-left  { from { opacity:1; transform:translateX(0) } to { opacity:0; transform:translateX(-48px) } }
+@keyframes pt-out-right { from { opacity:1; transform:translateX(0) } to { opacity:0; transform:translateX( 48px) } }
+
+.pt-anim-in-right  { animation: pt-in-right  0.26s cubic-bezier(0.25,0.46,0.45,0.94) both; }
+.pt-anim-in-left   { animation: pt-in-left   0.26s cubic-bezier(0.25,0.46,0.45,0.94) both; }
+.pt-anim-out-left  { animation: pt-out-left  0.26s cubic-bezier(0.25,0.46,0.45,0.94) both; }
+.pt-anim-out-right { animation: pt-out-right 0.26s cubic-bezier(0.25,0.46,0.45,0.94) both; }

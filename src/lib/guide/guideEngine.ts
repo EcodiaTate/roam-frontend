@@ -3,6 +3,15 @@
 
 import type { TripStop } from "@/lib/types/trip";
 import type { NavPack, CorridorGraphPack, TrafficOverlay, HazardOverlay } from "@/lib/types/navigation";
+import type {
+  WeatherOverlay,
+  FloodOverlay,
+  CoverageOverlay,
+  WildlifeOverlay,
+  RestAreaOverlay,
+  RouteIntelligenceScore,
+  FuelOverlay,
+} from "@/lib/types/overlays";
 import type { PlacesPack, PlacesSuggestResponse, PlaceItem, PlaceCategory } from "@/lib/types/places";
 import type { OfflineBundleManifest } from "@/lib/types/bundle";
 
@@ -61,6 +70,13 @@ export type GuideBootstrap = {
   traffic?: TrafficOverlay | null;
   hazards?: HazardOverlay | null;
   manifest?: OfflineBundleManifest | null;
+  weather?: WeatherOverlay | null;
+  flood?: FloodOverlay | null;
+  coverage?: CoverageOverlay | null;
+  wildlife?: WildlifeOverlay | null;
+  rest_areas?: RestAreaOverlay | null;
+  route_score?: RouteIntelligenceScore | null;
+  fuel?: FuelOverlay | null;
   progress?: TripProgress | null;
 };
 
@@ -108,8 +124,96 @@ function summarizeHazards(h?: HazardOverlay | null) {
   };
 }
 
+function summarizeRouteScore(s?: RouteIntelligenceScore | null) {
+  if (!s) return null;
+  return {
+    overall: s.overall,
+    overall_label: s.overall_label,
+    summary: s.summary.slice(0, 200),
+    worst_category: [
+      { name: "safety", score: s.safety.score },
+      { name: "conditions", score: s.conditions.score },
+      { name: "services", score: s.services.score },
+      { name: "weather", score: s.weather.score },
+    ].sort((a, b) => a.score - b.score)[0],
+  };
+}
+
+function summarizeFlood(f?: FloodOverlay | null) {
+  if (!f?.gauges?.length) return null;
+  const active = f.gauges.filter((g) => g.severity !== "normal" && g.severity !== "unknown");
+  if (active.length === 0) return null;
+  return {
+    flood_key: f.flood_key,
+    active_gauges: active.length,
+    worst_severity: active.find((g) => g.severity === "major")?.severity
+      ?? active.find((g) => g.severity === "moderate")?.severity
+      ?? "minor",
+    sample: active.slice(0, 3).map((g) => ({
+      name: g.station_name,
+      severity: g.severity,
+      trend: g.trend,
+      height_m: g.latest_height_m ?? null,
+    })),
+  };
+}
+
+function summarizeCoverage(c?: CoverageOverlay | null) {
+  if (!c?.gaps?.length) return null;
+  const noCovGaps = c.gaps.filter((g) => g.carrier === "all" || g.message.toLowerCase().includes("no coverage"));
+  const totalNoCovKm = noCovGaps.reduce((sum, g) => sum + g.gap_km, 0);
+  if (totalNoCovKm === 0 && c.gaps.length === 0) return null;
+  return {
+    coverage_key: c.coverage_key,
+    total_no_coverage_km: Math.round(totalNoCovKm),
+    total_gap_count: c.gaps.length,
+    best_carrier: c.best_carrier_overall ?? null,
+  };
+}
+
+function summarizeWeather(w?: WeatherOverlay | null) {
+  if (!w?.points?.length) return null;
+  const points = w.points;
+  const maxTemp = Math.max(...points.map((p) => p.temperature_c));
+  const minTemp = Math.min(...points.map((p) => p.temperature_c));
+  const rainyPoints = points.filter((p) => p.precipitation_probability_pct > 40);
+  const windyPoints = points.filter((p) => p.wind_speed_kmh > 50);
+  const twilightDanger = points.filter((p) => p.is_twilight_danger);
+  const lowVis = points.filter((p) => (p.visibility_m ?? 10000) < 2000);
+  const highUv = points.filter((p) => p.uv_index >= 8);
+
+  if (rainyPoints.length === 0 && windyPoints.length === 0 && twilightDanger.length === 0 && lowVis.length === 0 && highUv.length === 0 && maxTemp < 38 && minTemp > 2) {
+    return null; // nothing noteworthy
+  }
+
+  return {
+    weather_key: w.weather_key,
+    temp_range_c: `${Math.round(minTemp)}–${Math.round(maxTemp)}`,
+    rain_sections: rainyPoints.length,
+    rain_km_markers: rainyPoints.slice(0, 4).map((p) => `${Math.round(p.km_along)}km ${p.precipitation_probability_pct}%`),
+    windy_sections: windyPoints.length,
+    twilight_danger_sections: twilightDanger.length,
+    low_visibility_sections: lowVis.length,
+    high_uv_sections: highUv.length,
+    extreme_heat: maxTemp >= 38,
+    near_freezing: minTemp <= 2,
+  };
+}
+
+function summarizeWildlife(w?: WildlifeOverlay | null) {
+  if (!w?.zones?.length) return null;
+  const highRisk = w.zones.filter((z) => z.risk_level === "high");
+  if (highRisk.length === 0 && w.zones.every((z) => z.risk_level === "low" || z.risk_level === "none")) return null;
+  return {
+    wildlife_key: w.wildlife_key,
+    high_risk_zones: highRisk.length,
+    high_risk_km_markers: highRisk.slice(0, 5).map((z) => `${Math.round(z.km_from)}–${Math.round(z.km_to)}km`),
+    has_twilight_risk: w.zones.some((z) => z.is_twilight_risk),
+  };
+}
+
 function buildContext(args: GuideBootstrap): GuideContext {
-  const { planId, label, stops, navpack, corridor, traffic, hazards, manifest, progress } = args;
+  const { planId, label, stops, navpack, corridor, traffic, hazards, manifest, progress, fuel, weather } = args;
 
   const route_key = navpack?.primary?.route_key ?? null;
   const geometry = navpack?.primary?.geometry ?? null;
@@ -135,6 +239,12 @@ function buildContext(args: GuideBootstrap): GuideContext {
     progress: progress ?? null,
     traffic_summary: summarizeTraffic(traffic),
     hazards_summary: summarizeHazards(hazards),
+    route_score_summary: summarizeRouteScore(args.route_score),
+    flood_summary: summarizeFlood(args.flood),
+    coverage_summary: summarizeCoverage(args.coverage),
+    wildlife_summary: summarizeWildlife(args.wildlife),
+    weather_summary: summarizeWeather(weather),
+    fuel_benchmarks: fuel?.city_averages ?? null,
   };
 }
 
@@ -169,18 +279,52 @@ function pickPlaceExtras(item: PlaceItem | Record<string, unknown>): Record<stri
     out.socket_types = extra.socket_types;
   }
 
-  // Camping amenities
+  // Camping amenities — basic
   if (extra.free === true) out.free = true;
   if (extra.has_water === true) out.has_water = true;
   if (extra.has_toilets === true) out.has_toilets = true;
   if (extra.powered_sites === true) out.powered_sites = true;
+
+  // Camping amenities — extended
+  if (extra.has_showers === true) out.has_showers = true;
+  if (extra.has_dump_point === true) out.has_dump_point = true;
+  if (extra.has_bbq === true) out.has_bbq = true;
+  if (extra.has_laundry === true) out.has_laundry = true;
+  if (extra.has_wifi === true) out.has_wifi = true;
+  if (extra.has_playground === true) out.has_playground = true;
+  if (extra.has_swimming === true) out.has_swimming = true;
+  if (extra.has_phone_reception === true) out.has_phone_reception = true;
+  if (extra.has_phone_reception === false) out.has_phone_reception = false;
+  if (Array.isArray(extra.reception_carriers) && (extra.reception_carriers as string[]).length > 0) {
+    out.reception_carriers = extra.reception_carriers;
+  }
+  // Camp site config
+  if (extra.pets_allowed !== undefined) out.pets_allowed = extra.pets_allowed;
+  if (extra.fires_allowed !== undefined) out.fires_allowed = extra.fires_allowed;
+  if (extra.generators_allowed !== undefined) out.generators_allowed = extra.generators_allowed;
+  if (extra.caravans === true) out.caravans = true;
+  if (extra.motorhomes === true) out.motorhomes = true;
+  if (extra.tents === false) out.tents = false; // only note if explicitly excluded
+  if (typeof extra.max_vehicle_length_m === "number") out.max_vehicle_length_m = extra.max_vehicle_length_m;
+  if (typeof extra.num_sites === "number") out.num_sites = extra.num_sites;
+  if (extra.bookable === true) out.bookable = true;
+  // Camp style
+  if (extra.camp_type) out.camp_type = extra.camp_type;
+  if (extra.surface) out.surface = extra.surface;
+  // Stay rules
+  if (typeof extra.max_stay_days === "number") out.max_stay_days = extra.max_stay_days;
+  if (extra.check_in) out.check_in = String(extra.check_in).slice(0, 20);
+  if (extra.check_out) out.check_out = String(extra.check_out).slice(0, 20);
+  if (extra.quiet_hours) out.quiet_hours = String(extra.quiet_hours).slice(0, 40);
+  // Cost
+  if (typeof extra.price_per_night_aud === "number") out.price_per_night_aud = extra.price_per_night_aud;
+  if (extra.price_notes) out.price_notes = String(extra.price_notes).slice(0, 80);
 
   return out;
 }
 
 function rankedToWire(places: RankedPlace[]): WirePlace[] {
   return places.map((p) => {
-    // Pull website from extra if not on the RankedPlace directly
     const pRec = p as unknown as Record<string, unknown>;
     const extra: Record<string, unknown> = (pRec.extra as Record<string, unknown>) ?? {};
     const website =
@@ -189,7 +333,7 @@ function rankedToWire(places: RankedPlace[]): WirePlace[] {
       (extra["contact:website"] as string | undefined) ??
       null;
 
-    return {
+    const wire: WirePlace = {
       id: p.id,
       name: p.name,
       lat: p.lat,
@@ -202,6 +346,41 @@ function rankedToWire(places: RankedPlace[]): WirePlace[] {
       phone: p.phone,
       website: website ? String(website).slice(0, 120) : null,
     };
+
+    // Attach camp-specific fields so the LLM can describe amenities
+    if (p.category === "camp" || p.category === "rest_area") {
+      if (extra.free === true) wire.free = true;
+      if (extra.powered_sites === true) wire.powered_sites = true;
+      if (extra.has_water === true) wire.has_water = true;
+      if (extra.has_toilets === true) wire.has_toilets = true;
+      if (extra.has_showers === true) wire.has_showers = true;
+      if (extra.has_dump_point === true) wire.has_dump_point = true;
+      if (extra.has_bbq === true) wire.has_bbq = true;
+      if (extra.has_laundry === true) wire.has_laundry = true;
+      if (extra.has_wifi === true) wire.has_wifi = true;
+      if (extra.has_swimming === true) wire.has_swimming = true;
+      if (extra.has_phone_reception === true) wire.has_phone_reception = true;
+      if (extra.has_phone_reception === false) wire.has_phone_reception = false;
+      if (Array.isArray(extra.reception_carriers)) wire.reception_carriers = extra.reception_carriers as string[];
+      if (extra.pets_allowed !== undefined) wire.pets_allowed = extra.pets_allowed as boolean | "on_lead";
+      if (extra.fires_allowed !== undefined) wire.fires_allowed = extra.fires_allowed as boolean | "seasonal";
+      if (extra.caravans === true) wire.caravans = true;
+      if (extra.motorhomes === true) wire.motorhomes = true;
+      if (typeof extra.max_vehicle_length_m === "number") wire.max_vehicle_length_m = extra.max_vehicle_length_m;
+      if (typeof extra.num_sites === "number") wire.num_sites = extra.num_sites;
+      if (extra.camp_type) wire.camp_type = String(extra.camp_type);
+      if (typeof extra.max_stay_days === "number") wire.max_stay_days = extra.max_stay_days;
+      if (typeof extra.price_per_night_aud === "number") wire.price_per_night_aud = extra.price_per_night_aud;
+      // Overnight legality — use pre-computed RankedPlace field first, then fallback to extra
+      const overnightAllowed = p.overnight_allowed ?? extra.overnight_allowed;
+      if (overnightAllowed !== undefined) wire.overnight_allowed = overnightAllowed as boolean | "check" | "prohibited";
+      const overnightHours = p.overnight_max_hours ?? extra.overnight_max_hours;
+      if (typeof overnightHours === "number") wire.overnight_max_hours = overnightHours;
+      const overnightNotes = p.overnight_notes ?? (extra.overnight_notes as string | undefined);
+      if (overnightNotes) wire.overnight_notes = String(overnightNotes).slice(0, 120);
+    }
+
+    return wire;
   });
 }
 
@@ -518,7 +697,7 @@ export async function createGuidePack(
   return { guideKey, pack, context };
 }
 
-export async function restoreLatestGuidePack(
+async function restoreLatestGuidePack(
   planId: string | null,
 ): Promise<{ guideKey: string; pack: GuidePack } | null> {
   const list = await listGuidePacks(planId);

@@ -20,7 +20,6 @@ import { App } from "@capacitor/app";
 import { networkMonitor } from "@/lib/offline/networkMonitor";
 import { planSync } from "@/lib/offline/planSync";
 import { initRevenueCat } from "@/lib/paywall/tripGate";
-import { Purchases } from "@revenuecat/purchases-capacitor";
 import { supabase } from "@/lib/supabase/client";
 
 // Set this env var to your RevenueCat iOS/Android API key
@@ -109,7 +108,9 @@ export function NativeBootstrap() {
         // delayed sign-ins (e.g. user opens app → signs in → buys).
         supabase.auth.onAuthStateChange((_event, session) => {
           if (session?.user?.id) {
-            Purchases.logIn({ appUserID: session.user.id }).catch(() => {});
+            import("@revenuecat/purchases-capacitor")
+              .then(({ Purchases }) => Purchases.logIn({ appUserID: session.user.id }))
+              .catch(() => {});
           }
         });
       }

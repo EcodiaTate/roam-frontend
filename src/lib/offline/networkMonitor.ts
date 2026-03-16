@@ -25,6 +25,7 @@ class NetworkMonitorImpl {
   private _pollTimer: ReturnType<typeof setInterval> | null = null;
   private _nativeUnsub: (() => void) | null = null;
   private _started = false;
+  private _pollDebounce: ReturnType<typeof setTimeout> | null = null;
 
   /** True = device has network AND backend is reachable */
   get online() {
@@ -113,6 +114,10 @@ class NetworkMonitorImpl {
       clearInterval(this._pollTimer);
       this._pollTimer = null;
     }
+    if (this._pollDebounce) {
+      clearTimeout(this._pollDebounce);
+      this._pollDebounce = null;
+    }
   }
 
   /** Subscribe to online/offline transitions. Returns unsubscribe function. */
@@ -134,7 +139,8 @@ class NetworkMonitorImpl {
     const prev = this.online;
     this._browserOnline = true;
     if (this.online !== prev) this._notify();
-    void this._pollBackend();
+    // Debounce the backend poll to avoid hammering on rapid reconnects
+    this._debouncedPoll();
   };
 
   private _onBrowserOffline = () => {
@@ -143,6 +149,14 @@ class NetworkMonitorImpl {
     this._backendReachable = false;
     if (this.online !== prev) this._notify();
   };
+
+  private _debouncedPoll() {
+    if (this._pollDebounce) clearTimeout(this._pollDebounce);
+    this._pollDebounce = setTimeout(() => {
+      this._pollDebounce = null;
+      void this._pollBackend();
+    }, 500);
+  }
 
   private async _pollBackend() {
     if (!this._deviceOnline) {

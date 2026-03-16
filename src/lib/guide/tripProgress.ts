@@ -260,7 +260,7 @@ export function computeTripProgress(args: ComputeProgressArgs): TripProgress {
  * Compute distance from a position to each stop, returning sorted by distance.
  * Useful for the UI to show "nearest stops" or for the LLM context.
  */
-export function stopsWithDistances(
+function stopsWithDistances(
   userLat: number,
   userLng: number,
   stops: TripStop[],

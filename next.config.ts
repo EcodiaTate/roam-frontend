@@ -14,6 +14,34 @@ const nextConfig: NextConfig = {
     output: "export" as const,
     trailingSlash: true,
   }),
+
+  // ── Bundle optimizations ──────────────────────────────────────────
+  experimental: {
+    // Tree-shake barrel files in these packages so only used exports land
+    // in client chunks. Especially impactful for lucide-react (icon lib)
+    // and the Capacitor plugin ecosystem.
+    optimizePackageImports: [
+      "lucide-react",
+      "@capacitor/core",
+      "@capacitor/app",
+      "@capacitor/browser",
+      "@capacitor/geolocation",
+      "@capacitor/haptics",
+      "@capacitor/keyboard",
+      "@capacitor/local-notifications",
+      "@capacitor/network",
+      "@capacitor/screen-orientation",
+      "@capacitor/share",
+      "@capacitor/splash-screen",
+      "@capacitor/status-bar",
+      "@capacitor/filesystem",
+      "@revenuecat/purchases-capacitor",
+      "@supabase/supabase-js",
+      "zod",
+      "fflate",
+      "idb",
+    ],
+  },
 };
 
 export default nextConfig;

@@ -317,7 +317,7 @@ export function cancelSpeech(): void {
 /**
  * Check if TTS is currently speaking.
  */
-export function isSpeaking(): boolean {
+function isSpeaking(): boolean {
   if (typeof window === "undefined") return false;
   if (!("speechSynthesis" in window)) return false;
   return window.speechSynthesis.speaking;
@@ -332,12 +332,12 @@ export function isSpeaking(): boolean {
  * not by the shouldSpeak decision engine.
  */
 
-export function speakFuelWarning(stationName: string, distKm: number): void {
+function speakFuelWarning(stationName: string, distKm: number): void {
   const dist = distKm < 1 ? `${Math.round(distKm * 1000)} metres` : `${distKm.toFixed(1)} kilometres`;
   speak(`Last fuel in ${dist} at ${stationName}`);
 }
 
-export function speakHazardWarning(headline: string, distKm: number): void {
+function speakHazardWarning(headline: string, distKm: number): void {
   const dist = distKm < 1 ? `${Math.round(distKm * 1000)} metres` : `${distKm.toFixed(0)} kilometres`;
   speak(`Caution. ${headline}, ${dist} ahead`);
 }

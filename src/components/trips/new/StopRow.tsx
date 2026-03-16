@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { TripStop } from "@/lib/types/trip";
 import type { PlaceItem } from "@/lib/types/places";
 import { placesApi } from "@/lib/api/places";
@@ -9,8 +9,8 @@ import { Search, Navigation, Loader2, ChevronUp, ChevronDown, X } from "lucide-r
 import { haptic } from "@/lib/native/haptics";
 import { getCurrentPosition } from "@/lib/native/geolocation";
 import { hideKeyboard } from "@/lib/native/keyboard";
+import { useDebounceSearch } from "@/lib/hooks/useDebounceSearch";
 
-const DEBOUNCE_MS = 300;
 const MIN_QUERY_LEN = 2;
 
 function badgeForType(type?: string) {
@@ -46,12 +46,18 @@ export function StopRow(props: {
 
   const [isFocused, setIsFocused] = useState(false);
   const [q, setQ] = useState(() => getDisplayValue(s.name, s.type));
-  const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<PlaceItem[]>([]);
-
-  const abortRef = useRef<AbortController | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+
+  const searchFn = useCallback(
+    async (query: string) => {
+      const center = { lat: s.lat || -27.4705, lng: s.lng || 153.026 };
+      const res = await placesApi.search({ center, radius_m: 50000, query, limit: 5, categories: [] });
+      return res.items ?? [];
+    },
+    [s.lat, s.lng],
+  );
+
+  const { results, loading, search: debouncedSearch } = useDebounceSearch<PlaceItem>({ searchFn });
 
   const canMoveUp = props.idx > 0 && s.type !== "start" && s.type !== "end";
   const canMoveDown = props.idx < props.count - 1 && s.type !== "start" && s.type !== "end";
@@ -75,41 +81,10 @@ export function StopRow(props: {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const doSearch = useCallback(async (query: string) => {
-    const trimmed = query.trim();
-    if (trimmed.length < MIN_QUERY_LEN) { setResults([]); return; }
-
-    abortRef.current?.abort();
-    const ac = new AbortController();
-    abortRef.current = ac;
-    setLoading(true);
-
-    try {
-      const center = { lat: s.lat || -27.4705, lng: s.lng || 153.026 };
-      const res = await placesApi.search({ center, radius_m: 50000, query: trimmed, limit: 5, categories: [] });
-      if (ac.signal.aborted) return;
-      setResults(res.items ?? []);
-    } catch {
-      if (ac.signal.aborted) return;
-      setResults([]);
-    } finally {
-      if (!ac.signal.aborted) setLoading(false);
-    }
-  }, [s.lat, s.lng]);
-
   const onInput = (value: string) => {
     setQ(value);
     props.onEdit({ name: value });
-
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (value.trim().length < MIN_QUERY_LEN) {
-      setResults([]);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    debounceRef.current = setTimeout(() => doSearch(value), DEBOUNCE_MS);
+    debouncedSearch(value);
   };
 
   const handlePick = (it: PlaceItem) => {
@@ -294,7 +269,6 @@ export function StopRow(props: {
         </div>
       )}
 
-      <style>{`@keyframes roam-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

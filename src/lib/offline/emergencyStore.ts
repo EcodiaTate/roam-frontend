@@ -19,7 +19,7 @@ export async function listEmergencyContacts(): Promise<EmergencyContactLocal[]> 
   return (items ?? []).sort((a, b) => (b._local_updated_at || "").localeCompare(a._local_updated_at || ""));
 }
 
-export async function getEmergencyContact(id: string): Promise<EmergencyContactLocal | undefined> {
+async function getEmergencyContact(id: string): Promise<EmergencyContactLocal | undefined> {
   return await idbGet<EmergencyContactLocal>(idbStores.emergency, id);
 }
 

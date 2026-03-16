@@ -139,4 +139,29 @@ export const roamNotify = {
       extra: { type: "sync" },
     });
   },
+
+  nearbyRoamer(distanceKm: number, direction: string) {
+    notify({
+      title: "Roamer nearby",
+      body: `A fellow roamer is ~${distanceKm}km away, heading ${direction}. Pull over to exchange fresh road intel!`,
+      extra: { type: "nearby_roamer" },
+    });
+  },
+
+  observationReceived(type: string, count: number) {
+    notify({
+      title: "New road intel",
+      body: `${count} ${type.replace("_", " ")} report${count > 1 ? "s" : ""} from nearby roamers.`,
+      extra: { type: "peer_observation" },
+    });
+  },
+
+  peerSyncComplete(totalItems: number) {
+    if (totalItems <= 0) return;
+    notify({
+      title: "Peer data received",
+      body: `${totalItems} overlay update${totalItems > 1 ? "s" : ""} received from nearby roamers.`,
+      extra: { type: "peer_sync" },
+    });
+  },
 };

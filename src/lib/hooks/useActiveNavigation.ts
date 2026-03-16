@@ -78,16 +78,20 @@ export function useActiveNavigation(
 
   // Refs for values that change every tick (avoid stale closures)
   const navRef = useRef(nav);
-  useEffect(() => { navRef.current = nav; }, [nav]);
   const voiceRef = useRef<VoiceState>(initialVoiceState());
   const lastTickRef = useRef<number>(0);
   const gpsSmootherRef = useRef<GpsSmoother>(createGpsSmoother());
   const navpackRef = useRef(navpack);
-  useEffect(() => { navpackRef.current = navpack; }, [navpack]);
   const configRef = useRef(config);
-  useEffect(() => { configRef.current = config; }, [config]);
   const isMutedRef = useRef(isMuted);
-  useEffect(() => { isMutedRef.current = isMuted; }, [isMuted]);
+
+  // Batch ref syncs into a single effect
+  useEffect(() => {
+    navRef.current = nav;
+    navpackRef.current = navpack;
+    configRef.current = config;
+    isMutedRef.current = isMuted;
+  });
 
   // ── GPS Interpolator (60 fps) ──
   // The interpolator is created once and persists for the hook lifetime.
@@ -125,9 +129,11 @@ export function useActiveNavigation(
   }, [navpack]);
 
   const flatStepsRef = useRef(flatSteps);
-  useEffect(() => { flatStepsRef.current = flatSteps; }, [flatSteps]);
   const routeDataRef = useRef(routeData);
-  useEffect(() => { routeDataRef.current = routeData; }, [routeData]);
+  useEffect(() => {
+    flatStepsRef.current = flatSteps;
+    routeDataRef.current = routeData;
+  }, [flatSteps, routeData]);
 
   // ── GPS tick handler (~1 Hz from background GPS) ──
   const handlePosition = useCallback((pos: RoamPosition) => {
@@ -184,11 +190,11 @@ export function useActiveNavigation(
 
     // 6. Voice announcements
     if (!isMutedRef.current) {
-      const voiceState = { ...voiceRef.current, muted: false };
-      const ann = shouldSpeak(newNav, voiceState, configRef.current);
+      voiceRef.current.muted = false;
+      const ann = shouldSpeak(newNav, voiceRef.current, configRef.current);
       if (ann) {
         speak(ann.text);
-        voiceRef.current = applyAnnouncement(voiceState, ann);
+        voiceRef.current = applyAnnouncement(voiceRef.current, ann);
       }
     }
 

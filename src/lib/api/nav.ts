@@ -11,6 +11,7 @@ import type {
   ElevationRequest,
   ElevationResponse,
 } from "@/lib/types/navigation";
+import type { CoverageOverlay, WildlifeOverlay } from "@/lib/types/overlays";
 
 export type CorridorEnsureRequest = {
   route_key: string;
@@ -54,4 +55,12 @@ export const navApi = {
 
   // POST /nav/hazards/poll -> HazardOverlay
   hazardsPoll: (req: HazardsPollRequest) => api.post<HazardOverlay>("/nav/hazards/poll", req),
+
+  // POST /nav/coverage/along-route -> CoverageOverlay
+  coverageAlongRoute: (req: { geometry: string }) =>
+    api.post<CoverageOverlay>("/nav/coverage/along-route", req),
+
+  // POST /nav/wildlife/along-route -> WildlifeOverlay
+  wildlifeAlongRoute: (req: { polyline6: string; buffer_km?: number }) =>
+    api.post<WildlifeOverlay>("/nav/wildlife/along-route", req),
 };

@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { useAuth } from "@/lib/supabase/auth";
 import { networkMonitor } from "@/lib/offline/networkMonitor";
 import { planSync } from "@/lib/offline/planSync";
+import { presenceBeacon } from "@/lib/offline/presenceBeacon";
 
 /**
  * Invisible component mounted at the root layout level.
@@ -12,7 +13,8 @@ import { planSync } from "@/lib/offline/planSync";
  * Responsibilities:
  *   1. Start NetworkMonitor on mount (always, regardless of auth).
  *   2. Start PlanSync when user is authenticated.
- *   3. Stop PlanSync on sign-out.
+ *   3. Start PresenceBeacon when user is authenticated (dead-reckoning pings).
+ *   4. Stop PlanSync + PresenceBeacon on sign-out.
  *
  * Renders nothing.
  */
@@ -25,17 +27,22 @@ export function SyncBootstrap() {
     return () => networkMonitor.stop();
   }, []);
 
-  // Start/stop plan sync based on auth state
+  // Start/stop plan sync + presence beacon based on auth state
   useEffect(() => {
     if (loading) return;
 
     if (user?.id) {
       planSync.start(user.id);
+      presenceBeacon.start();
     } else {
       planSync.stop();
+      presenceBeacon.stop();
     }
 
-    return () => planSync.stop();
+    return () => {
+      planSync.stop();
+      presenceBeacon.stop();
+    };
   }, [user?.id, loading]);
 
   return null;

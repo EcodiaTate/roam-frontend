@@ -1,6 +1,14 @@
 // src/lib/api/bundle.ts
 import { api } from "./client";
 import type { OfflineBundleManifest } from "@/lib/types/bundle";
+import type { RouteIntelligenceScore } from "@/lib/types/overlays";
+
+type BBox = { minLng: number; minLat: number; maxLng: number; maxLat: number };
+
+export type ScoreRefreshRequest = {
+  route_key: string;
+  bbox: BBox;
+};
 
 export type BundleBuildRequest = {
   plan_id: string;
@@ -21,6 +29,11 @@ export const bundleApi = {
 
   // GET /bundle/{plan_id} -> OfflineBundleManifest
   get: (plan_id: string) => api.get<OfflineBundleManifest>(`/bundle/${encodeURIComponent(plan_id)}`),
+
+  // POST /bundle/score/refresh -> RouteIntelligenceScore
+  // Re-fetches traffic & hazards for the bbox and recomputes the score.
+  scoreRefresh: (req: ScoreRefreshRequest) =>
+    api.post<RouteIntelligenceScore>("/bundle/score/refresh", req),
 
   // GET /bundle/{plan_id}/download -> zip
   // NOTE: client.ts is JSON oriented, so for binary we use fetch directly.

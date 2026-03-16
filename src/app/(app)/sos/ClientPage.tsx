@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Capacitor } from "@capacitor/core";
 import { haptic } from "@/lib/native/haptics";
+import { useOnlineStatus } from "@/lib/hooks/useOnlineStatus";
 import { useAuth } from "@/lib/supabase/auth";
 import { listEmergencyContacts } from "@/lib/offline/emergencyStore";
 import { emergencySyncOnce } from "@/lib/offline/emergencySync";
@@ -20,23 +21,6 @@ function nowIso() {
 function randomId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
   return `em_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`;
-}
-
-function useOnlineStatus() {
-  const [online, setOnline] = useState<boolean>(() =>
-    typeof navigator !== "undefined" ? navigator.onLine : true,
-  );
-  useEffect(() => {
-    const on = () => setOnline(true);
-    const off = () => setOnline(false);
-    window.addEventListener("online", on);
-    window.addEventListener("offline", off);
-    return () => {
-      window.removeEventListener("online", on);
-      window.removeEventListener("offline", off);
-    };
-  }, []);
-  return online;
 }
 
 function telHref(phone: string) {
@@ -455,57 +439,75 @@ export default function EmergencyClientPage() {
   }, []);
 
   const save = useCallback(async () => {
-    setBusy("save");
     setErr(null);
+    haptic.medium();
+
+    const id = editingId && editingId !== "__new__" ? editingId : randomId();
+    const now = nowIso();
+    const contact: EmergencyContactLocal = {
+      id,
+      name: name.trim(),
+      phone: phone.trim(),
+      relationship: relationship.trim() || null,
+      notes: notes.trim() || null,
+      updated_at: now,
+      _local_updated_at: now,
+    };
+
+    // Snapshot for rollback
+    const prevItems = items;
+
+    // Optimistic: update list and close editor immediately
+    setItems((prev) => {
+      const idx = prev.findIndex((c) => c.id === id);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = contact;
+        return next;
+      }
+      return [...prev, contact];
+    });
+    setEditingId(null);
+    haptic.success();
+
+    // Persist in background — revert on failure
     try {
-      haptic.medium();
-      const id = editingId && editingId !== "__new__" ? editingId : randomId();
-
-      await saveEmergencyContactLocalFirst({
-        user,
-        isOnline,
-        contact: {
-          id,
-          name: name.trim(),
-          phone: phone.trim(),
-          relationship: relationship.trim() || null,
-          notes: notes.trim() || null,
-          updated_at: nowIso(),
-        },
-      });
-
-      await refresh();
-      setEditingId(null);
+      await saveEmergencyContactLocalFirst({ user, isOnline, contact });
       runAutoSync();
-      haptic.success();
     } catch (e: unknown) {
+      // Revert
+      setItems(prevItems);
       haptic.error();
       setErr(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(null);
     }
-  }, [editingId, name, phone, relationship, notes, user, isOnline, refresh, runAutoSync]);
+  }, [editingId, name, phone, relationship, notes, user, isOnline, items, runAutoSync]);
 
   const remove = useCallback(
     async (id: string) => {
       if (!confirm("Delete this contact?")) return;
-      setBusy("delete");
       setErr(null);
+      haptic.heavy();
+
+      // Snapshot for rollback
+      const prevItems = items;
+
+      // Optimistic: remove from list immediately
+      setItems((prev) => prev.filter((c) => c.id !== id));
+      if (editingId === id) setEditingId(null);
+      haptic.success();
+
+      // Persist in background — revert on failure
       try {
-        haptic.heavy();
         await deleteEmergencyContactLocalFirst({ user, isOnline, id });
-        await refresh();
-        if (editingId === id) setEditingId(null);
         runAutoSync();
-        haptic.success();
       } catch (e: unknown) {
+        // Revert
+        setItems(prevItems);
         haptic.error();
         setErr(e instanceof Error ? e.message : String(e));
-      } finally {
-        setBusy(null);
       }
     },
-    [user, isOnline, refresh, editingId, runAutoSync],
+    [user, isOnline, items, editingId, runAutoSync],
   );
 
   const selectedCount = selectedContacts.length;

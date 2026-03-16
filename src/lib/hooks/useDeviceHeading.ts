@@ -20,7 +20,12 @@ export function useDeviceHeading(enabled: boolean): number | null {
   const permissionGranted = useRef(false);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: clear heading when disabled, runs only on enabled toggle
+      setHeading(null);
+      lastEmitted.current = null;
+      return;
+    }
 
     // Request iOS 13+ permission if needed
     const doe = DeviceOrientationEvent as unknown as {
@@ -33,8 +38,6 @@ export function useDeviceHeading(enabled: boolean): number | null {
     }
 
     function onOrientation(e: DeviceOrientationEvent) {
-      // webkitCompassHeading (iOS): degrees from north
-      // e.alpha (Android/standard): degrees from an arbitrary reference
       const raw =
         (e as unknown as { webkitCompassHeading?: number }).webkitCompassHeading ??
         (e.alpha != null ? (360 - e.alpha) % 360 : null);
@@ -56,14 +59,6 @@ export function useDeviceHeading(enabled: boolean): number | null {
     return () => {
       window.removeEventListener("deviceorientation", onOrientation, true);
     };
-  }, [enabled]);
-
-  // Clear heading when disabled
-  useEffect(() => {
-    if (!enabled) {
-      setHeading(null);
-      lastEmitted.current = null;
-    }
   }, [enabled]);
 
   return heading;
