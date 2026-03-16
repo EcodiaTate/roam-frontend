@@ -107,6 +107,11 @@ export async function getPack<T>(planId: string, kind: PackKind): Promise<T | un
   return row?.payload as T | undefined;
 }
 
+export async function hasNavpack(planId: string): Promise<boolean> {
+  const n = await getPack<NavPack>(planId, "navpack");
+  return !!n;
+}
+
 export async function hasCorePacks(planId: string): Promise<boolean> {
   const [m, n, c] = await Promise.all([
     getPack<OfflineBundleManifest>(planId, "manifest"),

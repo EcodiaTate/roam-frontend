@@ -586,7 +586,7 @@ input, textarea, [contenteditable] {
 .trip-btn-primary {
   background: var(--roam-accent);
   color: var(--on-color);
-}/* Color variants - uses --on-color for legible text in BOTH light/dark */
+}
 
 .trip-btn-secondary {
   background: var(--brand-ochre);
@@ -746,6 +746,7 @@ input, textarea, [contenteditable] {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   transition: transform 80ms ease;
+  will-change: transform;
 }
 .trip-fab:active { transform: scale(0.88); }
 
@@ -813,6 +814,8 @@ input, textarea, [contenteditable] {
   overscroll-behavior-y: contain;
   /* Allow vertical pan inside the sheet scroller; parent has touch-action:none for drag capture */
   touch-action: pan-y;
+  /* Paint containment — children won't affect layout outside this scroller */
+  contain: layout style paint;
 }
 
 .trip-drag-handle {
@@ -919,6 +922,7 @@ input, textarea, [contenteditable] {
   justify-content: flex-end;
   animation: roam-fadeIn var(--dur-normal) ease-out forwards;
   overflow: hidden;
+  will-change: opacity;
   /* Do NOT use height: 100dvh - it uses the "large" (pre-keyboard) viewport on iOS
      and won't shrink when KeyboardResize.Body resizes the WKWebView.
      top/bottom/left/right: 0 already fills the resized viewport correctly. */
@@ -928,6 +932,7 @@ input, textarea, [contenteditable] {
   background: var(--roam-bg);
   border-radius: var(--r-card) var(--r-card) 0 0;
   padding: 24px 20px calc(var(--bottom-nav-height) + 20px) 20px;
+  will-change: transform;
   /* Use % of the overlay (which is already sized to keyboard-adjusted viewport) rather
      than a fixed dvh value, so the modal correctly fits the remaining space on keyboard open */
   max-height: 88%;
@@ -1044,11 +1049,6 @@ input, textarea, [contenteditable] {
   to { transform: rotate(360deg); }
 }
 
-@keyframes roam-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
 @keyframes roam-pulse {
   0%, 100% { opacity: 0.3; }
   50% { opacity: 1; }
@@ -1069,6 +1069,15 @@ input, textarea, [contenteditable] {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.08); }
 }
+
+@keyframes fuel-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ── Animation utility classes (prefer over inline style) ─── */
+.hud-imminent { animation: hud-pulse 0.8s ease-in-out infinite; }
+.nav-fuel-blink { animation: fuel-blink 1s ease-in-out infinite; }
 
 /* ── Reduced motion ───────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
@@ -1158,6 +1167,7 @@ input, textarea, [contenteditable] {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  scroll-behavior: smooth;
   padding: calc(var(--roam-safe-top) + 16px) 16px calc(var(--bottom-nav-height) + 24px) 16px;
   display: grid;
   align-content: start;
@@ -1313,6 +1323,7 @@ input, textarea, [contenteditable] {
   flex-direction: column;
   gap: 14px;
   box-shadow: var(--shadow-soft);
+  transition: opacity 180ms ease, transform 180ms ease;
 }
 
 .sos-select-circle {
@@ -1432,16 +1443,18 @@ input, textarea, [contenteditable] {
   -webkit-backdrop-filter: blur(20px) saturate(170%);
 }
 
+/* Paint containment for scrollable list containers — tells the browser
+   that children won't affect layout outside this box, enabling faster
+   recalc on scroll and DOM mutation. */
+.roam-contain {
+  contain: layout style paint;
+}
+
 /* ==========================================================================
    18. OPTIMISTIC UI TRANSITIONS
    Instant-feeling transitions for filter chips, toggles, and action states.
    All kept under 150ms so changes feel immediate.
    ========================================================================== */
-
-/* ── Contact card optimistic removal ──────────────────────── */
-.sos-contact-card {
-  transition: opacity 180ms ease, transform 180ms ease;
-}
 
 /* ── List row focus transitions ───────────────────────────── */
 .trip-list-row {

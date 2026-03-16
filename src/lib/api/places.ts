@@ -6,6 +6,8 @@ import type {
   CorridorPlacesRequest,
   PlacesSuggestRequest,
   PlacesSuggestResponse,
+  StopSuggestionsRequest,
+  StopSuggestionsResponse,
 } from "@/lib/types/places";
 
 export const placesApi = {
@@ -22,4 +24,9 @@ export const placesApi = {
   // Also heavy: multiple search rounds along the route.
   suggest: (req: PlacesSuggestRequest) =>
     api.post<PlacesSuggestResponse>("/places/suggest", req, { timeoutMs: 120_000 }),
+
+  // POST /places/stop-suggestions -> StopSuggestionsResponse
+  // Lightweight bbox query; 30s should be sufficient for most routes.
+  stopSuggestions: (req: StopSuggestionsRequest) =>
+    api.post<StopSuggestionsResponse>("/places/stop-suggestions", req, { timeoutMs: 30_000 }),
 };

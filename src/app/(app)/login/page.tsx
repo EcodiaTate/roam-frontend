@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
+/* eslint-disable @next/next/no-img-element */
 import { Capacitor } from "@capacitor/core";
 import { useAuth } from "@/lib/supabase/auth";
 import { useNetworkStatus } from "@/lib/hooks/useNetworkStatus";
@@ -128,7 +128,7 @@ export default function LoginPage() {
           </div>
         )}
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 4 }}>
-          <Image
+          <img
             src="/img/roam-app-icon.png"
             alt="Roam"
             width={56}

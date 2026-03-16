@@ -24,6 +24,7 @@ export type PlaceDetailEntry = (PlaceItem | DiscoveredPlace) & {
 };
 
 export type NavigateHandler = (placeId: string, lat: number, lng: number, name: string) => void;
+export type SaveHandler = (placeId: string) => void;
 
 type PlaceDetailContextValue = {
   place: PlaceDetailEntry | null;
@@ -32,6 +33,12 @@ type PlaceDetailContextValue = {
   /** Registered by pages that can add a place to the itinerary and navigate to /trip */
   navigateHandler: NavigateHandler | null;
   registerNavigateHandler: (handler: NavigateHandler | null) => void;
+  /** Registered globally so the sheet can toggle bookmarks from anywhere */
+  saveHandler: SaveHandler | null;
+  registerSaveHandler: (handler: SaveHandler | null) => void;
+  /** Set of saved place_ids — kept in sync by the global provider */
+  savedIds: Set<string>;
+  setSavedIds: (ids: Set<string>) => void;
 };
 
 const PlaceDetailContext = createContext<PlaceDetailContextValue | null>(null);
@@ -39,6 +46,8 @@ const PlaceDetailContext = createContext<PlaceDetailContextValue | null>(null);
 export function PlaceDetailProvider({ children }: { children: ReactNode }) {
   const [place, setPlace] = useState<PlaceDetailEntry | null>(null);
   const [navigateHandler, setNavigateHandler] = useState<NavigateHandler | null>(null);
+  const [saveHandler, setSaveHandlerState] = useState<SaveHandler | null>(null);
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
 
   const openPlace = useCallback((p: PlaceDetailEntry) => {
     setPlace(p);
@@ -52,8 +61,17 @@ export function PlaceDetailProvider({ children }: { children: ReactNode }) {
     setNavigateHandler(() => handler);
   }, []);
 
+  const registerSaveHandler = useCallback((handler: SaveHandler | null) => {
+    setSaveHandlerState(() => handler);
+  }, []);
+
   return (
-    <PlaceDetailContext.Provider value={{ place, openPlace, closePlace, navigateHandler, registerNavigateHandler }}>
+    <PlaceDetailContext.Provider value={{
+      place, openPlace, closePlace,
+      navigateHandler, registerNavigateHandler,
+      saveHandler, registerSaveHandler,
+      savedIds, setSavedIds,
+    }}>
       {children}
     </PlaceDetailContext.Provider>
   );

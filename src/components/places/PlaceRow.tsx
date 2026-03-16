@@ -2,22 +2,27 @@
 // Single place result row — used by PlaceSearchPanel's result list.
 "use client";
 
+import { memo } from "react";
 import type { PlaceItem } from "@/lib/types/places";
+import { iconBox36, textTruncate } from "@/components/ui/cardStyles";
 import { CATEGORY_ICON } from "@/lib/places/categoryMeta";
 import { fmtDist, fmtCat } from "@/lib/places/format";
 import { isOpenNow } from "@/lib/places/offlineSearch";
 import { haptic } from "@/lib/native/haptics";
 
-import { MapPin, ArrowUp, ArrowDown } from "lucide-react";
+import { MapPin, ArrowUp, ArrowDown, Bookmark } from "lucide-react";
 
 export type PlaceRowProps = {
   place: PlaceItem;
   distKm: number | null;
   ahead: boolean | null;
   onSelect?: (p: PlaceItem) => void;
+  /** Whether this place is saved; if provided, shows the bookmark button */
+  isSaved?: boolean;
+  onToggleSave?: (p: PlaceItem) => void;
 };
 
-export function PlaceRow({ place, distKm, ahead, onSelect }: PlaceRowProps) {
+export const PlaceRow = memo(function PlaceRow({ place, distKm, ahead, onSelect, isSaved, onToggleSave }: PlaceRowProps) {
   const CatIcon = CATEGORY_ICON[place.category] ?? MapPin;
   const extra = place.extra ?? {};
   const dist = fmtDist(distKm);
@@ -57,32 +62,13 @@ export function PlaceRow({ place, distKm, ahead, onSelect }: PlaceRowProps) {
       }}
     >
       {/* Icon */}
-      <div
-        style={{
-          width: 36,
-          height: 36,
-          borderRadius: 10,
-          background: "var(--roam-surface-hover)",
-          display: "grid",
-          placeItems: "center",
-          flexShrink: 0,
-        }}
-      >
+      <div style={iconBox36}>
         <CatIcon size={17} style={{ color: "var(--roam-text-muted)" }} />
       </div>
 
       {/* Content */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{
-            fontSize: 14,
-            fontWeight: 700,
-            color: "var(--roam-text)",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
+        <div style={{ ...textTruncate, fontSize: 14, fontWeight: 700, color: "var(--roam-text)" }}>
           {place.name}
         </div>
         <div
@@ -168,6 +154,31 @@ export function PlaceRow({ place, distKm, ahead, onSelect }: PlaceRowProps) {
           )}
         </div>
       )}
+
+      {/* Bookmark toggle */}
+      {onToggleSave && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            haptic.selection();
+            onToggleSave(place);
+          }}
+          style={{
+            background: "none",
+            border: "none",
+            padding: 6,
+            cursor: "pointer",
+            flexShrink: 0,
+            color: isSaved ? "var(--brand-amber)" : "var(--roam-text-muted)",
+            display: "flex",
+            alignItems: "center",
+          }}
+          aria-label={isSaved ? "Remove from saved places" : "Save place"}
+        >
+          <Bookmark size={16} fill={isSaved ? "currentColor" : "none"} />
+        </button>
+      )}
     </button>
   );
-}
+});

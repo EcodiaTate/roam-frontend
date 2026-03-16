@@ -164,4 +164,12 @@ export const roamNotify = {
       extra: { type: "peer_sync" },
     });
   },
+
+  stopArrived(stopName: string) {
+    notify({
+      title: `You've arrived at ${stopName}`,
+      body: "Tap to leave a note or take a photo for your trip journal.",
+      extra: { type: "stop_arrived", stop_name: stopName },
+    });
+  },
 };

@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { memo, useCallback } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { haptic } from "@/lib/native/haptics";
+import { cx } from "@/lib/utils/cx";
 import { getCurrentPlanId, listOfflinePlans } from "@/lib/offline/plansStore";
 
 /* ── Types ────────────────────────────────────────────────────────────── */
@@ -22,11 +23,6 @@ type Tab = {
   emergency?: boolean;
 };
 
-/* ── Class helper ─────────────────────────────────────────────────────── */
-
-function cx(...names: (string | false | null | undefined)[]): string {
-  return names.filter(Boolean).join(" ");
-}
 
 /* ── Nav styles ───────────────────────────────────────────────────────── */
 
@@ -116,6 +112,128 @@ function IconGuide(active: boolean) {
   );
 }
 
+/** Places - bookmark / saved places */
+function IconPlaces(active: boolean) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      {active ? (
+        <path
+          fill="currentColor"
+          d="M17 3H7a2 2 0 0 0-2 2v16l7-3 7 3V5a2 2 0 0 0-2-2z"
+        />
+      ) : (
+        <path
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          d="M17 3H7a2 2 0 0 0-2 2v16l7-3 7 3V5a2 2 0 0 0-2-2z"
+        />
+      )}
+    </svg>
+  );
+}
+
+/** Discover - globe (public trip feed) */
+function IconDiscover(active: boolean) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      {active ? (
+        <>
+          <circle fill="currentColor" cx="12" cy="12" r="10" />
+          <ellipse
+            fill="none" stroke="var(--roam-surface, #f4efe6)"
+            strokeWidth="1.4"
+            cx="12" cy="12" rx="4.5" ry="10"
+          />
+          <line
+            stroke="var(--roam-surface, #f4efe6)" strokeWidth="1.4"
+            x1="2" y1="12" x2="22" y2="12"
+          />
+          <line
+            stroke="var(--roam-surface, #f4efe6)" strokeWidth="1.4"
+            x1="4.2" y1="7.5" x2="19.8" y2="7.5"
+          />
+          <line
+            stroke="var(--roam-surface, #f4efe6)" strokeWidth="1.4"
+            x1="4.2" y1="16.5" x2="19.8" y2="16.5"
+          />
+        </>
+      ) : (
+        <>
+          <circle
+            fill="none" stroke="currentColor" strokeWidth="1.8"
+            cx="12" cy="12" r="9.2"
+          />
+          <ellipse
+            fill="none" stroke="currentColor" strokeWidth="1.4"
+            cx="12" cy="12" rx="4" ry="9.2"
+          />
+          <line
+            stroke="currentColor" strokeWidth="1.4" opacity="0.6"
+            x1="2.8" y1="12" x2="21.2" y2="12"
+          />
+          <line
+            stroke="currentColor" strokeWidth="1.2" opacity="0.4"
+            x1="4.5" y1="7.5" x2="19.5" y2="7.5"
+          />
+          <line
+            stroke="currentColor" strokeWidth="1.2" opacity="0.4"
+            x1="4.5" y1="16.5" x2="19.5" y2="16.5"
+          />
+        </>
+      )}
+    </svg>
+  );
+}
+
+/** Memories - open book / journal */
+function IconMemories(active: boolean) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      {active ? (
+        <>
+          <path
+            fill="currentColor"
+            d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5v14z"
+          />
+          <path
+            fill="currentColor"
+            d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20v4H6.5A2.5 2.5 0 0 1 4 19.5z"
+            opacity="0.6"
+          />
+          <circle fill="var(--roam-surface, #f4efe6)" cx="12" cy="10" r="2.5" />
+        </>
+      ) : (
+        <>
+          <path
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinejoin="round"
+            d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5v14z"
+          />
+          <path
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinejoin="round"
+            d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20v4H6.5A2.5 2.5 0 0 1 4 19.5z"
+          />
+          <circle
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            cx="12" cy="10" r="2.5"
+            opacity="0.6"
+          />
+        </>
+      )}
+    </svg>
+  );
+}
+
 /** SOS - shield with exclamation (emergency) */
 function IconSos(active: boolean) {
   return (
@@ -146,14 +264,17 @@ function IconSos(active: boolean) {
   );
 }
 
-/* ── Tab definitions (spec: Guide | Trip (center) | SOS) ───────────────
-   Note: /plans is now integrated as a drawer within /trip
+/* ── Tab definitions: Guide | Discover | Trip (center) | Journal | SOS ──
+   Note: /plans is now integrated as a drawer within /trip.
+   /places is merged into /journal (Journal tab).
    ──────────────────────────────────────────────────────────────────── */
 
 const TABS: Tab[] = [
-  { key: "guide",   href: "/guide",   label: "Guide",   icon: IconGuide },
-  { key: "trip",    href: "/trip",    label: "Trip",    icon: IconTrip, isCenter: true },
-  { key: "sos",     href: "/sos",     label: "SOS",     icon: IconSos, emergency: true },
+  { key: "guide",    href: "/guide",    label: "Guide",    icon: IconGuide },
+  { key: "discover", href: "/discover", label: "Discover", icon: IconDiscover },
+  { key: "trip",     href: "/trip",     label: "Trip",     icon: IconTrip, isCenter: true },
+  { key: "journal",  href: "/journal",  label: "Journal",  icon: IconMemories },
+  { key: "sos",      href: "/sos",      label: "SOS",      icon: IconSos, emergency: true },
 ];
 
 /* ── Component ────────────────────────────────────────────────────────── */

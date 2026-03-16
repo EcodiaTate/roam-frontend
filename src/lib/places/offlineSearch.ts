@@ -5,6 +5,7 @@
 "use client";
 
 import type { PlaceCategory, PlaceItem } from "@/lib/types/places";
+import { haversineKm } from "@/lib/nav/snapToRoute";
 
 // ──────────────────────────────────────────────────────────────
 // Types
@@ -37,17 +38,9 @@ export type UserPosition = {
 // Geo helpers (inline — no import needed)
 // ──────────────────────────────────────────────────────────────
 
-const DEG2RAD = Math.PI / 180;
-const EARTH_R_KM = 6371;
+// haversineKm imported from @/lib/nav/snapToRoute
 
-function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const dLat = (lat2 - lat1) * DEG2RAD;
-  const dLng = (lng2 - lng1) * DEG2RAD;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1 * DEG2RAD) * Math.cos(lat2 * DEG2RAD) * Math.sin(dLng / 2) ** 2;
-  return EARTH_R_KM * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
+const DEG2RAD = Math.PI / 180;
 
 function bearingDeg(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const dLng = (lng2 - lng1) * DEG2RAD;

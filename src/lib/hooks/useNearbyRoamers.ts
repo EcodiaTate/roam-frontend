@@ -15,6 +15,7 @@ import { networkMonitor } from "@/lib/offline/networkMonitor";
 import { presenceBeacon } from "@/lib/offline/presenceBeacon";
 import { roamNotify } from "@/lib/native/notifications";
 import type { NearbyRoamer } from "@/lib/types/peer";
+import { cardinalDir } from "@/lib/nav/geo";
 
 const POLL_INTERVAL_MS = 60_000; // check every 60s
 
@@ -56,7 +57,7 @@ export function useNearbyRoamers(opts?: { radiusKm?: number; enabled?: boolean }
       for (const r of res.roamers) {
         if (!seenRef.current.has(r.user_id)) {
           seenRef.current.add(r.user_id);
-          roamNotify.nearbyRoamer(r.distance_km, _cardinalDir(r.heading_deg));
+          roamNotify.nearbyRoamer(r.distance_km, cardinalDir(r.heading_deg));
         }
       }
 
@@ -94,7 +95,4 @@ export function useNearbyRoamers(opts?: { radiusKm?: number; enabled?: boolean }
   return state;
 }
 
-function _cardinalDir(deg: number): string {
-  const dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
-  return dirs[Math.round(((deg % 360) + 360) % 360 / 45) % 8];
-}
+// cardinalDir imported from @/lib/nav/geo

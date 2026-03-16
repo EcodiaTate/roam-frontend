@@ -1,12 +1,13 @@
 // src/components/fuel/FuelSummaryCard.tsx
 "use client";
 
-import { useState, useCallback } from "react";
 import { Fuel, AlertTriangle, ChevronDown, ChevronUp, Settings2 } from "lucide-react";
 import { haptic } from "@/lib/native/haptics";
 
 import type { FuelAnalysis } from "@/lib/types/fuel";
-import { cardBase, cardTitle, cardSubtitle } from "@/components/ui/cardStyles";
+import { cardBase, cardTitle, cardSubtitle, pillBase, btnReset } from "@/components/ui/cardStyles";
+import { severityColor, legColor } from "@/lib/ui/colorHelpers";
+import { useToggle } from "@/lib/hooks/useToggle";
 
 /* ── Styles ────────────────────────────────────────────────────────────── */
 
@@ -32,27 +33,11 @@ const statsRow: React.CSSProperties = {
   flexWrap: "wrap",
 };
 
-const statPill: React.CSSProperties = {
-  fontSize: 11,
-  fontWeight: 700,
-  padding: "3px 10px",
-  borderRadius: 8,
-  whiteSpace: "nowrap" as const,
-};
-
 const settingsBtn: React.CSSProperties = {
-  background: "transparent",
-  border: "none",
-  padding: "6px",
-  borderRadius: 8,
-  display: "flex",
-  alignItems: "center",
-  gap: 0,
-  cursor: "pointer",
+  ...btnReset,
   color: "var(--roam-text-muted)",
   fontSize: 0,
   fontWeight: 700,
-  flexShrink: 0,
   transition: "color 0.2s",
 };
 
@@ -110,23 +95,6 @@ const stationDot: React.CSSProperties = {
 
 /* ── Color helpers ────────────────────────────────────────────────────── */
 
-function severityColor(severity: string): { bg: string; text: string; icon: string } {
-  switch (severity) {
-    case "critical":
-      return { bg: "var(--bg-error, rgba(239,68,68,0.1))", text: "var(--text-error, #ef4444)", icon: "var(--text-error, #ef4444)" };
-    case "warn":
-      return { bg: "rgba(245,158,11,0.1)", text: "#b45309", icon: "#f59e0b" };
-    default:
-      return { bg: "var(--roam-surface-hover)", text: "var(--roam-text)", icon: "var(--roam-info, #3b82f6)" };
-  }
-}
-
-function legColor(leg: { gap_exceeds_range: boolean; gap_exceeds_warn: boolean }): string {
-  if (leg.gap_exceeds_range) return "var(--bg-error, #ef4444)";
-  if (leg.gap_exceeds_warn) return "#f59e0b";
-  return "#22c55e";
-}
-
 function rangeStatusColor(analysis: FuelAnalysis): string {
   if (analysis.has_critical_gaps) return "var(--text-error, #ef4444)";
   if (analysis.warnings.some((w) => w.severity === "warn")) return "#f59e0b";
@@ -148,12 +116,7 @@ export function FuelSummaryCard({
   analysis: FuelAnalysis | null;
   onOpenSettings?: () => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
-
-  const toggleExpanded = useCallback(() => {
-    haptic.selection();
-    setExpanded((v) => !v);
-  }, []);
+  const [expanded, toggleExpanded] = useToggle();
 
   if (!analysis) return null;
 
@@ -180,12 +143,12 @@ export function FuelSummaryCard({
   const totalKm = legs.reduce((sum, l) => sum + l.distance_km, 0);
 
   return (
-    <div style={cardBase}>
+    <div style={cardBase} role="region" aria-label={`Fuel coverage: ${statusLabel}, ${stations.length} stations on route, range ${profile.tank_range_km}km`}>
       {/* Header */}
       <div style={headerRow}>
         <div style={titleGroup}>
           <div style={{ background: `${statusColor}12`, padding: 7, borderRadius: 9 }}>
-            <Fuel size={16} strokeWidth={2} style={{ color: statusColor, display: "block" }} />
+            <Fuel size={16} strokeWidth={2} style={{ color: statusColor, display: "block" }} aria-hidden="true" />
           </div>
           <div>
             <div style={cardTitle}>Fuel Coverage</div>
@@ -210,26 +173,14 @@ export function FuelSummaryCard({
 
       {/* Status pills */}
       <div style={statsRow}>
-        <span style={{
-          ...statPill,
-          background: `${statusColor}15`,
-          color: statusColor,
-        }}>
+        <span style={{ ...pillBase, background: `${statusColor}15`, color: statusColor }}>
           {statusLabel}
         </span>
-        <span style={{
-          ...statPill,
-          background: "rgba(0,0,0,0.06)",
-          color: "var(--roam-text)",
-        }}>
+        <span style={{ ...pillBase, background: "rgba(0,0,0,0.06)", color: "var(--roam-text)" }}>
           Range: {profile.tank_range_km}km
         </span>
         {profile.fuel_type !== "unleaded" && (
-          <span style={{
-            ...statPill,
-            background: "rgba(0,0,0,0.06)",
-            color: "var(--roam-text)",
-          }}>
+          <span style={{ ...pillBase, background: "rgba(0,0,0,0.06)", color: "var(--roam-text)" }}>
             {profile.fuel_type.toUpperCase()}
           </span>
         )}

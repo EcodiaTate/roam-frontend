@@ -51,7 +51,7 @@ export interface FuelLeg {
 
 /** Warning generated from fuel analysis */
 export interface FuelWarning {
-  type: "gap" | "last_chance" | "long_stretch" | "no_fuel_on_route";
+  type: "gap" | "last_chance" | "long_stretch" | "no_fuel_on_route" | "wind_penalty";
   severity: "info" | "warn" | "critical";
   message: string;
   at_km: number;                     // where on the route this applies

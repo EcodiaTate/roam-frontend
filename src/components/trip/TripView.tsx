@@ -9,8 +9,11 @@ import type { PlacesPack, PlaceItem } from "@/lib/types/places";
 import type { RoamPosition } from "@/lib/native/geolocation";
 import type { FuelAnalysis } from "@/lib/types/fuel";
 import { haptic } from "@/lib/native/haptics";
+import { toErrorMessage } from "@/lib/utils/errors";
 import { hideKeyboard } from "@/lib/native/keyboard";
 import { shortId } from "@/lib/utils/ids";
+import { formatDistance, formatDuration } from "@/lib/utils/format";
+import { cx } from "@/lib/utils/cx";
 
 import {
   Flag,
@@ -26,6 +29,9 @@ import {
   Route,
   Map as MapIcon,
   WifiOff,
+  GripVertical,
+  Shuffle,
+  CheckCheck,
 } from "lucide-react";
 
 import {
@@ -36,6 +42,11 @@ import {
 } from "@/components/trip/TripAlertsPanel";
 import { PlaceSearchPanel } from "@/components/places/PlaceSearchPanel";
 import { FuelSummaryCard } from "@/components/fuel/FuelSummaryCard";
+import {
+  StopQuickActionMenu,
+  type QuickActionMenuState,
+  type StopQuickAction,
+} from "@/components/trip/StopQuickActionMenu";
 
 import s from "./Tripview.module.css";
 
@@ -79,24 +90,19 @@ function StopIcon({ type, size = 14 }: { type?: string; size?: number }) {
   }
 }
 
-function formatDist(m: number): string {
-  if (m < 1000) return `${Math.round(m)} m`;
-  return `${(m / 1000).toFixed(1)} km`;
-}
+/* ── Drag state ───────────────────────────────────────────────────────── */
 
-function formatDur(sec: number): string {
-  const hrs = Math.floor(sec / 3600);
-  const mins = Math.round((sec % 3600) / 60);
-  if (hrs === 0) return `${mins} min`;
-  return `${hrs}h ${mins}m`;
-}
-
-/** Join class names, filtering out falsy values */
-function cx(...names: (string | false | null | undefined)[]): string {
-  return names.filter(Boolean).join(" ");
-}
+type DragState = {
+  fromIdx: number;
+  overIdx: number;
+  offsetY: number;
+  itemHeights: number[];
+  itemTops: number[];
+};
 
 /* ── Component ────────────────────────────────────────────────────────── */
+
+export type StopQuickActionHandler = (action: StopQuickAction, stopId: string) => void;
 
 export function TripView({
   planId: _planId,
@@ -119,6 +125,7 @@ export function TripView({
   offlineRouted,
   isOnline,
   onFilteredIdsChange,
+  onStopQuickAction,
 }: {
   planId: string;
   navpack: NavPack | null;
@@ -140,6 +147,7 @@ export function TripView({
   offlineRouted?: boolean;
   isOnline?: boolean;
   onFilteredIdsChange?: (ids: Set<string> | null) => void;
+  onStopQuickAction?: StopQuickActionHandler;
 }) {
   /* ── Editor state ───────────────────────────────────────────────────── */
   const [stops, setStops] = useState<TripStop[]>(() => ensureStopIds(navpack?.req?.stops ?? []));
@@ -147,7 +155,7 @@ export function TripView({
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<ActiveSection>("route");
-  const [mode] = useState<TripEditorRebuildMode>("auto");
+  const mode: TripEditorRebuildMode = "auto";
 
   useEffect(() => {
     setStops(ensureStopIds(navpack?.req?.stops ?? []));
@@ -155,8 +163,6 @@ export function TripView({
     setErr(null);
   }, [navpack]);
 
-  // Online: OSRM handles routing (corridor not required).
-  // Offline: corridor graph required for A* routing.
   const canRebuild = stops.length >= 2 && !!onRebuildRequested && (isOnline || !!corridor);
 
   /* ── Alert intelligence ─────────────────────────────────────────────── */
@@ -185,13 +191,7 @@ export function TripView({
     dismissedCount,
   } = useAlerts(traffic, hazards, routeGeometry, userPosition, stopsForProjection);
 
-  /* ── Stop editing ───────────────────────────────────────────────────── */
   /* ── Auto-rebuild helper (debounced + optimistic) ────────────────── */
-  // UI updates (stops reorder) are instant.  The actual route rebuild is
-  // debounced by 600ms so rapid changes coalesce into a single request.
-  // Buttons stay enabled while the rebuild runs in the background — if
-  // the user makes another change mid-flight, we queue a follow-up
-  // rebuild with the latest stops once the current one settles.
   const rebuildTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingStops = useRef<TripStop[] | null>(null);
   const rebuildInFlight = useRef(false);
@@ -199,8 +199,6 @@ export function TripView({
   const flushRebuild = useCallback(
     (nextStops: TripStop[]) => {
       if (nextStops.length < 2 || !onRebuildRequested) return;
-      // If a rebuild is already in flight, just stash the latest stops —
-      // the in-flight completion handler will kick off a follow-up.
       if (rebuildInFlight.current) {
         pendingStops.current = nextStops;
         return;
@@ -215,13 +213,11 @@ export function TripView({
         })
         .catch((e: unknown) => {
           setDirty(true);
-          setErr(e instanceof Error ? e.message : "Rebuild failed");
+          setErr(toErrorMessage(e, "Rebuild failed"));
           haptic.error();
         })
         .finally(() => {
           rebuildInFlight.current = false;
-          // If the user made more changes while we were rebuilding,
-          // kick off another rebuild with the latest stops.
           const queued = pendingStops.current;
           if (queued) {
             pendingStops.current = null;
@@ -236,7 +232,6 @@ export function TripView({
 
   const autoRebuild = useCallback(
     (nextStops: TripStop[]) => {
-      // Clear any pending debounce so we always use the latest stops.
       if (rebuildTimer.current) clearTimeout(rebuildTimer.current);
       setDirty(true);
       rebuildTimer.current = setTimeout(() => {
@@ -247,7 +242,6 @@ export function TripView({
     [flushRebuild],
   );
 
-  // Cleanup debounce timer on unmount.
   useEffect(() => () => { if (rebuildTimer.current) clearTimeout(rebuildTimer.current); }, []);
 
   /* ── Reorder & remove animation (shared FLIP hook) ───────────────── */
@@ -293,22 +287,9 @@ export function TripView({
       if (el) {
         let fired = false;
         const once = () => { if (fired) return; fired = true; doRemove(); };
-        // Slide out to the right + fade + collapse height
-        const h = el.offsetHeight;
-        el.style.height = `${h}px`;
-        el.style.overflow = "hidden";
-        el.style.transition = "transform 250ms ease, opacity 200ms ease";
-        el.style.transform = "translateX(60px)";
-        el.style.opacity = "0";
-        // After the slide-out, collapse the height for remaining items
-        setTimeout(() => {
-          el.style.transition = "height 200ms ease, margin 200ms ease, padding 200ms ease";
-          el.style.height = "0px";
-          el.style.marginTop = "0px";
-          el.style.marginBottom = "0px";
-          el.style.paddingTop = "0px";
-          el.style.paddingBottom = "0px";
-        }, 200);
+        el.style.height = `${el.offsetHeight}px`;
+        el.dataset.removing = "true";
+        setTimeout(() => { el.dataset.collapsing = "true"; }, 200);
         setTimeout(once, 420);
       } else {
         doRemove();
@@ -324,8 +305,6 @@ export function TripView({
         onAddSuggestion(p);
         return;
       }
-
-      // Build the updated stops list so we can trigger an immediate rebuild.
       const prev = ensureStopIds(stops);
       const out = [...prev];
       const endIdx = out.findIndex((st) => (st.type ?? "poi") === "end");
@@ -333,7 +312,6 @@ export function TripView({
       const next: TripStop = { id: newId, type: "poi", name: p.name, lat: p.lat, lng: p.lng };
       if (endIdx >= 0) out.splice(endIdx, 0, next);
       else out.push(next);
-
       capturePositions();
       setAddedId(newId);
       setStops(out);
@@ -351,6 +329,69 @@ export function TripView({
     setErr(null);
   }, [navpack]);
 
+  /* ── Optimize route (nearest-neighbour TSP) ──────────────────── */
+  const [optimizeToast, setOptimizeToast] = useState(false);
+
+  const optimizeRoute = useCallback(() => {
+    setStops((prev) => {
+      if (prev.length < 3) return prev;
+
+      const startLocked = prev[0] && isLockedStop(prev[0]);
+      const endLocked = prev[prev.length - 1] && isLockedStop(prev[prev.length - 1]);
+
+      const fixedStart = startLocked ? prev[0] : null;
+      const fixedEnd = endLocked ? prev[prev.length - 1] : null;
+
+      // Middle stops to reorder
+      const middle = prev.filter((st) => !isLockedStop(st));
+      if (middle.length < 2) return prev;
+
+      // Nearest-neighbour from the start position
+      const startLat = fixedStart?.lat ?? middle[0]?.lat ?? 0;
+      const startLng = fixedStart?.lng ?? middle[0]?.lng ?? 0;
+
+      const unvisited = [...middle];
+      const ordered: TripStop[] = [];
+      let curLat = startLat;
+      let curLng = startLng;
+
+      while (unvisited.length > 0) {
+        let nearestIdx = 0;
+        let nearestDist = Infinity;
+        for (let i = 0; i < unvisited.length; i++) {
+          const st = unvisited[i]!;
+          if (typeof st.lat !== "number" || typeof st.lng !== "number") { nearestIdx = i; break; }
+          const dlat = st.lat - curLat;
+          const dlng = st.lng - curLng;
+          const d = dlat * dlat + dlng * dlng; // squared distance is fine for comparison
+          if (d < nearestDist) { nearestDist = d; nearestIdx = i; }
+        }
+        const next = unvisited.splice(nearestIdx, 1)[0]!;
+        ordered.push(next);
+        curLat = next.lat ?? curLat;
+        curLng = next.lng ?? curLng;
+      }
+
+      const out: TripStop[] = [
+        ...(fixedStart ? [fixedStart] : []),
+        ...ordered,
+        ...(fixedEnd ? [fixedEnd] : []),
+      ];
+
+      // Only apply if order actually changed
+      const changed = out.some((st, i) => st.id !== prev[i]?.id);
+      if (!changed) return prev;
+
+      capturePositions();
+      autoRebuild(out);
+      return out;
+    });
+
+    haptic.success();
+    setOptimizeToast(true);
+    setTimeout(() => setOptimizeToast(false), 2200);
+  }, [capturePositions, autoRebuild]);
+
   const rebuild = useCallback(async () => {
     if (!canRebuild || !onRebuildRequested) return;
     haptic.medium();
@@ -362,12 +403,219 @@ export function TripView({
       setDirty(false);
       haptic.success();
     } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : "Rebuild failed");
+      setErr(toErrorMessage(e, "Rebuild failed"));
       haptic.error();
     } finally {
       setBusy(null);
     }
   }, [canRebuild, onRebuildRequested, stops, mode]);
+
+  /* ── Drag-to-reorder ─────────────────────────────────────────────── */
+  const listRef = useRef<HTMLDivElement>(null);
+  const dragStateRef = useRef<DragState | null>(null);
+  const [dragFromIdx, setDragFromIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  const [ghostTop, setGhostTop] = useState(0);
+
+  const snapshotItemRects = useCallback(() => {
+    if (!listRef.current) return { heights: [] as number[], tops: [] as number[] };
+    const listTop = listRef.current.getBoundingClientRect().top;
+    const items = Array.from(listRef.current.querySelectorAll<HTMLElement>("[data-stop-idx]"));
+    const heights = items.map((el) => el.offsetHeight);
+    const tops = items.map((el) => el.getBoundingClientRect().top - listTop);
+    return { heights, tops };
+  }, []);
+
+  const onDragHandlePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLElement>, idx: number) => {
+      const stop = stops[idx];
+      if (!stop || isLockedStop(stop)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.currentTarget.setPointerCapture(e.pointerId);
+
+      const { heights, tops } = snapshotItemRects();
+      const listTop = listRef.current?.getBoundingClientRect().top ?? 0;
+      const itemTopViewport = (tops[idx] ?? 0) + listTop;
+      const offsetY = e.clientY - itemTopViewport;
+
+      haptic.selection();
+      setDragFromIdx(idx);
+      setDragOverIdx(idx);
+      setGhostTop(tops[idx] ?? 0);
+
+      dragStateRef.current = {
+        fromIdx: idx,
+        overIdx: idx,
+        offsetY,
+        itemHeights: heights,
+        itemTops: tops,
+      };
+    },
+    [stops, snapshotItemRects],
+  );
+
+  const onDragPointerMove = useCallback(
+    (e: React.PointerEvent<HTMLElement>) => {
+      const ds = dragStateRef.current;
+      if (!ds) return;
+      e.preventDefault();
+
+      const listTop = listRef.current?.getBoundingClientRect().top ?? 0;
+      const newGhostTop = e.clientY - listTop - ds.offsetY;
+      setGhostTop(newGhostTop);
+
+      // Determine hover index by midpoints
+      const dragedItemH = ds.itemHeights[ds.fromIdx] ?? 60;
+      const midY = e.clientY - listTop - ds.offsetY + dragedItemH / 2;
+      let newOver = ds.fromIdx;
+      for (let i = 0; i < ds.itemTops.length; i++) {
+        const midI = (ds.itemTops[i] ?? 0) + (ds.itemHeights[i] ?? 60) / 2;
+        if (midY > midI) newOver = i;
+      }
+      newOver = Math.max(0, Math.min(newOver, stops.length - 1));
+
+      // Clamp away from locked start/end
+      const startLocked = stops[0] && isLockedStop(stops[0]);
+      const endLocked = stops[stops.length - 1] && isLockedStop(stops[stops.length - 1]);
+      if (startLocked) newOver = Math.max(1, newOver);
+      if (endLocked) newOver = Math.min(stops.length - 2, newOver);
+
+      if (newOver !== ds.overIdx) {
+        haptic.selection();
+        ds.overIdx = newOver;
+        setDragOverIdx(newOver);
+      }
+    },
+    [stops],
+  );
+
+  const onDragPointerUp = useCallback(() => {
+    const ds = dragStateRef.current;
+    if (!ds) return;
+    dragStateRef.current = null;
+
+    const fromIdx = ds.fromIdx;
+    const toIdx = ds.overIdx;
+    setDragFromIdx(null);
+    setDragOverIdx(null);
+
+    if (fromIdx !== toIdx) {
+      capturePositions();
+      setStops((prev) => {
+        const stop = prev[fromIdx];
+        if (!stop || isLockedStop(stop)) return prev;
+        const target = prev[toIdx];
+        if (!target || isLockedStop(target)) return prev;
+        setMovedId(stop.id ?? null);
+        const out = [...prev];
+        const [moved] = out.splice(fromIdx, 1);
+        out.splice(toIdx, 0, moved);
+        autoRebuild(out);
+        return out;
+      });
+      haptic.medium();
+    }
+  }, [autoRebuild, capturePositions, setMovedId]);
+
+  /* ── Long-press for quick action menu ───────────────────────────── */
+  const [quickMenu, setQuickMenu] = useState<QuickActionMenuState | null>(null);
+  const longPressTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  const startLongPress = useCallback(
+    (e: React.PointerEvent<HTMLElement>, stop: TripStop) => {
+      // Don't fire long-press when drag has started
+      if (dragStateRef.current) return;
+      const id = stop.id ?? "";
+      if (longPressTimers.current.has(id)) return;
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const anchorX = e.clientX;
+      const anchorY = e.clientY;
+
+      const timer = setTimeout(() => {
+        longPressTimers.current.delete(id);
+        // Don't open menu if a drag started during the wait
+        if (dragStateRef.current) return;
+        haptic.heavy();
+        setQuickMenu({
+          stopId: id,
+          stopName: stop.name?.trim() || stopLabel(stop, 0),
+          anchorX,
+          anchorY,
+          isLocked: isLockedStop(stop),
+          isWaypoint: (stop.type ?? "poi") === "via",
+        });
+      }, 500);
+      longPressTimers.current.set(id, timer);
+
+      const cancel = () => {
+        clearTimeout(timer);
+        longPressTimers.current.delete(id);
+      };
+      const onMove = (mv: PointerEvent) => {
+        const dx = mv.clientX - startX;
+        const dy = mv.clientY - startY;
+        if (Math.sqrt(dx * dx + dy * dy) > 8) cancel();
+      };
+      document.addEventListener("pointermove", onMove);
+      document.addEventListener("pointerup", () => {
+        cancel();
+        document.removeEventListener("pointermove", onMove);
+      }, { once: true });
+    },
+    [],
+  );
+
+  const handleQuickAction = useCallback(
+    (action: StopQuickAction, stopId: string) => {
+      if (action === "delete") {
+        removeStop(stopId);
+        return;
+      }
+      if (action === "move-to-start" || action === "move-to-end") {
+        haptic.medium();
+        capturePositions();
+        setStops((prev) => {
+          const idx = prev.findIndex((x) => x.id === stopId);
+          if (idx < 0) return prev;
+          const stop = prev[idx];
+          if (!stop || isLockedStop(stop)) return prev;
+          const startLocked = prev[0] && isLockedStop(prev[0]);
+          const endLocked = prev[prev.length - 1] && isLockedStop(prev[prev.length - 1]);
+          const targetIdx = action === "move-to-start"
+            ? (startLocked ? 1 : 0)
+            : (endLocked ? prev.length - 2 : prev.length - 1);
+          if (idx === targetIdx) return prev;
+          setMovedId(stopId);
+          const out = [...prev];
+          const [moved] = out.splice(idx, 1);
+          out.splice(targetIdx, 0, moved);
+          autoRebuild(out);
+          return out;
+        });
+        return;
+      }
+      if (action === "set-waypoint") {
+        haptic.tap();
+        setStops((prev) => {
+          const idx = prev.findIndex((x) => x.id === stopId);
+          if (idx < 0) return prev;
+          const stop = prev[idx];
+          if (!stop || isLockedStop(stop)) return prev;
+          const newType = (stop.type ?? "poi") === "via" ? "poi" : "via";
+          const out = [...prev];
+          out[idx] = { ...stop, type: newType };
+          autoRebuild(out);
+          return out;
+        });
+        return;
+      }
+      // Delegate add-note and other actions to parent
+      onStopQuickAction?.(action, stopId);
+    },
+    [removeStop, capturePositions, setMovedId, autoRebuild, onStopQuickAction],
+  );
 
   /* ── Derived ────────────────────────────────────────────────────────── */
   const distance = navpack?.primary?.distance_m ?? 0;
@@ -390,8 +638,25 @@ export function TripView({
     },
   ];
 
+  /* ── Leg data indexed by from-stop position ─────────────────────────── */
+  const legs = navpack?.primary?.legs ?? [];
+
+  /* ── Ghost height ───────────────────────────────────────────────────── */
+  const ghostStop = dragFromIdx !== null ? stops[dragFromIdx] : null;
+  const ghostHeight =
+    dragFromIdx !== null && listRef.current
+      ? (listRef.current.querySelector<HTMLElement>(`[data-stop-idx="${dragFromIdx}"]`)?.offsetHeight ?? 60)
+      : 60;
+
   return (
     <div className={s.root}>
+      {/* ── Quick action menu ─── */}
+      <StopQuickActionMenu
+        state={quickMenu}
+        onAction={handleQuickAction}
+        onClose={() => setQuickMenu(null)}
+      />
+
       {/* ── Fuel summary card ────── */}
       <FuelSummaryCard
         analysis={fuelAnalysis ?? null}
@@ -443,27 +708,15 @@ export function TripView({
       {activeSection === "route" && (
         <>
           {/* Route meta */}
-          <div style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "0 2px 12px",
-            color: "var(--roam-text-muted)",
-            fontSize: 12,
-            fontWeight: 600,
-          }}>
-            <div style={{ display: "flex", gap: 12 }}>
-              <span>{formatDist(distance)}</span>
+          <div className={s.routeMeta}>
+            <div className={s.routeMetaStats}>
+              <span>{formatDistance(distance)}</span>
               <span style={{ opacity: 0.4 }}>&middot;</span>
-              <span>{formatDur(duration)}</span>
+              <span>{formatDuration(duration)}</span>
             </div>
 
             {dirty && (
-              <span style={{
-                fontSize: 10,
-                fontWeight: 700,
-                color: "var(--roam-warn)",
-              }}>
+              <span className={s.unsavedBadge}>
                 Unsaved changes
               </span>
             )}
@@ -471,45 +724,41 @@ export function TripView({
 
           {/* Offline routing indicator */}
           {offlineRouted && (
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "6px 10px",
-              marginBottom: 8,
-              borderRadius: 10,
-              background: "var(--roam-surface-hover)",
-              fontSize: 11,
-              fontWeight: 700,
-              color: "var(--roam-text-muted)",
-            }}>
+            <div className={s.offlineBanner}>
               <WifiOff size={12} strokeWidth={2} />
               <span>Offline route &mdash; no turn-by-turn</span>
               {isOnline && (
-                <span style={{
-                  marginLeft: "auto",
-                  fontSize: 10,
-                  fontWeight: 700,
-                  color: "var(--roam-accent)",
-                  whiteSpace: "nowrap",
-                }}>
+                <span className={s.offlineRebuild}>
                   Rebuild online
                 </span>
               )}
             </div>
           )}
 
-          <div className={s.stopList}>
+          {/* Stop list with drag-to-reorder */}
+          <div
+            ref={listRef}
+            className={cx(s.stopList, dragFromIdx !== null && s.stopListDragging)}
+          >
             {stops.map((stop, index) => {
               const type = resolveType(stop);
               const isFocused = focusedStopId === stop.id;
               const locked = isLockedStop(stop);
               const legAlerts =
-              index < stops.length - 1 ? alertsForLeg(index, index + 1) : [];
+                index < stops.length - 1 ? alertsForLeg(index, index + 1) : [];
+              const isDraggingThis = dragFromIdx === index;
+              const isDropTarget =
+                dragFromIdx !== null && dragOverIdx === index && dragFromIdx !== index;
+
               return (
                 <div
                   key={stop.id ?? index}
-                  className={s.stopEntry}
+                  data-stop-idx={index}
+                  className={cx(
+                    s.stopEntry,
+                    isDraggingThis && s.stopEntryDragging,
+                    isDropTarget && s.stopEntryDropTarget,
+                  )}
                   ref={(el) => {
                     if (stop.id) registerStopEl(stop.id, el);
                   }}
@@ -518,11 +767,26 @@ export function TripView({
                   <div
                     className={cx(s.stopCard, isFocused && s.stopCardFocused)}
                     data-stop-type={type}
+                    onPointerDown={(e) => startLongPress(e, stop)}
                     onClick={() => {
                       haptic.selection();
                       onFocusStop(stop.id ?? null);
                     }}
                   >
+                    {/* Drag handle (non-locked stops only) */}
+                    {!locked && (
+                      <div
+                        className={s.dragHandle}
+                        onPointerDown={(e) => onDragHandlePointerDown(e, index)}
+                        onPointerMove={onDragPointerMove}
+                        onPointerUp={onDragPointerUp}
+                        onPointerCancel={onDragPointerUp}
+                        aria-label="Drag to reorder"
+                      >
+                        <GripVertical size={14} strokeWidth={2} />
+                      </div>
+                    )}
+
                     {/* Marker icon */}
                     <div className={s.stopMarker} data-type={type}>
                       <StopIcon type={type} />
@@ -587,23 +851,59 @@ export function TripView({
 
                   {/* Inline leg alerts */}
                   {legAlerts.length > 0 && (
-                  <LegAlertStrip
-                  alerts={legAlerts}
-                  highlighted={highlightedAlertId}
-                  onHighlight={onHighlightAlert}
-                  onDismiss={dismissAlert}
-                />
+                    <LegAlertStrip
+                      alerts={legAlerts}
+                      highlighted={highlightedAlertId}
+                      onHighlight={onHighlightAlert}
+                      onDismiss={dismissAlert}
+                    />
                   )}
 
-                  {/* Connector line between stops */}
-                  {index < stops.length - 1 && legAlerts.length === 0 && (
-                    <div className={s.connector}>
-                      <div className={s.connectorLine} />
-                    </div>
-                  )}
+                  {/* Connector line + leg pill between stops */}
+                  {index < stops.length - 1 && legAlerts.length === 0 && (() => {
+                    const leg = legs[index];
+                    return (
+                      <div className={s.connector}>
+                        <div className={s.connectorLine} />
+                        {leg && (
+                          <span className={s.legPill}>
+                            {formatDuration(leg.duration_s)}&nbsp;&middot;&nbsp;{formatDistance(leg.distance_m)}
+                          </span>
+                        )}
+                        <div className={s.connectorLine} />
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}
+
+            {/* Drag ghost — floating card that follows the pointer */}
+            {ghostStop && dragFromIdx !== null && (
+              <div
+                className={s.dragGhost}
+                style={{ top: ghostTop, height: ghostHeight }}
+                aria-hidden
+              >
+                <div className={cx(s.stopCard, s.dragGhostCard)} data-stop-type={resolveType(ghostStop)}>
+                  <div className={s.dragHandle} style={{ pointerEvents: "none" }}>
+                    <GripVertical size={14} strokeWidth={2} />
+                  </div>
+                  <div className={s.stopMarker} data-type={resolveType(ghostStop)}>
+                    <StopIcon type={resolveType(ghostStop)} />
+                    <div className={s.indexBadge}>{dragFromIdx + 1}</div>
+                  </div>
+                  <div className={s.stopContent}>
+                    <div className={s.stopName}>{stopLabel(ghostStop, dragFromIdx)}</div>
+                    <div className={s.stopMeta}>
+                      <span className={s.stopTypeBadge}>
+                        {resolveType(ghostStop) === "poi" ? "stop" : resolveType(ghostStop)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Add stop button */}
             <button
@@ -617,6 +917,26 @@ export function TripView({
               <Plus size={14} strokeWidth={2} />
               Add stop
             </button>
+
+            {/* Optimize route button */}
+            {stops.filter((st) => !isLockedStop(st)).length >= 2 && (
+              optimizeToast ? (
+                <div className={s.optimizeToast}>
+                  <CheckCheck size={13} strokeWidth={2.5} />
+                  Route optimised
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className={s.optimizeBtn}
+                  disabled={!!busy}
+                  onClick={optimizeRoute}
+                >
+                  <Shuffle size={13} strokeWidth={2} />
+                  Optimise Route
+                </button>
+              )
+            )}
 
             {/* Save / Reset footer */}
             {dirty && (

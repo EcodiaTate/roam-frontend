@@ -47,6 +47,46 @@ function relevantCategories(fuelType: string): Set<string> {
 // ──────────────────────────────────────────────────────────────
 
 /**
+ * Compute a wind-based range penalty from weather overlay data.
+ *
+ * Headwind: reduces effective range by up to ~15% at 60+ km/h wind.
+ * Tailwind: slight bonus (capped at +5% — don't encourage risky range estimates).
+ * Crosswind: small penalty (~5% at high speeds due to increased drag).
+ *
+ * @param avgWindSpeed_kmh  Average wind speed along route
+ * @param windDirection_deg Wind direction (0=N, 90=E, 180=S, 270=W)
+ * @param routeHeading_deg  Average heading of the route
+ * @returns Range multiplier (0.85 - 1.05). Multiply with tank_range_km.
+ */
+export function windRangeFactor(
+  avgWindSpeed_kmh: number,
+  windDirection_deg: number,
+  routeHeading_deg: number,
+): number {
+  if (avgWindSpeed_kmh < 10) return 1.0; // negligible wind
+
+  // Angle between wind and route heading.
+  // Wind direction is where wind COMES FROM, so headwind = same direction as route.
+  const relativeAngle = ((windDirection_deg - routeHeading_deg + 360) % 360);
+  const radians = relativeAngle * (Math.PI / 180);
+  const headwindComponent = Math.cos(radians); // +1 = headwind, -1 = tailwind
+
+  // Scale factor based on wind speed (maxes out at ~60 km/h)
+  const speedFactor = Math.min(avgWindSpeed_kmh / 60, 1.0);
+
+  // Headwind: up to -15% range. Tailwind: up to +5%. Crosswind: ~-5%.
+  const crosswindPenalty = Math.abs(Math.sin(radians)) * 0.05 * speedFactor;
+
+  if (headwindComponent > 0) {
+    // Headwind
+    return 1.0 - (headwindComponent * 0.15 * speedFactor) - crosswindPenalty;
+  } else {
+    // Tailwind (conservative bonus)
+    return Math.min(1.05, 1.0 + (Math.abs(headwindComponent) * 0.05 * speedFactor) - crosswindPenalty);
+  }
+}
+
+/**
  * Analyse fuel coverage for a route.
  *
  * @param routeGeometry  Polyline6 string of the route
@@ -54,6 +94,7 @@ function relevantCategories(fuelType: string): Set<string> {
  * @param profile        Vehicle fuel profile
  * @param routeKey       Route key for tagging the analysis
  * @param placesKey      Places pack key — stored so callers can detect stale cache
+ * @param rangeFactor    Optional multiplier for effective range (e.g. wind correction)
  */
 export function analyzeFuel(
   routeGeometry: string,
@@ -61,12 +102,20 @@ export function analyzeFuel(
   profile: VehicleFuelProfile,
   routeKey: string,
   placesKey?: string,
+  rangeFactor: number = 1.0,
 ): FuelAnalysis {
   // 1. Decode polyline → coordinate array
   const decoded = decodePolyline6(routeGeometry);
   if (decoded.length < 2) {
     return emptyAnalysis(profile, routeKey, placesKey);
   }
+
+  // Apply wind/condition range correction.
+  // Adjusts the effective tank range so all downstream gap/warning logic
+  // automatically accounts for headwind, heat, elevation, etc.
+  const effectiveProfile: VehicleFuelProfile = rangeFactor !== 1.0
+    ? { ...profile, tank_range_km: Math.round(profile.tank_range_km * Math.max(0.5, rangeFactor)) }
+    : profile;
 
   // 2. Build cumulative km array
   const cumKm = cumulativeKm(decoded);
@@ -119,11 +168,22 @@ export function analyzeFuel(
   // 6. Deduplicate stations that are very close together (< 0.5 km)
   const deduped = deduplicateStations(stations);
 
-  // 7. Decompose into fuel legs
-  const legs = buildFuelLegs(deduped, routeTotalKm, profile);
+  // 7. Decompose into fuel legs (using wind-adjusted range)
+  const legs = buildFuelLegs(deduped, routeTotalKm, effectiveProfile);
 
-  // 8. Generate warnings
-  const warnings = generateWarnings(legs, deduped, profile);
+  // 8. Generate warnings (using wind-adjusted range)
+  const warnings = generateWarnings(legs, deduped, effectiveProfile);
+
+  // Add wind penalty warning if significant
+  if (rangeFactor < 0.92) {
+    const pctReduction = Math.round((1 - rangeFactor) * 100);
+    warnings.unshift({
+      type: "wind_penalty",
+      severity: rangeFactor < 0.85 ? "warn" : "info",
+      message: `Strong headwind reducing effective fuel range by ~${pctReduction}%`,
+      at_km: 0,
+    });
+  }
 
   // 9. Compute summary
   const max_gap_km = legs.length > 0
@@ -131,7 +191,7 @@ export function analyzeFuel(
     : 0;
 
   return {
-    profile,
+    profile: effectiveProfile,
     stations: deduped,
     legs,
     warnings,
@@ -471,4 +531,101 @@ function severityRank(s: string): number {
     case "info": return 1;
     default: return 0;
   }
+}
+
+// ──────────────────────────────────────────────────────────────
+// Fuel price arbitrage
+// ──────────────────────────────────────────────────────────────
+
+import type { FuelStationOverlay, FuelOverlay } from "@/lib/types/overlays";
+
+export type FuelArbitrageAlert = {
+  /** The approaching station (expensive) */
+  current_station: string;
+  current_price_cents: number;
+  /** The cheaper station ahead */
+  cheaper_station: string;
+  cheaper_price_cents: number;
+  /** Distance between them */
+  distance_km: number;
+  /** How much cheaper (cents/litre) */
+  savings_cents: number;
+  /** Is the cheaper station reachable from current position? */
+  reachable: boolean;
+};
+
+/**
+ * Check if the next station ahead is cheaper than the approaching one.
+ * Returns an alert if the price difference is worth skipping.
+ *
+ * @param currentKm       User's current position along route
+ * @param fuelOverlay     Bundle fuel overlay with live prices
+ * @param profile         Vehicle fuel profile (for range check)
+ * @param fuelType        User's fuel type string to match prices
+ * @param minSavingsCents Minimum difference to alert (default 10c/L)
+ */
+export function checkFuelArbitrage(
+  currentKm: number,
+  fuelOverlay: FuelOverlay,
+  profile: VehicleFuelProfile,
+  fuelType: string = "unleaded",
+  minSavingsCents: number = 10,
+): FuelArbitrageAlert | null {
+  // Find stations ahead with known prices, sorted by km
+  const stationsAhead = fuelOverlay.stations
+    .filter((s) => (s.km_along_route ?? 0) > currentKm && s.fuel_types?.length)
+    .sort((a, b) => (a.km_along_route ?? 0) - (b.km_along_route ?? 0));
+
+  if (stationsAhead.length < 2) return null;
+
+  // Get price for the closest station ahead (the one user is approaching)
+  const approaching = stationsAhead[0];
+  const approachPrice = getPriceForType(approaching, fuelType);
+  if (approachPrice === null) return null;
+
+  // Check the next 3 stations for a cheaper option
+  for (let i = 1; i < Math.min(stationsAhead.length, 4); i++) {
+    const candidate = stationsAhead[i];
+    const candidatePrice = getPriceForType(candidate, fuelType);
+    if (candidatePrice === null) continue;
+
+    const savings = approachPrice - candidatePrice;
+    if (savings < minSavingsCents) continue;
+
+    const approachKm = approaching.km_along_route ?? 0;
+    const candidateKm = candidate.km_along_route ?? 0;
+    const distBetween = candidateKm - approachKm;
+
+    // Check if candidate is reachable without refueling
+    const kmSinceStart = approachKm - currentKm;
+    const reachable = (candidateKm - currentKm) < (profile.tank_range_km - profile.reserve_warn_km);
+
+    if (!reachable) continue; // don't suggest unreachable savings
+
+    return {
+      current_station: approaching.name,
+      current_price_cents: approachPrice,
+      cheaper_station: candidate.name,
+      cheaper_price_cents: candidatePrice,
+      distance_km: Math.round(distBetween),
+      savings_cents: Math.round(savings),
+      reachable,
+    };
+  }
+
+  return null;
+}
+
+function getPriceForType(station: FuelStationOverlay, fuelType: string): number | null {
+  if (!station.fuel_types) return null;
+  // Try exact match first, then fuzzy
+  const normalised = fuelType.toLowerCase();
+  const match = station.fuel_types.find((ft) => {
+    const t = ft.fuel_type.toLowerCase();
+    return t === normalised
+      || (normalised === "unleaded" && (t.includes("e10") || t.includes("91") || t.includes("unleaded")))
+      || (normalised === "diesel" && t.includes("diesel"))
+      || (normalised === "lpg" && t.includes("lpg"));
+  });
+  return match?.price_cents ?? null;
 }

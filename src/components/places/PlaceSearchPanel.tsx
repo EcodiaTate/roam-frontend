@@ -24,6 +24,9 @@ import { haptic } from "@/lib/native/haptics";
 import { fmtCat } from "@/lib/places/format";
 import { TogglePill } from "@/components/ui/TogglePill";
 import { PlaceRow } from "@/components/places/PlaceRow";
+import { SavedPlacesPanel } from "@/components/places/SavedPlacesPanel";
+import { useSavedPlaces } from "@/lib/hooks/useSavedPlaces";
+import type { SavedPlace } from "@/lib/offline/savedPlacesStore";
 
 import type { LucideIcon } from "lucide-react";
 import {
@@ -35,6 +38,7 @@ import {
   ArrowUpDown,
   MapPin,
   Layers,
+  Bookmark,
   Fuel,
   Zap,
   ParkingMeter,
@@ -255,6 +259,8 @@ export type PlaceSearchPanelProps = {
   userPosition?: UserPosition | null;
   /** Called when user taps a result row */
   onSelectPlace?: (place: PlaceItem) => void;
+  /** Called when user taps "Add" on a saved place (adds to trip) */
+  onAddSavedToTrip?: (place: SavedPlace) => void;
   /** Called when filters change — used to highlight map markers */
   onFilteredIdsChange?: (ids: Set<string> | null) => void;
   /** Called when user taps "Show on map" */
@@ -267,10 +273,13 @@ export function PlaceSearchPanel({
   tripProgress,
   userPosition: userPositionProp,
   onSelectPlace,
+  onAddSavedToTrip,
   onFilteredIdsChange,
   onShowOnMap,
   maxHeight = "calc(100vh - 200px)",
 }: PlaceSearchPanelProps) {
+  const [activeTab, setActiveTab] = useState<"search" | "saved">("saved");
+  const { places: savedPlaces, isLoading: savedLoading, removeSaved, updateNote, toggleSave } = useSavedPlaces();
   const items = useMemo(() => places?.items ?? [], [places]);
 
   // ── Load persisted state ──────────────────────────────────────
@@ -457,6 +466,51 @@ export function PlaceSearchPanel({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0, height: "100%" }}>
+
+      {/* ── Tab switcher: Saved / Search ─────────────────────────── */}
+      <div
+        style={{
+          display: "flex",
+          gap: 6,
+          padding: "10px 16px 0",
+          flexShrink: 0,
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => { haptic.selection(); setActiveTab("saved"); }}
+          style={tabStyle(activeTab === "saved")}
+        >
+          <Bookmark size={13} fill={activeTab === "saved" ? "currentColor" : "none"} />
+          Saved
+          {savedPlaces.length > 0 && (
+            <span style={badgeStyle(activeTab === "saved")}>{savedPlaces.length}</span>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => { haptic.selection(); setActiveTab("search"); }}
+          style={tabStyle(activeTab === "search")}
+        >
+          <Search size={13} />
+          Search
+        </button>
+      </div>
+
+      {/* ── Saved tab ────────────────────────────────────────────── */}
+      {activeTab === "saved" && (
+        <SavedPlacesPanel
+          places={savedPlaces}
+          isLoading={savedLoading}
+          onAddToTrip={onAddSavedToTrip}
+          onRemove={(placeId) => removeSaved(placeId)}
+          onUpdateNote={(placeId, note) => updateNote(placeId, note)}
+          maxHeight={maxHeight}
+        />
+      )}
+
+      {/* ── Search tab ───────────────────────────────────────────── */}
+      {activeTab === "search" && (<>
 
       {/* ── Search bar ──────────────────────────────────────────── */}
       <div
@@ -791,10 +845,13 @@ export function PlaceSearchPanel({
               distKm={distKm}
               ahead={ahead}
               onSelect={onSelectPlace}
+              isSaved={savedPlaces.some((s) => s.place_id === place.id)}
+              onToggleSave={toggleSave}
             />
           ))
         )}
       </div>
+      </>)}
     </div>
   );
 }
@@ -835,5 +892,25 @@ function badgeStyle(active: boolean): React.CSSProperties {
     minWidth: 16,
     textAlign: "center",
     transition: "background 100ms ease, color 100ms ease",
+  };
+}
+
+function tabStyle(active: boolean): React.CSSProperties {
+  return {
+    flex: 1,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    padding: "8px 12px",
+    borderRadius: 12,
+    border: "none",
+    fontSize: 13,
+    fontWeight: 800,
+    cursor: "pointer",
+    background: active ? "var(--roam-accent)" : "var(--roam-surface-hover)",
+    color: active ? "var(--on-color)" : "var(--roam-text-muted)",
+    transition: "background 120ms ease, color 120ms ease",
+    outline: "none",
   };
 }

@@ -20,12 +20,21 @@ const EmergencyClientPage = dynamic(
   () => import("@/app/(app)/sos/ClientPage"),
   { ssr: false }
 );
+const DiscoverClientPage = dynamic(
+  () => import("@/app/(app)/discover/ClientPage"),
+  { ssr: false }
+);
+const MemoriesClientPage = dynamic(
+  () => import("@/app/(app)/journal/ClientPage"),
+  { ssr: false }
+);
+
 /* ── Tab definitions ─────────────────────────────────────────────────── */
 
-const TAB_ROUTES = ["/guide", "/trip", "/sos"] as const;
+// Tab order must match BottomTabBar TABS order for correct slide animation direction.
+// guide | discover | trip (center) | journal | sos
+const TAB_ROUTES = ["/guide", "/discover", "/trip", "/journal", "/sos"] as const;
 type TabRoute = (typeof TAB_ROUTES)[number];
-
-// (page-level swipe removed — navigation is tab-bar only)
 
 function normalizeTabRoute(path: string): TabRoute | null {
   const clean = path.replace(/\/+$/, "") || "/";
@@ -52,9 +61,11 @@ export function PersistentTabs({ children }: { children: React.ReactNode }) {
   // All hidden on SSR — effects reveal on client
   const [mounted, setMounted] = useState<Set<TabRoute>>(new Set());
   const [animStates, setAnimStates] = useState<Record<TabRoute, AnimState>>({
-    "/guide": "hidden",
-    "/trip":  "hidden",
-    "/sos":   "hidden",
+    "/guide":    "hidden",
+    "/discover": "hidden",
+    "/trip":     "hidden",
+    "/journal": "hidden",
+    "/sos":      "hidden",
   });
 
   const prevIndexRef   = useRef(-1);
@@ -147,10 +158,26 @@ export function PersistentTabs({ children }: { children: React.ReactNode }) {
         )}
       </div>
 
+      <div ref={setPaneRef("/discover")} className={paneClass("/discover")}>
+        {mounted.has("/discover") && (
+          <Suspense fallback={null}>
+            <DiscoverClientPage />
+          </Suspense>
+        )}
+      </div>
+
       <div ref={setPaneRef("/trip")} className={paneClass("/trip")}>
         {mounted.has("/trip") && (
           <Suspense fallback={<TripSkeleton />}>
             <TripClientPage initialPlanId={null} />
+          </Suspense>
+        )}
+      </div>
+
+      <div ref={setPaneRef("/journal")} className={paneClass("/journal")}>
+        {mounted.has("/journal") && (
+          <Suspense fallback={null}>
+            <MemoriesClientPage />
           </Suspense>
         )}
       </div>

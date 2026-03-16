@@ -9,7 +9,8 @@ import type { Map as MLMap, GeoJSONSource } from "maplibre-gl";
 import maplibregl from "maplibre-gl";
 
 import { TripMap } from "@/components/trip/TripMap";
-import { TripView, type TripEditorRebuildMode } from "@/components/trip/TripView";
+import { TripView, type TripEditorRebuildMode, type StopQuickActionHandler } from "@/components/trip/TripView";
+import { StopQuickActionMenu, type QuickActionMenuState } from "@/components/trip/StopQuickActionMenu";
 import type { AlertHighlightEvent } from "@/components/trip/TripAlertsPanel";
 import { InviteCodeModal } from "@/components/plans/InviteCodeModal";
 import { PlanDrawer } from "@/components/trip/PlanDrawer";
@@ -27,7 +28,8 @@ import { StartNavigationButton } from "@/components/nav/StartNavigationButton";
 import { ElevationStrip } from "@/components/nav/ElevationStrip";
 import { RouteScoreCard } from "@/components/trip/RouteScoreCard";
 import { NearbyRoamersIndicator } from "@/components/trip/NearbyRoamersIndicator";
-import { ReportPanel } from "@/components/trip/ReportPanel";
+import { ReportTypePicker, ReportPlacementBar, REPORT_OPTIONS } from "@/components/trip/ReportPanel";
+import type { ObservationType, ObservationSeverity } from "@/lib/types/peer";
 import { ExchangePanel } from "@/components/trip/ExchangePanel";
 import { QuickReportWheel } from "@/components/trip/QuickReportWheel";
 
@@ -35,6 +37,7 @@ import { QuickReportWheel } from "@/components/trip/QuickReportWheel";
 import { useGeolocation } from "@/lib/native/geolocation";
 import { useKeepAwake } from "@/lib/native/keepAwake";
 import { useActiveNavigation } from "@/lib/hooks/useActiveNavigation";
+import { DEFAULT_NAV_CONFIG } from "@/lib/nav/activeNav";
 import { useMapNavigationMode } from "@/lib/hooks/useMapNavigationMode";
 import { useNetworkStatus } from "@/lib/hooks/useNetworkStatus";
 import { useNearbyRoamers } from "@/lib/hooks/useNearbyRoamers";
@@ -42,18 +45,23 @@ import { useObservations } from "@/lib/hooks/useObservations";
 import type { InterpolatedPosition } from "@/lib/nav/gpsInterpolator";
 
 import { haptic } from "@/lib/native/haptics";
+import { useStopProximity, dismissProximityStop } from "@/lib/hooks/useStopProximity";
+import { StopMemorySheet } from "@/components/memories/StopMemorySheet";
 import { presenceBeacon } from "@/lib/offline/presenceBeacon";
 import { syncPeerDelta } from "@/lib/offline/peerSync";
 import { getCurrentPlanId, getOfflinePlan, listOfflinePlans, setCurrentPlanId, updateOfflinePlan, type OfflinePlanRecord } from "@/lib/offline/plansStore";
-import { getAllPacks, hasCorePacks, putPack, putPacksAtomic } from "@/lib/offline/packsStore";
+import { getAllPacks, hasCorePacks, hasNavpack, putPack, putPacksAtomic } from "@/lib/offline/packsStore";
+import type { PackKind } from "@/lib/offline/packsStore";
 import { unpackAndStoreBundle } from "@/lib/offline/unpackBundle";
 import { getVehicleFuelProfile } from "@/lib/offline/fuelProfileStore";
 import { rebuildNavpackOfflineWithFuel } from "@/lib/offline/rebuildNavpack";
 
 import { navApi } from "@/lib/api/nav";
 import { bundleApi } from "@/lib/api/bundle";
+import { useEnrichment } from "@/lib/hooks/useEnrichment";
 
-import { analyzeFuel, computeFuelTracking } from "@/lib/nav/fuelAnalysis";
+import { analyzeFuel, computeFuelTracking, windRangeFactor, checkFuelArbitrage, type FuelArbitrageAlert } from "@/lib/nav/fuelAnalysis";
+import { computeRefreshPriority, isOverlayStale, formatAge } from "@/lib/offline/refreshPriority";
 import { decodePolyline6 } from "@/lib/nav/polyline6";
 import { cumulativeKm, buildPolylineIndex, snapToPolylineIndexed } from "@/lib/nav/snapToRoute";
 import { shortId } from "@/lib/utils/ids";
@@ -83,11 +91,14 @@ import type {
 // Updated icons here
 import { Image as ImageIcon, UserPlus, Library, WifiOff, Megaphone, Radio } from "lucide-react";
 import { TripSkeleton } from "./TripSkeleton";
+import { EnrichmentBanner } from "@/components/trip/EnrichmentBanner";
 import { isUnlocked as checkIsUnlocked, checkTripGate } from "@/lib/paywall/tripGate";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { TripShareModal } from "@/components/share/TripShareModal";
+import { NativeShareRenderer } from "@/components/share/NativeShareRenderer";
 import type { ShareCardData } from "@/components/share/TripShareCard";
 import { captureMapSnapshot } from "@/lib/share/captureMapSnapshot";
+import { isNative } from "@/lib/native/platform";
 
 /* ── Constants ────────────────────────────────────────────────────────── */
 
@@ -99,6 +110,34 @@ const SCORE_POLL_INTERVAL_MS = 10 * 60_000;
 /* ── Boot phases ──────────────────────────────────────────────────────── */
 
 type BootPhase = "resolving" | "hydrating" | "ready" | "error";
+
+/* ── Types ────────────────────────────────────────────────────────────── */
+
+type ReportPhase =
+  | "picking"
+  | { type: ObservationType; severity: ObservationSeverity }
+  | null;
+
+/* ── Helpers ──────────────────────────────────────────────────────────── */
+
+/**
+ * Compute average wind range factor from weather overlay and route heading.
+ * Returns a multiplier (0.85-1.05) that adjusts effective fuel range.
+ */
+function computeWindFactor(weather: WeatherOverlay | null, navpack: NavPack | null): number {
+  if (!weather?.points?.length || !navpack?.primary?.geometry) return 1.0;
+  const pts = weather.points;
+  const avgWind = pts.reduce((s, p) => s + p.wind_speed_kmh, 0) / pts.length;
+  if (avgWind < 10) return 1.0;
+  const avgWindDir = pts.reduce((s, p) => s + p.wind_direction_deg, 0) / pts.length;
+  // Rough route heading from first and last weather sample points
+  const first = pts[0];
+  const last = pts[pts.length - 1];
+  const dLat = last.lat - first.lat;
+  const dLng = last.lng - first.lng;
+  const routeHeading = ((Math.atan2(dLng, dLat) * 180) / Math.PI + 360) % 360;
+  return windRangeFactor(avgWind, avgWindDir, routeHeading);
+}
 
 /* ── Component ────────────────────────────────────────────────────────── */
 
@@ -155,9 +194,12 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   const [fuelOverlay, setFuelOverlay] = useState<FuelOverlay | null>(null);
   // fuelTracking is derived from props, not stored in state — see computedFuelTracking below
   const [fuelSettingsOpen, setFuelSettingsOpen] = useState(false);
+  const [fuelArbitrage, setFuelArbitrage] = useState<FuelArbitrageAlert | null>(null);
 
   // Elevation state
   const [elevation, setElevation] = useState<ElevationResponse | null>(null);
+  const [elevCollapsed, setElevCollapsed] = useState(false);
+  const [viewportKmRange, setViewportKmRange] = useState<[number, number] | null>(null);
 
   // Offline routing indicator — true when last rebuild used corridor A* instead of OSRM
   const [offlineRouted, setOfflineRouted] = useState(false);
@@ -167,6 +209,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   const [focusedPlaceId, setFocusedPlaceId] = useState<string | null>(null);
   const [highlightedAlertId, setHighlightedAlertId] = useState<string | null>(null);
   const [filteredPlaceIds, setFilteredPlaceIds] = useState<Set<string> | null>(null);
+  // Quick action menu triggered from map stop-pin long-press
+  const [mapQuickMenu, setMapQuickMenu] = useState<QuickActionMenuState | null>(null);
 
   // Invite modal state
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -183,13 +227,17 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   // Offline modal
   const [offlineModalOpen, setOfflineModalOpen] = useState(false);
 
-  // Report panel state
-  const [reportOpen, setReportOpen] = useState(false);
+  // Report panel state — two-phase flow:
+  //   "picking" = type picker overlay visible
+  //   { type, severity } = marker placement mode (picker dismissed, map zoomed in)
+  //   null = closed
+  const [reportPhase, setReportPhase] = useState<ReportPhase>(null);
   const [exchangeOpen, setExchangeOpen] = useState(false);
   const [reportMarker, setReportMarker] = useState<{ lat: number; lng: number } | null>(null);
 
-  // Share card modal
+  // Share card modal (web) / native share state
   const [shareCardData, setShareCardData] = useState<ShareCardData | null>(null);
+  const [nativeSharePayload, setNativeSharePayload] = useState<{ data: ShareCardData; mapImageUrl: string | null; label: string } | null>(null);
 
   // Map style
   const [baseMode, setBaseMode] = useState<MapBaseMode>("hybrid");
@@ -199,6 +247,16 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     return vectorTheme === "dark" ? "roam-basemap-vector-dark" : "roam-basemap-vector-bright";
   }, [baseMode, vectorTheme]);
   const [shareMapImageUrl, setShareMapImageUrl] = useState<string | null>(null);
+
+  // Memory sheet state — opened by proximity notification or stop quick action
+  const [memorySheetOpen, setMemorySheetOpen] = useState(false);
+  const [memorySheetStop, setMemorySheetStop] = useState<{
+    stopId: string;
+    stopName: string | null;
+    stopIndex: number;
+    lat: number;
+    lng: number;
+  } | null>(null);
 
   useEffect(() => {
     checkIsUnlocked().then((result) => {
@@ -230,7 +288,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   const mapInstanceRef = useRef<MLMap | null>(null);
 
   // ── Active Navigation ──
-  const activeNav = useActiveNavigation(navpack);
+  const activeNav = useActiveNavigation(navpack, DEFAULT_NAV_CONFIG, weather);
 
   // ── Map Navigation Mode (heading-up camera tracking) ──
   const effectiveBbox = navpack?.primary?.bbox ?? plan?.preview?.bbox ?? null;
@@ -333,7 +391,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           const preferred = await getOfflinePlan(preferredId);
           if (preferred) {
             const hasPacks = await hasCorePacks(preferred.plan_id);
-            if (hasPacks || preferred.zip_blob) rec = preferred;
+            const hasNav = !hasPacks && await hasNavpack(preferred.plan_id);
+            if (hasPacks || preferred.zip_blob || hasNav) rec = preferred;
           }
         }
 
@@ -342,7 +401,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           const all = await listOfflinePlans();
           for (const candidate of all) {
             const hasPacks = await hasCorePacks(candidate.plan_id);
-            if (hasPacks || candidate.zip_blob) { rec = candidate; break; }
+            const hasNav = !hasPacks && await hasNavpack(candidate.plan_id);
+            if (hasPacks || candidate.zip_blob || hasNav) { rec = candidate; break; }
           }
         }
 
@@ -372,7 +432,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         setPhase("hydrating");
 
         const has = await hasCorePacks(rec.plan_id);
-        if (!has) await unpackAndStoreBundle(rec);
+        if (!has && rec.zip_blob) await unpackAndStoreBundle(rec);
+        // else: minimal plan (navpack-only) — packs load from IDB, rest enriched in background
 
         const packs = await getAllPacks(rec.plan_id);
         if (cancelled) return;
@@ -443,12 +504,14 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         } else if (packs.navpack?.primary?.geometry && packs.places?.items) {
           try {
             const fuelProfile = await getVehicleFuelProfile();
+            const wFactor = computeWindFactor(packs.weather ?? null, packs.navpack);
             const analysis = analyzeFuel(
               packs.navpack.primary.geometry,
               packs.places.items,
               fuelProfile,
               packs.navpack.primary.route_key,
               placesKeyNow,
+              wFactor,
             );
             setFuelAnalysis(analysis);
             putPack(rec.plan_id, "fuel_analysis", analysis).catch(() => {});
@@ -469,6 +532,48 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     boot();
     return () => { cancelled = true; };
   }, [desiredPlanId, router, sp]);
+
+  // ── Background enrichment for minimal (navpack-only) plans ──────
+  const enrichPackHandler = useCallback((kind: PackKind, data: unknown) => {
+    switch (kind) {
+      case "corridor": setCorridor(data as CorridorGraphPack); break;
+      case "traffic": setTraffic(data as TrafficOverlay); break;
+      case "hazards": setHazards(data as HazardOverlay); break;
+      case "places": setPlaces(data as PlacesPack); break;
+      case "weather": setWeather(data as WeatherOverlay); break;
+      case "flood": setFlood(data as FloodOverlay); break;
+      case "fuel": setFuelOverlay(data as FuelOverlay); break;
+      case "coverage": setCoverage(data as CoverageOverlay); break;
+      case "wildlife": setWildlife(data as WildlifeOverlay); break;
+      case "rest_areas": setRestAreas(data as RestAreaOverlay); break;
+      case "route_score": setRouteScore(data as RouteIntelligenceScore); break;
+      case "emergency": setEmergency(data as EmergencyServicesOverlay); break;
+      case "heritage": setHeritage(data as HeritageOverlay); break;
+      case "air_quality": setAirQuality(data as AirQualityOverlay); break;
+      case "bushfire": setBushfire(data as BushfireOverlay); break;
+      case "speed_cameras": setSpeedCameras(data as SpeedCamerasOverlay); break;
+      case "toilets": setToilets(data as ToiletsOverlay); break;
+      case "school_zones": setSchoolZones(data as SchoolZonesOverlay); break;
+      case "roadkill": setRoadkill(data as RoadkillOverlay); break;
+    }
+  }, []);
+
+  const enrichment = useEnrichment(enrichPackHandler);
+
+  useEffect(() => {
+    if (phase !== "ready" || !plan || !navpack || !isOnline) return;
+    // Only enrich if this is a minimal plan (no corridor yet, not already enriching/done)
+    if (corridor) return;
+    if (enrichment.isEnriching || enrichment.isDone) return;
+
+    enrichment.start({
+      planId: plan.plan_id,
+      navPack: navpack,
+      departAt: navpack.req?.depart_at ?? null,
+    });
+
+    return () => enrichment.cancel();
+  }, [phase, plan, navpack, corridor, isOnline, enrichment]);
 
   // Focus place from URL — expand sheet to show detail
   const [prevFocusUrl, setPrevFocusUrl] = useState<string | null>(null);
@@ -514,18 +619,21 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     autoFetch: true,
   });
 
-  // ── Report mode: zoom in, show draggable marker, listen for map taps ──
+  // ── Report placement mode: zoom in, show draggable marker, listen for map taps ──
   const reportMarkerRef = useRef<maplibregl.Marker | null>(null);
   const prevCameraRef = useRef<{ center: [number, number]; zoom: number } | null>(null);
+  const isPlacing = reportPhase !== null && reportPhase !== "picking";
 
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
 
-    if (reportOpen && !activeNav.isActive) {
+    if (isPlacing && !activeNav.isActive) {
       // Save current camera so we can restore on close
       const c = map.getCenter();
-      prevCameraRef.current = { center: [c.lng, c.lat], zoom: map.getZoom() };
+      if (!prevCameraRef.current) {
+        prevCameraRef.current = { center: [c.lng, c.lat], zoom: map.getZoom() };
+      }
 
       // Zoom in around the user's position (or map center if no GPS)
       const pos = geo.position;
@@ -561,8 +669,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       };
     }
 
-    // Report closed — restore camera
-    if (!reportOpen && prevCameraRef.current) {
+    // Placement closed — restore camera
+    if (!isPlacing && prevCameraRef.current) {
       map.easeTo({
         center: prevCameraRef.current.center,
         zoom: prevCameraRef.current.zoom,
@@ -571,9 +679,9 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       prevCameraRef.current = null;
     }
     setReportMarker(null);
-  }, [reportOpen, activeNav.isActive]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isPlacing, activeNav.isActive]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Build a synthetic RoamPosition from the marker for the ReportPanel
+  // Build a synthetic RoamPosition from the marker for the placement bar
   const reportPosition = useMemo(() => {
     if (!reportMarker) return effectivePosition;
     return {
@@ -604,6 +712,56 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     }
   }, [navpack?.primary?.geometry]);
 
+  // ── Viewport → km range tracking for elevation strip ──
+  // On map moveend, compute which km range of the route is visible in the viewport.
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !routeIndex) {
+      setViewportKmRange(null);
+      return;
+    }
+
+    function computeViewportKm() {
+      const m = mapInstanceRef.current;
+      if (!m || !routeIndex) return;
+      const bounds = m.getBounds();
+      const { decoded, cumKm } = routeIndex;
+
+      // Walk the polyline and find the km range of points inside the viewport
+      let minKm = Infinity;
+      let maxKm = -Infinity;
+      for (let i = 0; i < decoded.length; i++) {
+        const pt = decoded[i];
+        if (
+          pt.lat >= bounds.getSouth() && pt.lat <= bounds.getNorth() &&
+          pt.lng >= bounds.getWest() && pt.lng <= bounds.getEast()
+        ) {
+          const km = cumKm[i];
+          if (km < minKm) minKm = km;
+          if (km > maxKm) maxKm = km;
+        }
+      }
+
+      if (minKm <= maxKm) {
+        setViewportKmRange([minKm, maxKm]);
+      } else {
+        setViewportKmRange(null);
+      }
+    }
+
+    // Compute once on mount, then on every moveend
+    computeViewportKm();
+    map.on("moveend", computeViewportKm);
+    return () => { map.off("moveend", computeViewportKm); };
+  }, [routeIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Elevation strip tap → fly map to location ──
+  const handleElevTap = useCallback((loc: { lat: number; lng: number; km: number }) => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    map.flyTo({ center: [loc.lng, loc.lat], zoom: Math.max(map.getZoom(), 12), duration: 800 });
+  }, []);
+
   // Throttled fuel tracking — debounce GPS ticks to once per 2s.
   const [fuelTracking, setFuelTracking] = useState<ReturnType<typeof computeFuelTracking> | null>(null);
   const fuelSnapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -625,8 +783,15 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         );
         if (snap.distance_m > 2000) {
           setFuelTracking(null);
+          setFuelArbitrage(null);
         } else {
           setFuelTracking(computeFuelTracking(fuelAnalysis, snap.km, fuelAnalysis.profile));
+          // Check for fuel price arbitrage if we have live pricing data
+          if (fuelOverlay) {
+            setFuelArbitrage(
+              checkFuelArbitrage(snap.km, fuelOverlay, fuelAnalysis.profile, fuelAnalysis.profile.fuel_type),
+            );
+          }
         }
       } catch {
         setFuelTracking(null);
@@ -636,7 +801,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     return () => {
       if (fuelSnapTimerRef.current) clearTimeout(fuelSnapTimerRef.current);
     };
-  }, [fuelAnalysis, effectivePosition, routeIndex]);
+  }, [fuelAnalysis, effectivePosition, routeIndex, fuelOverlay]);
 
   // ── Overlay polling ─────────────────────────────────────────────
   const pollOverlays = useCallback(async () => {
@@ -713,6 +878,32 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       }
     };
   }, [phase, navpack, pollRouteScore]);
+
+  // ── Smart reconnection: prioritized overlay refresh on signal return ──
+  const wasOnlineRef = useRef(isOnline);
+  useEffect(() => {
+    const wasOffline = !wasOnlineRef.current;
+    wasOnlineRef.current = isOnline;
+
+    if (!isOnline || !wasOffline || phase !== "ready") return;
+    if (!navpack?.primary?.bbox || !navpack.primary.route_key) return;
+
+    // Use bundle created_at to compute staleness-based priority
+    const bundleCreatedAt = navpack.primary.created_at ?? new Date(Date.now() - 86400_000).toISOString();
+    const prioritized = computeRefreshPriority(bundleCreatedAt);
+
+    if (prioritized.length > 0) {
+      console.info(
+        "[Trip] Reconnected — refreshing %d stale overlays: %s",
+        prioritized.length,
+        prioritized.map((p) => `${p.overlay}(${formatAge(p.age_s)})`).join(", "),
+      );
+    }
+
+    // Trigger overlay + score poll immediately (existing handlers pick up isOnline=true)
+    pollOverlays();
+    pollRouteScore();
+  }, [isOnline, phase, navpack, pollOverlays, pollRouteScore]);
 
   // ── Rebuild handler ─────────────────────────────────────────────
   // Falls back to offline corridor A* routing when the backend is unreachable.
@@ -840,15 +1031,18 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       updateOfflinePlan(planId, { route_key: result.primary.route_key, preview }).catch(() => {});
     }
 
-    // Recompute fuel analysis for new route
+    // Recompute fuel analysis for new route (wind-corrected)
     if (places?.items && result?.primary?.geometry) {
       try {
         const fuelProfile = await getVehicleFuelProfile();
+        const wFactor = computeWindFactor(weather, { primary: result.primary } as NavPack);
         const analysis = analyzeFuel(
           result.primary.geometry,
           places.items,
           fuelProfile,
           result.primary.route_key,
+          undefined,
+          wFactor,
         );
         setFuelAnalysis(analysis);
         if (planId) {
@@ -897,11 +1091,14 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   const handleFuelProfileSaved = useCallback(async (newProfile: VehicleFuelProfile) => {
     if (!navpack?.primary?.geometry || !places?.items) return;
     try {
+      const wFactor = computeWindFactor(weather, navpack);
       const analysis = analyzeFuel(
         navpack.primary.geometry,
         places.items,
         newProfile,
         navpack.primary.route_key,
+        undefined,
+        wFactor,
       );
       setFuelAnalysis(analysis);
       if (plan?.plan_id) {
@@ -910,7 +1107,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     } catch (e) {
       console.warn("[Trip] fuel recompute on settings change failed:", e);
     }
-  }, [navpack, places, plan]);
+  }, [navpack, places, plan, weather]);
 
   // ── Guide navigation handler ────────────────────────────────────
   const handleNavigateToGuide = useCallback((placeId: string, placeName?: string) => {
@@ -955,6 +1152,78 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       console.warn("[Trip] addStopFromMap failed:", e);
     }
   }, [plan, navpack, places, focusLatFromUrl, focusLngFromUrl, handleRebuild]);
+
+  // ── Map stop long-press → quick action menu ─────────────────────
+  const handleMapStopLongPress = useCallback(
+    (stopId: string, screenX: number, screenY: number) => {
+      if (!navpack) return;
+      const stop = (navpack.req?.stops ?? []).find((s) => s.id === stopId);
+      if (!stop) return;
+      haptic.heavy();
+      setMapQuickMenu({
+        stopId,
+        stopName: stop.name?.trim() || (stop.type ?? "Stop"),
+        anchorX: screenX,
+        anchorY: screenY,
+        isLocked: stop.type === "start" || stop.type === "end",
+        isWaypoint: (stop.type ?? "poi") === "via",
+      });
+    },
+    [navpack],
+  );
+
+  const handleMapStopQuickAction: StopQuickActionHandler = useCallback(
+    (action, stopId) => {
+      if (!navpack) return;
+      const stops: TripStop[] = (navpack.req?.stops ?? []).map((s) =>
+        s.id ? s : { ...s, id: shortId() }
+      );
+
+      if (action === "delete") {
+        const filtered = stops.filter((s) => {
+          if (s.id !== stopId) return true;
+          return s.type === "start" || s.type === "end"; // never delete locked
+        });
+        if (filtered.length !== stops.length) {
+          handleRebuild({ stops: filtered, mode: "auto" }).catch(() => haptic.error());
+          haptic.medium();
+        }
+        return;
+      }
+
+      if (action === "move-to-start" || action === "move-to-end") {
+        const idx = stops.findIndex((s) => s.id === stopId);
+        if (idx < 0) return;
+        const stop = stops[idx];
+        if (!stop || stop.type === "start" || stop.type === "end") return;
+        const startLocked = stops[0] && (stops[0].type === "start" || stops[0].type === "end");
+        const endLocked = stops[stops.length - 1] && (stops[stops.length - 1].type === "start" || stops[stops.length - 1].type === "end");
+        const targetIdx = action === "move-to-start"
+          ? (startLocked ? 1 : 0)
+          : (endLocked ? stops.length - 2 : stops.length - 1);
+        if (idx === targetIdx) return;
+        const out = [...stops];
+        const [moved] = out.splice(idx, 1);
+        out.splice(targetIdx, 0, moved);
+        handleRebuild({ stops: out, mode: "auto" }).catch(() => haptic.error());
+        haptic.medium();
+        return;
+      }
+
+      if (action === "set-waypoint") {
+        const out = stops.map((s) => {
+          if (s.id !== stopId || s.type === "start" || s.type === "end") return s;
+          return { ...s, type: ((s.type ?? "poi") === "via" ? "poi" : "via") as TripStop["type"] };
+        });
+        handleRebuild({ stops: out, mode: "auto" }).catch(() => haptic.error());
+        haptic.tap();
+        return;
+      }
+
+      // add-note: nothing to do at this layer yet
+    },
+    [navpack, handleRebuild],
+  );
 
   // ── Alert highlight handler ─────────────────────────────────────
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1063,14 +1332,14 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   }, [activeNav, navpack, corridor, isOnline, plan]);
 
   // ── Bottom Sheet Handlers ───────────────────────────────────────
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+  const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     isDragging.current = true;
     setIsDraggingState(true);
     dragData.current = { startY: e.clientY };
     e.currentTarget.setPointerCapture(e.pointerId);
-  };
+  }, []);
 
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+  const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!isDragging.current || !sheetRef.current) return;
     const totalDelta = e.clientY - dragData.current.startY;
     const sheetHeight = sheetRef.current.clientHeight;
@@ -1079,15 +1348,15 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     if (proposedOffset < maxUp) proposedOffset = maxUp;
     if (proposedOffset > 0) proposedOffset = 0;
     setDragOffset(proposedOffset - offsetY);
-  };
+  }, [offsetY]);
 
-  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+  const handlePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     isDragging.current = false;
     setIsDraggingState(false);
     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {}
     setOffsetY((prev) => prev + dragOffset);
     setDragOffset(0);
-  };
+  }, [dragOffset]);
 
   // ── Derived values ─────────────────────────────────────────────
   const peekBase = `calc(100% - 220px - var(--roam-safe-bottom, 0px))`;
@@ -1099,6 +1368,24 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
 
   const effectiveStops = useMemo(() => navpack?.req?.stops ?? plan?.preview?.stops ?? [], [navpack, plan]);
   const effectiveGeom = navpack?.primary?.geometry ?? plan?.preview?.geometry ?? null;
+
+  // ── Stop proximity detection → notification + memory sheet ──
+  useStopProximity({
+    position: geo.position,
+    stops: effectiveStops,
+    planId: plan?.plan_id ?? null,
+    enabled: phase === "ready",
+    onArrival: useCallback((event: { stop: TripStop; stopIndex: number; distance: number }) => {
+      setMemorySheetStop({
+        stopId: event.stop.id ?? `stop-${event.stopIndex}`,
+        stopName: event.stop.name ?? null,
+        stopIndex: event.stopIndex,
+        lat: event.stop.lat,
+        lng: event.stop.lng,
+      });
+      setMemorySheetOpen(true);
+    }, []),
+  });
 
   // Set of place IDs already in the trip — passed to TripMap to mark "Already in Trip" in popups
   const stopPlaceIds = useMemo(() => new Set(effectiveStops.map((s) => s.id).filter((id): id is string => !!id)), [effectiveStops]);
@@ -1171,6 +1458,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           bbox={effectiveBbox}
           focusedStopId={focusedStopId}
           onStopPress={(id) => { haptic.selection(); setFocusedStopId(id); }}
+          onStopLongPress={handleMapStopLongPress}
           suggestions={places?.items ?? null}
           filteredSuggestionIds={filteredPlaceIds}
           focusedSuggestionId={focusedPlaceId}
@@ -1209,11 +1497,23 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         />
       </div>
 
+      {/* ── Enrichment banner (progressive trip loading) ── */}
+      <EnrichmentBanner progress={enrichment.progress} />
+
+      {/* ── Map stop pin quick action menu ── */}
+      <StopQuickActionMenu
+        state={mapQuickMenu}
+        onAction={(action, stopId) => {
+          handleMapStopQuickAction(action, stopId);
+        }}
+        onClose={() => setMapQuickMenu(null)}
+      />
+
       {/* ── Nearby Roamers Indicator ── */}
       {!activeNav.isActive && <NearbyRoamersIndicator roamers={nearbyRoamers} />}
 
       {/* ── FAB Stack (Report + Exchange) ── */}
-      {!activeNav.isActive && !reportOpen && (
+      {!activeNav.isActive && reportPhase === null && (
         <div style={{
           position: "absolute",
           bottom: "calc(220px + var(--roam-safe-bottom, 0px) + 24px)",
@@ -1248,7 +1548,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           {/* Report FAB */}
           <button
             type="button"
-            onClick={() => { haptic.selection(); setReportOpen(true); }}
+            onClick={() => { haptic.selection(); setReportPhase("picking"); }}
             aria-label="Report road condition"
             style={{
               width: 48, height: 48,
@@ -1269,8 +1569,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         </div>
       )}
 
-      {/* ── Report Panel Overlay ── */}
-      {reportOpen && (
+      {/* ── Report Phase 1: Type Picker Overlay ── */}
+      {reportPhase === "picking" && (
         <div style={{
           position: "absolute",
           top: "calc(var(--roam-safe-top, 0px) + 60px)",
@@ -1279,10 +1579,31 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           display: "flex",
           justifyContent: "center",
         }}>
-          <ReportPanel
+          <ReportTypePicker
+            onTypeSelected={(type) => {
+              const opt = REPORT_OPTIONS.find((o) => o.type === type)!;
+              setReportPhase({ type, severity: opt.severity });
+            }}
+            onClose={() => setReportPhase(null)}
+          />
+        </div>
+      )}
+
+      {/* ── Report Phase 2: Placement Bar (map marker mode) ── */}
+      {isPlacing && typeof reportPhase === "object" && (
+        <div style={{
+          position: "absolute",
+          bottom: "calc(220px + var(--roam-safe-bottom, 0px) + 16px)",
+          left: 12, right: 12,
+          zIndex: 25,
+          display: "flex",
+          justifyContent: "center",
+        }}>
+          <ReportPlacementBar
+            type={reportPhase.type}
             position={reportPosition}
             onSubmit={observations.submit}
-            onClose={() => setReportOpen(false)}
+            onCancel={() => setReportPhase(null)}
           />
         </div>
       )}
@@ -1290,55 +1611,48 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       {/* ── Exchange Panel (ultrasonic peer transfer) ── */}
       <ExchangePanel open={exchangeOpen} onClose={() => setExchangeOpen(false)} />
 
-      {/* ── Active Navigation Overlays ── */}
-      <NavigationHUD
-        nav={activeNav.nav}
-        visible={activeNav.isActive && activeNav.nav.status !== "off_route"}
-      />
-      <OffRouteBanner
-        visible={activeNav.nav.status === "off_route"}
-        distFromRoute_m={activeNav.nav.distFromRoute_m}
-        hasCorridorGraph={!!corridor}
-        onReroute={handleOffRouteReroute}
-      />
-      <NavigationControls
-        visible={activeNav.isActive}
-        isMuted={activeNav.isMuted}
-        onToggleMute={activeNav.toggleMute}
-        onOverview={mapNavMode.showOverview}
-        onRecenter={mapNavMode.recenter}
-        onEnd={activeNav.stop}
-      />
-      {/* ── Quick Report Wheel (active nav only) ── */}
-      {activeNav.isActive && (
-        <div style={{
-          position: "absolute",
-          bottom: "calc(env(safe-area-inset-bottom, 0px) + var(--roam-tab-h, 64px) + 130px)",
-          right: 12,
-          zIndex: 31,
-          pointerEvents: "auto",
-        }}>
-          <QuickReportWheel
-            position={effectivePosition}
-            onSubmit={observations.submit}
-          />
-        </div>
-      )}
-      <NavigationBar
-        nav={activeNav.nav}
-        fuelTracking={fuelTracking}
-        visible={activeNav.isActive}
-        onTap={() => {
-          if (sheetRef.current) {
-            const h = sheetRef.current.clientHeight;
-            setOffsetY(-(h - 300));
-            setTimeout(() => setOffsetY(0), 8000);
-          }
-        }}
-      />
+      {/* Navigation overlays are rendered at the end of the tree (after bottom sheet)
+         so they paint above all other layers. See below. */}
 
       {!activeNav.isActive && <FuelPressureIndicator tracking={fuelTracking} />}
       <FuelLastChanceToast tracking={fuelTracking} currentKm={currentKm} />
+
+      {/* Fuel price arbitrage toast */}
+      {fuelArbitrage && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)",
+            left: 16,
+            right: 16,
+            zIndex: 200,
+            background: "var(--roam-surface)",
+            borderRadius: 12,
+            padding: "12px 16px",
+            boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            border: "1px solid var(--roam-success)",
+          }}
+        >
+          <div style={{ fontSize: 22 }}>⛽</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--roam-success)" }}>
+              Save {fuelArbitrage.savings_cents}¢/L — skip to {fuelArbitrage.cheaper_station}
+            </div>
+            <div style={{ fontSize: 11, color: "var(--roam-text-muted)", marginTop: 2 }}>
+              {fuelArbitrage.distance_km}km further · {fuelArbitrage.cheaper_price_cents}¢/L vs {fuelArbitrage.current_price_cents}¢/L
+            </div>
+          </div>
+          <button
+            onClick={() => setFuelArbitrage(null)}
+            style={{ background: "none", border: "none", color: "var(--roam-text-muted)", cursor: "pointer", padding: 4 }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
       <VehicleFuelSettings
         open={fuelSettingsOpen}
         onClose={() => setFuelSettingsOpen(false)}
@@ -1380,12 +1694,26 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         }}
       />
 
-      <TripShareModal
-        open={shareCardData !== null}
-        data={shareCardData}
-        mapImageUrl={shareMapImageUrl}
-        onClose={() => { setShareCardData(null); setShareMapImageUrl(null); }}
-      />
+      {/* Web share modal — only shown on non-native */}
+      {!isNative && (
+        <TripShareModal
+          open={shareCardData !== null}
+          data={shareCardData}
+          mapImageUrl={shareMapImageUrl}
+          onClose={() => { setShareCardData(null); setShareMapImageUrl(null); }}
+        />
+      )}
+
+      {/* Native share — renders card off-screen, invokes iOS/Android share sheet */}
+      {nativeSharePayload && (
+        <NativeShareRenderer
+          data={nativeSharePayload.data}
+          mapImageUrl={nativeSharePayload.mapImageUrl}
+          tripLabel={nativeSharePayload.label}
+          onDone={() => setNativeSharePayload(null)}
+          onError={() => setNativeSharePayload(null)}
+        />
+      )}
 
       <PaywallModal
         open={paywallOpen}
@@ -1494,13 +1822,33 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           willChange: "transform",
         }}
       >
+        {/* ── Elevation profile strip (between map and sheet) ── */}
+        {elevation?.profile && (
+          <div style={{
+            position: "relative",
+            zIndex: 1,
+            borderRadius: "28px 28px 0 0",
+            overflow: "hidden",
+          }}>
+            <ElevationStrip
+              profile={elevation.profile}
+              gradeSegments={elevation.grade_segments}
+              currentKm={activeNav.isActive ? activeNav.nav.kmAlongRoute : currentKm || null}
+              viewportKmRange={viewportKmRange}
+              onTapLocation={handleElevTap}
+              collapsed={elevCollapsed}
+              onToggleCollapse={() => setElevCollapsed((c) => !c)}
+            />
+          </div>
+        )}
+
         <div
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
           style={{
-            padding: "16px 20px 6px",
+            padding: elevation?.profile ? "8px 20px 6px" : "16px 20px 6px",
             touchAction: "none",
             cursor: "grab",
           }}
@@ -1562,18 +1910,31 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
                   haptic.selection();
                   const preview = plan?.preview;
                   if (!preview) return;
-                  // Open modal immediately, then load map snapshot async
-                  setShareMapImageUrl(null);
-                  setShareCardData({
+                  const cardData: ShareCardData = {
                     stops: preview.stops,
                     geometry: preview.geometry,
                     distance_m: preview.distance_m,
                     duration_s: preview.duration_s,
                     label: plan?.label ?? null,
-                  });
-                  captureMapSnapshot(preview.bbox).then((url) => {
-                    setShareMapImageUrl(url);
-                  });
+                  };
+                  const label = plan?.label?.trim() || (() => {
+                    const s = preview.stops.find((x) => x.type === "start");
+                    const e = preview.stops.find((x) => x.type === "end");
+                    return `${s?.name || "Start"} → ${e?.name || "End"}`;
+                  })();
+                  if (isNative) {
+                    // Native: capture map snapshot then share directly — no modal
+                    captureMapSnapshot(preview.bbox).then((mapImageUrl) => {
+                      setNativeSharePayload({ data: cardData, mapImageUrl, label });
+                    });
+                  } else {
+                    // Web: open custom modal (with async map snapshot)
+                    setShareMapImageUrl(null);
+                    setShareCardData(cardData);
+                    captureMapSnapshot(preview.bbox).then((url) => {
+                      setShareMapImageUrl(url);
+                    });
+                  }
                 }}
                 style={{
                   borderRadius: 10, width: 32, height: 32,
@@ -1648,18 +2009,6 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
                     Rebuild route to enable turn-by-turn
                   </div>
                 )}
-              </div>
-            )}
-
-            {/* ── Elevation strip ── */}
-            {elevation?.profile && (
-              <div style={{ marginBottom: 16 }}>
-                <ElevationStrip
-                  profile={elevation.profile}
-                  gradeSegments={elevation.grade_segments}
-                  currentKm={activeNav.isActive ? activeNav.nav.kmAlongRoute : currentKm || null}
-                  compact
-                />
               </div>
             )}
 
@@ -1741,10 +2090,92 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
               offlineRouted={offlineRouted}
               isOnline={isOnline}
               onFilteredIdsChange={setFilteredPlaceIds}
+              onStopQuickAction={(action, stopId) => {
+                if (action === "add-note") {
+                  const idx = effectiveStops.findIndex((st) => st.id === stopId);
+                  const stop = effectiveStops[idx];
+                  if (stop) {
+                    setMemorySheetStop({
+                      stopId: stop.id ?? `stop-${idx}`,
+                      stopName: stop.name ?? null,
+                      stopIndex: idx,
+                      lat: stop.lat,
+                      lng: stop.lng,
+                    });
+                    setMemorySheetOpen(true);
+                  }
+                }
+              }}
             />
           </div>
         </div>
       </div>
+
+      {/* ── Stop memory sheet (note + photos) ── */}
+      {memorySheetStop && plan && (
+        <StopMemorySheet
+          open={memorySheetOpen}
+          planId={plan.plan_id}
+          stopId={memorySheetStop.stopId}
+          stopName={memorySheetStop.stopName}
+          stopIndex={memorySheetStop.stopIndex}
+          lat={memorySheetStop.lat}
+          lng={memorySheetStop.lng}
+          onClose={() => {
+            setMemorySheetOpen(false);
+            // Mark this stop as dismissed so proximity won't re-prompt this session
+            if (plan) dismissProximityStop(plan.plan_id, memorySheetStop.stopId);
+          }}
+        />
+      )}
+
+      {/* ── Active Navigation Overlays ──
+           Rendered last in the tree so they sit above the bottom sheet
+           and all other layers in the stacking context. */}
+      <NavigationHUD
+        nav={activeNav.nav}
+        visible={activeNav.isActive && activeNav.nav.status !== "off_route"}
+      />
+      <OffRouteBanner
+        visible={activeNav.nav.status === "off_route"}
+        distFromRoute_m={activeNav.nav.distFromRoute_m}
+        hasCorridorGraph={!!corridor}
+        onReroute={handleOffRouteReroute}
+      />
+      <NavigationControls
+        visible={activeNav.isActive}
+        isMuted={activeNav.isMuted}
+        onToggleMute={activeNav.toggleMute}
+        onOverview={mapNavMode.showOverview}
+        onRecenter={mapNavMode.recenter}
+        onEnd={activeNav.stop}
+      />
+      {activeNav.isActive && (
+        <div style={{
+          position: "absolute",
+          bottom: "calc(env(safe-area-inset-bottom, 0px) + var(--roam-tab-h, 64px) + 130px)",
+          right: 12,
+          zIndex: 31,
+          pointerEvents: "auto",
+        }}>
+          <QuickReportWheel
+            position={effectivePosition}
+            onSubmit={observations.submit}
+          />
+        </div>
+      )}
+      <NavigationBar
+        nav={activeNav.nav}
+        fuelTracking={fuelTracking}
+        visible={activeNav.isActive}
+        onTap={() => {
+          if (sheetRef.current) {
+            const h = sheetRef.current.clientHeight;
+            setOffsetY(-(h - 300));
+            setTimeout(() => setOffsetY(0), 8000);
+          }
+        }}
+      />
     </div>
   );
 }

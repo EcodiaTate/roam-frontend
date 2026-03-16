@@ -1327,7 +1327,7 @@ export function GuideView({
                   boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
                   flexShrink: 0,
                 }}>
-                  <Image src="/img/roam-app-icon.png" alt="Roam" width={40} height={40} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <Image src="/img/roam-app-icon.png" alt="Roam" width={40} height={40} style={{ width: "100%", height: "100%", objectFit: "cover" }} unoptimized />
                 </div>
                 <div>
                   <div style={{ fontSize: 16, fontWeight: 800, color: "var(--roam-text)" }}>
@@ -1421,7 +1421,7 @@ export function GuideView({
                         overflow: "hidden",
                         boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
                       }}>
-                        <Image src="/img/roam-app-icon.png" alt="Roam" width={28} height={28} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        <Image src="/img/roam-app-icon.png" alt="Roam" width={28} height={28} style={{ width: "100%", height: "100%", objectFit: "cover" }} unoptimized />
                       </div>
 
                       <div style={{
@@ -1489,7 +1489,7 @@ export function GuideView({
                     overflow: "hidden",
                     boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
                   }}>
-                    <Image src="/img/roam-app-icon.png" alt="Roam" width={28} height={28} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    <Image src="/img/roam-app-icon.png" alt="Roam" width={28} height={28} style={{ width: "100%", height: "100%", objectFit: "cover" }} unoptimized />
                   </div>
                   <div style={{
                     padding: "12px 16px", borderRadius: "4px 16px 16px 16px",

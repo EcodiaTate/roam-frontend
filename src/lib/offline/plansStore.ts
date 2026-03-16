@@ -2,10 +2,12 @@
 "use client";
 
 import type { OfflineBundleManifest } from "@/lib/types/bundle";
+import type { NavPack } from "@/lib/types/navigation";
 import type { TripStop } from "@/lib/types/trip";
 import type { BBox4 } from "@/lib/types/geo";
 import { idbDel, idbGet, idbGetAll, idbPut, idbStores, idbWithTx } from "./idb";
 import { emitPlanEvent } from "./planEvents";
+import { putPack } from "./packsStore";
 
 /* ── Types ────────────────────────────────────────────────────────────── */
 
@@ -141,6 +143,51 @@ export async function saveOfflinePlan(args: {
   }
 
   // Fire-and-forget: notify planSync to push this to Supabase
+  emitPlanEvent("plan:saved", { planId: rec.plan_id });
+
+  return rec;
+}
+
+/**
+ * Save a minimal plan with just a NavPack (no bundle/ZIP).
+ * The trip page will enrich overlays in the background.
+ * Emits plan:saved so planSync can enqueue a cloud upsert.
+ */
+export async function saveMinimalPlan(args: {
+  plan_id: string;
+  navPack: NavPack;
+  stops: TripStop[];
+  profile: string;
+}): Promise<OfflinePlanRecord> {
+  const { plan_id, navPack, stops, profile } = args;
+  const now = new Date().toISOString();
+
+  const preview: OfflinePlanPreview = {
+    stops,
+    geometry: navPack.primary.geometry,
+    bbox: navPack.primary.bbox,
+    distance_m: navPack.primary.distance_m,
+    duration_s: navPack.primary.duration_s,
+    profile,
+  };
+
+  const rec: OfflinePlanRecord = {
+    plan_id,
+    route_key: navPack.primary.route_key,
+    created_at: now,
+    label: null,
+    saved_at: now,
+    preview,
+  };
+
+  await idbPut(idbStores.plans, rec);
+  await putPack(plan_id, "navpack", navPack);
+
+  const currentId = await getCurrentPlanId();
+  if (!currentId) {
+    await setCurrentPlanId(rec.plan_id);
+  }
+
   emitPlanEvent("plan:saved", { planId: rec.plan_id });
 
   return rec;

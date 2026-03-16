@@ -9,6 +9,7 @@
 import type { NavPack, NavStep } from "@/lib/types/navigation";
 import type { RoamPosition } from "@/lib/native/geolocation";
 import type { FatigueState } from "@/lib/nav/fatigue";
+import { haversineM } from "@/lib/nav/snapToRoute";
 
 // ──────────────────────────────────────────────────────────────
 // Config
@@ -82,6 +83,11 @@ export type ActiveNavState = {
   speed_mps: number | null;
   heading: number | null;
 
+  // ETA learning — rolling speed average for better predictions
+  rollingSpeed_mps: number;        // 5-min rolling average actual speed
+  plannedSpeed_mps: number;        // planned speed from route (distance/duration)
+  speedRatio: number;              // rollingSpeed / plannedSpeed (1.0 = on plan)
+
   // Fatigue (managed externally, stored here for convenience)
   fatigue: FatigueState;
 
@@ -109,6 +115,9 @@ export function initialActiveNavState(): ActiveNavState {
     offRouteCount: 0,
     speed_mps: null,
     heading: null,
+    rollingSpeed_mps: 0,
+    plannedSpeed_mps: 0,
+    speedRatio: 1.0,
     fatigue: {
       tripStartedAt: null,
       totalDriveTime_s: 0,
@@ -127,18 +136,7 @@ export function initialActiveNavState(): ActiveNavState {
 // Geometry helpers
 // ──────────────────────────────────────────────────────────────
 
-const DEG_TO_RAD = Math.PI / 180;
-const EARTH_R = 6_371_000;
-
-function haversineM(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const dLat = (lat2 - lat1) * DEG_TO_RAD;
-  const dLng = (lng2 - lng1) * DEG_TO_RAD;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1 * DEG_TO_RAD) * Math.cos(lat2 * DEG_TO_RAD) *
-    Math.sin(dLng / 2) ** 2;
-  return EARTH_R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
+// haversineM imported from @/lib/nav/snapToRoute
 
 type SnapResult = {
   segIdx: number;
@@ -367,19 +365,43 @@ export function updateActiveNav(
   // 5. Remaining distance + duration
   const distRemaining_m = Math.max(0, routeTotalM - snap.distAlongLine_m);
 
-  // Estimate remaining duration proportionally from total route
+  // Planned speed from the route itself
   const totalDist = navpack.primary.distance_m || 1;
   const totalDur = navpack.primary.duration_s || 1;
-  const fractionRemaining = distRemaining_m / totalDist;
-  const durationRemaining_s = Math.max(0, Math.round(totalDur * fractionRemaining));
+  const plannedSpeed_mps = totalDist / totalDur;
 
-  // If we have speed, use it for a better ETA
+  // Rolling speed average: exponential moving average over ~5 min of GPS ticks.
+  // Alpha ~0.01 gives 99% weight to last ~100 ticks (≈2 min at 1Hz GPS).
+  const ALPHA = 0.01;
+  const currentSpeed = position.speed ?? 0;
+  const prevRolling = prev.rollingSpeed_mps || plannedSpeed_mps;
+  const rollingSpeed_mps = currentSpeed > 1
+    ? prevRolling * (1 - ALPHA) + currentSpeed * ALPHA
+    : prevRolling;
+
+  // Speed ratio: how fast we're actually going vs route plan.
+  // < 1.0 = slower than planned, > 1.0 = faster.
+  const speedRatio = plannedSpeed_mps > 0.1
+    ? Math.min(Math.max(rollingSpeed_mps / plannedSpeed_mps, 0.3), 2.0)
+    : 1.0;
+
+  // ETA: use the learned speed ratio to correct the planned duration.
+  // This auto-adjusts if user consistently drives 80 on a road planned for 110.
+  const fractionRemaining = distRemaining_m / totalDist;
+  const plannedRemaining_s = totalDur * fractionRemaining;
+  const adjustedRemaining_s = speedRatio > 0.1
+    ? plannedRemaining_s / speedRatio
+    : plannedRemaining_s;
+  const durationRemaining_s = Math.max(0, Math.round(adjustedRemaining_s));
+
+  // If we have a live speed, blend it: 70% learned ETA + 30% instantaneous.
+  // Prevents ETA from jumping wildly when momentarily stopped/speeding.
   let etaTimestamp: number;
-  if (position.speed && position.speed > 1) {
-    // Speed-based ETA
-    etaTimestamp = now + (distRemaining_m / position.speed) * 1000;
+  if (currentSpeed > 1) {
+    const instantEta_ms = (distRemaining_m / currentSpeed) * 1000;
+    const learnedEta_ms = durationRemaining_s * 1000;
+    etaTimestamp = now + (learnedEta_ms * 0.7 + instantEta_ms * 0.3);
   } else {
-    // Duration-based ETA
     etaTimestamp = now + durationRemaining_s * 1000;
   }
 
@@ -403,6 +425,9 @@ export function updateActiveNav(
     offRouteCount,
     speed_mps: position.speed,
     heading: position.heading,
+    rollingSpeed_mps,
+    plannedSpeed_mps,
+    speedRatio,
     updatedAt: now,
   };
 }

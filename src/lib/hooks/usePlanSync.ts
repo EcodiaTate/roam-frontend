@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { planSync } from "@/lib/offline/planSync";
 import { getPendingCount } from "@/lib/offline/syncQueue";
-import { networkMonitor } from "@/lib/offline/networkMonitor";
+import { useNetworkStatus } from "@/lib/hooks/useNetworkStatus";
 
 /**
  * Hook for components that need to interact with the sync system.
@@ -18,15 +18,9 @@ import { networkMonitor } from "@/lib/offline/networkMonitor";
  *   - redeemInvite: redeem an invite code
  */
 export function usePlanSync() {
-  const [online, setOnline] = useState(networkMonitor.online);
+  const { online } = useNetworkStatus();
   const [syncing, setSyncing] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
-
-  // Subscribe to network changes
-  useEffect(() => {
-    const unsub = networkMonitor.subscribe((isOnline) => setOnline(isOnline));
-    return unsub;
-  }, []);
 
   // Subscribe to sync events + refresh pending count
   useEffect(() => {
@@ -45,14 +39,15 @@ export function usePlanSync() {
       if (event === "pull_complete") refreshCount();
     });
 
-    // Also refresh count periodically when online
-    const interval = setInterval(refreshCount, 10_000);
+    // Only poll IDB when online — offline, the count can only change from local writes
+    // which already trigger sync events above.
+    const interval = online ? setInterval(refreshCount, 10_000) : null;
 
     return () => {
       unsub();
-      clearInterval(interval);
+      if (interval) clearInterval(interval);
     };
-  }, []);
+  }, [online]);
 
   const forceDrain = useCallback(async () => {
     await planSync.drainQueue();

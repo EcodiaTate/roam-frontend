@@ -60,6 +60,29 @@ export function useNewTripDraft() {
     });
   }, [mapCenter]);
 
+  const addStopWithLocation = useCallback(
+    (place: { name: string; lat: number; lng: number; type?: TripStopType }) => {
+      setStops((prev) => {
+        const id = shortId();
+        const next: TripStop = {
+          id,
+          type: place.type ?? "poi",
+          name: place.name,
+          lat: place.lat,
+          lng: place.lng,
+        };
+        const endIdx = prev.findIndex((s) => s.type === "end");
+        if (endIdx >= 0) {
+          const out = [...prev];
+          out.splice(endIdx, 0, next);
+          return out;
+        }
+        return [...prev, next];
+      });
+    },
+    [],
+  );
+
   const removeStop = useCallback((id: string) => {
     setStops((prev) => {
       const s = prev.find((x) => x.id === id);
@@ -131,6 +154,7 @@ export function useNewTripDraft() {
     setStops,
     setProfile,
     addStop,
+    addStopWithLocation,
     removeStop,
     reorderStop,
     updateStop,

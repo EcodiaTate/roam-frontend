@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Capacitor } from "@capacitor/core";
 import {
@@ -25,29 +25,31 @@ import { useAuth } from "@/lib/supabase/auth";
 
 /* ── Features ─────────────────────────────────────────────────────────── */
 
-const FEATURES: { icon: React.ReactNode; title: string; body: string }[] = [
+import type { LucideIcon } from "lucide-react";
+
+const FEATURES: { Icon: LucideIcon; title: string; body: string }[] = [
   {
-    icon: <Infinity size={22} strokeWidth={2.5} />,
+    Icon: Infinity,
     title: "Unlimited trips",
     body: "No caps, no countdowns. Plan as many adventures as the road allows.",
   },
   {
-    icon: <Download size={22} strokeWidth={2.5} />,
+    Icon: Download,
     title: "Full offline maps",
     body: "Download once, navigate forever. Your maps work without a single bar of signal.",
   },
   {
-    icon: <Sparkles size={22} strokeWidth={2.5} />,
+    Icon: Sparkles,
     title: "AI co-pilot",
     body: "Smart fuel stops, hazard warnings, and local tips tailored to your exact route.",
   },
   {
-    icon: <Users size={22} strokeWidth={2.5} />,
+    Icon: Users,
     title: "Trip sharing",
     body: "Send a 6-character code. Your co-pilot sees the whole plan, live.",
   },
   {
-    icon: <Fuel size={22} strokeWidth={2.5} />,
+    Icon: Fuel,
     title: "Fuel range alerts",
     body: "Know exactly where the last servo is — before you pass it.",
   },
@@ -352,7 +354,7 @@ function UnlockedPage({ email, entered }: { email: string; entered: boolean }) {
                 position: "relative",
               }}
             >
-              {f.icon}
+              {<f.Icon size={22} strokeWidth={2.5} />}
               {/* Tiny check badge */}
               <div
                 style={{
@@ -722,7 +724,7 @@ function PurchasePage({
                 boxShadow: "0 2px 8px rgba(181,69,46,0.20)",
               }}
             >
-              {f.icon}
+              {<f.Icon size={22} strokeWidth={2.5} />}
             </div>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 15, fontWeight: 750, color: "var(--roam-text, #1a1613)", marginBottom: 2 }}>
@@ -858,7 +860,13 @@ function PurchasePage({
 
         {!isNative && !session && (
           <div style={{ textAlign: "center", fontSize: 12, fontWeight: 600, color: "var(--roam-text-muted, #7a7067)", marginTop: 8, opacity: 0.7 }}>
-            You&apos;ll sign in or create an account at checkout
+            Already have an account?{" "}
+            <a
+              href="/login?next=/untethered"
+              style={{ color: "var(--brand-ochre, #b5452e)", fontWeight: 700, textDecoration: "none" }}
+            >
+              Sign in
+            </a>
           </div>
         )}
 
@@ -895,7 +903,7 @@ function PurchasePage({
 export default function UntetheredPage() {
   const router = useRouter();
   const { user, session } = useAuth();
-  const isNative = useMemo(() => Capacitor.isNativePlatform(), []);
+  const isNative = Capacitor.isNativePlatform();
 
   const [unlocked, setUnlocked] = useState<boolean | null>(null);
   const [buying, setBuying] = useState(false);

@@ -106,13 +106,6 @@ const ATTRIBUTION_GROUPS: AttributionGroup[] = [
     title: "Fuel & Charging",
     entries: [
       {
-        name: "PetrolSpy",
-        url: "https://petrolspy.com.au",
-        licence: "Proprietary (PetrolSpy ToS)",
-        description:
-          "Real-time fuel station locations and prices across Australia.",
-      },
-      {
         name: "Open Charge Map",
         url: "https://openchargemap.org",
         licence: "Creative Commons BY-SA 4.0",
@@ -198,13 +191,6 @@ const ATTRIBUTION_GROUPS: AttributionGroup[] = [
     title: "Parks & National Roadworks",
     entries: [
       {
-        name: "RADAR — National Roadworks & Closures",
-        url: "https://www.radar.gov.au",
-        licence: "Creative Commons BY 4.0",
-        description:
-          "Federal roadworks and road closure data aggregated across all Australian states. © Commonwealth of Australia.",
-      },
-      {
         name: "Queensland Parks and Wildlife Service",
         url: "https://parks.des.qld.gov.au",
         licence: "Creative Commons BY 4.0",
@@ -221,61 +207,21 @@ const ATTRIBUTION_GROUPS: AttributionGroup[] = [
     ],
   },
   {
-    title: "Media & Images",
+    title: "Traffic & Road Conditions",
     entries: [
       {
-        name: "Wikimedia Commons",
-        url: "https://commons.wikimedia.org",
-        licence: "Various (CC BY-SA, Public Domain, etc.)",
-        description:
-          "Thumbnail images for points of interest sourced from the free media repository. Individual image licences apply as specified by their uploaders.",
-      },
-    ],
-  },
-  {
-    title: "Australian Government Data",
-    entries: [
-      {
-        name: "Bureau of Meteorology (BOM)",
-        url: "http://www.bom.gov.au",
-        licence: "Creative Commons BY 3.0 AU",
-        description:
-          "Weather warnings, hazard data, real-time river height monitoring (KiWIS API), flood watch/warning catchment boundaries, and state-based RSS warning feeds for all Australian states and territories. © Commonwealth of Australia, Bureau of Meteorology.",
-      },
-      {
-        name: "Digital Earth Australia — Geoscience Australia",
-        url: "https://hotspots.dea.ga.gov.au",
+        name: "Queensland Traffic — QLD Department of Transport and Main Roads",
+        url: "https://www.qldtraffic.qld.gov.au",
         licence: "Creative Commons BY 4.0",
         description:
-          "Real-time satellite-detected fire hotspot data (MODIS, HIMAWARI-9, VIIRS, AQUA) for bushfire awareness across Australia. © Commonwealth of Australia, Geoscience Australia.",
+          "Real-time traffic events, incidents, roadworks, closures, flood cameras, and road occupancy data for Queensland. © Queensland Government.",
       },
       {
-        name: "Queensland Department of Transport and Main Roads",
-        url: "https://www.qld.gov.au/transport",
-        licence: "Creative Commons BY 4.0",
-        description:
-          "Real-time traffic events, incidents, roadworks, and closures for Queensland via the QLD Traffic API. © Queensland Government.",
-      },
-      {
-        name: "Queensland Government — Disaster & Emergency Alerts",
-        url: "https://www.disaster.qld.gov.au",
-        licence: "Creative Commons BY 4.0",
-        description:
-          "Storm, flood, cyclone warnings and emergency alerts in CAP-AU format. © Queensland Government.",
-      },
-      {
-        name: "Transport for NSW",
+        name: "Transport for NSW — Live Hazards",
         url: "https://opendata.transport.nsw.gov.au",
         licence: "Creative Commons BY 4.0",
         description:
           "Live traffic hazard feeds including incidents, fires, floods, roadworks, and alpine conditions for New South Wales. © NSW Government.",
-      },
-      {
-        name: "NSW Rural Fire Service",
-        url: "https://www.rfs.nsw.gov.au",
-        licence: "Creative Commons BY 4.0",
-        description:
-          "Major fire incident data for New South Wales. © NSW Rural Fire Service.",
       },
       {
         name: "VicRoads — Department of Transport and Planning",
@@ -285,18 +231,91 @@ const ATTRIBUTION_GROUPS: AttributionGroup[] = [
           "Planned and unplanned traffic disruptions and emergency road closures for Victoria. © Victorian Government.",
       },
       {
+        name: "South Australia — GeoHub Road Events",
+        url: "https://data.sa.gov.au",
+        licence: "Creative Commons BY 4.0",
+        description:
+          "Road event and incident data for South Australia via ArcGIS services. © Government of South Australia.",
+      },
+      {
+        name: "Main Roads Western Australia — Traffic Incidents",
+        url: "https://www.mainroads.wa.gov.au",
+        licence: "Creative Commons BY 4.0",
+        description:
+          "Road incident and condition data for Western Australia via ArcGIS and WebEOC services. © Government of Western Australia.",
+      },
+      {
+        name: "Northern Territory Road Report",
+        url: "https://roadreport.nt.gov.au",
+        licence: "Creative Commons BY 4.0",
+        description:
+          "Road obstructions, outback conditions, and emergency announcements for the Northern Territory. © Northern Territory Government.",
+      },
+      {
+        name: "RADAR — National Roadworks & Closures",
+        url: "https://www.radar.gov.au",
+        licence: "Creative Commons BY 4.0",
+        description:
+          "Federal roadworks and road closure data aggregated across all Australian states. © Commonwealth of Australia.",
+      },
+      {
+        name: "Brisbane City Council — Road Occupancies",
+        url: "https://www.data.brisbane.qld.gov.au",
+        licence: "Creative Commons BY 4.0",
+        description:
+          "Planned temporary road occupancies and closures for Brisbane. © Brisbane City Council.",
+      },
+    ],
+  },
+  {
+    title: "Speed Cameras",
+    entries: [
+      {
+        name: "Transport for NSW — Speed Camera Locations",
+        url: "https://data.nsw.gov.au",
+        licence: "Creative Commons BY 3.0 AU",
+        description:
+          "Fixed and mobile speed camera locations for New South Wales. © NSW Government.",
+      },
+      {
+        name: "Queensland Police Service — Speed Camera Sites",
+        url: "https://www.data.qld.gov.au",
+        licence: "Creative Commons BY 4.0",
+        description:
+          "Fixed and mobile speed camera locations for Queensland. © Queensland Government.",
+      },
+      {
+        name: "ACT Government — Speed Camera Locations",
+        url: "https://www.data.act.gov.au",
+        licence: "Creative Commons BY 4.0",
+        description:
+          "Fixed speed camera locations for the Australian Capital Territory. © ACT Government.",
+      },
+      {
+        name: "Queensland — Black Spot Sites",
+        url: "https://www.qldtraffic.qld.gov.au",
+        licence: "Creative Commons BY 4.0",
+        description:
+          "High-risk road locations identified for safety improvement in Queensland. © Queensland Government.",
+      },
+    ],
+  },
+  {
+    title: "Hazards & Emergency Services",
+    entries: [
+      {
+        name: "NSW Rural Fire Service",
+        url: "https://www.rfs.nsw.gov.au",
+        licence: "Creative Commons BY 4.0",
+        description:
+          "Major fire incident data for New South Wales. © NSW Rural Fire Service.",
+      },
+      {
         name: "Emergency Victoria",
         url: "https://www.emergency.vic.gov.au",
         licence: "Creative Commons BY 4.0",
         description:
           "Emergency incident data including fires, floods, and other hazards for Victoria. © Victorian Government.",
-      },
-      {
-        name: "South Australia — Department for Infrastructure and Transport",
-        url: "https://data.sa.gov.au",
-        licence: "Creative Commons BY 4.0",
-        description:
-          "Road event data for South Australia. © Government of South Australia.",
       },
       {
         name: "South Australia Country Fire Service",
@@ -306,13 +325,6 @@ const ATTRIBUTION_GROUPS: AttributionGroup[] = [
           "Current fire and emergency incident data for South Australia. © SA Country Fire Service.",
       },
       {
-        name: "Main Roads Western Australia",
-        url: "https://www.mainroads.wa.gov.au",
-        licence: "Creative Commons BY 4.0",
-        description:
-          "Road incident data via ArcGIS services for Western Australia. © Government of Western Australia.",
-      },
-      {
         name: "WA Department of Fire and Emergency Services (DFES)",
         url: "https://www.dfes.wa.gov.au",
         licence: "Creative Commons BY 4.0",
@@ -320,18 +332,113 @@ const ATTRIBUTION_GROUPS: AttributionGroup[] = [
           "Emergency incident and warning data for Western Australia. © Government of Western Australia.",
       },
       {
-        name: "Northern Territory Government",
-        url: "https://roadreport.nt.gov.au",
-        licence: "Creative Commons BY 4.0",
-        description:
-          "Road obstructions and outback road condition data for the Northern Territory. © Northern Territory Government.",
-      },
-      {
         name: "Tasmania — TheList (DPIPWE)",
         url: "https://www.thelist.tas.gov.au",
         licence: "Creative Commons BY 4.0",
         description:
           "Emergency management incident data for Tasmania via ArcGIS services. © Tasmanian Government.",
+      },
+      {
+        name: "Queensland Government — Disaster & Emergency Alerts",
+        url: "https://www.disaster.qld.gov.au",
+        licence: "Creative Commons BY 4.0",
+        description:
+          "Storm, flood, and cyclone warnings in CAP-AU format for Queensland. © Queensland Government.",
+      },
+      {
+        name: "Geoscience Australia — Emergency Management Facilities",
+        url: "https://www.ga.gov.au",
+        licence: "Creative Commons BY 4.0",
+        description:
+          "Locations of ambulance stations, police stations, fire stations, and SES units across Australia. © Commonwealth of Australia, Geoscience Australia.",
+      },
+    ],
+  },
+  {
+    title: "Weather & Air Quality",
+    entries: [
+      {
+        name: "Open-Meteo",
+        url: "https://open-meteo.com",
+        licence: "Creative Commons BY 4.0 (non-commercial use)",
+        description:
+          "Open-source weather forecast API using ECMWF IFS data for route weather overlays across Australia.",
+      },
+      {
+        name: "Bureau of Meteorology (BOM)",
+        url: "http://www.bom.gov.au",
+        licence: "Creative Commons BY 3.0 AU",
+        description:
+          "Weather warnings, hazard data, real-time river height monitoring (KiWIS API), flood watch/warning catchment boundaries, and state-based RSS warning feeds for all Australian states and territories. © Commonwealth of Australia, Bureau of Meteorology.",
+      },
+      {
+        name: "OpenWeatherMap — Air Pollution API",
+        url: "https://openweathermap.org",
+        licence: "Proprietary (OpenWeatherMap ToS)",
+        description:
+          "Air quality index and pollutant concentration data overlaid along routes. © OpenWeatherMap.",
+      },
+    ],
+  },
+  {
+    title: "Flood, River & Bushfire Monitoring",
+    entries: [
+      {
+        name: "Bureau of Meteorology — KiWIS Water Data",
+        url: "http://www.bom.gov.au/waterdata",
+        licence: "Creative Commons BY 3.0 AU",
+        description:
+          "Real-time river heights and flood gauge data from approximately 8,000 stations across Australia. © Commonwealth of Australia, Bureau of Meteorology.",
+      },
+      {
+        name: "Digital Earth Australia — Geoscience Australia (Hotspots)",
+        url: "https://hotspots.dea.ga.gov.au",
+        licence: "Creative Commons BY 4.0",
+        description:
+          "Real-time satellite-detected fire hotspot data (MODIS, HIMAWARI-9, VIIRS, AQUA) for bushfire awareness across Australia. © Commonwealth of Australia, Geoscience Australia.",
+      },
+      {
+        name: "NASA FIRMS — Fire Information for Resource Management",
+        url: "https://firms.modaps.eosdis.nasa.gov",
+        licence: "Public Domain (US Government Work)",
+        description:
+          "Satellite-detected fire hotspot data (VIIRS) for active bushfire detection across Australia. Courtesy of NASA / LANCE FIRMS.",
+      },
+    ],
+  },
+  {
+    title: "Wildlife & Nature",
+    entries: [
+      {
+        name: "iNaturalist",
+        url: "https://www.inaturalist.org",
+        licence: "Creative Commons (CC0, CC BY, CC BY-NC per observation)",
+        description:
+          "Citizen-science wildlife observation data used to surface wildlife hazards and notable species along routes. Observations licensed individually by contributors. © iNaturalist / California Academy of Sciences.",
+      },
+    ],
+  },
+  {
+    title: "Heritage & Protected Areas",
+    entries: [
+      {
+        name: "Department of Climate Change, Energy, the Environment and Water (DCCEEW)",
+        url: "https://www.dcceew.gov.au",
+        licence: "Creative Commons BY 3.0 AU",
+        description:
+          "World Heritage, National Heritage, and Commonwealth Heritage site boundaries; Collaborative Australian Protected Areas Database (CAPAD). © Commonwealth of Australia.",
+      },
+    ],
+  },
+  {
+    title: "Media & Images",
+    entries: [
+      {
+        name: "Wikimedia Commons",
+        url: "https://commons.wikimedia.org",
+        licence: "Various (CC BY-SA, Public Domain, etc.)",
+        description:
+          "Thumbnail images for points of interest sourced from the free media repository. Individual image licences apply as specified by their uploaders.",
       },
     ],
   },
@@ -426,6 +533,60 @@ const ATTRIBUTION_GROUPS: AttributionGroup[] = [
         licence: "MIT",
         description:
           "Cross-platform native runtime enabling iOS and Android deployment.",
+      },
+      {
+        name: "Tailwind CSS",
+        url: "https://github.com/tailwindlabs/tailwindcss",
+        licence: "MIT",
+        description: "Utility-first CSS framework for styling the frontend.",
+      },
+      {
+        name: "Lucide React",
+        url: "https://github.com/lucide-icons/lucide",
+        licence: "ISC",
+        description: "Open-source icon library used throughout the app UI.",
+      },
+      {
+        name: "Zod",
+        url: "https://github.com/colinhacks/zod",
+        licence: "MIT",
+        description: "TypeScript-first schema validation library.",
+      },
+      {
+        name: "fflate",
+        url: "https://github.com/101arrowz/fflate",
+        licence: "MIT",
+        description: "High-performance compression library used for offline bundle packing.",
+      },
+      {
+        name: "idb",
+        url: "https://github.com/jakearchibald/idb",
+        licence: "ISC",
+        description: "IndexedDB wrapper used for offline data caching.",
+      },
+      {
+        name: "FastAPI",
+        url: "https://github.com/fastapi/fastapi",
+        licence: "MIT",
+        description: "Python web framework powering the Roam backend API.",
+      },
+      {
+        name: "Pydantic",
+        url: "https://github.com/pydantic/pydantic",
+        licence: "MIT",
+        description: "Data validation and settings management for the backend.",
+      },
+      {
+        name: "HTTPX",
+        url: "https://github.com/encode/httpx",
+        licence: "BSD 3-Clause",
+        description: "Async HTTP client used by the backend to fetch external data sources.",
+      },
+      {
+        name: "Shapely",
+        url: "https://github.com/shapely/shapely",
+        licence: "BSD 3-Clause",
+        description: "Geometric operations library used for spatial corridor extraction and route analysis.",
       },
     ],
   },

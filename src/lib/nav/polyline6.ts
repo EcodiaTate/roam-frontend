@@ -46,6 +46,13 @@ export function decodePolyline6(polyline: string): Array<{ lat: number; lng: num
   return coordinates;
 }
 
+/**
+ * Decode polyline6 to [lng, lat] tuples (MapLibre/GeoJSON coordinate order).
+ */
+export function decodePolyline6AsLngLat(polyline: string): Array<[number, number]> {
+  return decodePolyline6(polyline).map((p) => [p.lng, p.lat]);
+}
+
 export function polyline6ToGeoJSONLine(polyline: string): LineString {
   const pts = decodePolyline6(polyline);
   return {

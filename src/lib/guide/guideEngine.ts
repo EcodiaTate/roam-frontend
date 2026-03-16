@@ -78,6 +78,18 @@ export type GuideBootstrap = {
   route_score?: RouteIntelligenceScore | null;
   fuel?: FuelOverlay | null;
   progress?: TripProgress | null;
+  // Live driver state (from activeNav + fuel tracking)
+  driverState?: {
+    fuel_pressure?: number;
+    km_to_next_fuel?: number | null;
+    fatigue_level?: "none" | "suggested" | "recommended" | "urgent";
+    hours_since_rest?: number;
+    speed_ratio?: number;
+    is_night?: boolean;
+    temperature_c?: number;
+    eta_iso?: string | null;
+    night_arrival?: boolean;
+  } | null;
 };
 
 // ──────────────────────────────────────────────────────────────
@@ -245,7 +257,83 @@ function buildContext(args: GuideBootstrap): GuideContext {
     wildlife_summary: summarizeWildlife(args.wildlife),
     weather_summary: summarizeWeather(weather),
     fuel_benchmarks: fuel?.city_averages ?? null,
+    driver_state: args.driverState ?? null,
+    next_challenge: buildNextChallenge(args),
   };
+}
+
+function buildNextChallenge(args: GuideBootstrap): GuideContext["next_challenge"] {
+  // Find the most critical upcoming issue on the route.
+  // Looks at fuel gaps, weather, wildlife, and flood within next 200km.
+  const challenges: { desc: string; km: number; sev: "info" | "warning" | "critical" }[] = [];
+  const currentKm = args.progress?.km_from_start ?? 0;
+
+  // Fuel gaps ahead
+  if (args.fuel?.warnings) {
+    for (const w of args.fuel.warnings) {
+      const warnObj = w as any;
+      const atKm = warnObj.at_km ?? 0;
+      if (atKm > currentKm && atKm < currentKm + 200) {
+        const gapKm = warnObj.gap_km ?? 0;
+        if (gapKm > 150) {
+          challenges.push({
+            desc: `${Math.round(gapKm)}km fuel gap`,
+            km: atKm - currentKm,
+            sev: gapKm > 250 ? "critical" : "warning",
+          });
+        }
+      }
+    }
+  }
+
+  // Weather ahead (storm, heavy rain, extreme heat)
+  if (args.weather?.points) {
+    for (const p of args.weather.points) {
+      if (p.km_along > currentKm && p.km_along < currentKm + 200) {
+        if (p.precipitation_probability_pct > 70 && p.precipitation_mm > 5) {
+          challenges.push({
+            desc: "heavy rain",
+            km: p.km_along - currentKm,
+            sev: "warning",
+          });
+          break;
+        }
+        if (p.temperature_c > 42) {
+          challenges.push({
+            desc: `extreme heat ${Math.round(p.temperature_c)}°C`,
+            km: p.km_along - currentKm,
+            sev: "warning",
+          });
+          break;
+        }
+      }
+    }
+  }
+
+  // Wildlife twilight zones ahead
+  if (args.wildlife?.zones) {
+    for (const z of args.wildlife.zones) {
+      if (z.km_from > currentKm && z.km_from < currentKm + 200 && z.risk_level === "high" && z.is_twilight_risk) {
+        challenges.push({
+          desc: "high wildlife risk at twilight",
+          km: z.km_from - currentKm,
+          sev: "warning",
+        });
+        break;
+      }
+    }
+  }
+
+  if (challenges.length === 0) return null;
+
+  // Combine into a single description
+  challenges.sort((a, b) => a.km - b.km);
+  const nearestKm = Math.round(challenges[0].km);
+  const worstSev = challenges.some((c) => c.sev === "critical") ? "critical"
+    : challenges.some((c) => c.sev === "warning") ? "warning" : "info";
+  const desc = `In ${nearestKm}km: ${challenges.map((c) => c.desc).join(" + ")}`;
+
+  return { description: desc, km_ahead: nearestKm, severity: worstSev };
 }
 
 // ──────────────────────────────────────────────────────────────

@@ -7,10 +7,15 @@ import type { NavPack } from "@/lib/types/navigation";
 
 import { navApi } from "@/lib/api/nav";
 import { haptic } from "@/lib/native/haptics";
+import { toErrorMessage } from "@/lib/utils/errors";
 import { useBundleBuilder } from "@/lib/hooks/useBundleBuilder";
 import { checkTripGate, incrementTripsUsed } from "@/lib/paywall/tripGate";
+import { saveMinimalPlan } from "@/lib/offline/plansStore";
+import type { StopSuggestionItem } from "@/lib/types/places";
 
 import { useNewTripDraft } from "@/components/trips/new/useNewTripDraft";
+import { AI_TRIP_SEED_KEY, type AiTripSeed } from "@/components/trip/AiTripModal";
+import { CLONE_TRIP_SEED_KEY, type CloneTripSeed } from "@/lib/types/discover";
 import { NewTripMap } from "@/components/trips/new/NewTripMap";
 import { StopsEditor } from "@/components/trips/new/StopsEditor";
 import { PlaceSearchModal } from "@/components/trips/new/PlaceSearchModal";
@@ -58,6 +63,39 @@ export default function NewTripClientPage() {
   const [_gateChecked, setGateChecked] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [unlocked, setUnlocked] = useState<boolean | null>(null);
+
+  // ── AI trip seed ─────────────────────────────────────────────────────
+  // When the user confirms an AI-generated trip, AiTripModal writes the seed
+  // to sessionStorage and navigates here. We read it once on mount, seed the
+  // draft stops, then clear the key so a refresh starts fresh.
+  useEffect(() => {
+    try {
+      // 1. Check for AI trip seed
+      const aiRaw = sessionStorage.getItem(AI_TRIP_SEED_KEY);
+      if (aiRaw) {
+        sessionStorage.removeItem(AI_TRIP_SEED_KEY);
+        const seed = JSON.parse(aiRaw) as AiTripSeed;
+        if (Array.isArray(seed.stops) && seed.stops.length >= 2) {
+          draft.setStops(seed.stops);
+          return;
+        }
+      }
+
+      // 2. Check for Discover clone seed
+      const cloneRaw = sessionStorage.getItem(CLONE_TRIP_SEED_KEY);
+      if (cloneRaw) {
+        sessionStorage.removeItem(CLONE_TRIP_SEED_KEY);
+        const seed = JSON.parse(cloneRaw) as CloneTripSeed;
+        if (Array.isArray(seed.stops) && seed.stops.length >= 2) {
+          draft.setStops(seed.stops);
+        }
+      }
+    } catch {
+      // malformed or unavailable — ignore
+    }
+    // Run once on mount only
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     checkTripGate().then((gate) => {
@@ -115,7 +153,7 @@ export default function NewTripClientPage() {
       setNavPack(pack);
     } catch (e: unknown) {
       setNavPack(null);
-      setRouteError(e instanceof Error ? e.message : "Failed to build route");
+      setRouteError(toErrorMessage(e, "Failed to build route"));
     } finally {
       setRouting(false);
     }
@@ -148,37 +186,57 @@ export default function NewTripClientPage() {
     bundle.reset();
   }, [bundle]);
 
-  /* ── Full offline save (extracted pipeline) ────────────────────────── */
+  /* ── Add a suggestion as a new stop ────────────────────────────────── */
 
-  const saveTripOfflineReady = useCallback(async () => {
+  const addStopFromSuggestion = useCallback(
+    (item: StopSuggestionItem) => {
+      draft.addStopWithLocation({ name: item.name, lat: item.lat, lng: item.lng });
+      clearRouteState();
+    },
+    [draft, clearRouteState],
+  );
+
+  /* ── Save & Go: instant navigation with background enrichment ─────── */
+
+  const [savingAndGoing, setSavingAndGoing] = useState(false);
+
+  const saveAndGo = useCallback(async () => {
     if (!canRoute) return;
 
     haptic.medium();
+    setSavingAndGoing(true);
 
     const plan_id: string = planIdRef.current ?? genPlanId();
     planIdRef.current = plan_id;
 
     try {
-      const result = await bundle.build({
-        plan_id,
-        stops: draft.stops,
+      // Step 1: Get route (reuse if already previewed)
+      const pack = navPack ?? await navApi.route({
         profile: draft.profile,
         prefs: draft.prefs,
         avoid: draft.avoid,
-        depart_at: draft.depart_at,
-        styleId,
-        existingNavPack: navPack,
+        stops: draft.stops,
+        depart_at: draft.depart_at ?? null,
       });
 
-      // Increment trip counter on successful save
+      // Step 2: Minimal save to IDB (<50ms)
+      await saveMinimalPlan({
+        plan_id,
+        navPack: pack,
+        stops: draft.stops,
+        profile: draft.profile,
+      });
+
+      // Step 3: Trip counter
       await incrementTripsUsed();
 
-      setNavPack(result.navPack);
+      // Step 4: Navigate immediately — enrichment happens on /trip
       router.replace(`/trip?plan_id=${encodeURIComponent(plan_id)}`);
-    } catch {
-      // bundle hook already populates bundle.error / bundle.phase
+    } catch (e: unknown) {
+      setRouteError(toErrorMessage(e, "Failed to save trip"));
+      setSavingAndGoing(false);
     }
-  }, [canRoute, draft, styleId, navPack, bundle, router]);
+  }, [canRoute, draft, navPack, router]);
 
   /* ── Go Now: online-only instant navigation (no bundle, no save) ──── */
 
@@ -198,7 +256,7 @@ export default function NewTripClientPage() {
       sessionStorage.setItem("roam_live_navpack", JSON.stringify(pack));
       router.replace("/live");
     } catch (e: unknown) {
-      setRouteError(e instanceof Error ? e.message : "Failed to get route");
+      setRouteError(toErrorMessage(e, "Failed to get route"));
       setGoingNow(false);
     }
   }, [canRoute, navPack, draft, router]);
@@ -259,24 +317,26 @@ export default function NewTripClientPage() {
           setDrawOpen(true);
         }}
         navPack={navPack}
+        onAddSuggestion={addStopFromSuggestion}
         onBuildRoute={requestRoute}
         canBuildRoute={canRoute}
         routing={routing}
         error={routeError}
         onGoNow={goNow}
         goingNow={goingNow}
-        onBuildOffline={saveTripOfflineReady}
+        onBuildOffline={saveAndGo}
         onDownloadOffline={() => {}}
         onSaveOffline={() => {}}
         onResetOffline={() => {
           planIdRef.current = null;
           bundle.reset();
+          setSavingAndGoing(false);
         }}
-        offlinePhase={bundle.phase}
+        offlinePhase={savingAndGoing ? "routing" as const : bundle.phase}
         offlineError={bundle.error}
         offlineManifest={bundle.result?.manifest ?? null}
         canDownloadOffline={false}
-        savingOffline={bundle.building}
+        savingOffline={savingAndGoing || bundle.building}
         savedOffline={bundle.isReady}
         unlocked={unlocked}
         onUpgrade={() => { setPaywallOpen(true); }}

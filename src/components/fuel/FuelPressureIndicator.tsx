@@ -1,7 +1,7 @@
 // src/components/fuel/FuelPressureIndicator.tsx
 "use client";
 
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import { Fuel } from "lucide-react";
 import type { FuelTrackingState } from "@/lib/types/fuel";
 
@@ -63,7 +63,7 @@ const LEVEL_STYLES: Record<PressureLevel, {
 
 /* ── Component ────────────────────────────────────────────────────────── */
 
-export function FuelPressureIndicator({
+export const FuelPressureIndicator = memo(function FuelPressureIndicator({
   tracking,
 }: {
   tracking: FuelTrackingState | null;
@@ -113,4 +113,4 @@ export function FuelPressureIndicator({
 
     </div>
   );
-}
+});

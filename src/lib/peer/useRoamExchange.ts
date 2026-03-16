@@ -32,6 +32,7 @@ import { encodeFrame, decodeFrame, type EncodableItem } from "./roamCodec";
 import { collectRelevantData, getMyRouteGeometry } from "./filterRelevantData";
 import { transmit, receive, estimateTransferSeconds, type TransmitProgress, type ReceiveProgress } from "./ultrasonicTransfer";
 import { haptic } from "@/lib/native/haptics";
+import { toErrorMessage } from "@/lib/utils/errors";
 import { roamNotify } from "@/lib/native/notifications";
 
 // ── State types ──────────────────────────────────────────────
@@ -138,7 +139,7 @@ export function useRoamExchange() {
       await _doListen(abortRef.current.signal, setState, receivedItemsRef, 2);
     } catch (e) {
       if (!abortRef.current?.signal.aborted) {
-        setState((s) => ({ ...s, phase: "error", error: e instanceof Error ? e.message : "Exchange failed" }));
+        setState((s) => ({ ...s, phase: "error", error: toErrorMessage(e, "Exchange failed") }));
       }
     }
   }, []);
@@ -163,7 +164,7 @@ export function useRoamExchange() {
       await _doSend(abortRef.current.signal, setState, 2);
     } catch (e) {
       if (!abortRef.current?.signal.aborted) {
-        setState((s) => ({ ...s, phase: "error", error: e instanceof Error ? e.message : "Exchange failed" }));
+        setState((s) => ({ ...s, phase: "error", error: toErrorMessage(e, "Exchange failed") }));
       }
     }
   }, []);
@@ -241,7 +242,7 @@ async function _doListen(
   } catch (e) {
     setState((s) => ({
       ...s, phase: "error",
-      error: `Decode failed: ${e instanceof Error ? e.message : "corrupted data"}. Try again — hold phones closer.`,
+      error: `Decode failed: ${toErrorMessage(e, "corrupted data")}. Try again — hold phones closer.`,
     }));
   }
 }

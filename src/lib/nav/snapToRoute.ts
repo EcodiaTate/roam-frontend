@@ -9,6 +9,14 @@
 const DEG_TO_RAD = Math.PI / 180;
 const EARTH_RADIUS_M = 6_371_000;
 
+/** Haversine distance in kilometres between two lat/lng points */
+export function haversineKm(
+  lat1: number, lng1: number,
+  lat2: number, lng2: number,
+): number {
+  return haversineM(lat1, lng1, lat2, lng2) / 1000;
+}
+
 /** Haversine distance in metres between two lat/lng points */
 export function haversineM(
   lat1: number, lng1: number,

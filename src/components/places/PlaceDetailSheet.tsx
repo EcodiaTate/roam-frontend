@@ -294,15 +294,12 @@ function useSwipeToDismiss(onDismiss: () => void) {
 export function PlaceDetailSheet({
   isOnline = true,
   onNavigate,
-  onSave,
 }: {
   isOnline?: boolean;
   /** Called when user taps Navigate — add as trip waypoint */
   onNavigate?: (placeId: string, lat: number, lng: number, name: string) => void;
-  /** Called when user taps Save */
-  onSave?: (placeId: string) => void;
 }) {
-  const { place, closePlace, navigateHandler: contextNavigate } = usePlaceDetail();
+  const { place, closePlace, navigateHandler: contextNavigate, saveHandler: contextSave, savedIds } = usePlaceDetail();
   const [imgError, setImgError] = useState(false);
   const [visible, setVisible] = useState(false);
 
@@ -758,12 +755,12 @@ export function PlaceDetailSheet({
                   color="var(--roam-text-muted)"
                   onClick={handleShare}
                 />
-                {onSave && (
+                {contextSave && (
                   <ActionBtn
                     Icon={Bookmark}
-                    label="Save"
-                    color="var(--brand-amber)"
-                    onClick={() => { haptic.success(); onSave(place.id); }}
+                    label={savedIds.has(place.id) ? "Saved" : "Save"}
+                    color={savedIds.has(place.id) ? "var(--brand-eucalypt)" : "var(--brand-amber)"}
+                    onClick={() => { haptic.success(); contextSave(place.id); }}
                   />
                 )}
               </div>

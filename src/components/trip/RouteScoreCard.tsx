@@ -3,7 +3,8 @@
 
 import { Shield, CloudSun, Wrench, Cloud } from "lucide-react";
 import type { RouteIntelligenceScore, RouteScoreCategory } from "@/lib/types/overlays";
-import { cardBase, cardHeaderRow, cardTitle, cardSubtitle } from "@/components/ui/cardStyles";
+import { cardBase, cardHeaderRow, cardTitle, cardSubtitle, iconBox28, iconBox40 } from "@/components/ui/cardStyles";
+import { scoreColor, scoreBg } from "@/lib/ui/colorHelpers";
 
 const gridRow: React.CSSProperties = {
   display: "grid",
@@ -42,45 +43,26 @@ const summaryText: React.CSSProperties = {
   lineHeight: 1.4,
 };
 
-/* ── Color helpers ────────────────────────────────────────────────────── */
 
-function scoreColor(score: number): string {
-  if (score >= 8) return "#22c55e";
-  if (score >= 6) return "#3b82f6";
-  if (score >= 4) return "#f59e0b";
-  if (score >= 2) return "#f97316";
-  return "#ef4444";
-}
+import type { LucideIcon } from "lucide-react";
 
-function overallBg(score: number): string {
-  if (score >= 8) return "rgba(34,197,94,0.12)";
-  if (score >= 6) return "rgba(59,130,246,0.12)";
-  if (score >= 4) return "rgba(245,158,11,0.12)";
-  if (score >= 2) return "rgba(249,115,22,0.12)";
-  return "rgba(239,68,68,0.12)";
-}
-
-const CATEGORY_META: Record<string, { icon: React.ReactNode; label: string }> = {
-  safety: { icon: <Shield size={13} strokeWidth={2.2} />, label: "Safety" },
-  conditions: { icon: <CloudSun size={13} strokeWidth={2.2} />, label: "Conditions" },
-  services: { icon: <Wrench size={13} strokeWidth={2.2} />, label: "Services" },
-  weather: { icon: <Cloud size={13} strokeWidth={2.2} />, label: "Weather" },
+const CATEGORY_META: Record<string, { Icon: LucideIcon; label: string }> = {
+  safety: { Icon: Shield, label: "Safety" },
+  conditions: { Icon: CloudSun, label: "Conditions" },
+  services: { Icon: Wrench, label: "Services" },
+  weather: { Icon: Cloud, label: "Weather" },
 };
 
 /* ── Component ────────────────────────────────────────────────────────── */
 
 function CategoryCell({ name, cat }: { name: string; cat: RouteScoreCategory }) {
   const color = scoreColor(cat.score);
-  const meta = CATEGORY_META[name] ?? { icon: null, label: name };
+  const meta = CATEGORY_META[name] ?? { Icon: null, label: name };
 
   return (
     <div style={{ ...catCard, background: `${color}0D` }}>
-      <div style={{
-        width: 28, height: 28, borderRadius: 8,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        background: `${color}1A`, color, flexShrink: 0,
-      }}>
-        {meta.icon}
+      <div style={{ ...iconBox28, background: `${color}1A`, color }}>
+        {meta.Icon && <meta.Icon size={13} strokeWidth={2.2} />}
       </div>
       <div>
         <div style={catLabel}>{meta.label}</div>
@@ -101,12 +83,7 @@ export function RouteScoreCard({ score }: { score: RouteIntelligenceScore | null
     <div style={cardBase}>
       {/* Header */}
       <div style={cardHeaderRow}>
-        <div style={{
-          width: 40, height: 40, borderRadius: 12,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          background: overallBg(score.overall),
-          flexShrink: 0,
-        }}>
+        <div style={{ ...iconBox40, background: scoreBg(score.overall) }}>
           <span style={{ fontSize: 18, fontWeight: 900, color, lineHeight: 1 }}>
             {score.overall.toFixed(0)}
           </span>

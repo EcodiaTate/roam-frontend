@@ -6,7 +6,9 @@ import { createPortal } from "react-dom";
 import { X, Download, Share2, Image as ImageIcon, Map as MapIcon, Loader2 } from "lucide-react";
 import { TripShareCard, CARD_W, CARD_H, type ShareCardData } from "./TripShareCard";
 import { haptic } from "@/lib/native/haptics";
+import { toErrorMessage } from "@/lib/utils/errors";
 import { isNative } from "@/lib/native/platform";
+import { buildCardBlob, shareBlob, loadIconDataUrl } from "@/lib/share/buildCardBlob";
 
 type Mode = "card" | "overlay";
 
@@ -17,135 +19,6 @@ type Props = {
   /** JPEG data URL of the live MapLibre canvas snapshot */
   mapImageUrl?: string | null;
 };
-
-/* ── Helpers ─────────────────────────────────────────────────────── */
-
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((res, rej) => {
-    const img = new window.Image();
-    img.onload = () => res(img);
-    img.onerror = rej;
-    img.src = src;
-  });
-}
-
-/** Draw an image into a canvas covering it (object-fit: cover). */
-function drawCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, cw: number, ch: number) {
-  const pr = img.width / img.height;
-  const cr = cw / ch;
-  let sx = 0, sy = 0, sw = img.width, sh = img.height;
-  if (pr > cr) { sw = img.height * cr; sx = (img.width - sw) / 2; }
-  else         { sh = img.width / cr;  sy = (img.height - sh) / 2; }
-  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, cw, ch);
-}
-
-/**
- * Composite: map JPEG → canvas, then SVG route layer on top.
- * The SVG contains no <image> elements so it serialises cleanly.
- */
-// Cache fetched fonts as base64 so we only fetch once per session
-let fontFaceCSS: string | null = null;
-async function getFontFaceCSS(): Promise<string> {
-  if (fontFaceCSS) return fontFaceCSS;
-  try {
-    const fontUrls = [
-      // Plus Jakarta Sans 700
-      "https://fonts.gstatic.com/s/plusjakartasans/v8/LDIbaomQNQcsA88c7O9yZ4KMCoOg4IA6-91aHEjcWuA_KU7NSg.woff2",
-      // Plus Jakarta Sans 800
-      "https://fonts.gstatic.com/s/plusjakartasans/v8/LDIbaomQNQcsA88c7O9yZ4KMCoOg4IA6-91aHEjcWuA_907NSg.woff2",
-      // Syne 700
-      "https://fonts.gstatic.com/s/syne/v22/8vIS7w4qzmVxsWxjBZRjr0FKM_04uQ.woff2",
-    ];
-    const [bold, extrabold, syne] = await Promise.all(
-      fontUrls.map(async (url) => {
-        const r = await fetch(url);
-        const buf = await r.arrayBuffer();
-        const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
-        return `data:font/woff2;base64,${b64}`;
-      }),
-    );
-    fontFaceCSS = `
-      @font-face { font-family: 'Plus Jakarta Sans'; font-weight: 700; src: url('${bold}') format('woff2'); }
-      @font-face { font-family: 'Plus Jakarta Sans'; font-weight: 800; src: url('${extrabold}') format('woff2'); }
-      @font-face { font-family: 'Plus Jakarta Sans'; font-weight: 500; src: url('${bold}') format('woff2'); }
-      @font-face { font-family: 'Syne'; font-weight: 700; src: url('${syne}') format('woff2'); }
-    `;
-  } catch {
-    fontFaceCSS = ""; // fall back silently
-  }
-  return fontFaceCSS;
-}
-
-async function buildCardBlob(
-  svgEl: SVGSVGElement,
-  mapDataUrl: string | null | undefined,
-  scale = 3,
-): Promise<Blob> {
-  const cw = CARD_W * scale;
-  const ch = CARD_H * scale;
-  const canvas = document.createElement("canvas");
-  canvas.width = cw;
-  canvas.height = ch;
-  const ctx = canvas.getContext("2d")!;
-
-  // 1. Map layer
-  if (mapDataUrl) {
-    const mapImg = await loadImage(mapDataUrl);
-    drawCover(ctx, mapImg, cw, ch);
-  }
-
-  // 2. SVG overlay — inject embedded font so it renders in the blob URL context
-  const embeddedFont = await getFontFaceCSS();
-  const svgClone = svgEl.cloneNode(true) as SVGSVGElement;
-  const styleEl = svgClone.querySelector("style");
-  if (styleEl && embeddedFont) {
-    styleEl.textContent = embeddedFont;
-  }
-
-  const svgData = new XMLSerializer().serializeToString(svgClone);
-  const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
-  const svgUrl  = URL.createObjectURL(svgBlob);
-  try {
-    const svgImg = await loadImage(svgUrl);
-    ctx.drawImage(svgImg, 0, 0, cw, ch);
-  } finally {
-    URL.revokeObjectURL(svgUrl);
-  }
-
-  return new Promise<Blob>((res, rej) =>
-    canvas.toBlob((b) => (b ? res(b) : rej(new Error("toBlob null"))), "image/png", 1),
-  );
-}
-
-async function shareBlob(blob: Blob, label: string, mode: "share" | "save") {
-  if (mode === "share") {
-    if (isNative) {
-      const { Filesystem, Directory } = await import("@capacitor/filesystem");
-      const { Share } = await import("@capacitor/share");
-      const reader = new FileReader();
-      const du: string = await new Promise((res, rej) => {
-        reader.onload = () => res(reader.result as string);
-        reader.onerror = rej;
-        reader.readAsDataURL(blob);
-      });
-      const fname = `roam-trip-${Date.now()}.png`;
-      await Filesystem.writeFile({ path: fname, data: du.split(",")[1], directory: Directory.Cache });
-      const { uri } = await Filesystem.getUri({ path: fname, directory: Directory.Cache });
-      await Share.share({ title: label, url: uri, dialogTitle: "Share your trip" });
-      return;
-    }
-    const file = new File([blob], "roam-trip.png", { type: "image/png" });
-    if (navigator.canShare?.({ files: [file] })) {
-      await navigator.share({ files: [file], title: label });
-      return;
-    }
-  }
-  // Fallback: download
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = `roam-trip-${Date.now()}.png`; a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
 
 /* ── Photo picker ────────────────────────────────────────────────── */
 
@@ -181,29 +54,14 @@ function PhotoPicker({ onPick }: { onPick: (url: string) => void }) {
 
 /* ── Modal ───────────────────────────────────────────────────────── */
 
-// Fetch app icon once and cache as data URL (small resized version)
-let cachedIconUrl: string | null = null;
-async function loadIconDataUrl(): Promise<string | null> {
-  if (cachedIconUrl) return cachedIconUrl;
-  try {
-    const res = await fetch("/img/roam-app-icon.png");
-    const blob = await res.blob();
-    // Resize to 64x64 via canvas to keep SVG lean
-    const img = await loadImage(URL.createObjectURL(blob));
-    const c = document.createElement("canvas"); c.width = 64; c.height = 64;
-    const ctx = c.getContext("2d")!;
-    ctx.drawImage(img, 0, 0, 64, 64);
-    cachedIconUrl = c.toDataURL("image/png");
-    return cachedIconUrl;
-  } catch { return null; }
-}
-
 export function TripShareModal({ open, data, onClose, mapImageUrl }: Props) {
   const [mode, setMode] = useState<Mode>("card");
   const [photo, setPhoto] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [iconDataUrl, setIconDataUrl] = useState<string | null>(cachedIconUrl);
+  const [iconDataUrl, setIconDataUrl] = useState<string | null>(null);
+  const [visible, setVisible] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   const cardSvgRef    = useRef<SVGSVGElement | null>(null);
   const overlaySvgRef = useRef<SVGSVGElement | null>(null);
@@ -212,6 +70,18 @@ export function TripShareModal({ open, data, onClose, mapImageUrl }: Props) {
     if (open) {
       setMode("card"); setPhoto(null); setErr(null);
       if (!iconDataUrl) loadIconDataUrl().then(setIconDataUrl);
+      setMounted(true);
+      // Two RAFs: first lets React flush the mount paint, second triggers the transition
+      let raf2: number;
+      const raf1 = requestAnimationFrame(() => {
+        raf2 = requestAnimationFrame(() => setVisible(true));
+      });
+      return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); };
+    } else {
+      // Trigger exit transition, then unmount after it completes
+      setVisible(false);
+      const t = setTimeout(() => setMounted(false), 350);
+      return () => clearTimeout(t);
     }
   }, [open]);
 
@@ -242,14 +112,19 @@ export function TripShareModal({ open, data, onClose, mapImageUrl }: Props) {
       }
       haptic.success();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Export failed");
+      setErr(toErrorMessage(e, "Export failed"));
       haptic.error();
     } finally {
       setExporting(false);
     }
   }, [data, mode, photo, mapImageUrl, tripLabel]);
 
-  if (!open || !data) return null;
+  // Keep last known data alive during the exit transition
+  const dataRef = useRef(data);
+  if (data) dataRef.current = data;
+  const activeData = dataRef.current;
+
+  if (!mounted || !activeData) return null;
 
   const canExport = mode === "card" || !!photo;
 
@@ -259,12 +134,23 @@ export function TripShareModal({ open, data, onClose, mapImageUrl }: Props) {
       style={{
         position: "fixed", inset: 0, zIndex: 60,
         display: "flex", flexDirection: "column", alignItems: "center",
-        background: "rgba(6,8,7,0.96)",
         overflowY: "auto", WebkitOverflowScrolling: "touch",
         paddingTop: "max(20px, env(safe-area-inset-top, 0px) + 12px)",
         paddingBottom: "max(28px, env(safe-area-inset-bottom, 0px) + 20px)",
+        // Backdrop fade
+        background: `rgba(6,8,7,${visible ? 0.96 : 0})`,
+        transition: "background 0.22s ease",
       }}
     >
+      {/* Content pop+fade wrapper */}
+      <div
+        style={{
+          display: "flex", flexDirection: "column", alignItems: "center", width: "100%",
+          opacity: visible ? 1 : 0,
+          transform: visible ? "translateY(0) scale(1)" : "translateY(20px) scale(0.96)",
+          transition: "opacity 0.3s cubic-bezier(0.34,1.56,0.64,1), transform 0.35s cubic-bezier(0.34,1.56,0.64,1)",
+        }}
+      >
       {/* ── Header ── */}
       <div style={{ width: "100%", maxWidth: 420, display: "flex",
         alignItems: "center", justifyContent: "space-between",
@@ -326,7 +212,7 @@ export function TripShareModal({ open, data, onClose, mapImageUrl }: Props) {
             )}
             {/* SVG overlay (no <image> tag — route + stats + branding only) */}
             <div style={{ position: "absolute", inset: 0 }}>
-              <TripShareCard data={data} mode="card" svgRef={cardSvgRef} hasMap={!!mapImageUrl} iconDataUrl={iconDataUrl} />
+              <TripShareCard data={activeData} mode="card" svgRef={cardSvgRef} hasMap={!!mapImageUrl} iconDataUrl={iconDataUrl} />
             </div>
           </div>
         ) : (
@@ -340,7 +226,7 @@ export function TripShareModal({ open, data, onClose, mapImageUrl }: Props) {
                 <img src={photo} alt="" style={{ position: "absolute", inset: 0,
                   width: "100%", height: "100%", objectFit: "cover" }} />
                 <div style={{ position: "absolute", inset: 0 }}>
-                  <TripShareCard data={data} mode="overlay" svgRef={overlaySvgRef} iconDataUrl={iconDataUrl} />
+                  <TripShareCard data={activeData} mode="overlay" svgRef={overlaySvgRef} iconDataUrl={iconDataUrl} />
                 </div>
                 <button type="button" onClick={() => setPhoto(null)}
                   style={{ all: "unset", cursor: "pointer", position: "absolute",
@@ -404,6 +290,7 @@ export function TripShareModal({ open, data, onClose, mapImageUrl }: Props) {
           ? (mapImageUrl ? "Exports at 3× — ready for Instagram Stories" : "Loading map…")
           : photo ? "Route overlaid on your photo" : "Pick a photo to overlay your route"}
       </p>
+      </div>{/* /content pop wrapper */}
     </div>
   );
 

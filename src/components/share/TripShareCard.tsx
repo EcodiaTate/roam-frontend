@@ -4,6 +4,7 @@
 import { useMemo } from "react";
 import { decodePolyline6 } from "@/lib/nav/polyline6";
 import type { TripStop } from "@/lib/types/trip";
+import { formatDistance, formatDuration } from "@/lib/utils/format";
 
 export const CARD_W = 390;
 export const CARD_H = 693;
@@ -22,17 +23,6 @@ export type ShareCardData = {
   label?: string | null;
 };
 
-function fmtKm(m: number) {
-  const km = m / 1000;
-  return km >= 100 ? `${Math.round(km)} km` : `${km.toFixed(1)} km`;
-}
-function fmtDur(s: number) {
-  const h = Math.floor(s / 3600);
-  const m = Math.round((s % 3600) / 60);
-  if (h === 0) return `${m}m`;
-  if (m === 0) return `${h}h`;
-  return `${h}h ${m}m`;
-}
 
 function thinCoords(
   coords: Array<{ lat: number; lng: number }>,
@@ -111,8 +101,8 @@ export function TripShareCard({ data, mode = "card", svgRef, hasMap = false, ico
 
   const poiCount = stops.filter((s) => s.type !== "start" && s.type !== "end").length;
   const stats = [
-    { v: fmtKm(distance_m),  l: "km"    },
-    { v: fmtDur(duration_s), l: "drive" },
+    { v: formatDistance(distance_m),  l: "km"    },
+    { v: formatDuration(duration_s),  l: "drive" },
     { v: String(poiCount || stops.length), l: "stops" },
   ];
 

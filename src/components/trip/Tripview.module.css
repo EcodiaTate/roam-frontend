@@ -81,12 +81,59 @@
   color: var(--roam-text-muted);
 }
 
+/* ── Route meta row ─────────────────────────────────────────── */
+
+.routeMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px 12px;
+  color: var(--roam-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.routeMetaStats {
+  display: flex;
+  gap: 12px;
+}
+
+.unsavedBadge {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--roam-warn);
+}
+
+/* ── Offline routing banner ────────────────────────────────── */
+
+.offlineBanner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  margin-bottom: 8px;
+  border-radius: 10px;
+  background: var(--roam-surface-hover);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--roam-text-muted);
+}
+
+.offlineRebuild {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--roam-accent);
+  white-space: nowrap;
+}
+
 /* ── Stop list ───────────────────────────────────────────────── */
 
 .stopList {
   display: flex;
   flex-direction: column;
   gap: 0;
+  contain: layout style;
 }
 
 /* ── Individual stop entry (card + connector) ────────────────── */
@@ -96,6 +143,31 @@
   flex-direction: column;
   position: relative;
   will-change: transform;
+  /* Two-phase removal animation driven by data-removing attribute.
+     Phase 1: slide right + fade out (250ms).
+     Phase 2: collapse height (200ms, triggered by data-collapsing). */
+  transition: transform 250ms ease, opacity 200ms ease;
+}
+
+.stopEntry[data-removing="true"] {
+  transform: translateX(60px);
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.stopEntry[data-collapsing="true"] {
+  transform: translateX(60px);
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  height: 0 !important;
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  transition: transform 250ms ease, opacity 200ms ease,
+              height 200ms ease, margin 200ms ease, padding 200ms ease;
 }
 
 /* ── Stop card ───────────────────────────────────────────────── */
@@ -268,17 +340,51 @@
 
 .connector {
   display: flex;
-  justify-content: flex-start;
+  flex-direction: row;
+  align-items: center;
   padding-left: 27px;
-  padding-top: 1px;
-  padding-bottom: 1px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+  gap: 0;
 }
 
+/* Vertical stem: grows to fill remaining space */
 .connectorLine {
   width: 1.5px;
-  height: 12px;
+  min-height: 6px;
+  flex-shrink: 0;
   background: var(--roam-border);
   border-radius: 2px;
+  align-self: stretch;
+}
+
+/* When a legPill is between two connectorLines, lay them vertically */
+.connector:has(.legPill) {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+.connector:has(.legPill) .connectorLine {
+  width: 1.5px;
+  height: 6px;
+  min-height: unset;
+  align-self: unset;
+}
+
+/* ── Leg time/distance pill ──────────────────────────────────── */
+
+.legPill {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--roam-text-muted);
+  background: var(--roam-surface-hover);
+  border-radius: 6px;
+  padding: 2px 7px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  line-height: 1.4;
 }
 
 /* ── Add stop button ─────────────────────────────────────────── */
@@ -436,4 +542,123 @@
 
 .spinner {
   animation: roam-spin 0.6s linear infinite;
+}
+
+/* ── Drag handle ─────────────────────────────────────────────── */
+
+.dragHandle {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  color: var(--roam-text-muted);
+  opacity: 0.4;
+  cursor: grab;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 100ms ease;
+}
+
+.dragHandle:active {
+  cursor: grabbing;
+  opacity: 0.8;
+}
+
+/* ── Drag-active list state ──────────────────────────────────── */
+
+.stopListDragging {
+  position: relative;
+}
+
+/* Suppress tap events on non-dragged items while dragging */
+.stopListDragging .stopEntry {
+  pointer-events: none;
+}
+
+/* ── Entry states during drag ────────────────────────────────── */
+
+.stopEntryDragging {
+  opacity: 0.25;
+}
+
+.stopEntryDropTarget > .stopCard {
+  outline-color: var(--roam-accent);
+  background: rgba(44, 124, 181, 0.06);
+}
+
+/* ── Drag ghost (absolute floating clone) ────────────────────── */
+
+.dragGhost {
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.dragGhostCard {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22), 0 2px 8px rgba(0, 0, 0, 0.12) !important;
+  transform: scale(1.02);
+  background: var(--roam-surface) !important;
+  border-radius: 14px;
+  outline: 1.5px solid var(--roam-border-strong) !important;
+  outline-offset: -1px;
+}
+
+/* ── Optimize Route button ───────────────────────────────────── */
+
+.optimizeBtn {
+  margin-top: 6px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1.5px solid var(--roam-border);
+  background: transparent;
+  color: var(--roam-text-muted);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: border-color 120ms ease, color 120ms ease, background 80ms ease, transform 80ms ease;
+  letter-spacing: 0.1px;
+}
+
+.optimizeBtn:active:not(:disabled) {
+  background: var(--roam-surface-hover);
+  border-color: var(--roam-text-muted);
+  color: var(--roam-text);
+  transform: scale(0.97);
+}
+
+.optimizeBtn:disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+/* ── Optimize Route toast ────────────────────────────────────── */
+
+.optimizeToast {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 14px;
+  border-radius: 12px;
+  background: var(--roam-surface-hover);
+  border: 1px solid var(--roam-border);
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--brand-eucalypt);
+  animation: roam-optimize-toast-in 0.3s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+@keyframes roam-optimize-toast-in {
+  0%  { opacity: 0; transform: translateY(6px) scale(0.96); }
+  100%{ opacity: 1; transform: translateY(0) scale(1); }
 }

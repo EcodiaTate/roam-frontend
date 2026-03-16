@@ -7,6 +7,7 @@ import { usePlanSync } from "@/lib/hooks/usePlanSync";
 import { useBundleBuilder } from "@/lib/hooks/useBundleBuilder";
 import { getOfflinePlan, setCurrentPlanId } from "@/lib/offline/plansStore";
 import { haptic } from "@/lib/native/haptics";
+import { toErrorMessage } from "@/lib/utils/errors";
 import { hideKeyboard } from "@/lib/native/keyboard";
 
 type Props = {
@@ -104,7 +105,7 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
       haptic.success();
       setGeneratedCode(c);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to create invite");
+      setError(toErrorMessage(e, "Failed to create invite"));
     } finally {
       setBusy(false);
     }
@@ -146,7 +147,7 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
       onClose();
       router.push(`/trip?plan_id=${encodeURIComponent(joinedPlanId)}`);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to join plan");
+      setError(toErrorMessage(e, "Failed to join plan"));
     } finally {
       setBusy(false);
     }

@@ -14,6 +14,19 @@ import type {
 } from "@/lib/types/navigation";
 import type { RoamPosition } from "@/lib/native/geolocation";
 import { haptic } from "@/lib/native/haptics";
+import { formatDistanceKm } from "@/lib/utils/format";
+import { decodePolyline6AsLngLat } from "@/lib/nav/polyline6";
+import { haversineKm } from "@/lib/nav/snapToRoute";
+import {
+  type UnifiedAlert,
+  type AlertBatch,
+  baseUrgency,
+  batchAlerts,
+  deduplicateAlerts as deduplicateUnifiedAlerts,
+  prioritizeAlerts,
+  adjustForStaleness,
+} from "@/lib/nav/alertPriority";
+import { isOverlayStale } from "@/lib/offline/refreshPriority";
 
 import {
   CircleX,
@@ -189,27 +202,6 @@ function AlertIcon({ iconKey, size = 16 }: { iconKey: string; size?: number }) {
    Geo helpers
    ══════════════════════════════════════════════════════════════════════ */
 
-function decodePolyline6(poly: string): Array<[number, number]> {
-  let index = 0, lat = 0, lng = 0;
-  const out: Array<[number, number]> = [];
-  while (index < poly.length) {
-    let r = 0, s = 0, b: number;
-    do { b = poly.charCodeAt(index++) - 63; r |= (b & 0x1f) << s; s += 5; } while (b >= 0x20);
-    lat += r & 1 ? ~(r >> 1) : r >> 1;
-    r = 0; s = 0;
-    do { b = poly.charCodeAt(index++) - 63; r |= (b & 0x1f) << s; s += 5; } while (b >= 0x20);
-    lng += r & 1 ? ~(r >> 1) : r >> 1;
-    out.push([lng / 1e6, lat / 1e6]);
-  }
-  return out;
-}
-
-const D2R = Math.PI / 180;
-function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const dLat = (lat2 - lat1) * D2R, dLng = (lng2 - lng1) * D2R;
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * D2R) * Math.cos(lat2 * D2R) * Math.sin(dLng / 2) ** 2;
-  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
 
 function projectOntoRoute(lat: number, lng: number, rc: Array<[number, number]>): { kmAlong: number; distKm: number } {
   let best = Infinity, bestKm = 0, cum = 0;
@@ -385,11 +377,6 @@ function deduplicateAlerts(alerts: EnrichedAlert[]): EnrichedAlert[] {
    Enrichment engine
    ══════════════════════════════════════════════════════════════════════ */
 
-function fmtKm(km: number): string {
-  if (km < 1) return `${Math.round(km * 1000)} m`;
-  if (km < 10) return `${km.toFixed(1)} km`;
-  return `${Math.round(km)} km`;
-}
 
 function buildContextLabel(
   userKm: number | null,
@@ -408,10 +395,10 @@ function buildContextLabel(
   if (userKm != null && alertKm != null) {
     const d = alertKm - userKm;
     if (Math.abs(d) < 2) { if (parts.length === 0) parts.push("Right here"); }
-    else if (d > 0) parts.push(`${fmtKm(Math.abs(d))} ahead`);
-    else parts.push(`${fmtKm(Math.abs(d))} behind`);
+    else if (d > 0) parts.push(`${formatDistanceKm(Math.abs(d))} ahead`);
+    else parts.push(`${formatDistanceKm(Math.abs(d))} behind`);
   } else if (userDist != null) {
-    parts.push(`${fmtKm(userDist)} away`);
+    parts.push(`${formatDistanceKm(userDist)} away`);
   }
   return parts.join(" · ");
 }
@@ -612,7 +599,7 @@ export function enrichAlerts(
   routeGeometry: string | null | undefined,
   userPosition: RoamPosition | null | undefined,
 ): EnrichedAlert[] {
-  const rc = routeGeometry ? (() => { try { return decodePolyline6(routeGeometry); } catch { return null; } })() : null;
+  const rc = routeGeometry ? (() => { try { return decodePolyline6AsLngLat(routeGeometry); } catch { return null; } })() : null;
 
   let userKm: number | null = null;
   if (userPosition && rc && rc.length >= 2) {
@@ -723,15 +710,16 @@ export function useAlerts(
 ) {
   const rc = useMemo(() => {
     if (!routeGeometry) return null;
-    try { return decodePolyline6(routeGeometry); } catch { return null; }
+    try { return decodePolyline6AsLngLat(routeGeometry); } catch { return null; }
   }, [routeGeometry]);
 
-  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
-  const [lastOverlayKey, setLastOverlayKey] = useState<string>("");
-
   const overlayKey = `${traffic?.created_at ?? ""}|${hazards?.created_at ?? ""}`;
-  if (overlayKey !== lastOverlayKey) {
-    setLastOverlayKey(overlayKey);
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+  const [prevOverlayKey, setPrevOverlayKey] = useState(overlayKey);
+
+  // Reset dismissed IDs when overlay data changes (idiomatic React derived state)
+  if (overlayKey !== prevOverlayKey) {
+    setPrevOverlayKey(overlayKey);
     setDismissedIds(new Set());
   }
 
@@ -746,10 +734,33 @@ export function useAlerts(
     setHideBehind((v) => !v);
   }, []);
 
-  const rawAlerts = useMemo(
-    () => enrichAlerts(traffic ?? null, hazards ?? null, routeGeometry, userPosition),
-    [traffic, hazards, routeGeometry, userPosition],
+  // Stage 1: Route-based enrichment — expensive spatial pipeline, only rerun when overlays change
+  const baseAlerts = useMemo(
+    () => enrichAlerts(traffic ?? null, hazards ?? null, routeGeometry, null),
+    [traffic, hazards, routeGeometry],
   );
+
+  // Stage 2: Cheap position annotation — runs at GPS frequency but only does arithmetic
+  const rawAlerts = useMemo(() => {
+    if (!userPosition || baseAlerts.length === 0) return baseAlerts;
+    let userKm: number | null = null;
+    if (rc && rc.length >= 2) {
+      const proj = projectOntoRoute(userPosition.lat, userPosition.lng, rc);
+      userKm = proj.distKm < 50 ? proj.kmAlong : null;
+    }
+    return baseAlerts.map((a) => {
+      const dUser = a.coord ? haversineKm(userPosition.lat, userPosition.lng, a.coord.lat, a.coord.lng) : null;
+      const ahead = userKm != null && a.kmAlongRoute != null ? a.kmAlongRoute - userKm : null;
+      const isAhead = ahead != null ? ahead > -2 : true;
+      return {
+        ...a,
+        distFromUserKm: dUser,
+        contextLabel: buildContextLabel(userKm, a.kmAlongRoute, dUser, a.distFromRouteKm, a.routeImpact),
+        relevanceScore: relevanceScore(a.sevOrder, dUser, a.distFromRouteKm, ahead, a.routeImpact),
+        isAhead,
+      };
+    }).sort((a, b) => a.relevanceScore - b.relevanceScore);
+  }, [baseAlerts, userPosition, rc]);
 
   const dedupedAlerts = useMemo(() => deduplicateAlerts(rawAlerts), [rawAlerts]);
 
@@ -815,18 +826,54 @@ export function useAlerts(
     return { status, blockerCount: blockers.length, onRouteCount: onRoute.length, nearbyCount: nearby.length, totalCount: dedupedAlerts.length, blockers, onRoute };
   }, [dedupedAlerts]);
 
-  const highCount = all.filter((a) => a.sevOrder === 0).length;
-  const totalCount = all.length;
+  const { highCount, totalCount, behindCount, dismissedCount } = useMemo(() => ({
+    highCount: all.filter((a) => a.sevOrder === 0).length,
+    totalCount: all.length,
+    behindCount: dedupedAlerts.filter((a) => !a.isAhead && !dismissedIds.has(a.id) && a.routeImpact !== "informational").length,
+    dismissedCount: dismissedIds.size,
+  }), [all, dedupedAlerts, dismissedIds]);
 
-  // Adjusted to exclude informational alerts from the behind count too
-  const behindCount = dedupedAlerts.filter((a) => !a.isAhead && !dismissedIds.has(a.id) && a.routeImpact !== "informational").length;
-  const dismissedCount = dismissedIds.size;
+  // ── Unified alert batching for voice announcements ──
+  // Converts the enriched alerts into the alertPriority system's UnifiedAlert format,
+  // then deduplicates, adjusts for staleness, and batches by region.
+  const voiceBatches = useMemo((): AlertBatch[] => {
+    if (all.length === 0) return [];
+
+    const userKm = (() => {
+      if (!userPosition || !rc || rc.length < 2) return 0;
+      const proj = projectOntoRoute(userPosition.lat, userPosition.lng, rc);
+      return proj.distKm < 50 ? proj.kmAlong : 0;
+    })();
+
+    const unified: UnifiedAlert[] = all.map((a) => {
+      const source = a.alertKind === "traffic" ? "traffic" as const : "hazard" as const;
+      const sev = a.severity ?? "medium";
+      const mod = a.typeLabel ?? undefined;
+      return {
+        id: a.id,
+        source,
+        urgency: baseUrgency(source, sev, mod),
+        title: a.headline ?? "Alert",
+        description: a.description ?? "",
+        km_along: a.kmAlongRoute ?? null,
+        data_created_at: a.alertKind === "traffic" ? (traffic?.created_at ?? null) : (hazards?.created_at ?? null),
+        is_stale: a.alertKind === "traffic"
+          ? isOverlayStale("traffic", traffic?.created_at ?? "")
+          : isOverlayStale("hazards", hazards?.created_at ?? ""),
+        spatial_key: a.coord ? `${Math.round(a.coord.lat * 100)},${Math.round(a.coord.lng * 100)}` : null,
+      };
+    });
+
+    const prioritized = prioritizeAlerts(unified, 20);
+    return batchAlerts(prioritized, userKm);
+  }, [all, userPosition, rc, traffic, hazards]);
 
   return {
     all, next, routeBlockers, alertsForLeg,
     highCount, totalCount, staleness, assessment,
     hideBehind, toggleHideBehind, behindCount,
     dismissAlert, dismissedCount,
+    voiceBatches,
   };
 }
 

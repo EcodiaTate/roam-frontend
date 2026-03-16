@@ -7,14 +7,17 @@ import { useRouter } from "next/navigation";
 import {
   Check,
   Clock,
+  Globe,
   Image as ImageIcon,
   Link2,
+  Lock,
   MapPin,
   Navigation,
   Pencil,
   Plus,
   Route,
   Share2,
+  Sparkles,
   Star,
   Trash2,
   Users,
@@ -23,8 +26,14 @@ import {
 
 import { InviteCodeModal } from "@/components/plans/InviteCodeModal";
 import { TripShareModal } from "@/components/share/TripShareModal";
+import { NativeShareRenderer } from "@/components/share/NativeShareRenderer";
 import type { ShareCardData } from "@/components/share/TripShareCard";
+import { AiTripModal, AI_TRIP_SEED_KEY, type AiTripSeed } from "@/components/trip/AiTripModal";
+import { getMemoryPromptsEnabled, setMemoryPromptsEnabled } from "@/lib/hooks/useStopProximity";
 import { haptic } from "@/lib/native/haptics";
+import { isNative } from "@/lib/native/platform";
+import { toErrorMessage } from "@/lib/utils/errors";
+import { formatDistanceOrDash, formatDurationOrDash } from "@/lib/utils/format";
 import type { OfflinePlanRecord } from "@/lib/offline/plansStore";
 import {
   deleteOfflinePlan,
@@ -33,24 +42,12 @@ import {
   renameOfflinePlan,
   setCurrentPlanId,
 } from "@/lib/offline/plansStore";
-
-/* ── Formatters ──────────────────────────────────────────────────────── */
-
-
-function fmtKm(m?: number) {
-  if (!m) return " - ";
-  const km = m / 1000;
-  return km >= 100 ? `${km.toFixed(0)} km` : `${km.toFixed(1)} km`;
-}
-
-function fmtDuration(s?: number) {
-  if (!s) return " - ";
-  const h = Math.floor(s / 3600);
-  const m = Math.round((s % 3600) / 60);
-  if (h === 0) return `${m} min`;
-  if (m === 0) return `${h}h`;
-  return `${h}h ${m}m`;
-}
+import { useAuth } from "@/lib/supabase/auth";
+import {
+  publishTrip,
+  unpublishTrip,
+  buildPublishPayload,
+} from "@/lib/supabase/publicTrips";
 
 function routeLabel(p: OfflinePlanRecord): string {
   const stops = p.preview?.stops;
@@ -261,21 +258,25 @@ function PlanCard({
   plan,
   isCurrent,
   busy,
+  isPublished,
   onOpen,
   onSetActive,
   onDelete,
   onShare,
   onInvite,
+  onPublish,
   onLabelChanged,
 }: {
   plan: OfflinePlanRecord;
   isCurrent: boolean;
   busy: boolean;
+  isPublished: boolean;
   onOpen: () => void;
   onSetActive: () => void;
   onDelete: () => void;
   onShare: () => void;
   onInvite: () => void;
+  onPublish: () => void;
   onLabelChanged: (label: string | null) => void;
 }) {
   const stops = stopCount(plan);
@@ -390,11 +391,11 @@ function PlanCard({
         >
           <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
             <Route size={11} />
-            {fmtKm(plan.preview?.distance_m)}
+            {formatDistanceOrDash(plan.preview?.distance_m)}
           </span>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
             <Clock size={11} />
-            {fmtDuration(plan.preview?.duration_s)}
+            {formatDurationOrDash(plan.preview?.duration_s)}
           </span>
           {stops > 0 && (
             <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
@@ -538,6 +539,34 @@ function PlanCard({
           <Share2 size={12} />
         </button>
 
+        {/* Publish / unpublish toggle */}
+        <button
+          type="button"
+          disabled={busy || !plan.preview}
+          title={isPublished ? "Published — tap to make private" : "Publish to Discover feed"}
+          onClick={(e) => {
+            e.stopPropagation();
+            onPublish();
+          }}
+          style={{
+            all: "unset",
+            flex: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "12px 11px",
+            fontSize: 11,
+            fontWeight: 700,
+            color: isPublished ? "var(--roam-success, #16a34a)" : "var(--roam-text-muted)",
+            cursor: busy || !plan.preview ? "default" : "pointer",
+            opacity: busy || !plan.preview ? 0.35 : 1,
+            borderRight: "1px solid var(--roam-border)",
+            WebkitTapHighlightColor: "transparent",
+          }}
+        >
+          {isPublished ? <Globe size={12} /> : <Lock size={12} />}
+        </button>
+
         <button
           type="button"
           disabled={busy}
@@ -582,18 +611,31 @@ export function PlanDrawer({
   onNewTrip?: () => void;
 }) {
   const router = useRouter();
+  const { user } = useAuth();
   const [plans, setPlans] = useState<OfflinePlanRecord[]>([]);
   const [currentId, setCurrentIdLocal] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  // publishedIds: plan_ids currently live in the Discover feed
+  const [publishedIds, setPublishedIds] = useState<Set<string>>(new Set());
 
   // Invite modal state
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteMode, setInviteMode] = useState<"create" | "redeem">("redeem");
   const [invitePlanId, setInvitePlanId] = useState<string | null>(null);
 
-  // Share card state
+  // Share card state (web modal / native renderer)
   const [shareCardData, setShareCardData] = useState<ShareCardData | null>(null);
+  const [nativeSharePayload, setNativeSharePayload] = useState<{ data: ShareCardData; label: string } | null>(null);
+
+  // AI trip modal state
+  const [aiOpen, setAiOpen] = useState(false);
+
+  // Memory prompts toggle
+  const [memPromptsOn, setMemPromptsOn] = useState(true);
+  useEffect(() => {
+    if (open) setMemPromptsOn(getMemoryPromptsEnabled());
+  }, [open]);
 
   const refresh = useCallback(async () => {
     try {
@@ -604,7 +646,7 @@ export function PlanDrawer({
       setPlans(p);
       setCurrentIdLocal(cur);
     } catch (e) {
-      const err = e instanceof Error ? e.message : String(e);
+      const err = toErrorMessage(e);
       setErr(err || "Failed to load plans");
     }
   }, []);
@@ -645,7 +687,7 @@ export function PlanDrawer({
       // Revert
       capturePlanPositions();
       setCurrentIdLocal(prevId);
-      const err = e instanceof Error ? e.message : String(e);
+      const err = toErrorMessage(e);
       setErr(err || "Failed to set active");
       haptic.error();
     }
@@ -684,7 +726,7 @@ export function PlanDrawer({
         capturePlanPositions();
         setPlans(prevPlans);
         setCurrentIdLocal(prevCurrentId);
-        const err = e instanceof Error ? e.message : String(e);
+        const err = toErrorMessage(e);
         setErr(err || "Failed to delete");
         haptic.error();
       }
@@ -706,13 +748,23 @@ export function PlanDrawer({
       haptic.medium();
       const plan = plans.find((p) => p.plan_id === planId);
       if (!plan?.preview) return;
-      setShareCardData({
+      const cardData: ShareCardData = {
         stops: plan.preview.stops,
         geometry: plan.preview.geometry,
         distance_m: plan.preview.distance_m,
         duration_s: plan.preview.duration_s,
         label: plan.label,
-      });
+      };
+      if (isNative) {
+        const label = plan.label?.trim() || (() => {
+          const s = plan.preview.stops.find((x) => x.type === "start");
+          const e = plan.preview.stops.find((x) => x.type === "end");
+          return `${s?.name || "Start"} → ${e?.name || "End"}`;
+        })();
+        setNativeSharePayload({ data: cardData, label });
+      } else {
+        setShareCardData(cardData);
+      }
     },
     [plans],
   );
@@ -731,6 +783,20 @@ export function PlanDrawer({
     setInviteOpen(true);
   }, []);
 
+  const handleAiConfirm = useCallback(
+    (seed: AiTripSeed) => {
+      try {
+        sessionStorage.setItem(AI_TRIP_SEED_KEY, JSON.stringify(seed));
+      } catch {
+        // sessionStorage unavailable — proceed anyway, /new will just start empty
+      }
+      setAiOpen(false);
+      onClose();
+      router.push("/new");
+    },
+    [onClose, router],
+  );
+
   const handleLabelChanged = useCallback(
     (planId: string, label: string | null) => {
       setPlans((prev) =>
@@ -738,6 +804,50 @@ export function PlanDrawer({
       );
     },
     [],
+  );
+
+  const handlePublish = useCallback(
+    async (planId: string) => {
+      if (!user) {
+        setErr("Sign in to publish trips to the Discover feed.");
+        return;
+      }
+      const plan = plans.find((p) => p.plan_id === planId);
+      if (!plan?.preview) return;
+
+      haptic.medium();
+      const alreadyPublished = publishedIds.has(planId);
+
+      // Optimistic toggle
+      setPublishedIds((prev) => {
+        const next = new Set(prev);
+        if (alreadyPublished) next.delete(planId);
+        else next.add(planId);
+        return next;
+      });
+
+      try {
+        if (alreadyPublished) {
+          await unpublishTrip(planId);
+        } else {
+          const payload = buildPublishPayload(plan.preview);
+          payload.id = planId; // use plan_id as public trip id for idempotency
+          await publishTrip(user.id, payload);
+          haptic.success();
+        }
+      } catch (e) {
+        // Revert
+        setPublishedIds((prev) => {
+          const next = new Set(prev);
+          if (alreadyPublished) next.add(planId);
+          else next.delete(planId);
+          return next;
+        });
+        setErr(toErrorMessage(e) || "Failed to update publish status");
+        haptic.error();
+      }
+    },
+    [user, plans, publishedIds],
   );
 
   return (
@@ -750,7 +860,7 @@ export function PlanDrawer({
             inset: 0,
             background: "var(--overlay-bg, rgba(0,0,0,0.3))",
             zIndex: 39,
-            animation: "roam-fade-in 0.2s ease",
+            animation: "roam-fadeIn 0.2s ease",
             WebkitTapHighlightColor: "transparent",
           }}
           onClick={onClose}
@@ -823,7 +933,7 @@ export function PlanDrawer({
             </button>
           </div>
 
-          {/* Join + New buttons */}
+          {/* Join + AI + New buttons */}
           <div style={{ display: "flex", gap: 8 }}>
             <button
               type="button"
@@ -848,6 +958,30 @@ export function PlanDrawer({
             >
               <Link2 size={14} />
               Join
+            </button>
+            <button
+              type="button"
+              onClick={() => { haptic.light(); setAiOpen(true); }}
+              style={{
+                all: "unset",
+                cursor: "pointer",
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 5,
+                height: 42,
+                borderRadius: 10,
+                background: "var(--roam-surface-hover)",
+                border: "1px solid var(--brand-sky, #38bdf8)",
+                color: "var(--brand-sky, #38bdf8)",
+                fontSize: 13,
+                fontWeight: 700,
+                WebkitTapHighlightColor: "transparent",
+              }}
+            >
+              <Sparkles size={14} />
+              AI
             </button>
             <button
               type="button"
@@ -934,16 +1068,82 @@ export function PlanDrawer({
                     plan={p}
                     isCurrent={p.plan_id === currentId}
                     busy={busyId === p.plan_id}
+                    isPublished={publishedIds.has(p.plan_id)}
                     onOpen={() => handleOpen(p.plan_id)}
                     onSetActive={() => handleSetActive(p.plan_id)}
                     onDelete={() => handleDelete(p.plan_id)}
                     onShare={() => handleShare(p.plan_id)}
                     onInvite={() => handleInvite(p.plan_id)}
+                    onPublish={() => handlePublish(p.plan_id)}
                     onLabelChanged={(label) => handleLabelChanged(p.plan_id, label)}
                   />
                 </div>
               ))
             )}
+
+            {/* ── Memory prompts toggle ── */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "10px 12px",
+                marginTop: 8,
+                borderRadius: 12,
+                background: "var(--roam-surface-raised, var(--roam-surface))",
+                border: "1px solid var(--roam-border)",
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--roam-text)", marginBottom: 1 }}>
+                  Stop arrival prompts
+                </div>
+                <div style={{ fontSize: 11, fontWeight: 500, color: "var(--roam-text-muted)", lineHeight: 1.3 }}>
+                  Show memory sheet when you arrive at a stop
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  haptic.selection();
+                  const next = !memPromptsOn;
+                  setMemPromptsOn(next);
+                  setMemoryPromptsEnabled(next);
+                }}
+                style={{
+                  all: "unset",
+                  cursor: "pointer",
+                  width: 44,
+                  height: 26,
+                  borderRadius: 13,
+                  background: memPromptsOn
+                    ? "var(--brand-eucalypt, #2d6e40)"
+                    : "var(--roam-border)",
+                  position: "relative",
+                  flexShrink: 0,
+                  marginLeft: 12,
+                  transition: "background 0.2s",
+                  WebkitTapHighlightColor: "transparent",
+                }}
+                role="switch"
+                aria-checked={memPromptsOn}
+                aria-label="Stop arrival prompts"
+              >
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 3,
+                    left: memPromptsOn ? 21 : 3,
+                    width: 20,
+                    height: 20,
+                    borderRadius: "50%",
+                    background: "#fff",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                    transition: "left 0.2s cubic-bezier(0.4,0,0.2,1)",
+                  }}
+                />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -964,11 +1164,30 @@ export function PlanDrawer({
         }}
       />
 
-      {/* Share card modal */}
-      <TripShareModal
-        open={shareCardData !== null}
-        data={shareCardData}
-        onClose={() => setShareCardData(null)}
+      {/* Web share modal — only shown on non-native */}
+      {!isNative && (
+        <TripShareModal
+          open={shareCardData !== null}
+          data={shareCardData}
+          onClose={() => setShareCardData(null)}
+        />
+      )}
+
+      {/* Native share — renders card off-screen, invokes iOS/Android share sheet */}
+      {nativeSharePayload && (
+        <NativeShareRenderer
+          data={nativeSharePayload.data}
+          tripLabel={nativeSharePayload.label}
+          onDone={() => setNativeSharePayload(null)}
+          onError={() => setNativeSharePayload(null)}
+        />
+      )}
+
+      {/* AI trip generator modal */}
+      <AiTripModal
+        open={aiOpen}
+        onClose={() => setAiOpen(false)}
+        onConfirm={handleAiConfirm}
       />
 
       {/* fadeIn animation now handled by roam-fade-in in globals.css */}

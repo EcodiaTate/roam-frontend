@@ -8,17 +8,14 @@
  * are predicted to be nearby. Tapping expands details.
  */
 
-import { useState } from "react";
+import { memo, useState } from "react";
 import type { NearbyRoamer } from "@/lib/types/peer";
+import { cardinalDir } from "@/lib/nav/geo";
 
 type Props = {
   roamers: NearbyRoamer[];
 };
 
-function cardinalDir(deg: number): string {
-  const dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
-  return dirs[Math.round(((deg % 360) + 360) % 360 / 45) % 8];
-}
 
 function confidenceColor(c: string): string {
   if (c === "high") return "var(--brand-eucalypt)";
@@ -26,7 +23,7 @@ function confidenceColor(c: string): string {
   return "var(--text-muted)";
 }
 
-export function NearbyRoamersIndicator({ roamers }: Props) {
+export const NearbyRoamersIndicator = memo(function NearbyRoamersIndicator({ roamers }: Props) {
   const [expanded, setExpanded] = useState(false);
 
   if (roamers.length === 0) return null;
@@ -34,6 +31,7 @@ export function NearbyRoamersIndicator({ roamers }: Props) {
   return (
     <div style={styles.wrapper}>
       <button
+        type="button"
         onClick={() => setExpanded(!expanded)}
         style={styles.pill}
         aria-label={`${roamers.length} roamer${roamers.length > 1 ? "s" : ""} nearby`}
@@ -70,7 +68,7 @@ export function NearbyRoamersIndicator({ roamers }: Props) {
       )}
     </div>
   );
-}
+});
 
 const styles: Record<string, React.CSSProperties> = {
   wrapper: {

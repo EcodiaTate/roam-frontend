@@ -11,8 +11,9 @@ const STORE_META = "meta"; // key: string -> any
 const STORE_EMERGENCY = "emergency_contacts"; // keyPath: id (uuid)
 const STORE_PACKS = "packs"; // keyPath: k (plan_id:kind)
 const STORE_SYNC_QUEUE = "sync_queue"; // keyPath: id (auto-incrementing ops queue)
+const STORE_MEMORIES = "stop_memories"; // keyPath: id (uuid), index on plan_id
 
-const REQUIRED_STORES = [STORE_PLANS, STORE_META, STORE_PACKS, STORE_SYNC_QUEUE, STORE_EMERGENCY];
+const REQUIRED_STORES = [STORE_PLANS, STORE_META, STORE_PACKS, STORE_SYNC_QUEUE, STORE_EMERGENCY, STORE_MEMORIES];
 
 let _dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -40,6 +41,10 @@ function ensureStores(db: IDBDatabase) {
       autoIncrement: true,
     });
     sq.createIndex("created_at", "created_at", { unique: false });
+  }
+  if (!db.objectStoreNames.contains(STORE_MEMORIES)) {
+    const mem = db.createObjectStore(STORE_MEMORIES, { keyPath: "id" });
+    mem.createIndex("plan_id", "plan_id", { unique: false });
   }
 }
 
@@ -265,4 +270,5 @@ export const idbStores = {
   packs: STORE_PACKS,
   syncQueue: STORE_SYNC_QUEUE,
   emergency: STORE_EMERGENCY,
+  memories: STORE_MEMORIES,
 };

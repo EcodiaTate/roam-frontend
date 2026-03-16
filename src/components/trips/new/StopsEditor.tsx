@@ -5,6 +5,7 @@ import type { TripStop } from "@/lib/types/trip";
 import type { NavPack } from "@/lib/types/navigation";
 import type { OfflineBundleManifest } from "@/lib/types/bundle";
 import { StopRow } from "./StopRow";
+import { StopSuggestions } from "./StopSuggestions";
 import { haptic } from "@/lib/native/haptics";
 import { hideKeyboard } from "@/lib/native/keyboard";
 
@@ -25,17 +26,19 @@ import {
   Link,
   Library,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 /* ── Types ────────────────────────────────────────────────────────────── */
 
 import type { BuildPhase as OfflineBuildPhase } from "@/lib/offline/buildPlanBundle";
+import type { StopSuggestionItem } from "@/lib/types/places";
 
 /* ── Build pipeline step definitions ─────────────────────────────────── */
 
 type PipelineStep = {
   id: string;
   phases: OfflineBuildPhase[];
-  icon: React.ReactNode;
+  Icon: LucideIcon;
   label: string;
   activeLabel: string;
   doneLabel: string;
@@ -46,7 +49,7 @@ const PIPELINE_STEPS: PipelineStep[] = [
   {
     id: "route",
     phases: ["routing"],
-    icon: <Route size={18} />,
+    Icon: Route,
     label: "Plan your route",
     activeLabel: "Finding the best route…",
     doneLabel: "Route sorted",
@@ -55,7 +58,7 @@ const PIPELINE_STEPS: PipelineStep[] = [
   {
     id: "corridor",
     phases: ["corridor_ensure", "corridor_get"],
-    icon: <Map size={18} />,
+    Icon: Map,
     label: "Save maps offline",
     activeLabel: "Downloading maps along your route…",
     doneLabel: "Maps downloaded",
@@ -64,7 +67,7 @@ const PIPELINE_STEPS: PipelineStep[] = [
   {
     id: "places",
     phases: ["places_corridor"],
-    icon: <MapPin size={18} />,
+    Icon: MapPin,
     label: "Find stops along the way",
     activeLabel: "Finding fuel, food & rest stops…",
     doneLabel: "Stops saved",
@@ -73,7 +76,7 @@ const PIPELINE_STEPS: PipelineStep[] = [
   {
     id: "traffic",
     phases: ["traffic_poll"],
-    icon: <Cloud size={18} />,
+    Icon: Cloud,
     label: "Check live traffic",
     activeLabel: "Checking current traffic…",
     doneLabel: "Traffic checked",
@@ -82,7 +85,7 @@ const PIPELINE_STEPS: PipelineStep[] = [
   {
     id: "hazards",
     phases: ["hazards_poll"],
-    icon: <AlertTriangle size={18} />,
+    Icon: AlertTriangle,
     label: "Check road hazards",
     activeLabel: "Looking for road warnings…",
     doneLabel: "All clear",
@@ -91,7 +94,7 @@ const PIPELINE_STEPS: PipelineStep[] = [
   {
     id: "bundle",
     phases: ["bundle_build"],
-    icon: <Package size={18} />,
+    Icon: Package,
     label: "Pack it all up",
     activeLabel: "Getting everything ready to go…",
     doneLabel: "Ready to roll",
@@ -284,7 +287,7 @@ function BuildProgressView({
                   flexShrink: 0,
                 }}
               >
-                {isActive ? <Spinner color={step.color} size={16} /> : isDoneStep ? <Check size={15} strokeWidth={3} /> : <span style={{ opacity: 0.5 }}>{step.icon}</span>}
+                {isActive ? <Spinner color={step.color} size={16} /> : isDoneStep ? <Check size={15} strokeWidth={3} /> : <span style={{ opacity: 0.5 }}><step.Icon size={18} /></span>}
               </div>
 
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -407,6 +410,9 @@ export function StopsEditor(props: {
 
   /** Calculated route for preview (distance/duration summary) */
   navPack?: NavPack | null;
+
+  /** Called when user taps "Add stop" on a suggestion card. */
+  onAddSuggestion?: (item: StopSuggestionItem) => void;
 
   /** Whether user has Roam Untethered. null = still loading. */
   unlocked?: boolean | null;
@@ -681,6 +687,15 @@ export function StopsEditor(props: {
                   />
                 ))}
               </div>
+
+              {/* ── Nearby suggestions ── */}
+              {props.onAddSuggestion && (
+                <StopSuggestions
+                  navPack={props.navPack ?? null}
+                  stops={props.stops}
+                  onAddSuggestion={props.onAddSuggestion}
+                />
+              )}
 
               {/* ── Route preview summary ── */}
               {props.navPack?.primary && (

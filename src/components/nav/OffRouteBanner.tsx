@@ -21,9 +21,9 @@ export function OffRouteBanner({ visible, distFromRoute_m, hasCorridorGraph, onR
         position: "absolute",
         top: "calc(env(safe-area-inset-top, 0px) + 12px)",
         left: 12,
-        right: 12,
+        right: 68,
         zIndex: 35, // above HUD
-        pointerEvents: "auto",
+        pointerEvents: "none",
         animation: "offroute-slide-in 0.3s ease-out",
       }}
     >
@@ -33,6 +33,7 @@ export function OffRouteBanner({ visible, distFromRoute_m, hasCorridorGraph, onR
           borderRadius: 16,
           padding: "14px 16px",
           boxShadow: "0 8px 32px rgba(220,38,38,0.4), 0 2px 8px rgba(0,0,0,0.2)",
+          pointerEvents: "auto",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>

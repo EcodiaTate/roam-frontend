@@ -5,8 +5,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { haptic } from "@/lib/native/haptics";
+import { toErrorMessage } from "@/lib/utils/errors";
 import { useGeolocation } from "@/lib/native/geolocation";
-import { useOnlineStatus } from "@/lib/hooks/useOnlineStatus";
+import { useNetworkStatus } from "@/lib/hooks/useNetworkStatus";
 import { getCurrentPlanId, getOfflinePlan, type OfflinePlanRecord } from "@/lib/offline/plansStore";
 import { getAllPacks, hasCorePacks } from "@/lib/offline/packsStore";
 import { unpackAndStoreBundle } from "@/lib/offline/unpackBundle";
@@ -37,6 +38,65 @@ import Image from "next/image";
 import { Wifi, WifiOff, Satellite, AlertTriangle } from "lucide-react";
 import { GuideSkeleton } from "./GuideSkeleton";
 
+import type { GuideBootstrap } from "@/lib/guide/guideEngine";
+
+// ──────────────────────────────────────────────────────────────
+// Driver state builder
+// ──────────────────────────────────────────────────────────────
+
+/**
+ * Build a driverState snapshot from available data for Guide AI context.
+ * This gives the AI situational awareness: fuel, fatigue, speed, night, temperature.
+ */
+function buildDriverState(
+  weather: WeatherOverlay | null,
+  fuel: FuelOverlay | null,
+  navpack: NavPack | null,
+  progress: TripProgress | null,
+): GuideBootstrap["driverState"] {
+  if (!progress) return null;
+
+  // Find weather at the user's current position
+  let nearestWeather: WeatherOverlay["points"][number] | null = null;
+  if (weather?.points?.length) {
+    let bestDist = Infinity;
+    for (const p of weather.points) {
+      const d = Math.abs(p.km_along - progress.km_from_start);
+      if (d < bestDist) { bestDist = d; nearestWeather = p; }
+    }
+  }
+
+  // Estimate ETA
+  const totalDist = navpack?.primary?.distance_m ?? 0;
+  const totalDur = navpack?.primary?.duration_s ?? 0;
+  const remainKm = progress.km_remaining;
+  const plannedSpeed = totalDist > 0 ? totalDist / totalDur : 25; // m/s
+  const remainSec = (remainKm * 1000) / (plannedSpeed || 25);
+  const eta = new Date(Date.now() + remainSec * 1000);
+  const etaIso = eta.toISOString();
+
+  // Night arrival: does ETA fall outside daylight?
+  let nightArrival = false;
+  if (weather?.points?.length) {
+    const lastPt = weather.points[weather.points.length - 1];
+    if (lastPt.sunset_iso) {
+      try { nightArrival = eta > new Date(lastPt.sunset_iso); } catch {}
+    }
+  }
+
+  return {
+    temperature_c: nearestWeather?.temperature_c,
+    is_night: nearestWeather ? nearestWeather.is_daylight === false : undefined,
+    eta_iso: etaIso,
+    night_arrival: nightArrival,
+    speed_ratio: undefined, // not available in guide page (no active nav)
+    fatigue_level: undefined,
+    hours_since_rest: undefined,
+    fuel_pressure: undefined,
+    km_to_next_fuel: undefined,
+  };
+}
+
 // ──────────────────────────────────────────────────────────────
 // Component
 // ──────────────────────────────────────────────────────────────
@@ -47,7 +107,7 @@ export default function GuideClientPage(props: {
 }) {
   const router = useRouter();
   const sp = useSearchParams();
-  const isOnline = useOnlineStatus();
+  const { online: isOnline } = useNetworkStatus();
   const { registerNavigateHandler } = usePlaceDetail();
 
   const headerRef = useRef<HTMLDivElement>(null);
@@ -188,6 +248,7 @@ export default function GuideClientPage(props: {
           route_score: routeScoreLoaded,
           fuel: fuelOverlayLoaded,
           progress: null,
+          driverState: buildDriverState(weatherLoaded, fuelOverlayLoaded, navpackLoaded, null),
         });
 
         if (cancelled) return;
@@ -232,7 +293,7 @@ export default function GuideClientPage(props: {
           if (!cancelled) setBusy(null);
         }
       } catch (e: unknown) {
-        if (!cancelled) setErr(e instanceof Error ? e.message : String(e));
+        if (!cancelled) setErr(toErrorMessage(e));
       } finally {
         if (!cancelled) setBusy((b) => (b === "boot" ? null : b));
       }
@@ -287,10 +348,11 @@ export default function GuideClientPage(props: {
           }
         }
 
-        // Update context with latest progress
+        // Update context with latest progress + live driver state
         const freshContext: GuideContext = {
           ...guideContext,
           progress: latestProgress,
+          driver_state: buildDriverState(weather, fuelOverlay, navpack, latestProgress),
         };
 
         // CRITICAL: Pass corridor places so the intent mapper can pre-filter them
@@ -313,7 +375,7 @@ export default function GuideClientPage(props: {
         setGuideContext(freshContext);
         return res.assistantText;
       } catch (e: unknown) {
-        setErr(e instanceof Error ? e.message : String(e));
+        setErr(toErrorMessage(e));
         throw e;
       } finally {
         setBusy(null);
@@ -341,7 +403,7 @@ export default function GuideClientPage(props: {
         router.push(`/trip?plan_id=${encodeURIComponent(plan.plan_id)}`);
       } catch (e: unknown) {
         haptic.error();
-        setErr(e instanceof Error ? e.message : String(e));
+        setErr(toErrorMessage(e));
       } finally {
         setBusy(null);
       }
@@ -440,22 +502,15 @@ export default function GuideClientPage(props: {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: 8,
-            overflow: "hidden",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
-            flexShrink: 0,
-          }}>
-            <Image src="/img/roam-app-icon.png" alt="Roam" width={32} height={32} style={{ objectFit: "cover" }} priority />
-          </div>
+
 
           <div style={{ minWidth: 0, flex: 1 }}>
             <div
               className="trip-truncate"
               style={{
-                fontSize: 18,
-                fontWeight: 950,
-                letterSpacing: "-0.2px",
+                fontSize: 28,
+                fontWeight: 900,
+                letterSpacing: "-0.025rem",
               }}
             >
               {headerTitle}

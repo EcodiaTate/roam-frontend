@@ -9,6 +9,7 @@ import type { StyleSpecification, SourceSpecification, GeoJSONSourceSpecificatio
 import "maplibre-gl/dist/maplibre-gl.css";
 import { Protocol } from "pmtiles";
 
+import { decodePolyline6AsLngLat } from "@/lib/nav/polyline6";
 import type { BBox4 } from "@/lib/types/geo";
 import type { TripStop } from "@/lib/types/trip";
 import type { PlaceItem } from "@/lib/types/places";
@@ -46,6 +47,8 @@ type Props = {
 
   focusedStopId?: string | null;
   onStopPress?: (stopId: string) => void;
+  /** Called after a long-press (≥500ms) on a stop pin. Provides screen coords for menu anchoring. */
+  onStopLongPress?: (stopId: string, screenX: number, screenY: number) => void;
 
   // Suggestions
   suggestions?: PlaceItem[] | null;
@@ -614,39 +617,10 @@ function bboxToBounds(b: BBox4): LngLatBoundsLike {
   ];
 }
 
-function decodePolyline6(poly: string): Array<[number, number]> {
-  let index = 0,
-    lat = 0,
-    lng = 0;
-  const coordinates: Array<[number, number]> = [];
-  const factor = 1e6;
-  while (index < poly.length) {
-    let result = 0,
-      shift = 0,
-      b: number;
-    do {
-      b = poly.charCodeAt(index++) - 63;
-      result |= (b & 0x1f) << shift;
-      shift += 5;
-    } while (b >= 0x20);
-    lat += result & 1 ? ~(result >> 1) : result >> 1;
-    result = 0;
-    shift = 0;
-    do {
-      b = poly.charCodeAt(index++) - 63;
-      result |= (b & 0x1f) << shift;
-      shift += 5;
-    } while (b >= 0x20);
-    lng += result & 1 ? ~(result >> 1) : result >> 1;
-    coordinates.push([lng / factor, lat / factor]);
-  }
-  return coordinates;
-}
-
 function routeGeoJSON(polyline6: string): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
-    features: [{ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: decodePolyline6(polyline6) } }],
+    features: [{ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: decodePolyline6AsLngLat(polyline6) } }],
   };
 }
 
@@ -1055,6 +1029,8 @@ export function TripMap(props: Props) {
   onNavToGuideRef.current = props.onNavigateToGuide;
   const onAddStopFromMapRef = useRef(props.onAddStopFromMap);
   onAddStopFromMapRef.current = props.onAddStopFromMap;
+  const onStopLongPressRef = useRef(props.onStopLongPress);
+  onStopLongPressRef.current = props.onStopLongPress;
   const stopPlaceIdsRef = useRef(props.stopPlaceIds);
   stopPlaceIdsRef.current = props.stopPlaceIds;
   const isOnlineRef = useRef(props.isOnline ?? true);
@@ -1072,7 +1048,7 @@ export function TripMap(props: Props) {
 
   // Decode route once for coverage gap slicing
   const routeCoords = useMemo<Array<[number, number]>>(() => {
-    try { return decodePolyline6(props.geometry); } catch { return []; }
+    try { return decodePolyline6AsLngLat(props.geometry); } catch { return []; }
   }, [props.geometry]);
   const routeCumKm = useMemo<number[]>(() => {
     if (routeCoords.length === 0) return [];
@@ -1261,17 +1237,29 @@ export function TripMap(props: Props) {
       map.on("mouseleave", layerId, () => (map.getCanvas().style.cursor = ""));
     };
 
-    // Long press for placing stops
+    // Long press — distinguishes stop-pin long press from blank-map long press.
+    // Stop-pin long press fires onStopLongPress (for quick action menu).
+    // Blank-map long press fires onMapLongPress (for placing a new stop).
     let longPressTimer: ReturnType<typeof setTimeout> | null = null;
     let longPressPos: { x: number; y: number } | null = null;
+
+    const STOP_LAYERS = [STOPS_SHADOW, STOPS_OUTER, STOPS_INNER, STOP_ICON_LAYER];
 
     map.getCanvas().addEventListener("pointerdown", (e) => {
       longPressPos = { x: e.clientX, y: e.clientY };
       longPressTimer = setTimeout(() => {
         if (!longPressPos) return;
-        const lngLat = map.unproject([e.offsetX, e.offsetY]);
-        props.onMapLongPress?.(lngLat.lat, lngLat.lng);
-      }, 600);
+        const point: [number, number] = [e.offsetX, e.offsetY];
+        // Check if pointer is over a stop feature
+        const stopFeatures = map.queryRenderedFeatures(point, { layers: STOP_LAYERS });
+        const stopId = stopFeatures?.[0]?.properties?.id;
+        if (stopId) {
+          onStopLongPressRef.current?.(String(stopId), e.clientX, e.clientY);
+        } else {
+          const lngLat = map.unproject(point);
+          props.onMapLongPress?.(lngLat.lat, lngLat.lng);
+        }
+      }, 500);
     });
     map.getCanvas().addEventListener("pointermove", (e) => {
       if (longPressPos && longPressTimer) {

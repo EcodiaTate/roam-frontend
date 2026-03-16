@@ -1,5 +1,7 @@
 // src/lib/types/places.ts
 import type { BBox4, NavCoord } from "./geo";
+
+export type { BBox4, NavCoord };
 // ──────────────────────────────────────────────────────────────
 // PlaceCategory - replace the existing PlaceCategory type in
 // src/lib/types/places.ts with this one.
@@ -200,3 +202,25 @@ export type PlacesSuggestionCluster = {
 export type PlacesSuggestResponse = {
   clusters: PlacesSuggestionCluster[];
 };
+
+// /places/stop-suggestions
+export type StopSuggestionsRequest = {
+  bbox: BBox4;
+  midpoint: NavCoord;
+  existing_categories?: PlaceCategory[];
+  limit?: number;
+};
+
+export type StopSuggestionItem = {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  category: PlaceCategory;
+  score: number;
+  extra?: Record<string, unknown>;
+};
+
+export type StopSuggestionsResponse = {
+  suggestions: StopSuggestionItem[];
+};;

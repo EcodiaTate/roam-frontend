@@ -5,6 +5,7 @@ import { BottomTabBar } from "@/components/ui/BottomTabBar";
 import { PersistentTabs } from "@/components/ui/PersistentTabs";
 import { PlaceDetailProvider } from "@/lib/context/PlaceDetailContext";
 import { PlaceDetailSheet } from "@/components/places/PlaceDetailSheet";
+import { SavedPlacesSync } from "@/components/places/SavedPlacesSync";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
@@ -14,6 +15,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <PlaceDetailProvider>
+      {/* Wires useSavedPlaces into PlaceDetailContext so the sheet can toggle bookmarks */}
+      <SavedPlacesSync />
       <div className="roam-shell">
         <main className="roam-main">
           <PersistentTabs>{children}</PersistentTabs>

@@ -5,7 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Capacitor } from "@capacitor/core";
 import { haptic } from "@/lib/native/haptics";
-import { useOnlineStatus } from "@/lib/hooks/useOnlineStatus";
+import { toErrorMessage } from "@/lib/utils/errors";
+import { useNetworkStatus } from "@/lib/hooks/useNetworkStatus";
 import { useAuth } from "@/lib/supabase/auth";
 import { listEmergencyContacts } from "@/lib/offline/emergencyStore";
 import { emergencySyncOnce } from "@/lib/offline/emergencySync";
@@ -171,7 +172,7 @@ async function getPositionNative(timeoutMs = 120_000): Promise<GeoResult> {
 }
 
 export default function EmergencyClientPage() {
-  const isOnline = useOnlineStatus();
+  const { online: isOnline } = useNetworkStatus();
   const { user } = useAuth();
 
   const [items, setItems] = useState<EmergencyContactLocal[]>([]);
@@ -273,7 +274,7 @@ export default function EmergencyClientPage() {
       await emergencySyncOnce(user);
       await refresh();
     } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : String(e));
+      setErr(toErrorMessage(e));
     } finally {
       syncInFlightRef.current = false;
       setBusy((b) => (b === "sync" ? null : b));
@@ -292,7 +293,7 @@ export default function EmergencyClientPage() {
       setLon(p.lon);
       setAccuracyM(p.accuracy_m);
     } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : String(e));
+      setErr(toErrorMessage(e));
     } finally {
       locInFlightRef.current = false;
       setLocating(false);
@@ -313,7 +314,7 @@ export default function EmergencyClientPage() {
         if (cancelled) return;
         await runAutoSync();
       } catch (e: unknown) {
-        setErr(e instanceof Error ? e.message : String(e));
+        setErr(toErrorMessage(e));
       } finally {
         if (!cancelled) setBusy(null);
       }
@@ -401,7 +402,7 @@ export default function EmergencyClientPage() {
         setAccuracyM(acc);
       } catch (e: unknown) {
         haptic.error();
-        setErr(e instanceof Error ? e.message : String(e));
+        setErr(toErrorMessage(e));
         setLocating(false);
         return;
       }
@@ -478,7 +479,7 @@ export default function EmergencyClientPage() {
       // Revert
       setItems(prevItems);
       haptic.error();
-      setErr(e instanceof Error ? e.message : String(e));
+      setErr(toErrorMessage(e));
     }
   }, [editingId, name, phone, relationship, notes, user, isOnline, items, runAutoSync]);
 
@@ -504,7 +505,7 @@ export default function EmergencyClientPage() {
         // Revert
         setItems(prevItems);
         haptic.error();
-        setErr(e instanceof Error ? e.message : String(e));
+        setErr(toErrorMessage(e));
       }
     },
     [user, isOnline, items, editingId, runAutoSync],

@@ -5,30 +5,10 @@ import type { TripStop } from "@/lib/types/trip";
 import type { NavPack, NavLeg } from "@/lib/types/navigation";
 import type { RoamPosition } from "@/lib/native/geolocation";
 import type { TripProgress } from "@/lib/types/guide";
+import { haversineKm } from "@/lib/nav/snapToRoute";
 
-// ──────────────────────────────────────────────────────────────
-// Geo utilities
-// ──────────────────────────────────────────────────────────────
-
-const DEG2RAD = Math.PI / 180;
-const EARTH_R_KM = 6371;
-
-/** Haversine distance in km between two lat/lng points */
-export function haversineKm(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number,
-): number {
-  const dLat = (lat2 - lat1) * DEG2RAD;
-  const dLng = (lng2 - lng1) * DEG2RAD;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1 * DEG2RAD) *
-      Math.cos(lat2 * DEG2RAD) *
-      Math.sin(dLng / 2) ** 2;
-  return EARTH_R_KM * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
+// Re-export so existing consumers of tripProgress.haversineKm keep working
+export { haversineKm } from "@/lib/nav/snapToRoute";
 
 /** Proximity threshold in km - if user is within this distance of a stop, mark visited */
 const VISIT_PROXIMITY_KM = 0.5; // 500m

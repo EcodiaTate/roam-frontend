@@ -61,13 +61,63 @@ const REST_DETECTION_DELAY_S = 120; // 2 minutes
 /** Seconds of rest to qualify as a "proper break" (resets fatigue timer) */
 const QUALIFIED_REST_DURATION_S = 900; // 15 minutes
 
-/** Warning thresholds (seconds since last qualified rest) */
+/** Warning thresholds (seconds since last qualified rest) — BASE values */
 const SUGGESTED_THRESHOLD_S = 90 * 60;    // 1.5 hours
 const RECOMMENDED_THRESHOLD_S = 120 * 60;  // 2 hours
 const URGENT_THRESHOLD_S = 150 * 60;       // 2.5 hours
 
 /** Total driving time threshold for urgent warning */
 const TOTAL_DRIVE_URGENT_S = 10 * 60 * 60; // 10 hours
+
+// ──────────────────────────────────────────────────────────────
+// Weather-aware fatigue modifiers
+// ──────────────────────────────────────────────────────────────
+
+/**
+ * Conditions that accelerate fatigue. Each returns a multiplier (< 1.0)
+ * that tightens the warning thresholds.
+ *
+ * These are passed in from the weather overlay when available.
+ */
+export type FatigueConditions = {
+  /** Is it currently between sunset and sunrise? */
+  isNight?: boolean;
+  /** Current temperature in °C at the driver's position */
+  temperature_c?: number;
+  /** Is it raining? (precipitation_probability > 50%) */
+  isRaining?: boolean;
+  /** Is visibility below 1000m? */
+  poorVisibility?: boolean;
+  /** Is it within 30min of sunrise or sunset (wildlife risk)? */
+  isTwilight?: boolean;
+};
+
+/**
+ * Compute a combined threshold multiplier from conditions.
+ * Each factor independently tightens thresholds (stacks multiplicatively).
+ * Result is clamped to 0.5-1.0 so thresholds never shrink below half.
+ */
+function conditionMultiplier(conditions?: FatigueConditions): number {
+  if (!conditions) return 1.0;
+  let mult = 1.0;
+
+  // Night driving: reduce thresholds by 20%
+  if (conditions.isNight) mult *= 0.80;
+
+  // Extreme heat (>38°C): fatigue sets in 20% faster
+  if (conditions.temperature_c !== undefined && conditions.temperature_c > 38) mult *= 0.80;
+
+  // Rain: 10% faster fatigue (concentration demand)
+  if (conditions.isRaining) mult *= 0.90;
+
+  // Poor visibility: 15% faster fatigue (eye strain)
+  if (conditions.poorVisibility) mult *= 0.85;
+
+  // Twilight: 10% faster (glare, wildlife scanning)
+  if (conditions.isTwilight) mult *= 0.90;
+
+  return Math.max(0.5, mult);
+}
 
 // ──────────────────────────────────────────────────────────────
 // Core update function
@@ -85,6 +135,7 @@ export function updateFatigue(
   prev: FatigueState,
   speedMps: number | null,
   dt_s: number,
+  conditions?: FatigueConditions,
 ): FatigueState {
   if (dt_s <= 0) return prev;
 
@@ -129,16 +180,22 @@ export function updateFatigue(
     }
   }
 
-  // ── Warning level ──
+  // ── Warning level — weather-adjusted thresholds ──
+  // Conditions like night, heat, rain tighten thresholds multiplicatively.
+  const mult = conditionMultiplier(conditions);
+  const suggestedThresh = SUGGESTED_THRESHOLD_S * mult;
+  const recommendedThresh = RECOMMENDED_THRESHOLD_S * mult;
+  const urgentThresh = URGENT_THRESHOLD_S * mult;
+
   let warningLevel: FatigueWarningLevel = "none";
 
   if (totalDriveTime_s >= TOTAL_DRIVE_URGENT_S) {
     warningLevel = "urgent";
-  } else if (timeSinceLastRest_s >= URGENT_THRESHOLD_S) {
+  } else if (timeSinceLastRest_s >= urgentThresh) {
     warningLevel = "urgent";
-  } else if (timeSinceLastRest_s >= RECOMMENDED_THRESHOLD_S) {
+  } else if (timeSinceLastRest_s >= recommendedThresh) {
     warningLevel = "recommended";
-  } else if (timeSinceLastRest_s >= SUGGESTED_THRESHOLD_S) {
+  } else if (timeSinceLastRest_s >= suggestedThresh) {
     warningLevel = "suggested";
   }
 

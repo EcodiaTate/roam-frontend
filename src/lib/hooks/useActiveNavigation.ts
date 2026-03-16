@@ -26,7 +26,9 @@ import {
 import {
   updateFatigue,
   fatigueEscalated,
+  type FatigueConditions,
 } from "@/lib/nav/fatigue";
+import type { WeatherOverlay } from "@/lib/types/overlays";
 import {
   startBackgroundTracking,
   stopBackgroundTracking,
@@ -38,6 +40,40 @@ import { type GpsSmoother, createGpsSmoother, smoothPosition } from "@/lib/nav/g
 import { GpsInterpolator } from "@/lib/nav/gpsInterpolator";
 import type { NavPack } from "@/lib/types/navigation";
 import type { RoamPosition } from "@/lib/native/geolocation";
+
+// ──────────────────────────────────────────────────────────────
+// Weather → FatigueConditions mapping
+// ──────────────────────────────────────────────────────────────
+
+/**
+ * Find the closest weather point to the driver's current km along route
+ * and derive fatigue-relevant conditions from it.
+ */
+function buildFatigueConditions(
+  weather: WeatherOverlay | null | undefined,
+  kmAlongRoute: number,
+): FatigueConditions | undefined {
+  if (!weather?.points?.length) return undefined;
+
+  // Find the weather point closest to current position
+  let closest = weather.points[0];
+  let bestDist = Math.abs(closest.km_along - kmAlongRoute);
+  for (let i = 1; i < weather.points.length; i++) {
+    const d = Math.abs(weather.points[i].km_along - kmAlongRoute);
+    if (d < bestDist) {
+      bestDist = d;
+      closest = weather.points[i];
+    }
+  }
+
+  return {
+    isNight: closest.is_daylight === false,
+    temperature_c: closest.temperature_c,
+    isRaining: closest.precipitation_probability_pct > 50,
+    poorVisibility: closest.visibility_m != null && closest.visibility_m < 1000,
+    isTwilight: closest.is_twilight_danger === true,
+  };
+}
 
 // ──────────────────────────────────────────────────────────────
 // Hook return type
@@ -71,6 +107,7 @@ export type ActiveNavigationHook = {
 export function useActiveNavigation(
   navpack: NavPack | null,
   config: ActiveNavConfig = DEFAULT_NAV_CONFIG,
+  weather?: WeatherOverlay | null,
 ): ActiveNavigationHook {
   const [nav, setNav] = useState<ActiveNavState>(initialActiveNavState);
   const [lastPosition, setLastPosition] = useState<RoamPosition | null>(null);
@@ -84,6 +121,7 @@ export function useActiveNavigation(
   const navpackRef = useRef(navpack);
   const configRef = useRef(config);
   const isMutedRef = useRef(isMuted);
+  const weatherRef = useRef(weather);
 
   // Batch ref syncs into a single effect
   useEffect(() => {
@@ -91,6 +129,7 @@ export function useActiveNavigation(
     navpackRef.current = navpack;
     configRef.current = config;
     isMutedRef.current = isMuted;
+    weatherRef.current = weather;
   });
 
   // ── GPS Interpolator (60 fps) ──
@@ -166,9 +205,10 @@ export function useActiveNavigation(
       configRef.current,
     );
 
-    // 2. Update fatigue
+    // 2. Update fatigue — with weather-aware conditions
     const prevFatigue = currentNav.fatigue;
-    const newFatigue = updateFatigue(prevFatigue, smoothed.speed, dt_s);
+    const fatigueConditions = buildFatigueConditions(weatherRef.current, newNav.kmAlongRoute);
+    const newFatigue = updateFatigue(prevFatigue, smoothed.speed, dt_s, fatigueConditions);
     newNav.fatigue = newFatigue;
 
     // 3. Check for fatigue escalation → voice + haptic

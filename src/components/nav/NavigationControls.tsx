@@ -94,7 +94,7 @@ export function NavigationControls({
         position: "absolute",
         top: "calc(env(safe-area-inset-top, 0px) + 180px)",
         right: 12,
-        zIndex: 30,
+        zIndex: 40,
         pointerEvents: "auto",
         display: "flex",
         flexDirection: "column",

@@ -18,6 +18,7 @@ import {
   Users,
   Fuel,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 type Props = {
   open: boolean;
@@ -27,13 +28,12 @@ type Props = {
   variant?: "gate" | "upgrade";
 };
 
-const FEATURES: { icon: React.ReactNode; label: string; sub: string }[] = [
-  { icon: <Infinity size={18} />, label: "Unlimited trips", sub: "Plan as many adventures as you want" },
-  { icon: <Download size={18} />, label: "Permanent offline maps", sub: "Every trip saved forever, works without signal" },
-  { icon: <Sparkles size={18} />, label: "AI co-pilot", sub: "Smart fuel stops, hazards & local tips en-route" },
-  { icon: <Users size={18} />, label: "Trip sharing", sub: "Share with your co-pilot via a 6-character code" },
-  { icon: <Fuel size={18} />, label: "Fuel range alerts", sub: "Never run dry — warnings before the last servo" },
-
+const FEATURES: { Icon: LucideIcon; label: string; sub: string }[] = [
+  { Icon: Infinity, label: "Unlimited trips", sub: "Plan as many adventures as you want" },
+  { Icon: Download, label: "Permanent offline maps", sub: "Every trip saved forever, works without signal" },
+  { Icon: Sparkles, label: "AI co-pilot", sub: "Smart fuel stops, hazards & local tips en-route" },
+  { Icon: Users, label: "Trip sharing", sub: "Share with your co-pilot via a 6-character code" },
+  { Icon: Fuel, label: "Fuel range alerts", sub: "Never run dry — warnings before the last servo" },
 ];
 
 const HERO_COPY = {
@@ -293,7 +293,7 @@ export function PaywallModal({ open, onClose, onUnlocked, variant = "gate" }: Pr
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontSize: 16, color: "var(--brand-eucalypt, #2d6e40)",
               }}>
-                {f.icon}
+                <f.Icon size={18} />
               </div>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 700, color: "var(--roam-text, #1a1613)", marginBottom: 2 }}>

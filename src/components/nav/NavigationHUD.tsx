@@ -1,7 +1,7 @@
 // src/components/nav/NavigationHUD.tsx
 "use client";
 
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import type { ActiveNavState } from "@/lib/nav/activeNav";
 import { formatInstruction, formatShort, formatDistance, maneuverIcon } from "@/lib/nav/instructions";
 
@@ -57,7 +57,7 @@ function ManeuverArrow({ iconName, size = 48 }: { iconName: string; size?: numbe
 
 /* ── Component ───────────────────────────────────────────────────── */
 
-export function NavigationHUD({ nav, visible }: Props) {
+export const NavigationHUD = memo(function NavigationHUD({ nav, visible }: Props) {
   const currentStep = nav.currentStep;
   const nextStep = nav.nextStep;
 
@@ -78,15 +78,16 @@ export function NavigationHUD({ nav, visible }: Props) {
         position: "absolute",
         top: "calc(env(safe-area-inset-top, 0px) + 12px)",
         left: 12,
-        right: 12,
+        right: 68,
         zIndex: 30,
-        pointerEvents: "auto",
+        pointerEvents: "none",
         transform: visible ? "translateY(0)" : "translateY(-120%)",
         transition: "transform 0.3s cubic-bezier(0.4,0,0.2,1)",
       }}
     >
       {/* Main maneuver card */}
       <div
+        className="roam-glass"
         style={{
           background: isImminent
             ? "linear-gradient(135deg, #16a34a, #15803d)"
@@ -95,22 +96,21 @@ export function NavigationHUD({ nav, visible }: Props) {
             : "linear-gradient(135deg, rgba(30,30,30,0.92), rgba(20,20,20,0.95))",
           borderRadius: 20,
           padding: "16px 18px",
-          backdropFilter: "blur(20px)",
-          WebkitBackdropFilter: "blur(20px)",
           boxShadow: "0 8px 32px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.2)",
           transition: "background 0.4s ease",
+          pointerEvents: "auto",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           {/* Arrow icon */}
           <div
+            className={isImminent ? "hud-imminent" : undefined}
             style={{
               flexShrink: 0,
               width: 56,
               height: 56,
               display: "grid",
               placeItems: "center",
-              animation: isImminent ? "hud-pulse 0.8s ease-in-out infinite" : undefined,
             }}
           >
             <ManeuverArrow iconName={iconName} size={48} />
@@ -210,4 +210,4 @@ export function NavigationHUD({ nav, visible }: Props) {
 
     </div>
   );
-}
+});

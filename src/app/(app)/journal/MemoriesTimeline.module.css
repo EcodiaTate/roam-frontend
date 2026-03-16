@@ -1,0 +1,593 @@
+/* src/app/(app)/journal/MemoriesTimeline.module.css
+   Touch-first, mobile-first journal page.
+   Safe-area-inset-top is handled by .roam-shell — do NOT double it here.
+   Bottom clearance uses --bottom-nav-height so content sits above the tab bar.
+   GPU-composited animations for 60fps on low-end mobile. */
+
+/* ── Root ────────────────────────────────────────────────────── */
+.root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  scroll-behavior: smooth;
+  padding-bottom: calc(var(--bottom-nav-height, 80px) + 20px);
+  background: var(--roam-bg);
+}
+
+/* ── Page header ─────────────────────────────────────────────── */
+.pageHeader {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: 28px 20px 12px;
+  background: color-mix(in srgb, var(--roam-bg) 88%, transparent);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+}
+
+/* Fixed height so switching Memories ↔ Places doesn't shift layout */
+.pageTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 34px;
+}
+
+.pageTitle {
+  font-size: 26px;
+  font-weight: 900;
+  color: var(--roam-text);
+  margin: 0;
+  line-height: 1.1;
+}
+
+.pageSub {
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--roam-text-muted);
+  margin: 4px 0 0;
+}
+
+/* ── Inner tab bar (Memories | Places) ──────────────────────── */
+
+.innerTabBar {
+  display: flex;
+  gap: 4px;
+  background: var(--roam-surface-hover);
+  border-radius: 12px;
+  padding: 3px;
+  margin-top: 12px;
+  position: relative;
+}
+
+.innerTab {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  min-height: 44px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: var(--roam-text-muted);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition:
+    background 200ms var(--ease-out, cubic-bezier(0.25, 0.46, 0.45, 0.94)),
+    color 200ms var(--ease-out, cubic-bezier(0.25, 0.46, 0.45, 0.94)),
+    transform 60ms ease-out;
+  will-change: transform;
+  position: relative;
+  z-index: 1;
+}
+
+.innerTab:active {
+  transform: scale(0.96);
+}
+
+.innerTabActive {
+  background: var(--roam-surface);
+  color: var(--roam-text);
+  box-shadow: 0 1px 4px rgba(40, 32, 20, 0.10), 0 0.5px 1px rgba(40, 32, 20, 0.06);
+}
+
+/* ── Trip selector (horizontal scroll of chips) ──────────────── */
+.tripSelector {
+  padding: 0 0 8px;
+  animation: jrn-fadeSlideDown 300ms var(--ease-out, cubic-bezier(0.25, 0.46, 0.45, 0.94)) both;
+}
+
+.tripSelectorScroll {
+  display: flex;
+  gap: 8px;
+  padding: 0 20px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+}
+
+.tripSelectorScroll::-webkit-scrollbar {
+  display: none;
+}
+
+.tripChip,
+.tripChipActive {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  min-height: 44px;
+  border-radius: 22px;
+  border: 1.5px solid var(--roam-border);
+  background: transparent;
+  color: var(--roam-text-muted);
+  font-size: var(--font-xs);
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  scroll-snap-align: start;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition:
+    background 180ms var(--ease-out, cubic-bezier(0.25, 0.46, 0.45, 0.94)),
+    color 180ms var(--ease-out, cubic-bezier(0.25, 0.46, 0.45, 0.94)),
+    border-color 180ms var(--ease-out, cubic-bezier(0.25, 0.46, 0.45, 0.94)),
+    box-shadow 180ms var(--ease-out, cubic-bezier(0.25, 0.46, 0.45, 0.94)),
+    transform 60ms ease-out;
+  will-change: transform;
+}
+
+.tripChip:active,
+.tripChipActive:active {
+  transform: scale(0.95);
+}
+
+.tripChipActive {
+  background: var(--brand-eucalypt);
+  color: var(--on-color);
+  border-color: var(--brand-eucalypt);
+  box-shadow: 0 2px 8px rgba(45, 110, 64, 0.25);
+}
+
+.tripChipLabel {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Trip summary bar ────────────────────────────────────────── */
+.tripSummary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 20px 14px;
+  animation: jrn-fadeIn 350ms var(--ease-out, cubic-bezier(0.25, 0.46, 0.45, 0.94)) both;
+  animation-delay: 80ms;
+}
+
+.tripSummaryItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-xs);
+  font-weight: 700;
+  color: var(--roam-text-muted);
+}
+
+.tripSummaryDot {
+  color: var(--roam-text-muted);
+  opacity: 0.4;
+  font-size: var(--font-xs);
+}
+
+/* ── Timeline ────────────────────────────────────────────────── */
+.timeline {
+  padding: 0 20px;
+}
+
+.timelineEntry {
+  position: relative;
+  animation: jrn-entryIn 400ms var(--ease-out, cubic-bezier(0.25, 0.46, 0.45, 0.94)) both;
+}
+
+/* Staggered entrance — CSS-only via nth-child */
+.timelineEntry:nth-child(1) { animation-delay: 0ms; }
+.timelineEntry:nth-child(2) { animation-delay: 60ms; }
+.timelineEntry:nth-child(3) { animation-delay: 120ms; }
+.timelineEntry:nth-child(4) { animation-delay: 180ms; }
+.timelineEntry:nth-child(5) { animation-delay: 240ms; }
+.timelineEntry:nth-child(6) { animation-delay: 300ms; }
+.timelineEntry:nth-child(7) { animation-delay: 360ms; }
+.timelineEntry:nth-child(8) { animation-delay: 420ms; }
+.timelineEntry:nth-child(n+9) { animation-delay: 450ms; }
+
+/* ── Connector between stops ─────────────────────────────────── */
+.connector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 0 6px 18px;
+  position: relative;
+}
+
+.connectorLine {
+  position: absolute;
+  left: 24px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(
+    180deg,
+    var(--roam-border-strong) 0%,
+    var(--roam-border) 100%
+  );
+  border-radius: 1px;
+}
+
+.connectorSegment {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  background: var(--roam-surface-hover);
+  color: var(--roam-text-muted);
+  z-index: 1;
+  transition: color 150ms, background 150ms;
+}
+
+/* ── Marker row ──────────────────────────────────────────────── */
+.markerRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  min-height: 48px;
+}
+
+.marker {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: var(--accent-tint, rgba(45, 110, 64, 0.1));
+  color: var(--brand-eucalypt);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  transition: transform 200ms var(--spring, cubic-bezier(0.34, 1.56, 0.64, 1));
+}
+
+.markerRow:active .marker {
+  transform: scale(0.92);
+}
+
+.markerInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.markerName {
+  font-size: var(--font-sm);
+  font-weight: 800;
+  color: var(--roam-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.markerTime {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-xxs);
+  font-weight: 700;
+  color: var(--roam-text-muted);
+}
+
+.editBtn {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1.5px solid var(--roam-border);
+  background: transparent;
+  color: var(--roam-text-muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition:
+    border-color 150ms,
+    color 150ms,
+    background 150ms,
+    transform 60ms ease-out;
+  will-change: transform;
+}
+
+.editBtn:active {
+  transform: scale(0.90);
+  border-color: var(--brand-eucalypt);
+  color: var(--brand-eucalypt);
+  background: var(--accent-tint, rgba(45, 110, 64, 0.06));
+}
+
+/* ── Photo strip ─────────────────────────────────────────────── */
+.photoStrip {
+  display: flex;
+  gap: 10px;
+  padding: 6px 0 10px 48px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
+  scroll-padding-left: 48px;
+}
+
+.photoStrip::-webkit-scrollbar {
+  display: none;
+}
+
+.timelinePhoto {
+  width: 140px;
+  height: 105px;
+  border-radius: 14px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--roam-surface-hover);
+  scroll-snap-align: start;
+  transition: transform 200ms var(--spring, cubic-bezier(0.34, 1.56, 0.64, 1));
+  will-change: transform;
+  box-shadow: var(--shadow-soft, 0 2px 12px rgba(40, 32, 20, 0.06));
+}
+
+.timelinePhoto:active {
+  transform: scale(0.96);
+}
+
+.timelinePhotoImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+/* ── Note card ───────────────────────────────────────────────── */
+.noteCard {
+  margin: 6px 0 10px 48px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--roam-surface);
+  border: 1px solid var(--roam-border);
+  box-shadow: var(--shadow-soft, 0 2px 12px rgba(40, 32, 20, 0.06));
+  transition: transform 200ms var(--spring, cubic-bezier(0.34, 1.56, 0.64, 1));
+  will-change: transform;
+}
+
+.noteCard:active {
+  transform: scale(0.98);
+}
+
+.noteText {
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--roam-text);
+  line-height: 1.55;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ── Add prompt (empty memory) ───────────────────────────────── */
+.addPrompt {
+  all: unset;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 10px 48px;
+  padding: 14px 16px;
+  min-height: 44px;
+  border-radius: 14px;
+  border: 1.5px dashed var(--roam-border-strong);
+  background: transparent;
+  color: var(--roam-text-muted);
+  font-size: var(--font-xs);
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition:
+    border-color 180ms,
+    color 180ms,
+    background 180ms,
+    transform 60ms ease-out;
+  width: calc(100% - 48px);
+  box-sizing: border-box;
+  will-change: transform;
+}
+
+.addPrompt:active {
+  transform: scale(0.97);
+  border-color: var(--brand-eucalypt);
+  color: var(--brand-eucalypt);
+  background: var(--accent-tint, rgba(45, 110, 64, 0.06));
+}
+
+/* ── Empty / loading states ──────────────────────────────────── */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 60px 40px;
+  text-align: center;
+  animation: jrn-emptyIn 500ms var(--ease-out, cubic-bezier(0.25, 0.46, 0.45, 0.94)) both;
+  animation-delay: 100ms;
+}
+
+.emptyIcon {
+  width: 80px;
+  height: 80px;
+  border-radius: 22px;
+  background: var(--roam-surface);
+  color: var(--roam-text-muted);
+  display: grid;
+  place-items: center;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-soft, 0 2px 12px rgba(40, 32, 20, 0.06));
+}
+
+.emptyTitle {
+  font-size: var(--font-md, 1rem);
+  font-weight: 800;
+  color: var(--roam-text);
+  margin: 0 0 8px;
+}
+
+.emptySub {
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--roam-text-muted);
+  margin: 0;
+  max-width: 240px;
+  line-height: 1.55;
+}
+
+.loadingState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex: 1;
+  padding: 60px 20px;
+  font-size: var(--font-sm);
+  font-weight: 700;
+  color: var(--roam-text-muted);
+  animation: jrn-fadeIn 300ms var(--ease-out, cubic-bezier(0.25, 0.46, 0.45, 0.94)) both;
+}
+
+/* Loading spinner */
+.loadingState::before {
+  content: "";
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2.5px solid var(--spinner-track, rgba(26, 22, 19, 0.10));
+  border-top-color: var(--spinner-head, var(--brand-eucalypt));
+  animation: jrn-spin 650ms linear infinite;
+}
+
+/* ── View mode toggle ────────────────────────────────────────── */
+.viewToggle {
+  display: flex;
+  gap: 4px;
+  background: var(--roam-surface-hover);
+  border-radius: 10px;
+  padding: 3px;
+}
+
+.viewToggleBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 28px;
+  border-radius: 7px;
+  border: none;
+  cursor: pointer;
+  background: transparent;
+  color: var(--roam-text-muted);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition:
+    background 150ms var(--ease-out, cubic-bezier(0.25, 0.46, 0.45, 0.94)),
+    color 150ms var(--ease-out, cubic-bezier(0.25, 0.46, 0.45, 0.94)),
+    box-shadow 150ms var(--ease-out, cubic-bezier(0.25, 0.46, 0.45, 0.94)),
+    transform 60ms ease-out;
+  will-change: transform;
+}
+
+.viewToggleBtn:active {
+  transform: scale(0.90);
+}
+
+.viewToggleBtnActive {
+  background: var(--roam-surface);
+  color: var(--roam-accent);
+  box-shadow: var(--shadow-soft, 0 2px 12px rgba(40, 32, 20, 0.06));
+}
+
+/* ── Keyframes ───────────────────────────────────────────────── */
+
+@keyframes jrn-entryIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes jrn-fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes jrn-fadeSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes jrn-emptyIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes jrn-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Reduced motion ──────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .timelineEntry,
+  .tripSelector,
+  .tripSummary,
+  .emptyState,
+  .loadingState {
+    animation: none !important;
+  }
+  .loadingState::before {
+    animation-duration: 1.5s;
+  }
+}

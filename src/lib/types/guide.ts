@@ -124,6 +124,38 @@ export type GuideContext = {
   wildlife_summary?: Record<string, unknown> | null;
   weather_summary?: Record<string, unknown> | null;
   fuel_benchmarks?: Record<string, Record<string, number>> | null;
+
+  // Live driver state — enriches AI reasoning about current situation
+  driver_state?: {
+    /** Fuel pressure 0.0-1.0 (0=just refueled, 1=empty) */
+    fuel_pressure?: number;
+    /** km to next fuel station (null if unknown) */
+    km_to_next_fuel?: number | null;
+    /** Fatigue warning level */
+    fatigue_level?: "none" | "suggested" | "recommended" | "urgent";
+    /** Hours of driving since last rest */
+    hours_since_rest?: number;
+    /** Actual speed vs planned speed ratio (< 1.0 = slower than planned) */
+    speed_ratio?: number;
+    /** Is it currently night at driver's position? */
+    is_night?: boolean;
+    /** Current temperature at driver's position (°C) */
+    temperature_c?: number;
+    /** Estimated arrival time ISO string */
+    eta_iso?: string | null;
+    /** Will arrive after sunset? */
+    night_arrival?: boolean;
+  } | null;
+
+  // Next challenge: the most critical thing ahead on the route
+  next_challenge?: {
+    /** Summary like "In 150km: 200km fuel gap + storm + wildlife zone" */
+    description: string;
+    /** km ahead from current position */
+    km_ahead: number;
+    /** Severity: info, warning, critical */
+    severity: "info" | "warning" | "critical";
+  } | null;
 };
 
 // ──────────────────────────────────────────────────────────────

@@ -4,6 +4,7 @@
 import type { CorridorGraphPack, CorridorNode } from "@/lib/types/navigation";
 import type { TripStop } from "@/lib/types/trip";
 import type { BBox4 } from "@/lib/types/geo";
+import { haversineM } from "@/lib/nav/snapToRoute";
 
 /**
  * Corridor offline router:
@@ -41,18 +42,7 @@ export function indexCorridorGraph(graph: CorridorGraphPack): GraphIndex {
 }
 
 function haversineMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
-  const R = 6371000;
-  const toRad = (x: number) => (x * Math.PI) / 180;
-  const dLat = toRad(b.lat - a.lat);
-  const dLng = toRad(b.lng - a.lng);
-  const la1 = toRad(a.lat);
-  const la2 = toRad(b.lat);
-
-  const h =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(la1) * Math.cos(la2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
-
-  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+  return haversineM(a.lat, a.lng, b.lat, b.lng);
 }
 
 export function snapStopToNearestNode(idx: GraphIndex, stop: TripStop): { nodeId: number; distance_m: number } {
