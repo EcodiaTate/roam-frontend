@@ -51,6 +51,12 @@
 	<string>Roam uses your location to show your position on the map and navigate along your route.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Roam uses your location in the background to continue navigation when the app is minimised.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Roam uses your location in the background to continue navigation when the app is minimised.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>
