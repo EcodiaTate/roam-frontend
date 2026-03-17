@@ -4,8 +4,9 @@
 // Opens from the global PlaceDetailContext — any component can call
 // openPlace(place) to show this sheet.
 //
-// Layout: drag handle → header → hero image → AI description →
-//         quick actions → attributes → location → Wikipedia excerpt
+// Layout: satellite map hero (with drag handle overlay) → header →
+//         hero image → AI description → quick actions → attributes →
+//         location → Wikipedia → OSM attribution
 
 "use client";
 
@@ -16,11 +17,14 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import type { PlaceExtra } from "@/lib/types/places";
 import { usePlaceDetail } from "@/lib/context/PlaceDetailContext";
 import { parseOpeningHours, ohToHuman } from "@/lib/utils/openingHours";
 import { haptic } from "@/lib/native/haptics";
+
+const PlaceMapPreview = dynamic(() => import("@/components/places/PlaceMapPreview"), { ssr: false });
 
 import { CATEGORY_ICON, getCategoryColor } from "@/lib/places/categoryMeta";
 import { fmtDist, fmtCategory, normalizeUrl, safeOpen, cleanPhone } from "@/lib/places/format";
@@ -159,13 +163,14 @@ function FacilityChip({ label, active }: { label: string; active: boolean }) {
 // ── Quick action button ──────────────────────────────────────
 
 function ActionBtn({
-  Icon, label, color, onClick, href,
+  Icon, label, color, onClick, href, filled,
 }: {
   Icon: LucideIcon;
   label: string;
   color: string;
   onClick?: () => void;
   href?: string;
+  filled?: boolean;
 }) {
   const inner = (
     <div style={{
@@ -184,7 +189,7 @@ function ActionBtn({
         display: "grid",
         placeItems: "center",
       }}>
-        <Icon size={20} strokeWidth={2} />
+        <Icon size={20} strokeWidth={2} fill={filled ? "currentColor" : "none"} />
       </div>
       <span style={{
         fontSize: "var(--font-xxs)",
@@ -225,62 +230,67 @@ function ActionBtn({
 }
 
 // ── Swipe-to-dismiss hook ────────────────────────────────────
+// Pointer events for both touch and mouse.
 
 function useSwipeToDismiss(onDismiss: () => void) {
   const sheetRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef<{ startY: number; lastY: number; isDragging: boolean } | null>(null);
+  const dragRef = useRef<{ startY: number; pointerId: number } | null>(null);
 
   useEffect(() => {
     const sheet = sheetRef.current;
     if (!sheet) return;
 
-    // Find the drag handle and header area
-    const handleEl = sheet.querySelector(".place-detail-drag-zone");
+    const handleEl = sheet.querySelector(".place-detail-drag-zone") as HTMLElement | null;
     const target = handleEl ?? sheet;
 
-    function onTouchStart(e: TouchEvent) {
-      dragRef.current = { startY: e.touches[0].clientY, lastY: e.touches[0].clientY, isDragging: false };
+    function onPointerDown(e: PointerEvent) {
+      if (e.button !== 0) return;
+      dragRef.current = { startY: e.clientY, pointerId: e.pointerId };
+      target.setPointerCapture(e.pointerId);
     }
 
-    function onTouchMove(e: TouchEvent) {
-      if (!dragRef.current) return;
-      const dy = e.touches[0].clientY - dragRef.current.startY;
-      dragRef.current.lastY = e.touches[0].clientY;
+    function onPointerMove(e: PointerEvent) {
+      if (!dragRef.current || e.pointerId !== dragRef.current.pointerId || !sheet) return;
+      const dy = e.clientY - dragRef.current.startY;
+      if (dy < 0) return;
+      sheet.style.transition = "none";
+      sheet.style.transform = `translateY(${dy}px)`;
+    }
 
-      if (dy < 0) return; // Don't allow dragging up past start
-
-      dragRef.current.isDragging = true;
-      if (sheet) {
-        sheet.style.transition = "none";
-        sheet.style.transform = `translateY(${dy}px)`;
+    function onPointerUp(e: PointerEvent) {
+      if (!dragRef.current || e.pointerId !== dragRef.current.pointerId || !sheet) {
+        dragRef.current = null;
+        return;
       }
-    }
-
-    function onTouchEnd() {
-      if (!dragRef.current || !sheet) { dragRef.current = null; return; }
-      const dy = dragRef.current.lastY - dragRef.current.startY;
+      const dy = e.clientY - dragRef.current.startY;
       dragRef.current = null;
-
       sheet.style.transition = "";
 
       if (dy > 80) {
-        // Dismiss
         sheet.style.transform = "translateY(120%)";
         setTimeout(onDismiss, 280);
       } else {
-        // Snap back
         sheet.style.transform = "";
       }
     }
 
-    target.addEventListener("touchstart", onTouchStart as EventListener, { passive: true });
-    target.addEventListener("touchmove", onTouchMove as EventListener, { passive: true });
-    target.addEventListener("touchend", onTouchEnd as EventListener);
+    function onPointerCancel(e: PointerEvent) {
+      if (!dragRef.current || e.pointerId !== dragRef.current.pointerId || !sheet) return;
+      dragRef.current = null;
+      sheet.style.transition = "";
+      sheet.style.transform = "";
+    }
+
+    target.addEventListener("pointerdown", onPointerDown);
+    target.addEventListener("pointermove", onPointerMove);
+    target.addEventListener("pointerup", onPointerUp);
+    target.addEventListener("pointercancel", onPointerCancel);
 
     return () => {
-      target.removeEventListener("touchstart", onTouchStart as EventListener);
-      target.removeEventListener("touchmove", onTouchMove as EventListener);
-      target.removeEventListener("touchend", onTouchEnd as EventListener);
+      target.removeEventListener("pointerdown", onPointerDown);
+      target.removeEventListener("pointermove", onPointerMove);
+      target.removeEventListener("pointerup", onPointerUp);
+      target.removeEventListener("pointercancel", onPointerCancel);
     };
   }, [onDismiss]);
 
@@ -296,14 +306,13 @@ export function PlaceDetailSheet({
   onNavigate,
 }: {
   isOnline?: boolean;
-  /** Called when user taps Navigate — add as trip waypoint */
   onNavigate?: (placeId: string, lat: number, lng: number, name: string) => void;
 }) {
-  const { place, closePlace, navigateHandler: contextNavigate, saveHandler: contextSave, savedIds } = usePlaceDetail();
+  const { place, closePlace, navigateHandler: contextNavigate, saveHandler: contextSave, savedIds, setSavedIds } = usePlaceDetail();
   const [imgError, setImgError] = useState(false);
   const [visible, setVisible] = useState(false);
 
-  // Reset image error and animate in when place changes
+  // Reset image error when place changes
   const prevPlaceRef = useRef(place);
   if (prevPlaceRef.current !== place) {
     prevPlaceRef.current = place;
@@ -312,7 +321,6 @@ export function PlaceDetailSheet({
 
   useEffect(() => {
     if (place) {
-      // Tiny delay so the initial transform:translateY(100%) is painted first
       requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)));
     } else {
       setVisible(false);
@@ -327,20 +335,16 @@ export function PlaceDetailSheet({
 
   const sheetRef = useSwipeToDismiss(handleClose);
 
-  // Keyboard dismiss
   useEffect(() => {
     if (!place) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") handleClose();
-    }
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") handleClose(); }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [place, handleClose]);
 
   if (!place) return null;
-  // Capture as non-null for use inside closures
-  const p = place;
 
+  const p = place;
   const extra = (place.extra ?? {}) as PlaceExtra & Record<string, unknown>;
   const cc = catColor(place.category);
   const CatIcon = CATEGORY_ICON[place.category] ?? MapPin;
@@ -363,32 +367,25 @@ export function PlaceDetailSheet({
   const wheelchair = extra.wheelchair;
   const kmFromStart = place.km_from_start;
 
-  // Fuel types
   const fuelTypes = Array.isArray(extra.fuel_types) ? (extra.fuel_types as string[]) : [];
-
-  // EV socket types
   const socketTypes = Array.isArray(extra.socket_types) ? (extra.socket_types as string[]) : [];
 
-  // Facilities (boolean)
   const hasPowered = !!extra.powered_sites;
   const hasWater = !!extra.has_water;
   const hasToilets = !!extra.has_toilets;
   const isFree = !!extra.free;
 
-  // Dump point
   const dumpType = extra.dump_type as string | undefined;
   const dumpFee = extra.dump_fee as string | undefined;
   const dumpAccess = extra.dump_access as string | undefined;
   const hasRinse = !!extra.has_rinse;
   const hasPotableAtDump = !!extra.has_potable_water_at_dump;
 
-  // Water point
   const waterType = extra.water_type as string | undefined;
   const waterFlow = extra.water_flow as string | undefined;
   const waterTreated = extra.water_treated as boolean | undefined;
   const waterAlways = extra.water_always_available as boolean | undefined;
 
-  // Toilet
   const toiletType = extra.toilet_type as string | undefined;
   const toiletCount = typeof extra.toilet_count === "number" ? extra.toilet_count : null;
   const hasBabyChange = !!extra.has_baby_change;
@@ -396,16 +393,13 @@ export function PlaceDetailSheet({
   const hasHandWash = !!extra.has_hand_wash;
   const toiletMaintained = extra.toilet_maintained as boolean | undefined;
 
-  // Shower
   const showerType = extra.shower_type as string | undefined;
   const showerFee = extra.shower_fee as string | undefined;
   const showerToken = !!extra.shower_token;
   const showerCount = typeof extra.shower_count === "number" ? extra.shower_count : null;
 
-  // OSM description (separate from AI description)
   const hasHeroImage = !imgError && !!thumbnailUrl;
 
-  // Whether we have any attributes worth showing
   const hasContact = !!(phone || website);
   const hasFuelAttrs = fuelTypes.length > 0 || extra.has_diesel || extra.has_unleaded || extra.has_lpg;
   const hasEvAttrs = socketTypes.length > 0;
@@ -416,7 +410,8 @@ export function PlaceDetailSheet({
   const hasShowerAttrs = !!(showerType || showerFee || showerToken || showerCount);
   const hasAccessCost = !!(feeStr || accessStr || isFree || wheelchair);
 
-  // Add to itinerary (via registered handler) or fall back to Google Maps
+  const isSaved = savedIds.has(place.id);
+
   function handleNavigate() {
     haptic.medium();
     const handler = onNavigate ?? contextNavigate;
@@ -435,62 +430,120 @@ export function PlaceDetailSheet({
     }
   }
 
-  const overlayStyle: React.CSSProperties = {
-    position: "fixed",
-    inset: 0,
-    zIndex: 200,
-    background: visible ? "var(--overlay-bg)" : "transparent",
-    backdropFilter: visible ? "blur(4px)" : "none",
-    WebkitBackdropFilter: visible ? "blur(4px)" : "none",
-    transition: "background 0.28s ease, backdrop-filter 0.28s ease",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "flex-end",
-    pointerEvents: place ? "auto" : "none",
-  };
-
-  const sheetStyle: React.CSSProperties = {
-    background: "var(--roam-surface)",
-    borderRadius: "28px 28px 0 0",
-    boxShadow: "var(--shadow-sheet)",
-    transform: visible ? "translateY(0)" : "translateY(100%)",
-    transition: "transform 0.28s var(--spring, cubic-bezier(0.34,1.56,0.64,1))",
-    maxHeight: "92dvh",
-    display: "flex",
-    flexDirection: "column",
-    overflowY: "hidden",
-    touchAction: "none",
-    willChange: "transform",
-    contain: "layout style",
-  };
+  function handleSave() {
+    haptic.success();
+    // Optimistic toggle — flip savedIds immediately, handler syncs in background
+    const next = new Set(savedIds);
+    if (isSaved) { next.delete(p.id); } else { next.add(p.id); }
+    setSavedIds(next);
+    contextSave?.(p.id);
+  }
 
   return (
     <div
-      style={overlayStyle}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 200,
+        background: visible ? "var(--overlay-bg)" : "transparent",
+        backdropFilter: visible ? "blur(4px)" : "none",
+        WebkitBackdropFilter: visible ? "blur(4px)" : "none",
+        transition: "background 0.28s ease, backdrop-filter 0.28s ease",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "flex-end",
+        pointerEvents: place ? "auto" : "none",
+      }}
       onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
       role="dialog"
       aria-modal="true"
       aria-label={`Details for ${place.name}`}
     >
-      <div ref={sheetRef} style={sheetStyle}>
+      <div
+        ref={sheetRef}
+        style={{
+          background: "var(--roam-surface)",
+          borderRadius: "28px 28px 0 0",
+          boxShadow: "var(--shadow-sheet)",
+          transform: visible ? "translateY(0)" : "translateY(100%)",
+          transition: "transform 0.28s cubic-bezier(0.34,1.12,0.64,1)",
+          maxHeight: "92dvh",
+          width: "100%",
+          maxWidth: 420,
+          marginLeft: "auto",
+          marginRight: "auto",
+          display: "flex",
+          flexDirection: "column",
+          overflowY: "hidden",
+          touchAction: "none",
+          willChange: "transform",
+          contain: "layout style",
+        }}
+      >
 
-        {/* ── Drag handle + top close ────────────────────────── */}
+        {/* ── Map hero with overlaid drag handle ────────────── */}
         <div
           className="place-detail-drag-zone"
           style={{
-            padding: "12px 16px 0",
+            position: "relative",
             flexShrink: 0,
             cursor: "grab",
             touchAction: "none",
           }}
         >
+          <PlaceMapPreview
+            lat={place.lat}
+            lng={place.lng}
+            color={cc.accent}
+            height={150}
+            zoom={11}
+            styleId="roam-basemap-hybrid"
+            radius={0}
+          />
+
+          {/* Drag handle */}
           <div style={{
-            width: 36, height: 4,
-            background: "var(--roam-border-strong)",
-            borderRadius: 10,
-            margin: "0 auto 12px",
-            opacity: 0.5,
-          }} />
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            padding: "10px 0",
+            display: "flex",
+            justifyContent: "center",
+            pointerEvents: "none",
+          }}>
+            <div style={{
+              width: 36, height: 4,
+              background: "rgba(255,255,255,0.8)",
+              borderRadius: 10,
+              boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+            }} />
+          </div>
+
+          {/* Close button */}
+          <button
+            type="button"
+            onClick={handleClose}
+            style={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              width: 30, height: 30,
+              borderRadius: "50%",
+              border: "none",
+              background: "rgba(0,0,0,0.4)",
+              backdropFilter: "blur(8px)",
+              WebkitBackdropFilter: "blur(8px)",
+              color: "#fff",
+              display: "grid",
+              placeItems: "center",
+              cursor: "pointer",
+              WebkitTapHighlightColor: "transparent",
+              zIndex: 1,
+            }}
+          >
+            <X size={14} strokeWidth={2.5} />
+          </button>
         </div>
 
         {/* ── Scrollable body ────────────────────────────────── */}
@@ -500,91 +553,55 @@ export function PlaceDetailSheet({
           WebkitOverflowScrolling: "touch" as React.CSSProperties["WebkitOverflowScrolling"],
           overscrollBehavior: "contain",
           touchAction: "pan-y",
-          paddingBottom: "calc(var(--bottom-nav-height, 80px) + 20px)",
+          paddingBottom: 20,
         }}>
 
           {/* ── HEADER ─────────────────────────────────────── */}
-          <div style={{ padding: "0 16px 16px" }}>
-            {/* Category badge + close button row */}
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
-              <div style={{
-                width: 48, height: 48,
-                borderRadius: 14,
-                background: cc.bg,
-                color: cc.fg,
-                display: "grid",
-                placeItems: "center",
-                flexShrink: 0,
-              }}>
-                <CatIcon size={22} strokeWidth={2} />
-              </div>
-
-              <div style={{ flex: 1, minWidth: 0 }}>
-                {/* Category label */}
-                <div style={{
+          <div style={{ padding: "16px 16px 16px" }}>
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                <CatIcon size={14} strokeWidth={2.5} style={{ color: cc.fg }} />
+                <span style={{
                   fontSize: "var(--font-xs)",
                   fontWeight: 700,
                   color: cc.fg,
                   textTransform: "capitalize",
                   letterSpacing: "0.3px",
-                  marginBottom: 2,
                 }}>
                   {fmtCategory(place.category)}
                   {brandLabel ? ` · ${brandLabel}` : ""}
-                </div>
-
-                {/* Place name */}
-                <h1 style={{
-                  fontSize: "var(--font-h2)",
-                  fontWeight: 800,
-                  color: "var(--roam-text)",
-                  lineHeight: 1.2,
-                  margin: 0,
-                }}>
-                  {place.name}
-                </h1>
-
-                {/* Stars */}
-                {stars != null && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 2, marginTop: 4 }}>
-                    {Array.from({ length: 5 }, (_, i) => (
-                      <Star
-                        key={i}
-                        size={12}
-                        fill={i < stars ? "var(--brand-amber)" : "none"}
-                        stroke={i < stars ? "var(--brand-amber)" : "var(--roam-text-muted)"}
-                        strokeWidth={2}
-                      />
-                    ))}
-                    <span style={{ fontSize: "var(--font-xs)", color: "var(--roam-text-muted)", marginLeft: 4 }}>
-                      {stars}-star
-                    </span>
-                  </div>
-                )}
+                </span>
               </div>
 
-              {/* Close button */}
-              <button
-                type="button"
-                onClick={handleClose}
-                style={{
-                  width: 32, height: 32,
-                  borderRadius: "50%",
-                  border: "none",
-                  background: "var(--roam-surface-hover)",
-                  color: "var(--roam-text-muted)",
-                  display: "grid",
-                  placeItems: "center",
-                  cursor: "pointer",
-                  flexShrink: 0,
-                  WebkitTapHighlightColor: "transparent",
-                }}
-              >
-                <X size={16} strokeWidth={2.5} />
-              </button>
+              <h1 style={{
+                fontSize: "var(--font-h2)",
+                fontWeight: 800,
+                color: "var(--roam-text)",
+                lineHeight: 1.2,
+                margin: 0,
+              }}>
+                {place.name}
+              </h1>
+
+              {stars != null && (
+                <div style={{ display: "flex", alignItems: "center", gap: 2, marginTop: 4 }}>
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <Star
+                      key={i}
+                      size={12}
+                      fill={i < stars ? "var(--brand-amber)" : "none"}
+                      stroke={i < stars ? "var(--brand-amber)" : "var(--roam-text-muted)"}
+                      strokeWidth={2}
+                    />
+                  ))}
+                  <span style={{ fontSize: "var(--font-xs)", color: "var(--roam-text-muted)", marginLeft: 4 }}>
+                    {stars}-star
+                  </span>
+                </div>
+              )}
             </div>
 
-            {/* Distance + direction + hours status */}
+            {/* Distance + hours */}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
               {dist && (
                 <span style={{
@@ -625,10 +642,11 @@ export function PlaceDetailSheet({
           {hasHeroImage && thumbnailUrl && (
             <div style={{
               position: "relative",
-              width: "100%",
-              height: 200,
+              width: "calc(100% - 32px)",
+              margin: "0 16px 16px",
+              height: 180,
               background: cc.soft,
-              marginBottom: 16,
+              borderRadius: 16,
               overflow: "hidden",
             }}>
               <Image
@@ -640,30 +658,12 @@ export function PlaceDetailSheet({
                 unoptimized
                 priority
               />
-              {/* Gradient overlay for readability */}
               <div style={{
                 position: "absolute",
                 inset: 0,
                 background: "linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.35) 100%)",
                 pointerEvents: "none",
               }} />
-            </div>
-          )}
-
-          {/* No image: category gradient placeholder */}
-          {!hasHeroImage && !thumbnailUrl && (
-            <div style={{
-              width: "calc(100% - 32px)",
-              margin: "0 16px 16px",
-              height: 80,
-              borderRadius: 16,
-              background: cc.soft,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 12,
-            }}>
-              <CatIcon size={32} style={{ color: cc.fg, opacity: 0.3 }} />
             </div>
           )}
 
@@ -702,7 +702,7 @@ export function PlaceDetailSheet({
               </div>
             )}
 
-            {/* OSM description (if different from guide desc) */}
+            {/* OSM description */}
             {descriptionStr && descriptionStr !== guideDesc && (
               <p style={{
                 margin: 0,
@@ -721,11 +721,9 @@ export function PlaceDetailSheet({
               <div style={{
                 display: "flex",
                 gap: 8,
-                padding: "12px 0",
+                padding: "12px 8px",
                 borderRadius: 16,
                 background: "var(--roam-surface-hover)",
-                paddingLeft: 8,
-                paddingRight: 8,
               }}>
                 <ActionBtn
                   Icon={(onNavigate ?? contextNavigate) ? Plus : Navigation}
@@ -734,33 +732,19 @@ export function PlaceDetailSheet({
                   onClick={handleNavigate}
                 />
                 {phone && (
-                  <ActionBtn
-                    Icon={Phone}
-                    label="Call"
-                    color="var(--brand-sky)"
-                    href={`tel:${phone}`}
-                  />
+                  <ActionBtn Icon={Phone} label="Call" color="var(--brand-sky)" href={`tel:${phone}`} />
                 )}
                 {website && isOnline && (
-                  <ActionBtn
-                    Icon={Globe}
-                    label="Website"
-                    color="var(--brand-sky)"
-                    onClick={() => safeOpen(website)}
-                  />
+                  <ActionBtn Icon={Globe} label="Website" color="var(--brand-sky)" onClick={() => safeOpen(website)} />
                 )}
-                <ActionBtn
-                  Icon={Share2}
-                  label="Share"
-                  color="var(--roam-text-muted)"
-                  onClick={handleShare}
-                />
+                <ActionBtn Icon={Share2} label="Share" color="var(--roam-text-muted)" onClick={handleShare} />
                 {contextSave && (
                   <ActionBtn
                     Icon={Bookmark}
-                    label={savedIds.has(place.id) ? "Saved" : "Save"}
-                    color={savedIds.has(place.id) ? "var(--brand-eucalypt)" : "var(--brand-amber)"}
-                    onClick={() => { haptic.success(); contextSave(place.id); }}
+                    label={isSaved ? "Saved" : "Save"}
+                    color={isSaved ? "var(--brand-eucalypt)" : "var(--brand-amber)"}
+                    filled={isSaved}
+                    onClick={handleSave}
                   />
                 )}
               </div>
@@ -848,23 +832,21 @@ export function PlaceDetailSheet({
               <div>
                 <SectionHeader title="Fuel Available" />
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {fuelTypes.length > 0
-                    ? fuelTypes.map((f) => (
-                        <span key={f} style={{
-                          padding: "6px 12px",
-                          borderRadius: "var(--r-pill)",
-                          fontSize: "var(--font-sm)",
-                          fontWeight: 700,
-                          background: "rgba(245,158,11,0.1)",
-                          color: "#d97706",
-                          border: "1px solid rgba(245,158,11,0.2)",
-                          textTransform: "capitalize",
-                        }}>
-                          <Fuel size={12} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
-                          {f.replace(/_/g, " ")}
-                        </span>
-                      ))
-                    : null}
+                  {fuelTypes.map((f) => (
+                    <span key={f} style={{
+                      padding: "6px 12px",
+                      borderRadius: "var(--r-pill)",
+                      fontSize: "var(--font-sm)",
+                      fontWeight: 700,
+                      background: "rgba(245,158,11,0.1)",
+                      color: "#d97706",
+                      border: "1px solid rgba(245,158,11,0.2)",
+                      textTransform: "capitalize",
+                    }}>
+                      <Fuel size={12} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
+                      {f.replace(/_/g, " ")}
+                    </span>
+                  ))}
                   {extra.has_diesel && !fuelTypes.includes("diesel") && <FacilityChip label="Diesel" active />}
                   {extra.has_unleaded && !fuelTypes.includes("unleaded") && <FacilityChip label="Unleaded" active />}
                   {extra.has_lpg && !fuelTypes.includes("lpg") && <FacilityChip label="LPG" active />}
@@ -1051,9 +1033,7 @@ export function PlaceDetailSheet({
                       Wikipedia article
                     </div>
                     <div style={{ fontSize: "var(--font-xs)", color: "var(--roam-text-muted)", fontWeight: 500 }}>
-                      {isOnline
-                        ? "Tap to read more on Wikipedia"
-                        : "Available when online"}
+                      {isOnline ? "Tap to read more on Wikipedia" : "Available when online"}
                     </div>
                   </div>
                   {isOnline
@@ -1089,17 +1069,16 @@ export function PlaceDetailSheet({
             )}
 
             {/* ── OSM attribution ─────────────────────────── */}
-            {extra.osm_id && (
-              <div style={{
-                textAlign: "center",
-                fontSize: "var(--font-xxs)",
-                color: "var(--roam-text-muted)",
-                opacity: 0.5,
-                paddingTop: 4,
-              }}>
-                Data from OpenStreetMap · OSM {extra.osm_type ?? "node"}/{String(extra.osm_id)}
-              </div>
-            )}
+            <div style={{
+              textAlign: "center",
+              fontSize: "var(--font-xxs)",
+              color: "var(--roam-text-muted)",
+              opacity: 0.5,
+              paddingTop: 4,
+            }}>
+              Data from OpenStreetMap
+              {extra.osm_id && <> · OSM {extra.osm_type ?? "node"}/{String(extra.osm_id)}</>}
+            </div>
 
           </div>{/* /padding wrapper */}
         </div>{/* /scroll body */}

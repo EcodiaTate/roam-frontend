@@ -175,10 +175,10 @@ export type PlacesPack = {
 export type CorridorPlacesRequest = {
   corridor_key: string;
   categories?: PlaceCategory[];
-  limit?: number; // default 8000
+  limit?: number; // dynamic based on route length
   /** Polyline6 of the route - enables true corridor search along the road shape */
   geometry?: string;
-  /** Corridor buffer radius in km (default 15) */
+  /** Corridor buffer radius in km (default 35) */
   buffer_km?: number;
 };
 

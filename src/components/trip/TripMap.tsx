@@ -5,7 +5,7 @@ import React, { useEffect, useMemo, useRef, useCallback, useState } from "react"
 import { rewriteStyleForLocalServer, isFullyOfflineCapable } from "@/lib/offline/basemapManager";
 
 import maplibregl, { type Map as MLMap, type LngLatBoundsLike, type MapLayerMouseEvent, GeoJSONSource } from "maplibre-gl";
-import type { StyleSpecification, SourceSpecification, GeoJSONSourceSpecification, ExpressionSpecification } from "@maplibre/maplibre-gl-style-spec";
+import type { StyleSpecification, SourceSpecification, GeoJSONSourceSpecification } from "@maplibre/maplibre-gl-style-spec";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { Protocol } from "pmtiles";
 
@@ -110,6 +110,7 @@ type Props = {
    navigationMode?: boolean;
    /** Ref that TripMap populates with the MapLibre instance for external control */
    mapInstanceRef?: React.MutableRefObject<import("maplibre-gl").Map | null>;
+
  };
 
 /* ── Hoisted style constants ───────────────────────────────────────── */
@@ -181,6 +182,12 @@ const FUEL_CIRCLE_LAYER = "roam-fuel-circle";
 const FUEL_ICON_LAYER = "roam-fuel-icon";
 const FUEL_LABEL_LAYER = "roam-fuel-label";
 
+const EV_SRC = "roam-ev-src";
+const EV_CLUSTER_CIRCLE = "roam-ev-cluster-circle";
+const EV_CLUSTER_COUNT = "roam-ev-cluster-count";
+const EV_ICON_LAYER = "roam-ev-icon";
+const EV_LABEL_LAYER = "roam-ev-label";
+
 // ── New overlay sources / layers ─────────────────────────────────────────
 const WILDLIFE_SRC = "roam-wildlife-src";
 const WILDLIFE_FILL_LAYER = "roam-wildlife-fill";
@@ -238,7 +245,7 @@ const ROADKILL_DOT_LAYER = "roam-roadkill-dot";
 const LAYER_GROUPS = {
   stops: [STOPS_SHADOW, STOPS_OUTER, STOPS_INNER, STOP_PULSE, STOP_ICON_LAYER, STOP_LABELS, STOP_FOCUS_RING],
   places: [SUG_CLUSTER_CIRCLE, SUG_CLUSTER_COUNT, SUG_UNCLUSTERED, SUG_ICON_LAYER, SUG_LABEL_LAYER, SUG_FOCUS_RING, SUG_FOCUS_PING, SUG_FOCUS_DOT],
-  fuel: [FUEL_CLUSTER_CIRCLE, FUEL_CLUSTER_COUNT, FUEL_CIRCLE_LAYER, FUEL_ICON_LAYER, FUEL_LABEL_LAYER],
+  fuel: [FUEL_CLUSTER_CIRCLE, FUEL_CLUSTER_COUNT, FUEL_CIRCLE_LAYER, FUEL_ICON_LAYER, FUEL_LABEL_LAYER, EV_CLUSTER_CIRCLE, EV_CLUSTER_COUNT, EV_ICON_LAYER, EV_LABEL_LAYER],
   traffic: [TRAFFIC_POLY_LAYER, TRAFFIC_LINE_CASING, TRAFFIC_LINE_LAYER, TRAFFIC_PULSE_LAYER, TRAFFIC_POINT_LAYER],
   hazards: [HAZARD_POLY_LAYER, HAZARD_POLY_OUTLINE, HAZARD_ICON_LAYER, ALERT_HIGHLIGHT_RING, ALERT_HIGHLIGHT_PING],
   wildlife: [WILDLIFE_FILL_LAYER, WILDLIFE_LABEL_LAYER],
@@ -590,6 +597,13 @@ function loadFuelIcons(map: MLMap): Promise<void> {
     promises.push(loadSVGImage(map, d.id, svg, 38));
   }
   return Promise.all(promises).then(() => {});
+}
+
+function loadEvChargerIcons(map: MLMap): Promise<void> {
+  const id = "roam-ev-charger";
+  if (map.hasImage(id)) return Promise.resolve();
+  const svg = makeIconSVG(ICON_PATHS.lightning, "#2563eb", 38, "#fff");
+  return loadSVGImage(map, id, svg, 38);
 }
 
 function loadNewOverlayIcons(map: MLMap): Promise<void> {
@@ -1022,6 +1036,21 @@ export function TripMap(props: Props) {
   const overlayVisRef = useRef(overlayVis);
   overlayVisRef.current = overlayVis;
   const [layerMenuOpen, setLayerMenuOpen] = useState(false);
+  const [layerMenuVisible, setLayerMenuVisible] = useState(false);
+  const [layerMenuMounted, setLayerMenuMounted] = useState(false);
+  const layerMenuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (layerMenuTimerRef.current) clearTimeout(layerMenuTimerRef.current);
+    if (layerMenuOpen) {
+      setLayerMenuVisible(true);
+    } else {
+      setLayerMenuMounted(false);
+      layerMenuTimerRef.current = setTimeout(() => setLayerMenuVisible(false), 320);
+    }
+  }, [layerMenuOpen]);
+  useEffect(() => {
+    if (layerMenuVisible) requestAnimationFrame(() => setLayerMenuMounted(true));
+  }, [layerMenuVisible]);
   const [styleReady, setStyleReady] = useState(false);
   useEffect(() => { writeStoredVis(overlayVis); }, [overlayVis]);
 
@@ -1078,18 +1107,16 @@ export function TripMap(props: Props) {
   const headingFC = useMemo(() => headingConeGeoJSON(props.userPosition), [props.userPosition]);
 
   const fuelFC = useMemo<GeoJSON.FeatureCollection>(() => {
-    const stations = props.fuelStations;
-    if (!stations || stations.length === 0) {
-      return { type: "FeatureCollection", features: [] };
-    }
-    // Build overlay lookup — per-station prices from PetrolSpy
-    // IDs come from different sources (Overpass vs PetrolSpy) so match by proximity
+    // Build overlay lookup — per-station prices from government APIs
+    // IDs come from different sources (Overpass vs NSW FuelCheck etc.) so match by proximity
     type OvStation = import("@/lib/types/overlays").FuelStationOverlay;
     const overlayStations: OvStation[] = props.fuelOverlay?.stations ?? [];
 
+    const MATCH_THRESHOLD = 0.005; // ~500m in degrees
+
     function findNearestOverlay(lat: number, lng: number): OvStation | null {
       let best: OvStation | null = null;
-      let bestDist = 0.005; // ~500m threshold in degrees
+      let bestDist = MATCH_THRESHOLD;
       for (const os of overlayStations) {
         const d = Math.abs(os.lat - lat) + Math.abs(os.lng - lng);
         if (d < bestDist) { bestDist = d; best = os; }
@@ -1097,13 +1124,17 @@ export function TripMap(props: Props) {
       return best;
     }
 
-    return {
-      type: "FeatureCollection",
-      features: stations.map((st) => {
+    const features: GeoJSON.Feature[] = [];
+    const matchedOverlayIds = new Set<string>();
+
+    // 1. Features from FuelAnalysis stations (PlacesPack/OSM), enriched with overlay prices
+    const stations = props.fuelStations;
+    if (stations) {
+      for (const st of stations) {
         const ov = findNearestOverlay(st.lat, st.lng);
-        // Serialize fuel_types array as JSON string for GeoJSON properties
+        if (ov?.id) matchedOverlayIds.add(ov.id);
         const fuelTypesJson = ov?.fuel_types?.length ? JSON.stringify(ov.fuel_types) : null;
-        return {
+        features.push({
           type: "Feature" as const,
           geometry: { type: "Point" as const, coordinates: [st.lng, st.lat] },
           properties: {
@@ -1121,13 +1152,84 @@ export function TripMap(props: Props) {
             has_diesel: ov?.has_diesel ?? st.has_diesel ?? false,
             has_unleaded: ov?.has_unleaded ?? st.has_unleaded ?? false,
             has_lpg: ov?.has_lpg ?? st.has_lpg ?? false,
-            // Determine color based on what comes AFTER this station
-            fuel_level: "ok", // will be overridden below
+            fuel_level: "ok",
           },
-        };
-      }),
-    };
+        });
+      }
+    }
+
+    // 2. Government-sourced overlay stations that had no OSM match — these carry
+    //    verified live pricing and must not be invisible just because OSM is sparse.
+    for (const ov of overlayStations) {
+      if (ov.id && matchedOverlayIds.has(ov.id)) continue;
+      // Also skip if already very close to an existing feature (fuzzy dedup)
+      let tooClose = false;
+      for (const f of features) {
+        const c = (f.geometry as GeoJSON.Point).coordinates;
+        if (Math.abs(c[1] - ov.lat) + Math.abs(c[0] - ov.lng) < MATCH_THRESHOLD) { tooClose = true; break; }
+      }
+      if (tooClose) continue;
+
+      const fuelTypesJson = ov.fuel_types?.length ? JSON.stringify(ov.fuel_types) : null;
+      const hasDiesel = ov.has_diesel ?? ov.fuel_types?.some((ft) => ft.fuel_type.toLowerCase().includes("diesel")) ?? false;
+      const hasUnleaded = ov.has_unleaded ?? ov.fuel_types?.some((ft) => {
+        const t = ft.fuel_type.toLowerCase();
+        return t.includes("unleaded") || t.includes("e10") || t.includes("91");
+      }) ?? false;
+      const hasLpg = ov.has_lpg ?? ov.fuel_types?.some((ft) => ft.fuel_type.toLowerCase().includes("lpg")) ?? false;
+
+      features.push({
+        type: "Feature" as const,
+        geometry: { type: "Point" as const, coordinates: [ov.lng, ov.lat] },
+        properties: {
+          id: ov.id ?? ov.place_id ?? `ov_${ov.lat}_${ov.lng}`,
+          name: ov.name,
+          km: ov.km_along_route ?? null,
+          snap_m: null,
+          side: null,
+          brand: ov.brand ?? null,
+          address: ov.address ?? null,
+          city_price: ov.city_price ?? null,
+          fuel_types_json: fuelTypesJson,
+          is_open: ov.is_open ?? null,
+          open_hours: ov.open_hours ?? null,
+          has_diesel: hasDiesel,
+          has_unleaded: hasUnleaded,
+          has_lpg: hasLpg,
+          fuel_level: "ok",
+          source: ov.source ?? "gov",
+        },
+      });
+    }
+
+    return { type: "FeatureCollection", features };
   }, [props.fuelStations, props.fuelOverlay]);
+
+  const evChargerFC = useMemo<GeoJSON.FeatureCollection>(() => {
+    const chargers = props.fuelOverlay?.ev_chargers;
+    if (!chargers || chargers.length === 0) {
+      return { type: "FeatureCollection", features: [] };
+    }
+    return {
+      type: "FeatureCollection",
+      features: chargers.map((c) => ({
+        type: "Feature" as const,
+        geometry: { type: "Point" as const, coordinates: [c.lng, c.lat] },
+        properties: {
+          id: c.id,
+          name: c.name,
+          operator: c.operator ?? null,
+          address: c.address ?? null,
+          is_operational: c.is_operational ?? null,
+          usage_cost: c.usage_cost ?? null,
+          distance_km: c.distance_km ?? null,
+          connectors_json: c.connectors?.length ? JSON.stringify(c.connectors) : null,
+          connector_count: c.connectors?.reduce((sum, cn) => sum + cn.quantity, 0) ?? 0,
+          max_power_kw: c.connectors?.reduce((mx, cn) => Math.max(mx, cn.power_kw ?? 0), 0) ?? 0,
+        },
+      })),
+    };
+  }, [props.fuelOverlay?.ev_chargers]);
 
   const wildlifeFC = useMemo(() => wildlifeZonesGeoJSON(props.wildlife), [props.wildlife]);
   const coverageFC = useMemo(
@@ -1146,29 +1248,29 @@ export function TripMap(props: Props) {
     const online = isOnlineRef.current;
     const guideLabel = online ? "View in Guide" : "View in Found";
     const addBtn = alreadyAdded
-      ? `<button disabled style="display:block;width:100%;margin-top:6px;padding:8px 0;border:none;border-radius:10px;font-size:12px;font-weight:950;letter-spacing:0.2px;background:var(--roam-surface-hover,rgba(255,255,255,0.08));color:var(--roam-text-muted,#888);cursor:default;">Already in Trip</button>`
-      : `<button data-roam-add-stop="${escapeHtml(placeId)}" style="display:block;width:100%;margin-top:6px;padding:8px 0;border:none;border-radius:10px;cursor:pointer;font-size:12px;font-weight:950;letter-spacing:0.2px;background:var(--roam-accent,#4a6c53);color:#fff;box-shadow:0 2px 8px rgba(74,108,83,0.35);transition:opacity 0.1s" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">Add Stop</button>`;
+      ? `<button disabled style="display:flex;align-items:center;justify-content:center;width:100%;margin-top:8px;padding:10px 0;min-height:40px;border:none;border-radius:var(--r-btn,14px);font-size:12px;font-weight:800;letter-spacing:0.2px;background:var(--roam-surface-hover,rgba(255,255,255,0.08));color:var(--roam-text-muted,#888);cursor:default;opacity:0.5;">Already in Trip</button>`
+      : `<button data-roam-add-stop="${escapeHtml(placeId)}" style="display:flex;align-items:center;justify-content:center;width:100%;margin-top:8px;padding:10px 0;min-height:40px;border:none;border-radius:var(--r-btn,14px);cursor:pointer;font-size:12px;font-weight:800;letter-spacing:0.2px;background:var(--roam-accent,#2d6e40);color:var(--on-color,#faf6ef);box-shadow:0 3px 0 rgba(40,32,20,0.10);transform:translateY(0);transition:transform 80ms ease,box-shadow 80ms ease,opacity 120ms ease;-webkit-tap-highlight-color:transparent" onpointerdown="this.style.transform='translateY(2px) scale(0.97)';this.style.boxShadow='none'" onpointerup="this.style.transform='';this.style.boxShadow='0 3px 0 rgba(40,32,20,0.10)'" onpointerleave="this.style.transform='';this.style.boxShadow='0 3px 0 rgba(40,32,20,0.10)'">Add Stop</button>`;
     return `<div style="font-family:inherit;min-width:180px">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-        <div style="width:28px;height:28px;border-radius:8px;background:${cfg.color};display:grid;place-items:center;flex-shrink:0">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="${ICON_PATHS[cfg.icon] ?? ICON_PATHS.pin}"/></svg>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <div style="width:32px;height:32px;border-radius:10px;background:${cfg.color};display:grid;place-items:center;flex-shrink:0;opacity:0.9;box-shadow:0 2px 8px rgba(0,0,0,0.12)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(250,246,239,0.95)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="${ICON_PATHS[cfg.icon] ?? ICON_PATHS.pin}"/></svg>
         </div>
         <div>
-          <div style="font-size:14px;font-weight:900;letter-spacing:-0.2px;color:var(--roam-text)">${escapeHtml(name)}</div>
+          <div style="font-size:14px;font-weight:800;letter-spacing:-0.3px;color:var(--roam-text)">${escapeHtml(name)}</div>
           <div style="font-size:11px;font-weight:700;color:var(--roam-text-muted);text-transform:capitalize;margin-top:1px">${escapeHtml(category.replace(/_/g, " "))}</div>
         </div>
       </div>
       ${addBtn}
-      <button data-roam-guide-place="${escapeHtml(placeId)}" data-roam-guide-name="${escapeHtml(name)}" style="display:block;width:100%;margin-top:4px;padding:8px 0;border:none;border-radius:10px;cursor:pointer;font-size:12px;font-weight:950;letter-spacing:0.2px;background:transparent;color:var(--roam-text-muted,#888);border:1.5px solid var(--roam-border,rgba(255,255,255,0.1));transition:opacity 0.1s" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'">${escapeHtml(guideLabel)}</button>
+      <button data-roam-guide-place="${escapeHtml(placeId)}" data-roam-guide-name="${escapeHtml(name)}" style="display:flex;align-items:center;justify-content:center;width:100%;margin-top:4px;padding:10px 0;min-height:40px;border:1.5px solid var(--roam-border-strong,rgba(26,22,19,0.15));border-radius:var(--r-btn,14px);cursor:pointer;font-size:12px;font-weight:800;letter-spacing:0.2px;background:transparent;color:var(--roam-text-muted,#7a7067);box-shadow:none;transform:translateY(0);transition:transform 80ms ease,opacity 120ms ease;-webkit-tap-highlight-color:transparent" onpointerdown="this.style.transform='translateY(2px) scale(0.97)'" onpointerup="this.style.transform=''" onpointerleave="this.style.transform=''">${escapeHtml(guideLabel)}</button>
     </div>`;
   }, []);
 
   const buildOverlayPopupHtml = useCallback((title: string, severity: string, sevColor: string, description?: string | null) => {
     return `<div style="font-family:inherit;min-width:160px;max-width:260px">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
         <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:950;color:var(--roam-text);line-height:1.3">${escapeHtml(title)}</div>
-          <span style="display:inline-block;margin-top:3px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:0.5px;color:${sevColor};background:color-mix(in srgb, ${sevColor} 12%, transparent);padding:2px 7px;border-radius:5px;">${escapeHtml(
+          <div style="font-size:13px;font-weight:800;color:var(--roam-text);line-height:1.3;letter-spacing:-0.2px">${escapeHtml(title)}</div>
+          <span style="display:inline-flex;align-items:center;margin-top:4px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;color:${sevColor};background:color-mix(in srgb, ${sevColor} 12%, transparent);padding:3px 8px;border-radius:8px;">${escapeHtml(
             severity,
           )}</span>
         </div>
@@ -1302,7 +1404,7 @@ export function TripMap(props: Props) {
     });
 
     map.on("style.load", async () => {
-      await Promise.all([loadHeadingArrow(map), loadCategoryIcons(map), loadOverlayIcons(map), loadStopIcons(map), loadFuelIcons(map), loadNewOverlayIcons(map)]);
+      await Promise.all([loadHeadingArrow(map), loadCategoryIcons(map), loadOverlayIcons(map), loadStopIcons(map), loadFuelIcons(map), loadEvChargerIcons(map), loadNewOverlayIcons(map)]);
 
       /* ════════════════════════════════════════════════════════════════
          LAYER ORDER (bottom → top):
@@ -1316,10 +1418,10 @@ export function TripMap(props: Props) {
          8. Alert highlight (ring → ping animation)
          ════════════════════════════════════════════════════════════════ */
 
-      /* ── 1. Route layers - warm outback amber/gold ─────────────────── */
+      /* ── 1. Route layers — glassmorphic warm outback ─────────────────── */
       addOrUpdateGeoJsonSource(map, ROUTE_SRC, routeFC);
 
-      // Outer glow - soft blue haze
+      // Outer glow — bright route haze for visibility
       if (!map.getLayer(ROUTE_GLOW)) {
         map.addLayer({
           id: ROUTE_GLOW,
@@ -1327,15 +1429,15 @@ export function TripMap(props: Props) {
           source: ROUTE_SRC,
           layout: { "line-cap": "round", "line-join": "round" },
           paint: {
-            "line-color": "rgba(56,189,248,0.25)",
-            "line-width": ["interpolate", ["linear"], ["zoom"], 4, 5, 10, 8, 14, 12],
-            "line-blur": ["interpolate", ["linear"], ["zoom"], 4, 4, 14, 7],
+            "line-color": "rgba(30,100,210,0.25)",
+            "line-width": ["interpolate", ["linear"], ["zoom"], 4, 6, 10, 10, 14, 16],
+            "line-blur": ["interpolate", ["linear"], ["zoom"], 4, 5, 14, 9],
             "line-opacity": 0.6,
           },
         });
       }
 
-      // Dark casing - subtle dark border for contrast
+      // Frosted casing — translucent warm white for glass edge
       if (!map.getLayer(ROUTE_CASING)) {
         map.addLayer({
           id: ROUTE_CASING,
@@ -1343,14 +1445,14 @@ export function TripMap(props: Props) {
           source: ROUTE_SRC,
           layout: { "line-cap": "round", "line-join": "round" },
           paint: {
-            "line-color": "rgba(12,74,110,0.6)",
-            "line-width": ["interpolate", ["linear"], ["zoom"], 4, 3, 10, 5, 14, 7],
-            "line-opacity": 0.55,
+            "line-color": "rgba(250,246,239,0.4)",
+            "line-width": ["interpolate", ["linear"], ["zoom"], 4, 4, 10, 6, 14, 9],
+            "line-opacity": 0.65,
           },
         });
       }
 
-      // Main route line - vivid sky blue
+      // Main route line — vivid blue, high contrast for navigation
       if (!map.getLayer(ROUTE_LINE)) {
         map.addLayer({
           id: ROUTE_LINE,
@@ -1358,9 +1460,9 @@ export function TripMap(props: Props) {
           source: ROUTE_SRC,
           layout: { "line-cap": "round", "line-join": "round" },
           paint: {
-            "line-color": "#38bdf8",
-            "line-width": ["interpolate", ["linear"], ["zoom"], 4, 2, 10, 4, 14, 6],
-            "line-opacity": 1,
+            "line-color": "#4285F4",
+            "line-width": ["interpolate", ["linear"], ["zoom"], 4, 2.5, 10, 4.5, 14, 7],
+            "line-opacity": 0.95,
           },
         });
       }
@@ -1666,11 +1768,11 @@ export function TripMap(props: Props) {
           source: SUG_SRC,
           filter: ["has", "point_count"],
           paint: {
-            "circle-color": ["step", ["get", "point_count"], "rgba(34,165,90,0.92)", 10, "rgba(28,138,76,0.92)", 30, "rgba(22,112,62,0.92)", 80, "rgba(16,90,50,0.92)"],
+            "circle-color": ["step", ["get", "point_count"], "rgba(45,110,64,0.75)", 10, "rgba(45,110,64,0.80)", 30, "rgba(31,82,54,0.85)", 80, "rgba(31,82,54,0.90)"],
             "circle-radius": ["step", ["get", "point_count"], 18, 10, 22, 30, 26, 80, 32],
-            "circle-stroke-color": "rgba(255,255,255,0.4)",
-            "circle-stroke-width": 2.5,
-            "circle-opacity": 0.95,
+            "circle-stroke-color": "rgba(250,246,239,0.3)",
+            "circle-stroke-width": 2,
+            "circle-opacity": 0.92,
           },
         });
       }
@@ -1709,9 +1811,9 @@ export function TripMap(props: Props) {
               ["match", ["get", "sizeClass"], "lg", 12, "md", 10, 8],
             ],
             "circle-color": ["get", "color"],
-            "circle-stroke-color": ["case", ["==", ["get", "id"], props.focusedSuggestionId ?? ""], "rgba(255,255,255,0.95)", "rgba(0,0,0,0.3)"],
-            "circle-stroke-width": ["case", ["==", ["get", "id"], props.focusedSuggestionId ?? ""], 2.5, 1.2],
-            "circle-opacity": 0.92,
+            "circle-stroke-color": ["case", ["==", ["get", "id"], props.focusedSuggestionId ?? ""], "rgba(250,246,239,0.85)", "rgba(250,246,239,0.22)"],
+            "circle-stroke-width": ["case", ["==", ["get", "id"], props.focusedSuggestionId ?? ""], 2.5, 1.5],
+            "circle-opacity": 0.82,
           },
         });
       }
@@ -1750,7 +1852,7 @@ export function TripMap(props: Props) {
             "text-optional": true,
             "text-allow-overlap": false,
           },
-          paint: { "text-color": "rgba(255,255,255,0.9)", "text-halo-color": "rgba(0,0,0,0.7)", "text-halo-width": 1.2 },
+          paint: { "text-color": "rgba(250,246,239,0.92)", "text-halo-color": "rgba(15,12,8,0.6)", "text-halo-width": 1.4, "text-halo-blur": 0.5 },
         });
       }
 
@@ -1810,9 +1912,9 @@ export function TripMap(props: Props) {
           paint: {
             "circle-radius": 0,
             "circle-color": "transparent",
-            "circle-stroke-color": "rgba(59,130,246,0.5)",
+            "circle-stroke-color": ["coalesce", ["get", "color"], "rgba(45,110,64,0.45)"],
             "circle-stroke-width": 2,
-            "circle-opacity": 1,
+            "circle-opacity": 0.8,
           },
         });
       }
@@ -1824,9 +1926,9 @@ export function TripMap(props: Props) {
           source: SUG_FOCUS_SRC,
           paint: {
             "circle-radius": 22,
-            "circle-color": "rgba(59,130,246,0.08)",
-            "circle-stroke-color": "rgba(59,130,246,0.6)",
-            "circle-stroke-width": 2.5,
+            "circle-color": "rgba(250,246,239,0.06)",
+            "circle-stroke-color": "rgba(250,246,239,0.45)",
+            "circle-stroke-width": 2,
           },
         });
       }
@@ -1838,19 +1940,17 @@ export function TripMap(props: Props) {
           source: SUG_FOCUS_SRC,
           paint: {
             "circle-radius": 8,
-            "circle-color": ["coalesce", ["get", "color"], "#3b82f6"],
-            "circle-stroke-color": "rgba(255,255,255,0.95)",
-            "circle-stroke-width": 3,
+            "circle-color": ["coalesce", ["get", "color"], "#2d6e40"],
+            "circle-stroke-color": "rgba(250,246,239,0.8)",
+            "circle-stroke-width": 2.5,
           },
         });
       }
 
-      /* ── 5. Stop layers - beautiful themed markers ─────────────────── */
+      /* ── 5. Stop layers — glassmorphic frosted markers ────────────────── */
       addOrUpdateGeoJsonSource(map, STOPS_SRC, stopsFC);
 
-      const stopColor: ExpressionSpecification = ["match", ["get", "type"], "start", "#16a34a", "end", "#dc2626", "via", "#9333ea", "#2563eb"];
-
-      // Drop shadow circle (subtle, larger, behind)
+      // Drop shadow — warm diffused glow
       if (!map.getLayer(STOPS_SHADOW)) {
         map.addLayer({
           id: STOPS_SHADOW,
@@ -1858,15 +1958,15 @@ export function TripMap(props: Props) {
           source: STOPS_SRC,
           minzoom: 5,
           paint: {
-            "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 8, 10, 14, 14, 20, 17, 26],
-            "circle-color": "rgba(0,0,0,0.3)",
-            "circle-blur": 0.6,
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 10, 10, 16, 14, 22, 17, 28],
+            "circle-color": ["match", ["get", "type"], "start", "rgba(45,110,64,0.25)", "end", "rgba(181,69,46,0.25)", "via", "rgba(122,61,153,0.25)", "rgba(26,111,166,0.25)"],
+            "circle-blur": 0.7,
             "circle-translate": [0, 2],
           },
         });
       }
 
-      // Outer ring - white border with themed color
+      // Outer ring — frosted glass border (translucent white with accent stroke)
       if (!map.getLayer(STOPS_OUTER)) {
         map.addLayer({
           id: STOPS_OUTER,
@@ -1875,15 +1975,15 @@ export function TripMap(props: Props) {
           minzoom: 3,
           paint: {
             "circle-radius": ["interpolate", ["linear"], ["zoom"], 3, 6, 6, 8, 10, 12, 14, 16, 17, 22],
-            "circle-color": "#fff",
-            "circle-stroke-color": stopColor,
-            "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 3, 2, 10, 3, 14, 4],
+            "circle-color": "rgba(250,246,239,0.18)",
+            "circle-stroke-color": ["match", ["get", "type"], "start", "rgba(45,110,64,0.7)", "end", "rgba(181,69,46,0.7)", "via", "rgba(122,61,153,0.7)", "rgba(26,111,166,0.7)"],
+            "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 3, 1.5, 10, 2.5, 14, 3.5],
             "circle-opacity": 1,
           },
         });
       }
 
-      // Inner filled circle - themed color
+      // Inner filled circle — frosted accent with glass translucency
       if (!map.getLayer(STOPS_INNER)) {
         map.addLayer({
           id: STOPS_INNER,
@@ -1892,13 +1992,15 @@ export function TripMap(props: Props) {
           minzoom: 3,
           paint: {
             "circle-radius": ["interpolate", ["linear"], ["zoom"], 3, 4, 6, 5.5, 10, 8.5, 14, 12, 17, 16],
-            "circle-color": stopColor,
+            "circle-color": ["match", ["get", "type"], "start", "rgba(45,110,64,0.85)", "end", "rgba(181,69,46,0.85)", "via", "rgba(122,61,153,0.85)", "rgba(26,111,166,0.85)"],
+            "circle-stroke-color": "rgba(255,255,255,0.3)",
+            "circle-stroke-width": 1,
             "circle-opacity": 1,
           },
         });
       }
 
-      // Subtle pulse on start/end at higher zooms
+      // Pulse — frosted expanding ring on start/end at higher zooms
       if (!map.getLayer(STOP_PULSE)) {
         map.addLayer({
           id: STOP_PULSE,
@@ -1907,11 +2009,11 @@ export function TripMap(props: Props) {
           minzoom: 8,
           filter: ["any", ["==", ["get", "type"], "start"], ["==", ["get", "type"], "end"]],
           paint: {
-            "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 18, 14, 28],
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 20, 14, 30],
             "circle-color": "transparent",
-            "circle-stroke-color": ["match", ["get", "type"], "start", "rgba(22,163,74,0.2)", "end", "rgba(220,38,38,0.2)", "transparent"],
-            "circle-stroke-width": 2,
-            "circle-opacity": 0.8,
+            "circle-stroke-color": ["match", ["get", "type"], "start", "rgba(45,110,64,0.18)", "end", "rgba(181,69,46,0.18)", "transparent"],
+            "circle-stroke-width": 2.5,
+            "circle-opacity": 0.7,
           },
         });
       }
@@ -1929,11 +2031,11 @@ export function TripMap(props: Props) {
             "icon-allow-overlap": true,
             "icon-ignore-placement": true,
           },
-          paint: { "icon-opacity": ["interpolate", ["linear"], ["zoom"], 11, 0.4, 13, 0.9] },
+          paint: { "icon-opacity": ["interpolate", ["linear"], ["zoom"], 11, 0.5, 13, 0.95] },
         });
       }
 
-      // Labels
+      // Labels — warm white on frosted dark halo
       if (!map.getLayer(STOP_LABELS)) {
         map.addLayer({
           id: STOP_LABELS,
@@ -1950,11 +2052,11 @@ export function TripMap(props: Props) {
             "text-optional": true,
             "text-allow-overlap": false,
           },
-          paint: { "text-color": "rgba(255,255,255,0.95)", "text-halo-color": "rgba(0,0,0,0.75)", "text-halo-width": 1.5 },
+          paint: { "text-color": "rgba(250,246,239,0.95)", "text-halo-color": "rgba(15,12,8,0.65)", "text-halo-width": 1.8, "text-halo-blur": 0.5 },
         });
       }
 
-      // Focus ring - animated outer highlight
+      // Focus ring — glassmorphic highlight with translucent warm white
       if (!map.getLayer(STOP_FOCUS_RING)) {
         map.addLayer({
           id: STOP_FOCUS_RING,
@@ -1963,9 +2065,9 @@ export function TripMap(props: Props) {
           filter: ["==", ["get", "id"], props.focusedStopId ?? ""],
           paint: {
             "circle-radius": ["interpolate", ["linear"], ["zoom"], 4, 12, 10, 18, 14, 24, 17, 32],
-            "circle-color": "transparent",
-            "circle-stroke-color": "rgba(255,255,255,0.85)",
-            "circle-stroke-width": 2.5,
+            "circle-color": "rgba(250,246,239,0.06)",
+            "circle-stroke-color": "rgba(250,246,239,0.55)",
+            "circle-stroke-width": 2,
             "circle-opacity": 1,
           },
         });
@@ -2037,11 +2139,11 @@ export function TripMap(props: Props) {
           source: FUEL_SRC,
           filter: ["has", "point_count"],
           paint: {
-            "circle-color": ["step", ["get", "point_count"], "rgba(226,161,47,0.92)", 10, "rgba(200,140,32,0.92)", 30, "rgba(176,118,22,0.92)", 80, "rgba(148,96,16,0.92)"],
+            "circle-color": ["step", ["get", "point_count"], "rgba(184,135,42,0.75)", 10, "rgba(184,135,42,0.80)", 30, "rgba(160,112,28,0.85)", 80, "rgba(140,95,18,0.90)"],
             "circle-radius": ["step", ["get", "point_count"], 18, 10, 22, 30, 26, 80, 32],
-            "circle-stroke-color": "rgba(255,255,255,0.4)",
-            "circle-stroke-width": 2.5,
-            "circle-opacity": 0.95,
+            "circle-stroke-color": "rgba(250,246,239,0.3)",
+            "circle-stroke-width": 2,
+            "circle-opacity": 0.92,
           },
         });
       }
@@ -2105,9 +2207,10 @@ export function TripMap(props: Props) {
             "text-max-width": 8,
           },
           paint: {
-            "text-color": "#1a1a1a",
-            "text-halo-color": "rgba(255,255,255,0.9)",
-            "text-halo-width": 1.5,
+            "text-color": "rgba(250,246,239,0.92)",
+            "text-halo-color": "rgba(15,12,8,0.6)",
+            "text-halo-width": 1.4,
+            "text-halo-blur": 0.5,
           },
           minzoom: 9,
         });
@@ -2179,8 +2282,8 @@ export function TripMap(props: Props) {
             })
             .map((fp) => {
               const label = FUEL_LABELS[fp.fuel_type] ?? fp.fuel_type;
-              const dollars = (fp.price_cents / 100).toFixed(1);
-              return `<div style="display:flex;justify-content:space-between;gap:8px"><span>${escapeHtml(label)}</span><span style="font-weight:800;color:var(--roam-text)">${dollars}¢/L</span></div>`;
+              const dollars = (fp.price_cents / 100).toFixed(2);
+              return `<div style="display:flex;justify-content:space-between;gap:8px"><span>${escapeHtml(label)}</span><span style="font-weight:800;color:var(--roam-text)">$${dollars}/L</span></div>`;
             })
             .join("");
           priceHtml = `<div style="margin-top:6px;font-size:11px;font-weight:600;color:var(--roam-text-muted);line-height:1.7">${rows}</div>`;
@@ -2208,6 +2311,138 @@ export function TripMap(props: Props) {
       });
       map.on("mouseenter", FUEL_ICON_LAYER, () => (map.getCanvas().style.cursor = "pointer"));
       map.on("mouseleave", FUEL_ICON_LAYER, () => (map.getCanvas().style.cursor = ""));
+
+      // ── EV charger layers (clustered, blue lightning icons) ──
+      addOrUpdateGeoJsonSource(map, EV_SRC, evChargerFC, { cluster: true, clusterMaxZoom: 10, clusterRadius: 30 });
+
+      if (!map.getLayer(EV_CLUSTER_CIRCLE)) {
+        map.addLayer({
+          id: EV_CLUSTER_CIRCLE,
+          type: "circle",
+          source: EV_SRC,
+          filter: ["has", "point_count"],
+          paint: {
+            "circle-color": "#2563eb",
+            "circle-radius": ["step", ["get", "point_count"], 14, 10, 18, 50, 22],
+            "circle-opacity": 0.85,
+            "circle-stroke-color": "#fff",
+            "circle-stroke-width": 1.5,
+          },
+        });
+        map.addLayer({
+          id: EV_CLUSTER_COUNT,
+          type: "symbol",
+          source: EV_SRC,
+          filter: ["has", "point_count"],
+          layout: {
+            "text-field": ["get", "point_count_abbreviated"],
+            "text-font": ["Noto Sans Bold"],
+            "text-size": 11,
+          },
+          paint: { "text-color": "#fff" },
+        });
+        map.addLayer({
+          id: EV_ICON_LAYER,
+          type: "symbol",
+          source: EV_SRC,
+          filter: ["!", ["has", "point_count"]],
+          layout: {
+            "icon-image": "roam-ev-charger",
+            "icon-size": 1,
+            "icon-allow-overlap": true,
+            "icon-ignore-placement": false,
+          },
+          minzoom: 6,
+        });
+        map.addLayer({
+          id: EV_LABEL_LAYER,
+          type: "symbol",
+          source: EV_SRC,
+          filter: ["!", ["has", "point_count"]],
+          layout: {
+            "text-field": ["get", "name"],
+            "text-font": ["Noto Sans Bold"],
+            "text-size": 10,
+            "text-offset": [0, 1.8],
+            "text-anchor": "top",
+            "text-max-width": 8,
+          },
+          paint: { "text-color": "#1a1a1a", "text-halo-color": "#fff", "text-halo-width": 1.2 },
+          minzoom: 9,
+        });
+      }
+
+      // EV cluster click → expand
+      map.on("click", EV_CLUSTER_CIRCLE, (e: MapLayerMouseEvent) => {
+        const features = map.queryRenderedFeatures(e.point, { layers: [EV_CLUSTER_CIRCLE] });
+        if (!features.length) return;
+        const clusterId = features[0].properties?.cluster_id as number | undefined;
+        if (clusterId == null) return;
+        const source = map.getSource(EV_SRC) as GeoJSONSource | undefined;
+        if (!source?.getClusterExpansionZoom) return;
+        source.getClusterExpansionZoom(clusterId).then((zoom: number) => {
+          const geom = features[0].geometry;
+          if (geom.type === "Point") {
+            const coords = geom.coordinates as [number, number];
+            map.easeTo({ center: coords, zoom: Math.min(zoom, 16), duration: 350 });
+          }
+        }).catch(() => {});
+      });
+
+      map.on("mouseenter", EV_CLUSTER_CIRCLE, () => (map.getCanvas().style.cursor = "pointer"));
+      map.on("mouseleave", EV_CLUSTER_CIRCLE, () => (map.getCanvas().style.cursor = ""));
+
+      // EV charger click → popup with connector details
+      map.on("click", EV_ICON_LAYER, (e: MapLayerMouseEvent) => {
+        const f = e?.features?.[0];
+        if (!f) return;
+        const p = f.properties;
+        const name = p?.name ? String(p.name) : "EV Charger";
+        const operator = p?.operator ? String(p.operator) : null;
+        const address = p?.address ? String(p.address) : null;
+        const distKm = typeof p?.distance_km === "number" ? `${Math.round(p.distance_km)}km from route` : null;
+        const maxPower = typeof p?.max_power_kw === "number" && p.max_power_kw > 0 ? `${p.max_power_kw}kW max` : null;
+        const connCount = typeof p?.connector_count === "number" ? `${p.connector_count} connector${p.connector_count !== 1 ? "s" : ""}` : null;
+
+        const subtitle = [operator, distKm].filter(Boolean).join(" · ");
+
+        // Parse connectors from JSON
+        type Conn = { type: string; power_kw?: number | null; quantity: number };
+        let connectors: Conn[] = [];
+        try {
+          const raw = p?.connectors_json;
+          if (typeof raw === "string" && raw.length > 2) {
+            connectors = JSON.parse(raw) as Conn[];
+          }
+        } catch {}
+
+        let connectorHtml = "";
+        if (connectors.length > 0) {
+          const rows = connectors.map((cn) => {
+            const power = cn.power_kw ? `${cn.power_kw}kW` : "";
+            const qty = cn.quantity > 1 ? `×${cn.quantity}` : "";
+            return `<div style="display:flex;justify-content:space-between;gap:8px"><span>${escapeHtml(cn.type)} ${qty}</span><span style="font-weight:800;color:var(--roam-text)">${power}</span></div>`;
+          }).join("");
+          connectorHtml = `<div style="margin-top:6px;font-size:11px;font-weight:600;color:var(--roam-text-muted);line-height:1.7">${rows}</div>`;
+        } else if (connCount || maxPower) {
+          connectorHtml = `<div style="margin-top:4px;font-size:11px;font-weight:600;color:var(--roam-text-muted)">${[connCount, maxPower].filter(Boolean).join(" · ")}</div>`;
+        }
+
+        const costHtml = p?.usage_cost ? `<div style="margin-top:3px;font-size:10px;font-weight:700;color:#9ca3af">${escapeHtml(String(p.usage_cost))}</div>` : "";
+        const addrHtml = address ? `<div style="margin-top:3px;font-size:10px;font-weight:700;color:#9ca3af">${escapeHtml(address)}</div>` : "";
+        const statusText = p?.is_operational === true ? "Operational" : p?.is_operational === false ? "Out of Service" : "Status Unknown";
+        const statusColor = p?.is_operational === true ? "#22c55e" : p?.is_operational === false ? "#ef4444" : "#9ca3af";
+
+        try {
+          popupRef.current?.remove();
+          popupRef.current = new maplibregl.Popup({ closeButton: true, closeOnClick: true, className: "trip-map-popup" })
+            .setLngLat(e.lngLat)
+            .setHTML(buildOverlayPopupHtml(name, statusText, statusColor) + connectorHtml + costHtml + addrHtml)
+            .addTo(map);
+        } catch {}
+      });
+      map.on("mouseenter", EV_ICON_LAYER, () => (map.getCanvas().style.cursor = "pointer"));
+      map.on("mouseleave", EV_ICON_LAYER, () => (map.getCanvas().style.cursor = ""));
 
       /* ── Wildlife zones (amber fill + risk label) ───────────────────── */
       addOrUpdateGeoJsonSource(map, WILDLIFE_SRC, wildlifeFC);
@@ -2590,6 +2825,11 @@ export function TripMap(props: Props) {
     const s = mapRef.current?.getSource(FUEL_SRC) as GeoJSONSource | undefined;
     s?.setData(fuelFC);
   }, [fuelFC]);
+
+  useEffect(() => {
+    const s = mapRef.current?.getSource(EV_SRC) as GeoJSONSource | undefined;
+    s?.setData(evChargerFC);
+  }, [evChargerFC]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -3271,7 +3511,7 @@ export function TripMap(props: Props) {
         id: ALERT_HIGHLIGHT_PING,
         type: "circle",
         source: ALERT_HIGHLIGHT_SRC,
-        paint: { "circle-radius": 0, "circle-color": "transparent", "circle-stroke-color": "rgba(239,68,68,0.6)", "circle-stroke-width": 2, "circle-opacity": 1 },
+        paint: { "circle-radius": 0, "circle-color": "transparent", "circle-stroke-color": "rgba(181,69,46,0.55)", "circle-stroke-width": 2, "circle-opacity": 1 },
       });
     }
 
@@ -3280,7 +3520,7 @@ export function TripMap(props: Props) {
         id: ALERT_HIGHLIGHT_RING,
         type: "circle",
         source: ALERT_HIGHLIGHT_SRC,
-        paint: { "circle-radius": 18, "circle-color": "rgba(239,68,68,0.12)", "circle-stroke-color": "rgba(239,68,68,0.7)", "circle-stroke-width": 2.5 },
+        paint: { "circle-radius": 18, "circle-color": "rgba(181,69,46,0.10)", "circle-stroke-color": "rgba(181,69,46,0.6)", "circle-stroke-width": 2 },
       });
     }
 
@@ -3293,7 +3533,7 @@ export function TripMap(props: Props) {
       const opacity = 1 - t;
       try {
         map.setPaintProperty(ALERT_HIGHLIGHT_PING, "circle-radius", radius);
-        map.setPaintProperty(ALERT_HIGHLIGHT_PING, "circle-stroke-color", `rgba(239,68,68,${(0.6 * opacity).toFixed(2)})`);
+        map.setPaintProperty(ALERT_HIGHLIGHT_PING, "circle-stroke-color", `rgba(181,69,46,${(0.55 * opacity).toFixed(2)})`);
       } catch {}
       raf = requestAnimationFrame(animate);
     };
@@ -3319,32 +3559,43 @@ export function TripMap(props: Props) {
     <div className="trip-map-fullscreen">
       <div ref={containerRef} className="trip-map-inner" />
 
-      {/* ── Layer visibility control ── */}
+      {/* ── Top-right map controls (nearby indicator + layer toggle) ── */}
       {(() => {
         const allOn = ALL_OVERLAY_KEYS.every((k) => overlayVis[k]);
         const anyOff = ALL_OVERLAY_KEYS.some((k) => !overlayVis[k]);
         return (
           <div style={{
             position: "absolute",
-            top: "calc(env(safe-area-inset-top, 0px) + 64px)",
+            top: "calc(env(safe-area-inset-top, 0px) + 56px)",
             right: 12,
             zIndex: 25,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-end",
+            gap: 8,
           }}>
-            {/* Main layers button */}
+            {/* Nearby roamers indicator merged into Exchange FAB + panel */}
+            {/* Layer button + dropdown wrapper (position: relative for dropdown anchoring) */}
+            <div style={{ position: "relative" }}>
             <button
               type="button"
               aria-label="Map layers"
               onClick={() => setLayerMenuOpen((v) => !v)}
               style={{
-                width: 40, height: 40, borderRadius: 12, border: "none",
+                width: 46, height: 46, borderRadius: 16,
+                border: anyOff ? "1px solid rgba(45,110,64,0.35)" : "1px solid rgba(255,255,255,0.09)",
                 cursor: "pointer", display: "grid", placeItems: "center",
-                background: anyOff ? "rgba(34,165,90,0.9)" : "rgba(30,30,30,0.88)",
-                color: "white",
-                backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
-                boxShadow: "0 4px 16px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.15)",
-                transition: "transform 0.1s ease, background 0.2s ease",
+                background: anyOff
+                  ? "linear-gradient(160deg, rgba(45,110,64,0.95) 0%, rgba(31,82,54,0.98) 100%)"
+                  : "linear-gradient(160deg, rgba(26,21,16,0.96) 0%, rgba(16,13,10,0.98) 100%)",
+                color: "var(--on-color)",
+                backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
+                boxShadow: anyOff
+                  ? "0 4px 16px rgba(45,110,64,0.30), 0 1px 4px rgba(0,0,0,0.2)"
+                  : "0 4px 16px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.15)",
+                transition: "transform 0.1s ease, background 0.2s ease, box-shadow 0.2s ease",
               }}
-              onPointerDown={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(0.92)"; }}
+              onPointerDown={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(0.90)"; }}
               onPointerUp={(e) => { (e.currentTarget as HTMLElement).style.transform = ""; }}
               onPointerLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = ""; }}
             >
@@ -3356,28 +3607,26 @@ export function TripMap(props: Props) {
               </svg>
             </button>
 
-            {/* Expanded menu — opens downward, constrained above the bottom sheet peek */}
-            {layerMenuOpen && (
-              <div style={{
-                position: "absolute",
-                top: "calc(100% + 6px)",
-                right: 0,
-                background: "rgba(20,20,20,0.92)",
-                backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
-                borderRadius: 14,
-                boxShadow: "0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2)",
+            {/* Expanded menu — left of button on desktop, below on mobile */}
+            {layerMenuVisible && (
+              <div className="layer-menu-dropdown" style={{
+                background: "linear-gradient(160deg, rgba(26,21,16,0.97) 0%, rgba(16,13,10,0.99) 100%)",
+                backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
+                borderRadius: 18,
+                border: "1px solid rgba(255,255,255,0.07)",
+                boxShadow: "0 12px 40px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.05)",
                 minWidth: 150,
-                maxHeight: "calc(100vh - 64px - 40px - 6px - 160px - var(--roam-safe-bottom, 0px) - var(--bottom-nav-height, 60px))",
                 display: "flex", flexDirection: "column",
                 overflow: "hidden",
+                opacity: layerMenuMounted ? 1 : 0,
+                transform: layerMenuMounted ? "translateY(0) scale(1)" : "translateY(-8px) scale(0.96)",
+                transition: "opacity 280ms cubic-bezier(0.34,1.56,0.64,1), transform 280ms cubic-bezier(0.34,1.56,0.64,1)",
               }}>
               <div style={{
                 overflowY: "auto",
                 flex: 1,
                 padding: "6px 4px",
                 display: "flex", flexDirection: "column", gap: 2,
-                maskImage: "linear-gradient(to bottom, black calc(100% - 52px), transparent 100%)",
-                WebkitMaskImage: "linear-gradient(to bottom, black calc(100% - 52px), transparent 100%)",
               }}>
                 {/* Toggle All */}
                 <button
@@ -3503,11 +3752,37 @@ export function TripMap(props: Props) {
               })()}
               </div>
             )}
+            </div>
           </div>
         );
       })()}
 
       <style>{`
+        /* Layer menu — mobile: below button, capped height with scroll fade */
+        .layer-menu-dropdown {
+          position: absolute;
+          top: calc(100% + 6px);
+          right: 0;
+          transform-origin: top right;
+          max-height: 400px;
+        }
+        .layer-menu-dropdown > div:first-child {
+          mask-image: linear-gradient(to bottom, black calc(100% - 40px), transparent 100%);
+          -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 40px), transparent 100%);
+        }
+        /* Desktop (≥ 768px): open to the left, aligned to top of button */
+        @media (min-width: 768px) {
+          .layer-menu-dropdown {
+            top: 0;
+            right: calc(100% + 8px);
+            transform-origin: top right;
+            max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 12px - 220px - var(--bottom-nav-height, 80px) - 8px);
+          }
+          .layer-menu-dropdown > div:first-child {
+            mask-image: none;
+            -webkit-mask-image: none;
+          }
+        }
         .style-theme-row {
           max-height: 0;
           opacity: 0;
@@ -3519,27 +3794,46 @@ export function TripMap(props: Props) {
           opacity: 1;
         }
         .trip-map-popup .maplibregl-popup-content {
-          border-radius: 16px;
-          padding: 14px 16px;
-          box-shadow: 0 8px 32px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.15);
-          background: var(--roam-surface);
+          border-radius: var(--r-card, 24px);
+          padding: 16px 18px;
+          background: color-mix(in srgb, var(--roam-surface, #f4efe6) 82%, transparent);
           color: var(--roam-text);
-          backdrop-filter: blur(12px);
-          -webkit-backdrop-filter: blur(12px);
+          backdrop-filter: blur(20px) saturate(170%);
+          -webkit-backdrop-filter: blur(20px) saturate(170%);
+          box-shadow:
+            0 12px 40px rgba(40,32,20,0.18),
+            0 2px 8px rgba(40,32,20,0.10),
+            inset 0 1px 0 rgba(255,255,255,0.35);
+          border: 1px solid rgba(255,255,255,0.18);
+        }
+        @media (prefers-color-scheme: dark) {
+          .trip-map-popup .maplibregl-popup-content {
+            background: color-mix(in srgb, var(--roam-surface, #1a1a1a) 75%, transparent);
+            box-shadow:
+              0 12px 40px rgba(0,0,0,0.40),
+              0 2px 8px rgba(0,0,0,0.25),
+              inset 0 1px 0 rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.08);
+          }
         }
         .trip-map-popup .maplibregl-popup-close-button {
-          font-size: 18px;
-          font-weight: 900;
+          font-size: 16px;
+          font-weight: 800;
           color: var(--roam-text-muted);
           padding: 4px 8px;
-          border-radius: 8px;
+          border-radius: 10px;
+          transition: transform 80ms ease, background 120ms ease;
+          -webkit-tap-highlight-color: transparent;
         }
         .trip-map-popup .maplibregl-popup-close-button:hover {
           background: var(--roam-surface-hover);
           color: var(--roam-text);
         }
+        .trip-map-popup .maplibregl-popup-close-button:active {
+          transform: scale(0.88);
+        }
         .trip-map-popup .maplibregl-popup-tip {
-          border-top-color: var(--roam-surface);
+          border-top-color: color-mix(in srgb, var(--roam-surface, #f4efe6) 82%, transparent);
         }
       `}</style>
     </div>

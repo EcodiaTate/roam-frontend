@@ -11,28 +11,6 @@ import { useToggle } from "@/lib/hooks/useToggle";
 
 /* ── Styles ────────────────────────────────────────────────────────────── */
 
-const headerRow: React.CSSProperties = {
-  display: "flex",
-  alignItems: "flex-start",
-  justifyContent: "space-between",
-  gap: 12,
-};
-
-const titleGroup: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 10,
-  minWidth: 0,
-};
-
-const statsRow: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 6,
-  marginTop: 10,
-  flexWrap: "wrap",
-};
-
 const settingsBtn: React.CSSProperties = {
   ...btnReset,
   color: "var(--roam-text-muted)",
@@ -42,24 +20,24 @@ const settingsBtn: React.CSSProperties = {
 };
 
 const warningBox: React.CSSProperties = {
-  marginTop: 12,
-  padding: "12px",
-  borderRadius: 12,
+  marginTop: 8,
+  padding: "8px 10px",
+  borderRadius: 10,
   display: "flex",
   alignItems: "flex-start",
-  gap: 10,
+  gap: 8,
 };
 
 const warningText: React.CSSProperties = {
-  fontSize: 12,
+  fontSize: 11,
   fontWeight: 700,
-  lineHeight: "1.4",
+  lineHeight: "1.35",
 };
 
 const expandBtn: React.CSSProperties = {
   background: "none",
   border: "none",
-  padding: "6px 0 0",
+  padding: "4px 0 0",
   display: "inline-flex",
   alignItems: "center",
   gap: 4,
@@ -69,27 +47,22 @@ const expandBtn: React.CSSProperties = {
   cursor: "pointer",
 };
 
-const fuelStripContainer: React.CSSProperties = {
-  marginTop: 16,
-  marginBottom: 4,
-};
-
 const fuelStripBar: React.CSSProperties = {
   display: "flex",
-  height: 8,
-  borderRadius: 4,
+  height: 6,
+  borderRadius: 3,
   overflow: "hidden",
   background: "rgba(0,0,0,0.1)",
 };
 
 const stationDot: React.CSSProperties = {
-  width: 6,
-  height: 6,
-  borderRadius: 3,
+  width: 5,
+  height: 5,
+  borderRadius: "50%",
   border: "1.5px solid var(--roam-surface)",
   position: "absolute" as const,
-  top: 1,
-  transform: "translateX(-3px)",
+  top: 0.5,
+  transform: "translateX(-2.5px)",
   background: "var(--roam-text)",
 };
 
@@ -144,51 +117,51 @@ export function FuelSummaryCard({
 
   return (
     <div style={cardBase} role="region" aria-label={`Fuel coverage: ${statusLabel}, ${stations.length} stations on route, range ${profile.tank_range_km}km`}>
-      {/* Header */}
-      <div style={headerRow}>
-        <div style={titleGroup}>
-          <div style={{ background: `${statusColor}12`, padding: 7, borderRadius: 9 }}>
-            <Fuel size={16} strokeWidth={2} style={{ color: statusColor, display: "block" }} aria-hidden="true" />
+      {/* ── Row 1: 2-column header ── */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        {/* Left: icon + title */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0 }}>
+          <div style={{ background: `${statusColor}12`, padding: 6, borderRadius: 8, flexShrink: 0 }}>
+            <Fuel size={14} strokeWidth={2.2} style={{ color: statusColor, display: "block" }} aria-hidden="true" />
           </div>
-          <div>
-            <div style={cardTitle}>Fuel Coverage</div>
-            <div style={cardSubtitle}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ ...cardTitle, fontSize: 13 }}>Fuel Coverage</div>
+            <div style={{ ...cardSubtitle, fontSize: 11 }}>
               {stations.length} station{stations.length !== 1 ? "s" : ""} on route
             </div>
           </div>
         </div>
 
-        {onOpenSettings && (
-          <button
-            type="button"
-            className="trip-interactive"
-            style={settingsBtn}
-            onClick={(e) => { e.stopPropagation(); haptic.selection(); onOpenSettings(); }}
-            aria-label="Edit Vehicle"
-          >
-            <Settings2 size={16} strokeWidth={1.8} />
-          </button>
-        )}
-      </div>
-
-      {/* Status pills */}
-      <div style={statsRow}>
-        <span style={{ ...pillBase, background: `${statusColor}15`, color: statusColor }}>
-          {statusLabel}
-        </span>
-        <span style={{ ...pillBase, background: "rgba(0,0,0,0.06)", color: "var(--roam-text)" }}>
-          Range: {profile.tank_range_km}km
-        </span>
-        {profile.fuel_type !== "unleaded" && (
-          <span style={{ ...pillBase, background: "rgba(0,0,0,0.06)", color: "var(--roam-text)" }}>
-            {profile.fuel_type.toUpperCase()}
+        {/* Right: pills + settings */}
+        <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
+          <span style={{ ...pillBase, background: `${statusColor}15`, color: statusColor, fontSize: 10, padding: "2px 7px" }}>
+            {statusLabel}
           </span>
-        )}
+          <span style={{ ...pillBase, background: "rgba(0,0,0,0.06)", color: "var(--roam-text)", fontSize: 10, padding: "2px 7px" }}>
+            {profile.tank_range_km}km
+          </span>
+          {profile.fuel_type !== "unleaded" && (
+            <span style={{ ...pillBase, background: "rgba(0,0,0,0.06)", color: "var(--roam-text)", fontSize: 10, padding: "2px 7px" }}>
+              {profile.fuel_type.toUpperCase()}
+            </span>
+          )}
+          {onOpenSettings && (
+            <button
+              type="button"
+              className="trip-interactive"
+              style={{ ...settingsBtn, marginLeft: 2 }}
+              onClick={(e) => { e.stopPropagation(); haptic.selection(); onOpenSettings(); }}
+              aria-label="Edit Vehicle"
+            >
+              <Settings2 size={14} strokeWidth={1.8} />
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Fuel strip visualization */}
+      {/* ── Row 2: fuel strip (compact) ── */}
       {legs.length > 0 && totalKm > 0 && (
-        <div style={fuelStripContainer}>
+        <div style={{ marginTop: 10, marginBottom: 2 }}>
           <div style={{ position: "relative" as const }}>
             <div style={fuelStripBar}>
               {legs.map((leg, i) => (
@@ -204,37 +177,33 @@ export function FuelSummaryCard({
                 />
               ))}
             </div>
-            {/* Station dots overlaid on the strip */}
             {stations.map((st) => {
               const pct = totalKm > 0 ? (st.km_along_route / totalKm) * 100 : 0;
               return (
                 <div
                   key={st.place_id}
-                  style={{
-                    ...stationDot,
-                    left: `${pct}%`,
-                  }}
+                  style={{ ...stationDot, left: `${pct}%` }}
                   title={st.name}
                 />
               );
             })}
           </div>
           {worstGap && max_gap_km > profile.reserve_warn_km && (
-            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--roam-text-muted)", marginTop: 6, textAlign: "center" as const }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "var(--roam-text-muted)", marginTop: 4, textAlign: "center" as const }}>
               Longest gap: {Math.round(worstGap.km)}km ({worstGap.from} → {worstGap.to})
             </div>
           )}
         </div>
       )}
 
-      {/* Top warnings */}
+      {/* ── Warnings (compact) ── */}
       {topWarnings.length > 0 && (
-        <div style={{ marginTop: 8 }}>
+        <div style={{ marginTop: 4 }}>
           {topWarnings.slice(0, expanded ? undefined : 1).map((w, i) => {
             const clr = severityColor(w.severity);
             return (
               <div key={i} style={{ ...warningBox, background: clr.bg }}>
-                <AlertTriangle size={14} strokeWidth={2} style={{ color: clr.icon, flexShrink: 0, marginTop: 1 }} />
+                <AlertTriangle size={12} strokeWidth={2.2} style={{ color: clr.icon, flexShrink: 0, marginTop: 1 }} />
                 <div style={{ ...warningText, color: clr.text }}>{w.message}</div>
               </div>
             );
@@ -243,8 +212,8 @@ export function FuelSummaryCard({
           {topWarnings.length > 1 && (
             <div style={{ textAlign: "center" }}>
               <button type="button" style={expandBtn} onClick={toggleExpanded}>
-                {expanded ? "Show Less" : `View ${topWarnings.length - 1} More Warning${topWarnings.length > 2 ? "s" : ""}`}
-                {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                {expanded ? "Show Less" : `View ${topWarnings.length - 1} More`}
+                {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
               </button>
             </div>
           )}
@@ -254,16 +223,16 @@ export function FuelSummaryCard({
       {/* Critical gap recommendation */}
       {has_critical_gaps && worstGap && expanded && (
         <div style={{
-          marginTop: 12,
-          padding: "12px",
-          borderRadius: 12,
+          marginTop: 8,
+          padding: "8px 10px",
+          borderRadius: 10,
           background: "var(--bg-error, rgba(239,68,68,0.1))",
           border: "1px dashed var(--text-error, #ef4444)",
         }}>
-          <div style={{ fontSize: 12, fontWeight: 900, color: "var(--text-error, #ef4444)", marginBottom: 4 }}>
+          <div style={{ fontSize: 11, fontWeight: 900, color: "var(--text-error, #ef4444)", marginBottom: 2 }}>
             Recommendation
           </div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--roam-text)", lineHeight: "1.4" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--roam-text)", lineHeight: "1.35" }}>
             Fill up and carry a 20L jerry can from {worstGap.from}. The {Math.round(worstGap.km)}km gap
             {worstGap.km > profile.tank_range_km
               ? ` exceeds your ${profile.tank_range_km}km range.`

@@ -110,16 +110,6 @@ export default function GuideClientPage(props: {
   const { online: isOnline } = useNetworkStatus();
   const { registerNavigateHandler } = usePlaceDetail();
 
-  const headerRef = useRef<HTMLDivElement>(null);
-  const [headerHeight, setHeaderHeight] = useState(60);
-  useEffect(() => {
-    const el = headerRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(() => setHeaderHeight(el.offsetHeight));
-    ro.observe(el);
-    setHeaderHeight(el.offsetHeight);
-    return () => ro.disconnect();
-  }, []);
 
   const planIdFromUrl = sp.get("plan_id");
   const focusFromUrl = sp.get("focus_place_id");
@@ -192,7 +182,9 @@ export default function GuideClientPage(props: {
         }
 
         const has = await hasCorePacks(rec.plan_id);
-        if (!has) await unpackAndStoreBundle(rec);
+        if (!has && rec.zip_blob) await unpackAndStoreBundle(rec);
+        // Minimal plans (navpack-only, no zip) skip unpacking — packs are
+        // populated progressively by backgroundEnrich on the trip page.
 
         const packs = await getAllPacks(rec.plan_id);
         if (cancelled) return;
@@ -493,7 +485,6 @@ export default function GuideClientPage(props: {
     >
       {/* ── Sticky header ───────────────────────────────────────── */}
       <div
-        ref={headerRef}
         style={{
           flexShrink: 0,
           zIndex: 50,
@@ -687,8 +678,6 @@ export default function GuideClientPage(props: {
           onShowOnMap={handleShowOnMap}
           initialTab={askAboutFromUrl && !isOnline ? "discoveries" : "chat"}
           autoAskMessage={askAboutFromUrl && isOnline ? decodeURIComponent(askAboutFromUrl) : null}
-          stickyTabsTop={headerHeight}
-          places={places}
         />
       </div>
     </div>

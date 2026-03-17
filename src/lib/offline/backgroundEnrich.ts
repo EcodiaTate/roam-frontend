@@ -9,7 +9,7 @@ import { placesApi } from "@/lib/api/places";
 
 /* ── Types ────────────────────────────────────────────────────────────── */
 
-export type EnrichPhase = "idle" | "corridor" | "overlays" | "done" | "cancelled";
+export type EnrichPhase = "idle" | "corridor" | "overlays" | "done" | "error" | "cancelled";
 
 export type EnrichProgress = {
   phase: EnrichPhase;
@@ -72,9 +72,11 @@ export function startEnrichment(args: {
 
   let cancelled = false;
   let completed = 0;
+  let corridorReady = false;
 
-  function emit(phase: EnrichPhase, corridorReady: boolean) {
+  function emit(phase: EnrichPhase) {
     if (cancelled) return;
+    lastEmittedPhase = phase;
     callbacks.onProgress({
       phase,
       completed,
@@ -83,186 +85,144 @@ export function startEnrichment(args: {
     });
   }
 
+  let lastEmittedPhase: EnrichPhase = "idle";
+
   function tick() {
     completed++;
+    if (cancelled) return;
+    callbacks.onProgress({
+      phase: lastEmittedPhase,
+      completed,
+      total: TOTAL_ENRICHMENT_ITEMS,
+      corridorReady,
+    });
+  }
+
+  /** Fetch + tick a single overlay item. */
+  function overlay(kind: PackKind, fn: () => Promise<unknown>): Promise<void> {
+    return safeFetch(kind, fn).then(async (v) => {
+      if (cancelled) return;
+      if (v) await savePack(planId, kind, v, callbacks);
+      tick();
+    });
   }
 
   async function run() {
-    let corridorReady = false;
-    let corridorKey: string | null = null;
+    emit("corridor");
 
-    // ── Phase 1: Corridor (serial, highest priority) ──────────────
-    emit("corridor", false);
+    // ── Corridor (produces corridorKey for places) ──────────────────
+    // We expose a promise so places can await it while everything
+    // else fires immediately.
+    let resolveCorridor: (key: string | null) => void;
+    const corridorKeyP = new Promise<string | null>((r) => { resolveCorridor = r; });
 
-    const meta = await safeFetch("corridor_ensure", () =>
-      navApi.corridorEnsure({
-        route_key: routeKey,
-        geometry,
-        profile,
-      }),
-    );
+    const corridorWork = (async () => {
+      let corridorKey: string | null = null;
+      try {
+        const meta = await safeFetch("corridor_ensure", () =>
+          navApi.corridorEnsure({ route_key: routeKey, geometry, profile }),
+        );
+        if (cancelled) { resolveCorridor!(null); return; }
 
-    if (cancelled) return;
+        if (meta?.corridor_key) {
+          corridorKey = meta.corridor_key;
+          const corridorPack = await safeFetch("corridor_get", () =>
+            navApi.corridorGet(meta.corridor_key),
+          );
+          if (cancelled) { resolveCorridor!(corridorKey); return; }
 
-    if (meta?.corridor_key) {
-      corridorKey = meta.corridor_key;
-      const corridorPack = await safeFetch("corridor_get", () =>
-        navApi.corridorGet(meta.corridor_key),
-      );
+          if (corridorPack) {
+            await savePack(planId, "corridor", corridorPack, callbacks);
+            corridorReady = true;
+          }
+        }
+      } catch (e) {
+        console.warn("[enrich] corridor error:", e);
+      }
+      tick();
+      resolveCorridor!(corridorKey);
+    })();
+
+    // ── Fire ALL non-corridor-dependent overlays immediately ────────
+    // These only need geometry/bbox, so they run in parallel with the
+    // corridor fetch. The counter starts climbing right away.
+    emit("overlays");
+
+    const overlayWork = Promise.allSettled([
+      // Safety-critical (Phase 2)
+      overlay("traffic", () => navApi.trafficPoll({ bbox })),
+      overlay("hazards", () => navApi.hazardsPoll({ bbox })),
+      overlay("bushfire", () => navApi.bushfireAlongRoute({ geometry })),
+
+      // Environmental (Phase 4)
+      overlay("flood", () => navApi.floodPoll({ bbox })),
+      overlay("fuel", () => navApi.fuelAlongRoute({ polyline6: geometry })),
+      overlay("air_quality", () => navApi.airQualityAlongRoute({ geometry })),
+      departAt
+        ? overlay("weather", () => navApi.weatherForecast({ polyline6: geometry, departure_iso: departAt }))
+        : Promise.resolve(tick()), // still count the slot
+
+      // Info/POI (Phase 5)
+      overlay("rest_areas", () => navApi.restAreasAlongRoute({ geometry })),
+      overlay("emergency", () => navApi.emergencyAlongRoute({ geometry })),
+      overlay("heritage", () => navApi.heritageAlongRoute({ geometry })),
+      overlay("speed_cameras", () => navApi.speedCamerasAlongRoute({ geometry })),
+      overlay("toilets", () => navApi.toiletsAlongRoute({ geometry })),
+      overlay("school_zones", () => navApi.schoolZonesAlongRoute({ geometry })),
+      overlay("roadkill", () => navApi.roadkillAlongRoute({ geometry })),
+      overlay("coverage", () => navApi.coverageAlongRoute({ geometry })),
+      overlay("wildlife", () => navApi.wildlifeAlongRoute({ polyline6: geometry })),
+    ]);
+
+    // ── Places (needs corridor key, falls back to routeKey) ────────
+    const placesWork = (async () => {
+      const corridorKey = await corridorKeyP;
       if (cancelled) return;
-
-      if (corridorPack) {
-        await savePack(planId, "corridor", corridorPack, callbacks);
-        corridorReady = true;
-      }
-    }
-    tick();
-    emit("overlays", corridorReady);
-
-    if (cancelled) return;
-
-    // ── Phase 2: Safety-critical batch (concurrent) ───────────────
-    const [trafficRes, hazardsRes, bushfireRes] = await Promise.allSettled([
-      safeFetch("traffic", () => navApi.trafficPoll({ bbox })),
-      safeFetch("hazards", () => navApi.hazardsPoll({ bbox })),
-      safeFetch("bushfire", () => navApi.bushfireAlongRoute({ geometry })),
-    ]);
-
-    if (cancelled) return;
-
-    if (trafficRes.status === "fulfilled" && trafficRes.value) {
-      await savePack(planId, "traffic", trafficRes.value, callbacks);
-    }
-    tick();
-
-    if (hazardsRes.status === "fulfilled" && hazardsRes.value) {
-      await savePack(planId, "hazards", hazardsRes.value, callbacks);
-    }
-    tick();
-
-    if (bushfireRes.status === "fulfilled" && bushfireRes.value) {
-      await savePack(planId, "bushfire", bushfireRes.value, callbacks);
-    }
-    tick();
-
-    emit("overlays", corridorReady);
-    if (cancelled) return;
-
-    // ── Phase 3: Places (can be slow, 120s timeout) ──────────────
-    const placesData = await safeFetch("places", () =>
-      placesApi.corridor({
-        corridor_key: corridorKey ?? routeKey,
-        geometry,
-      }),
-    );
-    if (cancelled) return;
-    if (placesData) {
-      await savePack(planId, "places", placesData, callbacks);
-    }
-    tick();
-    emit("overlays", corridorReady);
-
-    if (cancelled) return;
-
-    // ── Phase 4: Environmental batch (concurrent) ────────────────
-    const envPromises: Promise<unknown>[] = [
-      safeFetch("flood", () => navApi.floodPoll({ bbox })),
-      safeFetch("fuel", () => navApi.fuelAlongRoute({ polyline6: geometry })),
-      safeFetch("air_quality", () => navApi.airQualityAlongRoute({ geometry })),
-    ];
-
-    // Weather requires departure_iso — skip if not provided
-    if (departAt) {
-      envPromises.push(
-        safeFetch("weather", () =>
-          navApi.weatherForecast({ polyline6: geometry, departure_iso: departAt }),
-        ),
-      );
-    }
-
-    const envResults = await Promise.allSettled(envPromises);
-    if (cancelled) return;
-
-    const envKinds: (PackKind | null)[] = ["flood", "fuel", "air_quality", departAt ? "weather" : null];
-    for (let i = 0; i < envResults.length; i++) {
-      const r = envResults[i];
-      const kind = envKinds[i];
-      if (r.status === "fulfilled" && r.value && kind) {
-        await savePack(planId, kind, r.value, callbacks);
+      try {
+        const placesData = await safeFetch("places", () =>
+          placesApi.corridor({
+            corridor_key: corridorKey ?? routeKey,
+            geometry,
+          }),
+        );
+        if (cancelled) return;
+        if (placesData) await savePack(planId, "places", placesData, callbacks);
+      } catch (e) {
+        console.warn("[enrich] places error:", e);
       }
       tick();
-    }
-    // If weather was skipped, still count it
-    if (!departAt) tick();
+    })();
 
-    emit("overlays", corridorReady);
+    // Wait for corridor + overlays + places
+    await Promise.allSettled([corridorWork, overlayWork, placesWork]);
     if (cancelled) return;
 
-    // ── Phase 5: Info batch (concurrent) ─────────────────────────
-    const [
-      restAreasRes, emergencyRes, heritageRes, speedCamerasRes,
-      toiletsRes, schoolZonesRes, roadkillRes, coverageRes, wildlifeRes,
-    ] = await Promise.allSettled([
-      safeFetch("rest_areas", () => navApi.restAreasAlongRoute({ geometry })),
-      safeFetch("emergency", () => navApi.emergencyAlongRoute({ geometry })),
-      safeFetch("heritage", () => navApi.heritageAlongRoute({ geometry })),
-      safeFetch("speed_cameras", () => navApi.speedCamerasAlongRoute({ geometry })),
-      safeFetch("toilets", () => navApi.toiletsAlongRoute({ geometry })),
-      safeFetch("school_zones", () => navApi.schoolZonesAlongRoute({ geometry })),
-      safeFetch("roadkill", () => navApi.roadkillAlongRoute({ geometry })),
-      safeFetch("coverage", () => navApi.coverageAlongRoute({ geometry })),
-      safeFetch("wildlife", () => navApi.wildlifeAlongRoute({ polyline6: geometry })),
-    ]);
-
-    if (cancelled) return;
-
-    const infoResults = [
-      restAreasRes, emergencyRes, heritageRes, speedCamerasRes,
-      toiletsRes, schoolZonesRes, roadkillRes, coverageRes, wildlifeRes,
-    ];
-    const infoKinds: PackKind[] = [
-      "rest_areas", "emergency", "heritage", "speed_cameras",
-      "toilets", "school_zones", "roadkill", "coverage", "wildlife",
-    ];
-
-    for (let i = 0; i < infoResults.length; i++) {
-      const r = infoResults[i];
-      if (r.status === "fulfilled" && r.value) {
-        await savePack(planId, infoKinds[i], r.value, callbacks);
+    // ── Route score (last — benefits from overlays being saved) ─────
+    try {
+      if (departAt) {
+        const score = await safeFetch("route_score", () =>
+          navApi.routeScore({ polyline6: geometry, bbox, departure_iso: departAt }),
+        );
+        if (!cancelled && score) {
+          await savePack(planId, "route_score", score, callbacks);
+        }
       }
-      tick();
-    }
-
-    emit("overlays", corridorReady);
-    if (cancelled) return;
-
-    // ── Phase 6: Route score (last — benefits from overlays) ─────
-    if (departAt) {
-      const score = await safeFetch("route_score", () =>
-        navApi.routeScore({
-          polyline6: geometry,
-          bbox,
-          departure_iso: departAt,
-        }),
-      );
-      if (!cancelled && score) {
-        await savePack(planId, "route_score", score, callbacks);
-      }
+    } catch (e) {
+      console.warn("[enrich] route_score error:", e);
     }
     tick();
 
     if (cancelled) return;
 
-    // ── Done ─────────────────────────────────────────────────────
-    emit("done", corridorReady);
+    // ── Done ─────────────────────────────────────────────────────────
+    emit("done");
     callbacks.onDone();
   }
 
   run().catch((e) => {
     if (!cancelled) {
-      console.error("[enrich] unexpected error:", e);
-      emit("done", false);
-      callbacks.onDone();
+      console.error("[enrich] fatal error:", e);
+      emit("error");
     }
   });
 

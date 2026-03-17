@@ -15,90 +15,6 @@ type Props = {
   onTap?: () => void;
 };
 
-/* ── Hoisted styles ──────────────────────────────────────────────────── */
-
-const outerWrap: React.CSSProperties = {
-  position: "absolute",
-  bottom: "calc(env(safe-area-inset-bottom, 0px) + var(--roam-tab-h, 64px) + 8px)",
-  left: 12,
-  right: 12,
-  zIndex: 30,
-  pointerEvents: "auto",
-};
-
-const card: React.CSSProperties = {
-  background: "linear-gradient(135deg, rgba(30,30,30,0.94), rgba(20,20,20,0.97))",
-  borderRadius: 18,
-  padding: "14px 18px",
-  boxShadow: "0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2)",
-};
-
-const topRow: React.CSSProperties = {
-  display: "flex",
-  alignItems: "baseline",
-  justifyContent: "space-between",
-  gap: 12,
-};
-
-const etaValue: React.CSSProperties = {
-  fontSize: 24,
-  fontWeight: 950,
-  color: "white",
-  letterSpacing: "-0.5px",
-  lineHeight: 1,
-};
-
-const etaLabel: React.CSSProperties = {
-  fontSize: 10,
-  fontWeight: 800,
-  color: "rgba(255,255,255,0.4)",
-  textTransform: "uppercase",
-  letterSpacing: "0.5px",
-  marginTop: 2,
-};
-
-const statValue: React.CSSProperties = {
-  fontSize: 16,
-  fontWeight: 900,
-  color: "rgba(255,255,255,0.85)",
-  letterSpacing: "-0.3px",
-};
-
-const statRow: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 4,
-};
-
-const bottomRow: React.CSSProperties = {
-  marginTop: 10,
-  paddingTop: 10,
-  borderTop: "1px solid rgba(255,255,255,0.08)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  gap: 12,
-};
-
-const indicatorRow: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 6,
-};
-
-const indicatorText: React.CSSProperties = {
-  fontSize: 12,
-  fontWeight: 850,
-  letterSpacing: "-0.2px",
-};
-
-const speedText: React.CSSProperties = {
-  fontSize: 13,
-  fontWeight: 900,
-  color: "rgba(255,255,255,0.6)",
-  letterSpacing: "-0.2px",
-};
-
 /* ── Component ───────────────────────────────────────────────────────── */
 
 export const NavigationBar = memo(function NavigationBar({ nav, fuelTracking, visible, onTap }: Props) {
@@ -110,90 +26,244 @@ export const NavigationBar = memo(function NavigationBar({ nav, fuelTracking, vi
   const fatigue = nav.fatigue;
   const fColor = fatigueColor(fatigue.warningLevel);
 
-  // Fuel: distance to next station or range info
   const fuelText = fuelTracking
     ? fuelTracking.km_to_next_fuel !== null
       ? `${Math.round(fuelTracking.km_to_next_fuel)} km`
       : "--"
     : null;
-
   const fuelUrgent = !!fuelTracking?.is_critical;
+
+  // Fatigue level determines accent on drive-time indicator
+  const fatigueUrgent = fatigue.warningLevel === "recommended" || fatigue.warningLevel === "urgent";
 
   return (
     <div
+      className="nav-bar-enter"
       style={{
-        ...outerWrap,
-        transform: visible ? "translateY(0)" : "translateY(150%)",
-        transition: "transform 0.3s cubic-bezier(0.4,0,0.2,1)",
+        position: "absolute",
+        bottom: "calc(env(safe-area-inset-bottom, 0px) + var(--roam-tab-h, 64px) + 8px)",
+        left: 12,
+        right: 12,
+        zIndex: 30,
+        pointerEvents: "auto",
       }}
       onClick={onTap}
       role="status"
       aria-label="Navigation summary"
     >
-      <div className="roam-glass" style={card}>
-        {/* Top row: ETA + distance + time */}
-        <div style={topRow}>
-          {/* ETA - prominent */}
-          <div>
-            <div style={etaValue} aria-label={`Estimated arrival ${eta}`}>{eta}</div>
-            <div style={etaLabel}>ETA</div>
-          </div>
+      <div
+        className="roam-glass"
+        style={{
+          background: "linear-gradient(160deg, rgba(20,16,12,0.97) 0%, rgba(12,9,7,0.99) 100%)",
+          borderRadius: 22,
+          border: "1px solid rgba(255,255,255,0.07)",
+          boxShadow: "0 -2px 0 rgba(255,255,255,0.04), 0 12px 40px rgba(0,0,0,0.40), 0 3px 10px rgba(0,0,0,0.25)",
+          overflow: "hidden",
+        }}
+      >
+        {/* ── Top accent line (eucalypt green) ── */}
+        <div
+          style={{
+            height: 3,
+            background: "linear-gradient(90deg, var(--brand-eucalypt) 0%, var(--brand-sky) 60%, transparent 100%)",
+            opacity: 0.8,
+          }}
+        />
 
-          {/* Distance remaining */}
-          <div style={{ textAlign: "center" }}>
-            <div style={statRow}>
-              <MapPin size={13} color="rgba(255,255,255,0.5)" aria-hidden="true" />
-              <span style={statValue} aria-label={`${distRemaining} remaining`}>
-                {distRemaining}
-              </span>
+        <div style={{ padding: "14px 18px 14px" }}>
+          {/* ── Main stats row ── */}
+          <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+
+            {/* ETA – left, most prominent */}
+            <div style={{ flex: "0 0 auto", marginRight: 20 }}>
+              <div
+                style={{
+                  fontSize: 30,
+                  fontWeight: 950,
+                  color: "var(--on-color)",
+                  letterSpacing: "-1px",
+                  lineHeight: 1,
+                  fontVariantNumeric: "tabular-nums",
+                }}
+                aria-label={`Estimated arrival ${eta}`}
+              >
+                {eta}
+              </div>
+              <div
+                style={{
+                  fontSize: 10,
+                  fontWeight: 800,
+                  color: "var(--brand-amber)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.8px",
+                  marginTop: 3,
+                }}
+              >
+                ETA
+              </div>
             </div>
-          </div>
 
-          {/* Time remaining */}
-          <div style={{ textAlign: "center" }}>
-            <div style={statRow}>
-              <Clock size={13} color="rgba(255,255,255,0.5)" aria-hidden="true" />
-              <span style={statValue} aria-label={`${timeRemaining} drive time remaining`}>
-                {timeRemaining}
-              </span>
+            {/* Divider */}
+            <div style={{ width: 1, height: 36, background: "rgba(255,255,255,0.08)", marginRight: 20, flexShrink: 0 }} />
+
+            {/* Distance + Time — right of divider */}
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+              {/* Distance remaining */}
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <MapPin size={12} color="var(--brand-sky)" aria-hidden="true" />
+                <span
+                  style={{
+                    fontSize: 15,
+                    fontWeight: 900,
+                    color: "rgba(250,246,239,0.88)",
+                    letterSpacing: "-0.3px",
+                    fontVariantNumeric: "tabular-nums",
+                  }}
+                  aria-label={`${distRemaining} remaining`}
+                >
+                  {distRemaining}
+                </span>
+              </div>
+
+              {/* Time remaining */}
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <Clock size={12} color="rgba(250,246,239,0.4)" aria-hidden="true" />
+                <span
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 800,
+                    color: "rgba(250,246,239,0.55)",
+                    letterSpacing: "-0.2px",
+                    fontVariantNumeric: "tabular-nums",
+                  }}
+                  aria-label={`${timeRemaining} drive time remaining`}
+                >
+                  {timeRemaining}
+                </span>
+              </div>
             </div>
+
+            {/* Speed badge — far right */}
+            {nav.speed_mps != null && nav.speed_mps > 0.5 && (
+              <div
+                className="nav-speed-enter"
+                style={{
+                  flexShrink: 0,
+                  marginLeft: 12,
+                  background: "rgba(255,255,255,0.07)",
+                  borderRadius: 12,
+                  padding: "6px 10px",
+                  textAlign: "center",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                }}
+                aria-label={`Current speed ${Math.round(nav.speed_mps * 3.6)} kilometres per hour`}
+              >
+                <div
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 950,
+                    color: "var(--on-color)",
+                    letterSpacing: "-0.5px",
+                    lineHeight: 1,
+                    fontVariantNumeric: "tabular-nums",
+                  }}
+                >
+                  {Math.round(nav.speed_mps * 3.6)}
+                </div>
+                <div style={{ fontSize: 9, fontWeight: 800, color: "rgba(250,246,239,0.40)", textTransform: "uppercase", letterSpacing: "0.4px", marginTop: 2 }}>
+                  km/h
+                </div>
+              </div>
+            )}
           </div>
-        </div>
 
-        {/* Bottom row: fuel + fatigue indicators */}
-        <div style={bottomRow}>
-          {/* Fuel indicator */}
-          {fuelText && (
-            <div style={indicatorRow} aria-label={fuelUrgent ? `Fuel critical: ${fuelText} to next station` : `${fuelText} to next fuel`}>
-              <Fuel
-                size={14}
-                color={fuelUrgent ? "#ef4444" : "#d97706"}
-                className={fuelUrgent ? "nav-fuel-blink" : undefined}
-                aria-hidden="true"
-              />
-              <span style={{ ...indicatorText, color: fuelUrgent ? "#ef4444" : "rgba(255,255,255,0.65)" }}>
-                {fuelUrgent ? "Fuel!" : ""} {fuelText}
-              </span>
-            </div>
-          )}
+          {/* ── Indicator pills row (fuel + fatigue) ── */}
+          {(fuelText || fatigue.warningLevel !== "none") && (
+            <div
+              style={{
+                marginTop: 12,
+                paddingTop: 10,
+                borderTop: "1px solid rgba(255,255,255,0.06)",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              {/* Fuel pill */}
+              {fuelText && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
+                    background: fuelUrgent ? "rgba(212,102,74,0.16)" : "rgba(184,135,42,0.12)",
+                    borderRadius: 999,
+                    padding: "4px 10px",
+                    border: `1px solid ${fuelUrgent ? "rgba(212,102,74,0.3)" : "rgba(184,135,42,0.2)"}`,
+                  }}
+                  aria-label={fuelUrgent ? `Fuel critical: ${fuelText} to next station` : `${fuelText} to next fuel`}
+                >
+                  <Fuel
+                    size={11}
+                    color={fuelUrgent ? "var(--brand-ochre)" : "var(--brand-amber)"}
+                    className={fuelUrgent ? "nav-fuel-blink" : undefined}
+                    aria-hidden="true"
+                  />
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 850,
+                      color: fuelUrgent ? "var(--brand-ochre)" : "var(--brand-amber)",
+                      letterSpacing: "-0.1px",
+                    }}
+                  >
+                    {fuelUrgent ? "Fuel! " : ""}{fuelText}
+                  </span>
+                </div>
+              )}
 
-          {/* Fatigue indicator */}
-          <div style={indicatorRow} aria-label={`Drive time: ${formatDriveSinceRest(fatigue)}`}>
-            <Navigation
-              size={13}
-              color={fColor}
-              style={{ opacity: fatigue.warningLevel === "none" ? 0.5 : 1 }}
-              aria-hidden="true"
-            />
-            <span style={{ ...indicatorText, color: fColor }}>
-              {formatDriveSinceRest(fatigue)}
-            </span>
-          </div>
+              {/* Fatigue pill — only shown when warning */}
+              {fatigue.warningLevel !== "none" && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
+                    background: fatigueUrgent ? "rgba(184,135,42,0.14)" : "rgba(255,255,255,0.06)",
+                    borderRadius: 999,
+                    padding: "4px 10px",
+                    border: `1px solid ${fatigueUrgent ? "rgba(184,135,42,0.25)" : "rgba(255,255,255,0.09)"}`,
+                  }}
+                  aria-label={`Drive time: ${formatDriveSinceRest(fatigue)}`}
+                >
+                  <Navigation
+                    size={11}
+                    color={fColor}
+                    aria-hidden="true"
+                  />
+                  <span style={{ fontSize: 11, fontWeight: 850, color: fColor, letterSpacing: "-0.1px" }}>
+                    {formatDriveSinceRest(fatigue)}
+                  </span>
+                </div>
+              )}
 
-          {/* Speed (if available) */}
-          {nav.speed_mps != null && nav.speed_mps > 0.5 && (
-            <div style={speedText} aria-label={`Current speed ${Math.round(nav.speed_mps * 3.6)} kilometres per hour`}>
-              {Math.round(nav.speed_mps * 3.6)} km/h
+              {/* Drive time — always shown (subtle) */}
+              {fatigue.warningLevel === "none" && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
+                    padding: "4px 10px",
+                  }}
+                  aria-label={`Drive time: ${formatDriveSinceRest(fatigue)}`}
+                >
+                  <Navigation size={11} color="rgba(250,246,239,0.3)" aria-hidden="true" />
+                  <span style={{ fontSize: 11, fontWeight: 800, color: "rgba(250,246,239,0.35)", letterSpacing: "-0.1px" }}>
+                    {formatDriveSinceRest(fatigue)}
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </div>

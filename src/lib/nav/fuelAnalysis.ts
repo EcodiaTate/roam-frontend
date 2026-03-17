@@ -534,10 +534,47 @@ function severityRank(s: string): number {
 }
 
 // ──────────────────────────────────────────────────────────────
-// Fuel price arbitrage
+// Fuel overlay → PlaceItem merge
 // ──────────────────────────────────────────────────────────────
 
 import type { FuelStationOverlay, FuelOverlay } from "@/lib/types/overlays";
+
+/**
+ * Convert FuelOverlay stations into PlaceItems so they can supplement
+ * the PlacesPack when fuel stations were budget-squeezed from tier-1.
+ *
+ * Only adds stations whose IDs are not already present in `existingIds`.
+ */
+export function fuelOverlayToPlaceItems(
+  overlay: FuelOverlay | null | undefined,
+  existingIds: Set<string>,
+): PlaceItem[] {
+  if (!overlay?.stations?.length) return [];
+  const items: PlaceItem[] = [];
+  for (const s of overlay.stations) {
+    const id = s.id ?? s.place_id ?? `fov_${s.lat}_${s.lng}`;
+    if (existingIds.has(id)) continue;
+    items.push({
+      id,
+      name: s.name,
+      lat: s.lat,
+      lng: s.lng,
+      category: s.category ?? "fuel",
+      extra: {
+        brand: s.brand ?? undefined,
+        has_diesel: s.has_diesel ?? undefined,
+        has_unleaded: s.has_unleaded ?? undefined,
+        has_lpg: s.has_lpg ?? undefined,
+        hours: (s.open_hours as string | undefined) ?? undefined,
+      },
+    });
+  }
+  return items;
+}
+
+// ──────────────────────────────────────────────────────────────
+// Fuel price arbitrage
+// ──────────────────────────────────────────────────────────────
 
 export type FuelArbitrageAlert = {
   /** The approaching station (expensive) */

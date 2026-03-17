@@ -3,8 +3,7 @@
 
 import { useMemo, useRef, useState, useEffect } from "react";
 import Image from "next/image";
-import type { PlaceItem, PlacesPack } from "@/lib/types/places";
-import { PlaceSearchPanel } from "@/components/places/PlaceSearchPanel";
+import type { PlaceItem } from "@/lib/types/places";
 import type { MouseEvent, SyntheticEvent } from "react";
 
 import type {
@@ -61,7 +60,7 @@ import {
 
 const catColor = getCategoryColor;
 
-type ViewTab = "chat" | "discoveries" | "search";
+type ViewTab = "chat" | "discoveries";
 
 function normalizeUrlKey(normUrl: string) {
   try {
@@ -983,8 +982,7 @@ function DiscoveryGroup({
 export function GuideView({
   focusedPlaceId, onFocusPlace, onAddStop, isOnline = true, onShowOnMap,
   guideReady = false, guidePack, tripProgress, onSendMessage, chatBusy = false,
-  initialTab, autoAskMessage, stickyTabsTop: _stickyTabsTop = 0,
-  places, onFilteredIdsChange,
+  initialTab, autoAskMessage,
 }: {
   focusedPlaceId: string | null;
   onFocusPlace: (id: string | null) => void; onAddStop: (place: PlaceItem) => void;
@@ -993,28 +991,22 @@ export function GuideView({
   onSendMessage?: (text: string, preferredCategories: string[]) => Promise<string | undefined>;
   chatBusy?: boolean;
   /** If set, start on this tab (e.g. "discoveries" when offline) */
-  initialTab?: "chat" | "discoveries" | "search";
+  initialTab?: "chat" | "discoveries";
   /** If set and online, auto-send this message once guide is ready */
   autoAskMessage?: string | null;
-  /** Offline places pack for the Search tab */
-  places?: PlacesPack | null;
-  /** Called when filtered place IDs change (for map highlighting) */
-  onFilteredIdsChange?: (ids: Set<string> | null) => void;
-  /** px offset for sticky tab bar (header height) */
-  stickyTabsTop?: number;
 }) {
   const { openPlace } = usePlaceDetail();
   const [chatInput, setChatInput] = useState("");
   const [activeTab, setActiveTab] = useState<ViewTab>(initialTab ?? "chat");
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [pendingUserMsg, setPendingUserMsg] = useState<string | null>(null);
-  const GUIDE_TABS: ViewTab[] = ["chat", "discoveries", "search"];
+  const GUIDE_TABS: ViewTab[] = ["chat", "discoveries"];
   const trackRef = useRef<HTMLDivElement>(null);
   const guideContainerRef = useRef<HTMLDivElement>(null);
   const guideSwipe = useRef<{ x: number; y: number; t: number; locked: boolean } | null>(null);
 
   function getTrackX(tab: ViewTab) {
-    return -(GUIDE_TABS.indexOf(tab) * 100) / 3;
+    return -(GUIDE_TABS.indexOf(tab) * 100) / 2;
   }
 
   function setTrackTransform(pct: number, animated: boolean) {
@@ -1260,7 +1252,6 @@ export function GuideView({
         {([
           { key: "chat" as ViewTab, label: "Guide", Icon: Sparkles, badge: null },
           { key: "discoveries" as ViewTab, label: "Found", Icon: MapPin, badge: discoveredPlaces.length > 0 ? discoveredPlaces.length : null },
-          { key: "search" as ViewTab, label: "Search", Icon: Search, badge: (places?.items?.length ?? 0) > 0 ? (places?.items?.length ?? 0) : null },
         ] as const).map((tab) => {
           const active = activeTab === tab.key;
           const TIcon = tab.Icon;
@@ -1303,14 +1294,14 @@ export function GuideView({
         ref={trackRef}
         style={{
           display: "flex",
-          width: "300%",
+          width: "200%",
           transform: `translateX(${getTrackX(activeTab)}%)`,
           willChange: "transform",
         }}
       >
 
       {/* ── TAB: CHAT (Guide) ─────────────────────────────── */}
-      <div style={{ width: "33.333%", minWidth: 0 }}>
+      <div style={{ width: "50%", minWidth: 0 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 
           {/* Welcome state - when no messages yet */}
@@ -1585,7 +1576,7 @@ export function GuideView({
       </div>{/* end chat panel */}
 
       {/* ── TAB: DISCOVERIES ─────────────────────────────── */}
-      <div style={{ width: "33.333%", minWidth: 0 }}>
+      <div style={{ width: "50%", minWidth: 0 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {discoveredPlaces.length === 0 ? (
             <div style={{
@@ -1664,17 +1655,6 @@ export function GuideView({
           )}
         </div>
       </div>{/* end discoveries panel */}
-
-      {/* ── TAB: SEARCH ───────────────────────────────────── */}
-      <div style={{ width: "33.333%", minWidth: 0 }}>
-        <PlaceSearchPanel
-          places={places ?? null}
-          tripProgress={tripProgress ?? null}
-          onSelectPlace={(p) => { onFocusPlace(p.id); }}
-          onFilteredIdsChange={onFilteredIdsChange}
-          onShowOnMap={onShowOnMap ? () => setActiveTab("discoveries") : undefined}
-        />
-      </div>{/* end search panel */}
 
       </div>{/* end track */}
       </div>{/* end overflow wrapper */}

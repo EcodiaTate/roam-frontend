@@ -45,13 +45,13 @@ function SuggestionCard({
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: 8,
-        padding: "12px 12px 10px",
-        borderRadius: 14,
+        gap: 5,
+        padding: "9px 10px 8px",
+        borderRadius: 12,
         background: "var(--roam-surface)",
         border: "1px solid var(--roam-border)",
         flexShrink: 0,
-        width: 148,
+        width: 136,
         position: "relative",
         transition: "opacity 0.15s",
         opacity: pressed ? 0.7 : 1,
@@ -187,14 +187,14 @@ export function StopSuggestions({ navPack, stops: _stops, onAddSuggestion }: Sto
   if (!loading && suggestions.length === 0) return null;
 
   return (
-    <div style={{ marginTop: 16 }}>
+    <div style={{ marginTop: 8 }}>
       {/* Section header */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
           gap: 6,
-          marginBottom: 10,
+          marginBottom: 6,
           paddingLeft: 2,
         }}
       >
@@ -229,9 +229,9 @@ export function StopSuggestions({ navPack, stops: _stops, onAddSuggestion }: Sto
             <div
               key={i}
               style={{
-                width: 148,
-                height: 108,
-                borderRadius: 14,
+                width: 136,
+                height: 90,
+                borderRadius: 12,
                 background: "var(--roam-surface)",
                 border: "1px solid var(--roam-border)",
                 flexShrink: 0,

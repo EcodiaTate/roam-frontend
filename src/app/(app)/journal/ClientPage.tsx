@@ -1,7 +1,7 @@
 // src/app/(app)/journal/ClientPage.tsx
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   BookOpen,
   Bookmark,
@@ -24,10 +24,13 @@ import {
 import { listOfflinePlans, getCurrentPlanId } from "@/lib/offline/plansStore";
 import { haptic } from "@/lib/native/haptics";
 import { formatDistance, formatDuration } from "@/lib/utils/format";
+import { isFullyOfflineCapable } from "@/lib/offline/basemapManager";
 
 import { StopMemorySheet } from "@/components/memories/StopMemorySheet";
 import { PhotoLightbox } from "@/components/ui/PhotoLightbox";
 import { PlacesClientPage } from "@/app/(app)/places/ClientPage";
+import { JournalMap, type JournalPin } from "@/components/journal/JournalMap";
+import { MapStyleSwitcher, type MapBaseMode, type VectorTheme } from "@/components/trips/new/MapStyleSwitcher";
 
 import s from "./MemoriesTimeline.module.css";
 
@@ -41,6 +44,7 @@ type TripOption = {
   distance_m: number;
   duration_s: number;
   stopCount: number;
+  firstStop: import("@/lib/types/trip").TripStop | null;
 };
 
 /* ── Helpers ──────────────────────────────────────────────────────────── */
@@ -87,6 +91,14 @@ export default function MemoriesClientPage() {
   const [memories, setMemories] = useState<ResolvedMemory[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Map style state — default satellite when online, vector when offline-only
+  const [baseMode, setBaseMode] = useState<MapBaseMode>(() =>
+    isFullyOfflineCapable() && typeof navigator !== "undefined" && !navigator.onLine
+      ? "vector"
+      : "hybrid",
+  );
+  const [vectorTheme, setVectorTheme] = useState<VectorTheme>("bright");
+
   // Photo lightbox state
   const [lightbox, setLightbox] = useState<{ urls: string[]; index: number } | null>(null);
 
@@ -112,6 +124,7 @@ export default function MemoriesClientPage() {
         distance_m: p.preview?.distance_m ?? 0,
         duration_s: p.preview?.duration_s ?? 0,
         stopCount: p.preview?.stops?.length ?? 0,
+        firstStop: p.preview?.stops?.[0] ?? null,
       }));
 
       setTrips(opts);
@@ -186,33 +199,83 @@ export default function MemoriesClientPage() {
     }
   }, [selectedPlanId]);
 
+  // Derive map pins from resolved memories
+  const mapPins: JournalPin[] = useMemo(
+    () =>
+      displayMemories.map((m) => ({
+        id: m.id,
+        stopName: m.stop_name,
+        stopIndex: m.stop_index,
+        lat: m.lat,
+        lng: m.lng,
+        hasPhotos: m.resolvedUrls.length > 0,
+        hasNote: !!m.note,
+      })),
+    [displayMemories],
+  );
+
+  const handleMapPinPress = useCallback(
+    (memId: string) => {
+      const mem = displayMemories.find((m) => m.id === memId);
+      if (mem) openMemorySheet(mem);
+    },
+    [displayMemories, openMemorySheet],
+  );
+
+  // Auto-switch to vector when going offline (satellite tiles won't load)
+  useEffect(() => {
+    function onOffline() {
+      if (baseMode === "hybrid") setBaseMode("vector");
+    }
+    window.addEventListener("offline", onOffline);
+    return () => window.removeEventListener("offline", onOffline);
+  }, [baseMode]);
+
   const selectedTrip = trips.find((t) => t.plan_id === selectedPlanId);
 
-  /* ── Empty state ─────────────────────────────────────────────────── */
+  /* ── Shared header ───────────────────────────────────────────────── */
+  const header = (
+    <div className={s.pageHeader}>
+      <div className={s.pageTitleRow}>
+        <h1 className={s.pageTitle}>Journal</h1>
+        {innerTab === "places" && (
+          <ViewModeToggle viewMode={placesViewMode} setViewMode={setPlacesViewMode} />
+        )}
+      </div>
+      <div className={s.innerTabBar}>
+        <button
+          type="button"
+          className={innerTab === "memories" ? `${s.innerTab} ${s.innerTabActive}` : s.innerTab}
+          onClick={() => { haptic.selection(); setInnerTab("memories"); }}
+        >
+          <BookOpen size={13} strokeWidth={2.5} /> Memories
+        </button>
+        <button
+          type="button"
+          className={innerTab === "places" ? `${s.innerTab} ${s.innerTabActive}` : s.innerTab}
+          onClick={() => { haptic.selection(); setInnerTab("places"); }}
+        >
+          <Bookmark size={13} strokeWidth={2.5} /> Places
+        </button>
+      </div>
+    </div>
+  );
+
+  /* ── Empty state (no trips) ───────────────────────────────────────── */
   if (!loading && trips.length === 0) {
     return (
       <div className={s.root}>
-        <div className={s.pageHeader}>
-          <div className={s.pageTitleRow}>
-            <h1 className={s.pageTitle}>Journal</h1>
+        {header}
+        <div className={s.contentArea}>
+          <div className={s.emptyState}>
+            <div className={s.emptyIcon}>
+              <BookOpen size={32} strokeWidth={1.5} />
+            </div>
+            <h2 className={s.emptyTitle}>No trips yet</h2>
+            <p className={s.emptySub}>
+              Plan a trip and memories will appear here as you travel
+            </p>
           </div>
-          <div className={s.innerTabBar}>
-            <button type="button" className={`${s.innerTab} ${s.innerTabActive}`} onClick={() => { haptic.selection(); setInnerTab("memories"); }}>
-              <BookOpen size={13} strokeWidth={2.5} /> Memories
-            </button>
-            <button type="button" className={s.innerTab} onClick={() => { haptic.selection(); setInnerTab("places"); }}>
-              <Bookmark size={13} strokeWidth={2.5} /> Places
-            </button>
-          </div>
-        </div>
-        <div className={s.emptyState}>
-          <div className={s.emptyIcon}>
-            <BookOpen size={40} strokeWidth={1.5} />
-          </div>
-          <h2 className={s.emptyTitle}>No trips yet</h2>
-          <p className={s.emptySub}>
-            Plan a trip and memories will appear here as you travel
-          </p>
         </div>
       </div>
     );
@@ -221,41 +284,18 @@ export default function MemoriesClientPage() {
   if (innerTab === "places") {
     return (
       <div className={s.root}>
-        <div className={s.pageHeader}>
-          <div className={s.pageTitleRow}>
-            <h1 className={s.pageTitle}>Journal</h1>
-            <ViewModeToggle viewMode={placesViewMode} setViewMode={setPlacesViewMode} />
-          </div>
-          <div className={s.innerTabBar}>
-            <button type="button" className={s.innerTab} onClick={() => { haptic.selection(); setInnerTab("memories"); }}>
-              <BookOpen size={13} strokeWidth={2.5} /> Memories
-            </button>
-            <button type="button" className={`${s.innerTab} ${s.innerTabActive}`} onClick={() => { haptic.selection(); setInnerTab("places"); }}>
-              <Bookmark size={13} strokeWidth={2.5} /> Places
-            </button>
-          </div>
+        {header}
+        <div className={s.contentArea}>
+          <PlacesClientPage viewMode={placesViewMode} setViewMode={setPlacesViewMode} />
         </div>
-        <PlacesClientPage viewMode={placesViewMode} setViewMode={setPlacesViewMode} />
       </div>
     );
   }
 
   return (
     <div className={s.root}>
-      {/* Header */}
-      <div className={s.pageHeader}>
-        <div className={s.pageTitleRow}>
-          <h1 className={s.pageTitle}>Journal</h1>
-        </div>
-        <div className={s.innerTabBar}>
-          <button type="button" className={`${s.innerTab} ${s.innerTabActive}`} onClick={() => { haptic.selection(); setInnerTab("memories"); }}>
-            <BookOpen size={13} strokeWidth={2.5} /> Memories
-          </button>
-          <button type="button" className={s.innerTab} onClick={() => { haptic.selection(); setInnerTab("places"); }}>
-            <Bookmark size={13} strokeWidth={2.5} /> Places
-          </button>
-        </div>
-      </div>
+      {header}
+      <div className={s.contentArea}>
 
       {/* Trip selector */}
       {trips.length > 1 && (
@@ -302,102 +342,156 @@ export default function MemoriesClientPage() {
         </div>
       )}
 
+      {/* Map */}
+      {!loading && displayMemories.length > 0 && (
+        <div className={s.mapContainer}>
+          <JournalMap
+            pins={mapPins}
+            onPinPress={handleMapPinPress}
+            mode={baseMode}
+            vectorTheme={vectorTheme}
+          />
+          <MapStyleSwitcher
+            mode={baseMode}
+            vectorTheme={vectorTheme}
+            onChange={({ mode, vectorTheme: vt }) => {
+              setBaseMode(mode);
+              setVectorTheme(vt);
+            }}
+          />
+        </div>
+      )}
+
       {/* Timeline */}
       {loading ? (
-        <div className={s.loadingState}>Loading memories...</div>
+        <div className={s.loadingState}>Loading memories…</div>
       ) : displayMemories.length === 0 ? (
         <div className={s.emptyState}>
           <div className={s.emptyIcon}>
-            <Camera size={36} strokeWidth={1.5} />
+            <Camera size={32} strokeWidth={1.5} />
           </div>
           <h2 className={s.emptyTitle}>No memories yet</h2>
           <p className={s.emptySub}>
             As you visit stops, your photos and notes will appear here
           </p>
+          {selectedTrip?.firstStop && (
+            <button
+              type="button"
+              className={s.addPrompt}
+              onClick={() => {
+                haptic.tap();
+                const stop = selectedTrip.firstStop!;
+                setSheetStop({
+                  stopId: stop.id ?? selectedTrip.plan_id + "_0",
+                  stopName: stop.name ?? null,
+                  stopIndex: 0,
+                  lat: stop.lat,
+                  lng: stop.lng,
+                });
+                setSheetOpen(true);
+              }}
+            >
+              <span className={s.addPromptIcon}>
+                <Camera size={13} strokeWidth={2} />
+              </span>
+              Add a memory manually
+              <span className={s.addPromptChevron}><ChevronRight size={14} strokeWidth={2} /></span>
+            </button>
+          )}
         </div>
       ) : (
         <div className={s.timeline}>
           {displayMemories.map((mem, idx) => (
             <div key={mem.id} className={s.timelineEntry}>
-              {/* Connector */}
+              {/* Connector line between stops */}
               {idx > 0 && (
                 <div className={s.connector}>
                   <div className={s.connectorLine} />
-                  <div className={s.connectorSegment}>
-                    <Route size={10} strokeWidth={2} />
+                </div>
+              )}
+
+              {/* Stop card */}
+              <div className={s.stopCard}>
+                {/* Header row */}
+                <div className={s.markerRow}>
+                  <div className={s.marker}>
+                    <MapPin size={15} strokeWidth={2.5} />
                   </div>
-                </div>
-              )}
-
-              {/* Stop marker dot */}
-              <div className={s.markerRow}>
-                <div className={s.marker}>
-                  <MapPin size={14} strokeWidth={2.5} />
-                </div>
-                <div className={s.markerInfo}>
-                  <span className={s.markerName}>
-                    {mem.stop_name ?? `Stop ${mem.stop_index + 1}`}
-                  </span>
-                  {mem.arrived_at && (
-                    <span className={s.markerTime}>
-                      <Clock size={10} strokeWidth={2} />
-                      {formatArrivalShort(mem.arrived_at)}
+                  <div className={s.markerInfo}>
+                    <span className={s.markerName}>
+                      {mem.stop_name ?? `Stop ${mem.stop_index + 1}`}
                     </span>
-                  )}
+                    {mem.arrived_at && (
+                      <span className={s.markerTime}>
+                        <Clock size={10} strokeWidth={2} />
+                        {formatArrivalShort(mem.arrived_at)}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    className={s.editBtn}
+                    onClick={() => openMemorySheet(mem)}
+                  >
+                    <Pencil size={13} strokeWidth={2} />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  className={s.editBtn}
-                  onClick={() => openMemorySheet(mem)}
-                >
-                  <Pencil size={13} strokeWidth={2} />
-                </button>
-              </div>
 
-              {/* Photos */}
-              {mem.resolvedUrls.length > 0 && (
-                <div className={s.photoStrip}>
-                  {mem.resolvedUrls.map((url, i) => (
-                    <div
-                      key={i}
-                      className={s.timelinePhoto}
-                      onClick={() => setLightbox({ urls: mem.resolvedUrls, index: i })}
-                      style={{ cursor: "pointer" }}
-                    >
-                      <img
-                        src={url}
-                        alt={`${mem.stop_name ?? "Stop"} photo ${i + 1}`}
-                        className={s.timelinePhotoImg}
-                        loading="lazy"
-                      />
+                {/* Photos */}
+                {mem.resolvedUrls.length > 0 && (
+                  <>
+                    <div className={s.cardDivider} />
+                    <div className={s.photoStrip}>
+                      {mem.resolvedUrls.map((url, i) => (
+                        <div
+                          key={i}
+                          className={s.timelinePhoto}
+                          onClick={() => setLightbox({ urls: mem.resolvedUrls, index: i })}
+                          style={{ cursor: "pointer" }}
+                        >
+                          <img
+                            src={url}
+                            alt={`${mem.stop_name ?? "Stop"} photo ${i + 1}`}
+                            className={s.timelinePhotoImg}
+                            loading="lazy"
+                          />
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              )}
+                  </>
+                )}
 
-              {/* Note */}
-              {mem.note && (
-                <div className={s.noteCard}>
-                  <p className={s.noteText}>{mem.note}</p>
-                </div>
-              )}
+                {/* Note */}
+                {mem.note && (
+                  <>
+                    {mem.resolvedUrls.length === 0 && <div className={s.cardDivider} />}
+                    <div className={s.noteCard}>
+                      <p className={s.noteText}>{mem.note}</p>
+                    </div>
+                  </>
+                )}
 
-              {/* No content yet — prompt */}
-              {!mem.note && mem.resolvedUrls.length === 0 && (
-                <button
-                  type="button"
-                  className={s.addPrompt}
-                  onClick={() => openMemorySheet(mem)}
-                >
-                  <Camera size={14} strokeWidth={2} />
-                  Add a photo or note
-                  <ChevronRight size={14} strokeWidth={2} />
-                </button>
-              )}
+                {/* No content yet — prompt */}
+                {!mem.note && mem.resolvedUrls.length === 0 && (
+                  <button
+                    type="button"
+                    className={s.addPrompt}
+                    onClick={() => openMemorySheet(mem)}
+                  >
+                    <span className={s.addPromptIcon}>
+                      <Camera size={13} strokeWidth={2} />
+                    </span>
+                    Add a photo or note
+                    <span className={s.addPromptChevron}><ChevronRight size={14} strokeWidth={2} /></span>
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>
       )}
+
+      </div>{/* /contentArea */}
 
       {/* Memory editor sheet */}
       {sheetStop && selectedPlanId && (

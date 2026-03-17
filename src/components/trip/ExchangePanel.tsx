@@ -10,15 +10,18 @@
  * both ways automatically.
  */
 
-import { useEffect, useState } from "react";
-import { X, Volume2, Mic, ArrowRightLeft, CheckCircle, AlertTriangle, Radio } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { X, Volume2, Mic, ArrowRightLeft, CheckCircle, AlertTriangle, Radio, Navigation } from "lucide-react";
 import { useRoamExchange, type ExchangePhase } from "@/lib/peer/useRoamExchange";
 import { estimateTransferSeconds } from "@/lib/peer/ultrasonicTransfer";
 import { haptic } from "@/lib/native/haptics";
+import type { NearbyRoamer } from "@/lib/types/peer";
+import { cardinalDir } from "@/lib/nav/geo";
 
 type ExchangePanelProps = {
   open: boolean;
   onClose: () => void;
+  nearbyRoamers?: NearbyRoamer[];
 };
 
 const PHASE_CONFIG: Record<ExchangePhase, { color: string; icon: "radio" | "volume" | "mic" | "switch" | "check" | "alert" }> = {
@@ -46,26 +49,41 @@ function PhaseIcon({ phase, size = 32 }: { phase: ExchangePhase; size?: number }
   }
 }
 
-export function ExchangePanel({ open, onClose }: ExchangePanelProps) {
+function confidenceColor(c: string): string {
+  if (c === "high") return "var(--brand-eucalypt, #2d6e40)";
+  if (c === "medium") return "var(--brand-amber, #c8973a)";
+  return "var(--text-muted, #7a7067)";
+}
+
+export function ExchangePanel({ open, onClose, nearbyRoamers = [] }: ExchangePanelProps) {
   const { state, startGive, startListen, cancel, reset } = useRoamExchange();
   const [mounted, setMounted] = useState(false);
+  const [visible, setVisible] = useState(false);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (open) requestAnimationFrame(() => setMounted(true));
-    else setMounted(false);
+    if (open) {
+      setVisible(true);
+    } else {
+      setMounted(false);
+      closeTimerRef.current = setTimeout(() => setVisible(false), 370);
+    }
+    return () => { if (closeTimerRef.current) clearTimeout(closeTimerRef.current); };
   }, [open]);
 
-  if (!open) return null;
+  useEffect(() => {
+    if (visible) requestAnimationFrame(() => setMounted(true));
+    else setMounted(false);
+  }, [visible]);
+
+  if (!visible) return null;
 
   const isActive = state.phase !== "idle" && state.phase !== "complete" && state.phase !== "error";
   const cfg = PHASE_CONFIG[state.phase];
 
   const handleClose = () => {
-    if (isActive) {
-      cancel();
-    } else {
-      reset();
-    }
+    if (isActive) cancel();
+    else reset();
     onClose();
   };
 
@@ -143,9 +161,44 @@ export function ExchangePanel({ open, onClose }: ExchangePanelProps) {
         <div className="exchange-actions">
           {state.phase === "idle" && (
             <>
+              {/* Nearby roamers list */}
+              {nearbyRoamers.length > 0 && (
+                <div className="exchange-roamers">
+                  <div className="exchange-roamers-header">
+                    <span className="exchange-roamers-badge">{nearbyRoamers.length}</span>
+                    <span className="exchange-roamers-label">
+                      roamer{nearbyRoamers.length > 1 ? "s" : ""} nearby
+                    </span>
+                  </div>
+                  <div className="exchange-roamers-list">
+                    {nearbyRoamers.map((r) => (
+                      <div key={r.user_id} className="exchange-roamer-row">
+                        <div className="exchange-roamer-dist">
+                          <Navigation size={12} strokeWidth={2.5} style={{
+                            transform: `rotate(${r.heading_deg}deg)`,
+                            color: confidenceColor(r.confidence),
+                            flexShrink: 0,
+                          }} />
+                          <span>~{r.distance_km}km</span>
+                        </div>
+                        <span className="exchange-roamer-detail">
+                          {cardinalDir(r.heading_deg)} &middot; {Math.round(r.speed_kmh)}km/h
+                        </span>
+                        <span
+                          className="exchange-roamer-conf"
+                          style={{ background: confidenceColor(r.confidence) }}
+                          title={`Confidence: ${r.confidence}`}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <p className="exchange-hint">
-                Both roamers open this panel. One taps Share, the other taps Listen.
-                Data flows both ways automatically.
+                {nearbyRoamers.length > 0
+                  ? "Pull over nearby, then one taps Share and the other taps Listen."
+                  : "Both roamers open this panel. One taps Share, the other taps Listen."}
               </p>
               <div className="exchange-btn-row">
                 <button
@@ -199,7 +252,7 @@ const panelStyles = /* css */ `
     position: fixed;
     inset: 0;
     z-index: 200;
-    background: rgba(10, 8, 6, 0.8);
+    background: rgba(10, 8, 6, 0.55);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     display: flex;
@@ -216,10 +269,19 @@ const panelStyles = /* css */ `
   .exchange-panel {
     width: 100%;
     max-width: 380px;
+    min-height: 320px;
+    max-height: calc(100dvh - 100px);
+    display: flex;
+    flex-direction: column;
     background: var(--surface-card, #f4efe6);
     border-radius: var(--r-card, 24px);
     overflow: hidden;
     box-shadow: var(--shadow-heavy, 0 12px 40px rgba(40,32,20,0.13));
+    transform: translateY(10px) scale(0.97);
+    transition: transform var(--dur-slow, 350ms) var(--spring, cubic-bezier(0.34,1.56,0.64,1));
+  }
+  .exchange-backdrop[data-mounted] .exchange-panel {
+    transform: translateY(0) scale(1);
   }
 
   .exchange-header {
@@ -250,6 +312,7 @@ const panelStyles = /* css */ `
     align-items: center;
     padding: 32px 20px 20px;
     gap: 16px;
+    flex: 1;
   }
 
   .exchange-icon-ring {
@@ -340,6 +403,70 @@ const panelStyles = /* css */ `
     width: 40px;
     height: 2px;
     background: var(--roam-border, rgba(26,22,19,0.08));
+  }
+
+  .exchange-roamers {
+    margin-bottom: 12px;
+    width: 100%;
+  }
+  .exchange-roamers-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .exchange-roamers-badge {
+    width: 22px;
+    height: 22px;
+    border-radius: 7px;
+    background: var(--brand-eucalypt, #2d6e40);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .exchange-roamers-label {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-main, #1a1613);
+  }
+  .exchange-roamers-list {
+    background: var(--surface-muted, #e3dccf);
+    border-radius: var(--r-btn, 14px);
+    overflow: hidden;
+  }
+  .exchange-roamer-row {
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    gap: 8px;
+  }
+  .exchange-roamer-row + .exchange-roamer-row {
+    border-top: 1px solid var(--roam-border, rgba(26,22,19,0.08));
+  }
+  .exchange-roamer-dist {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-main, #1a1613);
+    min-width: 64px;
+  }
+  .exchange-roamer-detail {
+    flex: 1;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted, #7a7067);
+  }
+  .exchange-roamer-conf {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
   }
 
   .exchange-hint {

@@ -7,7 +7,6 @@ import { memo, useCallback } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { haptic } from "@/lib/native/haptics";
 import { cx } from "@/lib/utils/cx";
-import { getCurrentPlanId, listOfflinePlans } from "@/lib/offline/plansStore";
 
 /* ── Types ────────────────────────────────────────────────────────────── */
 
@@ -294,24 +293,13 @@ export const BottomTabBar = memo(function BottomTabBar() {
     TABS.find((t) => resolveActive(t.href))?.key ??
     (pathname === "/" ? "trip" : null);
 
-  /** For the Trip tab: check IDB before navigating — go to /new if no usable plan exists. */
+  /** For the Trip tab: navigate instantly to /trip — the trip page handles
+   *  the empty-state redirect itself, so we don't block on async IDB checks. */
   const handleTripPress = useCallback(
-    async (e: React.MouseEvent | React.PointerEvent) => {
+    (e: React.MouseEvent | React.PointerEvent) => {
       e.preventDefault();
       haptic.tap();
-      try {
-        const planId = await getCurrentPlanId();
-        if (planId) {
-          router.push("/trip");
-          return;
-        }
-        const plans = await listOfflinePlans();
-        const dest = plans.length > 0 ? "/trip" : "/new";
-        router.push(dest);
-      } catch {
-        // IDB unavailable (SSR/test) — fall back to /trip
-        router.push("/trip");
-      }
+      router.push("/trip");
     },
     [router],
   );
@@ -365,7 +353,7 @@ export const BottomTabBar = memo(function BottomTabBar() {
               )}
               data-active={active ? "true" : "false"}
               draggable={false}
-              prefetch={false}
+              prefetch={true}
               scroll={false}
               onPointerDown={() => {
                 if (!active) haptic.tap();

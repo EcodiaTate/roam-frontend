@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import type { TripStop } from "@/lib/types/trip";
 import type { PlaceItem } from "@/lib/types/places";
 import { placesApi } from "@/lib/api/places";
-import { Search, Navigation, Loader2, ChevronUp, ChevronDown, X } from "lucide-react";
+import { Search, Crosshair, Loader2, ChevronUp, ChevronDown, X } from "lucide-react";
 
 import { haptic } from "@/lib/native/haptics";
 import { getCurrentPosition } from "@/lib/native/geolocation";
@@ -15,8 +15,8 @@ const MIN_QUERY_LEN = 2;
 
 function badgeForType(type?: string) {
   switch (type) {
-    case "start": return "From";
-    case "end":   return "To";
+    case "start": return "Start";
+    case "end":   return "End";
     case "via":   return "Via";
     default:      return "Stop";
   }
@@ -39,11 +39,10 @@ export function StopRow(props: {
   onRemove: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
-  onUseMyLocation?: () => void;
+  onUseMyLocation?: () => Promise<void> | void;
+  isLocating?: boolean;
 }) {
   const s = props.stop;
-  const [locating, setLocating] = useState(false);
-
   const [isFocused, setIsFocused] = useState(false);
   const [q, setQ] = useState(() => getDisplayValue(s.name, s.type));
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -95,29 +94,26 @@ export function StopRow(props: {
     setIsFocused(false);
   };
 
-  const handleUseMyLocation = async () => {
-    setLocating(true);
-    try {
-      if (props.onUseMyLocation) {
-        haptic.tap();
-        await props.onUseMyLocation(); // MUST await this so the spinner stays visible!
-        haptic.success();
-      } else {
-        haptic.tap();
-        const pos = await getCurrentPosition();
-        props.onEdit({ lat: pos.lat, lng: pos.lng, name: "My Location" });
-        setQ("My Location");
-        haptic.success();
-      }
-    } catch {
-      haptic.error();
-    } finally {
-      setLocating(false);
+  const handleUseMyLocation = () => {
+    haptic.tap();
+    setIsFocused(false);
+    // Fake it in the UI instantly — the actual stop data only updates once GPS resolves
+    setQ("My Location");
+
+    if (props.onUseMyLocation) {
+      Promise.resolve(props.onUseMyLocation()).catch(() => {});
+    } else {
+      getCurrentPosition()
+        .then((pos) => {
+          props.onEdit({ lat: pos.lat, lng: pos.lng, name: "My Location" });
+        })
+        .catch(() => {});
     }
   };
 
   // Dynamic placeholder context based on stop type
   const placeholderText =
+    props.isLocating ? "Locating…" :
     s.type === "start" ? "Search starting point…" :
     s.type === "end" ? "Search destination…" :
     "Search for a place…";
@@ -134,9 +130,12 @@ export function StopRow(props: {
         position: "relative",
       }}
     >
-      {/* Type badge */}
-      <div style={{ paddingTop: 10, flexShrink: 0 }}>
-        <div className={`trip-badge ${isLocked ? "trip-badge-blue" : "trip-badge-soft"}`}>
+      {/* Type badge — fixed width so all search inputs align */}
+      <div style={{ paddingTop: 10, flexShrink: 0, width: 50 }}>
+        <div
+          className={`trip-badge ${isLocked ? "trip-badge-blue" : "trip-badge-soft"}`}
+          style={{ width: "100%", textAlign: "center", justifyContent: "center", paddingInline: 6 }}
+        >
           {badgeForType(s.type)}
         </div>
       </div>
@@ -214,17 +213,19 @@ export function StopRow(props: {
             <button
               type="button"
               onClick={handleUseMyLocation}
-              disabled={locating}
+              disabled={props.isLocating}
               className="trip-interactive trip-btn-sm"
               title="Use my location"
               aria-label="Use my location"
-              style={{ flexShrink: 0, gap: 4, height: 44, paddingInline: 10, borderRadius: 12, whiteSpace: "nowrap" }}
+              style={{ flexShrink: 0, gap: 4, height: 44, paddingInline: 10, borderRadius: 12, whiteSpace: "nowrap", opacity: props.isLocating ? 0.7 : 1 }}
             >
-              {locating
+              {props.isLocating
                 ? <Loader2 size={16} style={{ animation: "roam-spin 0.8s linear infinite" }} />
-                : <Navigation size={16} />
+                : <Crosshair size={16} />
               }
-              <span className="hide-mobile" style={{ fontSize: 12 }}>Locate</span>
+              <span className="hide-mobile" style={{ fontSize: 12 }}>
+                {props.isLocating ? "Locating…" : "Locate"}
+              </span>
             </button>
           )}
         </div>

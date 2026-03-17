@@ -49,6 +49,7 @@ export function SavedPlacesSync() {
           lat: place.lat,
           lng: place.lng,
           category: place.category,
+          extra: place.extra ?? null,
         });
         try {
           const { data: { user } } = await supabase.auth.getUser();

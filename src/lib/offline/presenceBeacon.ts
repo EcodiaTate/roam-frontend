@@ -17,13 +17,16 @@ import { presenceApi } from "@/lib/api/presence";
 import { networkMonitor } from "@/lib/offline/networkMonitor";
 import { getCurrentPosition, type RoamPosition } from "@/lib/native/geolocation";
 
-const PING_INTERVAL_MS = 30_000; // 30 seconds when online
+const PING_INTERVAL_MS = 30_000; // 30 seconds default
+const PING_INTERVAL_SHARED_MS = 15_000; // 15 seconds on shared trips
 
 class PresenceBeaconImpl {
   private _timer: ReturnType<typeof setInterval> | null = null;
   private _started = false;
+  private _navigating = false;
   private _lastPosition: RoamPosition | null = null;
   private _networkUnsub: (() => void) | null = null;
+  private _intervalMs = PING_INTERVAL_MS;
 
   /** Latest position used for the last successful ping */
   get lastPosition() {
@@ -44,7 +47,7 @@ class PresenceBeaconImpl {
     // Set up interval
     this._timer = setInterval(() => {
       void this._ping();
-    }, PING_INTERVAL_MS);
+    }, this._intervalMs);
 
     // Listen for network changes — ping immediately on reconnect
     this._networkUnsub = networkMonitor.subscribe((online) => {
@@ -66,6 +69,32 @@ class PresenceBeaconImpl {
     this._networkUnsub = null;
   }
 
+  /**
+   * Switch to faster pings for shared trips, or back to default.
+   * Restarts the interval timer if already running.
+   */
+  setSharedTrip(shared: boolean) {
+    const next = shared ? PING_INTERVAL_SHARED_MS : PING_INTERVAL_MS;
+    if (next === this._intervalMs) return;
+    this._intervalMs = next;
+
+    if (this._started && this._timer) {
+      clearInterval(this._timer);
+      this._timer = setInterval(() => {
+        void this._ping();
+      }, this._intervalMs);
+    }
+  }
+
+  /**
+   * Gate pinging on active navigation. When false, the beacon
+   * silently skips pings so we don't broadcast a user's home
+   * or parked location.
+   */
+  setNavigating(active: boolean) {
+    this._navigating = active;
+  }
+
   /** Manually set position (e.g. from existing geolocation watch) */
   updatePosition(pos: RoamPosition) {
     this._lastPosition = pos;
@@ -74,7 +103,7 @@ class PresenceBeaconImpl {
   /* ── Internals ───────────────────────────────────────────────── */
 
   private async _ping() {
-    if (!networkMonitor.online) return;
+    if (!this._navigating || !networkMonitor.online) return;
 
     try {
       // Use cached position if available and recent, otherwise get fresh

@@ -14,7 +14,6 @@ import { saveMinimalPlan } from "@/lib/offline/plansStore";
 import type { StopSuggestionItem } from "@/lib/types/places";
 
 import { useNewTripDraft } from "@/components/trips/new/useNewTripDraft";
-import { AI_TRIP_SEED_KEY, type AiTripSeed } from "@/components/trip/AiTripModal";
 import { CLONE_TRIP_SEED_KEY, type CloneTripSeed } from "@/lib/types/discover";
 import { NewTripMap } from "@/components/trips/new/NewTripMap";
 import { StopsEditor } from "@/components/trips/new/StopsEditor";
@@ -25,7 +24,7 @@ import {
   type VectorTheme,
 } from "@/components/trips/new/MapStyleSwitcher";
 import { PlanningOverlay } from "@/components/trips/new/PlanningOverlay";
-import { InviteCodeModal } from "@/components/plans/InviteCodeModal";
+import { AiTripModal, type AiTripSeed } from "@/components/trip/AiTripModal";
 import { PlanDrawer } from "@/components/trip/PlanDrawer";
 import { WelcomeModal } from "@/components/paywall/WelcomeModal";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
@@ -51,8 +50,8 @@ export default function NewTripClientPage() {
   const [baseMode, setBaseMode] = useState<MapBaseMode>("hybrid");
   const [vectorTheme, setVectorTheme] = useState<VectorTheme>("bright");
 
-  // Invite modal
-  const [inviteOpen, setInviteOpen] = useState(false);
+  // AI trip modal
+  const [aiOpen, setAiOpen] = useState(false);
 
   // Plans drawer
   const [drawOpen, setDrawOpen] = useState(false);
@@ -64,24 +63,9 @@ export default function NewTripClientPage() {
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [unlocked, setUnlocked] = useState<boolean | null>(null);
 
-  // ── AI trip seed ─────────────────────────────────────────────────────
-  // When the user confirms an AI-generated trip, AiTripModal writes the seed
-  // to sessionStorage and navigates here. We read it once on mount, seed the
-  // draft stops, then clear the key so a refresh starts fresh.
+  // ── Discover clone seed (still via sessionStorage — comes from /discover) ──
   useEffect(() => {
     try {
-      // 1. Check for AI trip seed
-      const aiRaw = sessionStorage.getItem(AI_TRIP_SEED_KEY);
-      if (aiRaw) {
-        sessionStorage.removeItem(AI_TRIP_SEED_KEY);
-        const seed = JSON.parse(aiRaw) as AiTripSeed;
-        if (Array.isArray(seed.stops) && seed.stops.length >= 2) {
-          draft.setStops(seed.stops);
-          return;
-        }
-      }
-
-      // 2. Check for Discover clone seed
       const cloneRaw = sessionStorage.getItem(CLONE_TRIP_SEED_KEY);
       if (cloneRaw) {
         sessionStorage.removeItem(CLONE_TRIP_SEED_KEY);
@@ -159,6 +143,14 @@ export default function NewTripClientPage() {
     }
   }, [canRoute, draft]);
 
+  /* ── Auto-route: pre-fetch route as soon as stops are valid ────────── */
+  // This populates navPack in the background so that when the user taps
+  // "Start Roaming", the route is already cached — making navigation instant.
+  useEffect(() => {
+    if (!canRoute || navPack || routing) return;
+    requestRoute();
+  }, [canRoute, navPack, routing, requestRoute]);
+
   /* ── Search modal ──────────────────────────────────────────────────── */
 
   const openSearchForStop = useCallback((stopId: string) => {
@@ -186,6 +178,17 @@ export default function NewTripClientPage() {
     bundle.reset();
   }, [bundle]);
 
+  /* ── AI trip confirm handler ────────────────────────────────────────── */
+  // Called directly by AiTripModal — no sessionStorage relay needed.
+
+  const handleAiConfirm = useCallback((seed: AiTripSeed) => {
+    if (Array.isArray(seed.stops) && seed.stops.length >= 2) {
+      draft.setStops(seed.stops);
+      clearRouteState();
+    }
+    setAiOpen(false);
+  }, [draft, clearRouteState]);
+
   /* ── Add a suggestion as a new stop ────────────────────────────────── */
 
   const addStopFromSuggestion = useCallback(
@@ -201,7 +204,7 @@ export default function NewTripClientPage() {
   const [savingAndGoing, setSavingAndGoing] = useState(false);
 
   const saveAndGo = useCallback(async () => {
-    if (!canRoute) return;
+    if (!canRoute || savingAndGoing) return;
 
     haptic.medium();
     setSavingAndGoing(true);
@@ -219,24 +222,24 @@ export default function NewTripClientPage() {
         depart_at: draft.depart_at ?? null,
       });
 
-      // Step 2: Minimal save to IDB (<50ms)
-      await saveMinimalPlan({
-        plan_id,
-        navPack: pack,
-        stops: draft.stops,
-        profile: draft.profile,
-      });
-
-      // Step 3: Trip counter
-      await incrementTripsUsed();
-
-      // Step 4: Navigate immediately — enrichment happens on /trip
+      // Step 2: Navigate immediately — don't wait for IDB save
       router.replace(`/trip?plan_id=${encodeURIComponent(plan_id)}`);
+
+      // Step 3: Save in background — /trip page will pick it up
+      Promise.all([
+        saveMinimalPlan({
+          plan_id,
+          navPack: pack,
+          stops: draft.stops,
+          profile: draft.profile,
+        }),
+        incrementTripsUsed(),
+      ]).catch(() => {});
     } catch (e: unknown) {
       setRouteError(toErrorMessage(e, "Failed to save trip"));
       setSavingAndGoing(false);
     }
-  }, [canRoute, draft, navPack, router]);
+  }, [canRoute, savingAndGoing, draft, navPack, router]);
 
   /* ── Go Now: online-only instant navigation (no bundle, no save) ──── */
 
@@ -245,14 +248,20 @@ export default function NewTripClientPage() {
     setGoingNow(true);
     setRouteError(null);
     try {
-      const pack = navPack ?? await navApi.route({
+      // If we already have a route, navigate instantly
+      if (navPack) {
+        sessionStorage.setItem("roam_live_navpack", JSON.stringify(navPack));
+        router.replace("/live");
+        return;
+      }
+      // Otherwise route first, then navigate
+      const pack = await navApi.route({
         profile: draft.profile,
         prefs: draft.prefs,
         avoid: draft.avoid,
         stops: draft.stops,
         depart_at: draft.depart_at ?? null,
       });
-      // Store NavPack in sessionStorage for the /live page to pick up
       sessionStorage.setItem("roam_live_navpack", JSON.stringify(pack));
       router.replace("/live");
     } catch (e: unknown) {
@@ -270,6 +279,7 @@ export default function NewTripClientPage() {
         navPack={navPack}
         styleId={styleId}
         onMapCenterChanged={draft.setMapCenter}
+        userPosition={draft.userPosition}
       />
 
       <MapStyleSwitcher
@@ -305,14 +315,13 @@ export default function NewTripClientPage() {
           draft.updateStop(id, patch);
           clearRouteState();
         }}
-        onUseMyLocation={() => {
-          draft.useMyLocationForStart();
+        onUseMyLocation={async () => {
+          await draft.useMyLocationForStart();
           clearRouteState();
         }}
+        isLocating={draft.isLocating}
         onSearchStop={openSearchForStop}
-        onJoinPlan={() => {
-          setInviteOpen(true);
-        }}
+        onAiTrip={() => { haptic.light(); setAiOpen(true); }}
         onPlans={() => {
           setDrawOpen(true);
         }}
@@ -332,22 +341,23 @@ export default function NewTripClientPage() {
           bundle.reset();
           setSavingAndGoing(false);
         }}
-        offlinePhase={savingAndGoing ? "routing" as const : bundle.phase}
+        offlinePhase={bundle.phase}
         offlineError={bundle.error}
         offlineManifest={bundle.result?.manifest ?? null}
         canDownloadOffline={false}
-        savingOffline={savingAndGoing || bundle.building}
+        savingOffline={bundle.building}
         savedOffline={bundle.isReady}
         unlocked={unlocked}
         onUpgrade={() => { setPaywallOpen(true); }}
       />
 
-      {/* Planning overlay */}
+      {/* Planning overlay — only for full offline bundle builds */}
       <PlanningOverlay
         phase={bundle.phase}
         error={bundle.error}
         visible={bundle.building || bundle.phase === "ready" || bundle.phase === "error"}
       />
+
 
       <PlaceSearchModal
         open={searchOpen}
@@ -364,17 +374,14 @@ export default function NewTripClientPage() {
       <PlanDrawer
         open={drawOpen}
         onClose={() => setDrawOpen(false)}
+        onAiTrip={() => { setDrawOpen(false); setAiOpen(true); }}
       />
 
-      {/* ── Invite modal (redeem-only from /new) ─────────────────────── */}
-      <InviteCodeModal
-        open={inviteOpen}
-        planId={null}
-        mode="redeem"
-        onClose={() => setInviteOpen(false)}
-        onRedeemed={(_joinedPlanId) => {
-          setInviteOpen(false);
-        }}
+      {/* ── AI Trip Planner (inline — no navigation needed) ───────────── */}
+      <AiTripModal
+        open={aiOpen}
+        onClose={() => setAiOpen(false)}
+        onConfirm={handleAiConfirm}
       />
 
       {/* ── Welcome / last-free-trip modal ───────────────────────────── */}

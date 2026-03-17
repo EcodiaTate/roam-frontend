@@ -23,7 +23,7 @@ import {
   Loader2,
   X,
   ArrowLeft,
-  Link,
+  Sparkles,
   Library,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -382,9 +382,10 @@ export function StopsEditor(props: {
   onReorderStop: (fromIdx: number, toIdx: number) => void;
 
   onEditStop: (id: string, patch: Partial<Pick<TripStop, "name" | "lat" | "lng">>) => void;
-  onUseMyLocation: () => void;
+  onUseMyLocation: () => Promise<void> | void;
+  isLocating?: boolean;
   onSearchStop: (id: string) => void;
-  onJoinPlan: () => void;
+  onAiTrip: () => void;
   onPlans: () => void;
 
   onBuildRoute: () => void;
@@ -490,9 +491,13 @@ export function StopsEditor(props: {
     setDragOffset(0);
   };
 
-  const peekOffsetStr = `calc(100% - 260px - 400px - var(--roam-safe-bottom))`;
-  const baseTransform = snapState === "peek" ? peekOffsetStr : "12px";
-  const finalTransform = `translateY(calc(${baseTransform} + ${dragOffset}px))`;
+  // Peek shows ~280px of content (higher than /trip since we need stops + buttons visible)
+  const peekY = `calc(100% - 680px - var(--roam-safe-bottom, 0px))`;
+  const expandedY = "0px";
+  const baseTransform = snapState === "peek" ? peekY : expandedY;
+  const finalTransform = isDraggingState
+    ? `translateY(calc(${baseTransform} + ${dragOffset}px))`
+    : `translateY(${baseTransform})`;
 
   const canSave = props.canBuildRoute && !props.savingOffline;
 
@@ -501,7 +506,7 @@ export function StopsEditor(props: {
       className="trip-bottom-sheet-wrap"
       style={{
         transform: finalTransform,
-        transition: isDraggingState ? "none" : "transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)",
+        transition: isDraggingState ? "none" : "transform 0.35s cubic-bezier(0.34, 1.12, 0.64, 1)",
       }}
     >
       <div className="trip-bottom-sheet">
@@ -554,12 +559,12 @@ export function StopsEditor(props: {
               <button
                 type="button"
                 className="trip-interactive trip-btn-icon"
-                aria-label="Join Plan"
-                title="Join Plan"
+                aria-label="AI Trip Planner"
+                title="AI Trip Planner"
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={() => {
                   haptic.light();
-                  props.onJoinPlan();
+                  props.onAiTrip();
                 }}
                 style={{
                   borderRadius: 999,
@@ -567,13 +572,13 @@ export function StopsEditor(props: {
                   height: 34,
                   display: "grid",
                   placeItems: "center",
-                  background: "rgba(0, 0, 0, 0.08)",
-                  color: "var(--roam-text)",
-                  border: "none",
+                  background: "rgba(56,189,248,0.12)",
+                  color: "var(--brand-sky, #38bdf8)",
+                  border: "1px solid rgba(56,189,248,0.2)",
                   WebkitTapHighlightColor: "transparent",
                 }}
               >
-                <Link size={15} />
+                <Sparkles size={15} />
               </button>
 
               {props.unlocked ? (
@@ -641,8 +646,14 @@ export function StopsEditor(props: {
           </div>
         </div>
 
-        {/* CONTENT: either editor or build progress */}
-        <div className="trip-sheet-content" style={{ paddingBottom: "calc(var(--bottom-nav-height, 80px) + 120px)" }}>
+        {/* CONTENT */}
+        <div
+          className="trip-sheet-content"
+          style={{
+            paddingBottom: `calc(var(--bottom-nav-height, 56px) + 120px)`,
+            overscrollBehaviorY: "auto",
+          }}
+        >
           {isBuilding ? (
             <BuildProgressView
               phase={props.offlinePhase as OfflineBuildPhase}
@@ -684,6 +695,7 @@ export function StopsEditor(props: {
                       props.onReorderStop(idx, idx + 1);
                     }}
                     onUseMyLocation={s.type === "start" ? props.onUseMyLocation : undefined}
+                    isLocating={s.type === "start" ? props.isLocating : undefined}
                   />
                 ))}
               </div>
@@ -697,56 +709,40 @@ export function StopsEditor(props: {
                 />
               )}
 
-              {/* ── Route preview summary ── */}
+              {/* ── Route summary ── */}
               {props.navPack?.primary && (
                 <div style={{
-                  marginTop: 8,
-                  padding: "12px 14px",
-                  borderRadius: 12,
-                  background: "var(--roam-surface-hover)",
                   display: "flex",
                   alignItems: "center",
-                  gap: 12,
+                  justifyContent: "center",
+                  gap: 6,
+                  padding: "2px 0",
                 }}>
-                  <div style={{
-                    width: 36, height: 36, borderRadius: 10,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    background: "rgba(59,130,246,0.1)",
-                    flexShrink: 0,
-                  }}>
-                    <Route size={16} style={{ color: "#3b82f6" }} />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: "var(--roam-text)", letterSpacing: "-0.1px" }}>
-                      {(props.navPack.primary.distance_m / 1000).toFixed(0)} km
-                      <span style={{ fontWeight: 600, color: "var(--roam-text-muted)", marginLeft: 6 }}>·</span>
-                      <span style={{ fontWeight: 700, color: "var(--roam-text-muted)", marginLeft: 6, fontSize: 13 }}>
-                        {(() => {
-                          const s = props.navPack.primary.duration_s;
-                          const h = Math.floor(s / 3600);
-                          const m = Math.round((s % 3600) / 60);
-                          return h > 0 ? `${h}h ${m}m` : `${m} min`;
-                        })()}
-                      </span>
-                    </div>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--roam-text-muted)", marginTop: 2 }}>
-                      {props.navPack.primary.legs?.length ?? 1} leg{(props.navPack.primary.legs?.length ?? 1) > 1 ? "s" : ""}
-                      {props.navPack.primary.legs?.length && props.navPack.primary.legs.length > 1 && (
-                        <span> · {props.stops.filter((s) => s.type === "poi" || s.type === "via").length} stop{props.stops.filter((s) => s.type === "poi" || s.type === "via").length !== 1 ? "s" : ""}</span>
-                      )}
-                    </div>
-                  </div>
+                  <Route size={11} style={{ color: "var(--roam-text-muted)", flexShrink: 0 }} />
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "var(--roam-text-muted)" }}>
+                    {(props.navPack.primary.distance_m / 1000).toFixed(0)} km
+                    {" · "}
+                    {(() => {
+                      const dur = props.navPack.primary.duration_s;
+                      const h = Math.floor(dur / 3600);
+                      const m = Math.round((dur % 3600) / 60);
+                      return h > 0 ? `${h}h ${m}m` : `${m} min`;
+                    })()}
+                    {(props.navPack.primary.legs?.length ?? 1) > 1 && (
+                      <> · {props.stops.filter((st) => st.type === "poi" || st.type === "via").length} stops</>
+                    )}
+                  </span>
                 </div>
               )}
 
-              <div className="trip-actions" style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
-                {/* Start Roaming — full offline bundle, the hero action */}
+              {/* ── Actions ── */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {/* Save & Go — primary, offline-ready */}
                 <button
                   type="button"
                   onClick={() => {
                     haptic.medium();
                     hideKeyboard();
-                    setBuildStartTime(Date.now());
                     props.onBuildOffline();
                   }}
                   disabled={!canSave}
@@ -755,12 +751,12 @@ export function StopsEditor(props: {
                     position: "relative",
                     display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
                     width: "100%",
-                    padding: "16px 24px",
-                    borderRadius: 16,
+                    padding: "13px 24px",
+                    borderRadius: 14,
                     border: "1px solid rgba(255,255,255,0.15)",
                     background: "linear-gradient(135deg, #5c1a0e 0%, var(--brand-ochre, #b5452e) 40%, #d4664a 70%, #e8956a 100%)",
                     color: "#fff",
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: 900,
                     letterSpacing: "-0.2px",
                     cursor: canSave ? "pointer" : "default",
@@ -771,28 +767,36 @@ export function StopsEditor(props: {
                     transition: "opacity 0.2s, transform 0.15s",
                   }}
                 >
-                  {/* Shimmer sweep */}
                   <div style={{
                     position: "absolute", inset: 0,
                     background: "linear-gradient(105deg, transparent 25%, rgba(255,255,255,0.08) 45%, rgba(255,255,255,0.14) 50%, rgba(255,255,255,0.08) 55%, transparent 75%)",
                     borderRadius: "inherit", pointerEvents: "none",
                   }} />
-                  <Compass size={18} style={{ position: "relative", flexShrink: 0 }} />
-                  <span style={{ position: "relative" }}>Start Roaming</span>
+                  <Compass size={17} style={{ position: "relative", flexShrink: 0 }} />
+                  <span style={{ position: "relative" }}>Save & Go</span>
+                  <span style={{
+                    position: "relative",
+                    fontSize: 10,
+                    fontWeight: 800,
+                    letterSpacing: "0.04em",
+                    textTransform: "uppercase",
+                    background: "rgba(255,255,255,0.18)",
+                    borderRadius: 5,
+                    padding: "2px 6px",
+                    marginLeft: 2,
+                  }}>offline ready</span>
                 </button>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {/* Add Stop + Quick Trip */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
                   <button
                     type="button"
-                    onClick={() => {
-                      haptic.tap();
-                      props.onAddStop("poi");
-                    }}
+                    onClick={() => { haptic.tap(); props.onAddStop("poi"); }}
                     className="trip-interactive"
                     style={{
                       display: "inline-flex", alignItems: "center", justifyContent: "center",
-                      padding: "10px 14px",
-                      borderRadius: "var(--r-btn, 14px)",
+                      padding: "9px 12px",
+                      borderRadius: 12,
                       border: "none",
                       background: "var(--brand-eucalypt, #2d6e40)",
                       color: "#fff",
@@ -805,24 +809,19 @@ export function StopsEditor(props: {
                     + Add Stop
                   </button>
 
-                  {/* Quick Trip — online-only, instant nav */}
                   <button
                     type="button"
-                    onClick={() => {
-                      haptic.medium();
-                      hideKeyboard();
-                      props.onGoNow();
-                    }}
+                    onClick={() => { haptic.medium(); hideKeyboard(); props.onGoNow(); }}
                     disabled={!props.canBuildRoute || props.goingNow}
                     className="trip-interactive"
                     style={{
-                      display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
-                      padding: "10px 14px",
-                      borderRadius: "var(--r-btn, 14px)",
-                      border: "none",
-                      background: "var(--brand-eucalypt, #2d6e40)",
-                      color: "#fff",
-                      fontSize: 13,
+                      display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5,
+                      padding: "9px 12px",
+                      borderRadius: 12,
+                      border: "1px solid var(--roam-border)",
+                      background: "var(--roam-surface-hover)",
+                      color: "var(--roam-text-muted)",
+                      fontSize: 12,
                       fontWeight: 700,
                       cursor: (props.canBuildRoute && !props.goingNow) ? "pointer" : "default",
                       opacity: (props.canBuildRoute && !props.goingNow) ? 1 : 0.45,
@@ -830,11 +829,11 @@ export function StopsEditor(props: {
                     }}
                   >
                     {props.goingNow ? (
-                      <Loader2 size={14} style={{ animation: "roam-spin 0.8s linear infinite" }} />
+                      <Loader2 size={13} style={{ animation: "roam-spin 0.8s linear infinite" }} />
                     ) : (
-                      <Route size={14} />
+                      <Route size={13} />
                     )}
-                    {props.goingNow ? "Loading…" : "Quick Trip"}
+                    {props.goingNow ? "Loading…" : "Go Now · online only"}
                   </button>
                 </div>
               </div>

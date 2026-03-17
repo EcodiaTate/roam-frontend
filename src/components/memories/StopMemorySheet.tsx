@@ -362,19 +362,33 @@ export function StopMemorySheet({
     async (index: number) => {
       if (!memory) return;
       haptic.medium();
-      setBusy(true);
+
+      // Optimistic: remove from UI immediately
+      const prevMemory = memory;
+      const prevUrls = photoUrls;
+      const optimisticPhotos = [...memory.photos];
+      optimisticPhotos.splice(index, 1);
+      const optimisticMemory = { ...memory, photos: optimisticPhotos };
+      setMemory(optimisticMemory);
+      setPhotoUrls(
+        optimisticPhotos.map((p) => p.localUrl ?? p.url ?? "").filter(Boolean),
+      );
+
+      // Persist in background — revert on failure
       try {
         const updated = await removePhoto(memory.id, index);
         setMemory(updated);
-        const urls = updated.photos
-          .map((p) => p.localUrl ?? p.url ?? "")
-          .filter(Boolean);
-        setPhotoUrls(urls);
-      } finally {
-        setBusy(false);
+        setPhotoUrls(
+          updated.photos.map((p) => p.localUrl ?? p.url ?? "").filter(Boolean),
+        );
+      } catch {
+        // Revert
+        setMemory(prevMemory);
+        setPhotoUrls(prevUrls);
+        haptic.error();
       }
     },
-    [memory],
+    [memory, photoUrls],
   );
 
   if (!open) return null;
@@ -402,9 +416,8 @@ export function StopMemorySheet({
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Drag handle */}
-        <div
-          className={s.dragZone}
+        {/* Hero band (includes drag handle) */}
+        <div className={s.hero}
           onPointerDown={onDragPointerDown}
           onPointerMove={onDragPointerMove}
           onPointerUp={onDragPointerUp}
@@ -412,10 +425,6 @@ export function StopMemorySheet({
           style={{ cursor: saving ? "default" : "grab" }}
         >
           <div className={s.dragHandle} />
-        </div>
-
-        {/* Hero band */}
-        <div className={s.hero}>
           <div className={s.heroRing1} />
           <div className={s.heroRing2} />
 

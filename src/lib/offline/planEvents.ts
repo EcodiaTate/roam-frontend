@@ -5,13 +5,15 @@
 "use client";
 
 export type PlanEventType =
-  | "plan:saved"     // after saveOfflinePlan / updateOfflinePlan
-  | "plan:deleted"   // after deleteOfflinePlan
-  | "plan:labeled";  // after label-only update
+  | "plan:saved"            // after saveOfflinePlan / updateOfflinePlan
+  | "plan:deleted"          // after deleteOfflinePlan
+  | "plan:labeled"          // after label-only update
+  | "plan:remote-updated";  // after planSync merges a remote change into IDB
 
 export type PlanEventPayload = {
   planId: string;
   label?: string | null;
+  routeKey?: string;         // set on remote-updated so listeners can detect route changes
 };
 
 type Listener = (type: PlanEventType, payload: PlanEventPayload) => void;

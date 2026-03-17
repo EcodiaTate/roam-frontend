@@ -35,7 +35,7 @@ const ARROW_SVGS: Record<string, string> = {
   "depart":            "M4 2v20M4 2l12 7-12 7",
 };
 
-function ManeuverArrow({ iconName, size = 48 }: { iconName: string; size?: number }) {
+function ManeuverArrow({ iconName, size = 44 }: { iconName: string; size?: number }) {
   const pathD = ARROW_SVGS[iconName] ?? ARROW_SVGS["arrow-up"];
   const isArrive = iconName === "arrive" || iconName === "depart";
 
@@ -66,102 +66,131 @@ export const NavigationHUD = memo(function NavigationHUD({ nav, visible }: Props
     [currentStep],
   );
 
-  // Determine approach state for visual intensity
-  const isImminent = nav.distToNextManeuver_m < 100;
+  const isImminent  = nav.distToNextManeuver_m < 100;
   const isApproaching = nav.distToNextManeuver_m < 500;
 
   if (!visible || !currentStep) return null;
 
+  // ── Color scheme based on approach state ──
+  // Imminent  → eucalypt green  (action!)
+  // Approach  → sky blue        (heads-up)
+  // Normal    → warm dark panel (Roam-native)
+  const bgGradient = isImminent
+    ? "linear-gradient(135deg, var(--brand-eucalypt) 0%, var(--brand-eucalypt-dark) 100%)"
+    : isApproaching
+    ? "linear-gradient(135deg, var(--brand-sky) 0%, #155a8a 100%)"
+    : "linear-gradient(160deg, rgba(22,18,14,0.96) 0%, rgba(14,11,9,0.98) 100%)";
+
+  // Arrow icon background swatch
+  const iconBg = isImminent
+    ? "rgba(255,255,255,0.18)"
+    : isApproaching
+    ? "rgba(255,255,255,0.15)"
+    : "rgba(255,255,255,0.07)";
+
+  // Distance text colour  — ochre accent in normal state, white when active
+  const distColor = isImminent || isApproaching ? "white" : "var(--brand-amber)";
+
   return (
     <div
+      className="nav-hud-enter"
       style={{
         position: "absolute",
         top: "calc(env(safe-area-inset-top, 0px) + 12px)",
         left: 12,
-        right: 68,
+        right: 72,
         zIndex: 30,
         pointerEvents: "none",
-        transform: visible ? "translateY(0)" : "translateY(-120%)",
-        transition: "transform 0.3s cubic-bezier(0.4,0,0.2,1)",
       }}
     >
-      {/* Main maneuver card */}
+      {/* ── Main maneuver card ── */}
       <div
         className="roam-glass"
         style={{
-          background: isImminent
-            ? "linear-gradient(135deg, #16a34a, #15803d)"
+          background: bgGradient,
+          borderRadius: 22,
+          padding: "14px 16px",
+          boxShadow: isImminent
+            ? "0 8px 32px rgba(45,110,64,0.45), 0 2px 8px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.12)"
             : isApproaching
-            ? "linear-gradient(135deg, #2563eb, #1d4ed8)"
-            : "linear-gradient(135deg, rgba(30,30,30,0.92), rgba(20,20,20,0.95))",
-          borderRadius: 20,
-          padding: "16px 18px",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.2)",
-          transition: "background 0.4s ease",
+            ? "0 8px 32px rgba(26,111,166,0.40), 0 2px 8px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.10)"
+            : "0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.06)",
+          transition: "background 0.4s ease, box-shadow 0.4s ease",
+          border: "1px solid rgba(255,255,255,0.08)",
           pointerEvents: "auto",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          {/* Arrow icon */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+
+          {/* ── Arrow icon in pill swatch ── */}
           <div
             className={isImminent ? "hud-imminent" : undefined}
             style={{
               flexShrink: 0,
-              width: 56,
-              height: 56,
+              width: 58,
+              height: 58,
+              borderRadius: 16,
+              background: iconBg,
               display: "grid",
               placeItems: "center",
+              transition: "background 0.3s ease",
             }}
           >
-            <ManeuverArrow iconName={iconName} size={48} />
+            <ManeuverArrow iconName={iconName} size={40} />
           </div>
 
-          {/* Instruction text */}
+          {/* ── Instruction text ── */}
           <div style={{ flex: 1, minWidth: 0 }}>
+            {/* Action label: Turn left / Continue / etc. */}
             <div
               style={{
-                fontSize: 15,
+                fontSize: 16,
                 fontWeight: 950,
-                color: "white",
-                lineHeight: 1.2,
-                letterSpacing: "-0.2px",
+                color: "var(--on-color)",
+                lineHeight: 1.15,
+                letterSpacing: "-0.3px",
               }}
             >
               {formatShort(currentStep)}
             </div>
+
+            {/* Road name */}
             {currentStep.name && (
               <div
                 style={{
-                  fontSize: 13,
+                  fontSize: 12,
                   fontWeight: 700,
-                  color: "rgba(255,255,255,0.75)",
-                  marginTop: 2,
+                  color: "rgba(250,246,239,0.65)",
+                  marginTop: 3,
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
                 }}
               >
                 {currentStep.ref
-                  ? `${currentStep.name} (${currentStep.ref})`
+                  ? `${currentStep.name} · ${currentStep.ref}`
                   : currentStep.name}
               </div>
             )}
           </div>
 
-          {/* Distance to maneuver */}
+          {/* ── Distance to maneuver — right-aligned ── */}
           <div
             style={{
               flexShrink: 0,
               textAlign: "right",
+              paddingLeft: 4,
             }}
           >
             <div
               style={{
-                fontSize: 22,
+                fontSize: 26,
                 fontWeight: 950,
-                color: "white",
-                letterSpacing: "-0.5px",
+                color: distColor,
+                letterSpacing: "-0.8px",
                 lineHeight: 1,
+                transition: "color 0.3s ease",
+                fontVariantNumeric: "tabular-nums",
               }}
             >
               {formatDistance(nav.distToNextManeuver_m)}
@@ -169,25 +198,42 @@ export const NavigationHUD = memo(function NavigationHUD({ nav, visible }: Props
           </div>
         </div>
 
-        {/* Next step preview */}
+        {/* ── "then" next step preview ── */}
         {nextStep && (
           <div
             style={{
               marginTop: 10,
               paddingTop: 10,
-              borderTop: "1px solid rgba(255,255,255,0.12)",
+              borderTop: "1px solid rgba(250,246,239,0.10)",
               display: "flex",
               alignItems: "center",
               gap: 8,
             }}
           >
+            {/* Small then-arrow */}
+            <div
+              style={{
+                flexShrink: 0,
+                width: 20,
+                height: 20,
+                borderRadius: 6,
+                background: "rgba(255,255,255,0.09)",
+                display: "grid",
+                placeItems: "center",
+              }}
+            >
+              <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="rgba(250,246,239,0.5)" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                <path d={ARROW_SVGS[maneuverIcon(nextStep.maneuver)] ?? ARROW_SVGS["arrow-up"]} />
+              </svg>
+            </div>
             <span
               style={{
                 fontSize: 11,
                 fontWeight: 800,
-                color: "rgba(255,255,255,0.45)",
+                color: "rgba(250,246,239,0.38)",
                 textTransform: "uppercase",
-                letterSpacing: "0.5px",
+                letterSpacing: "0.6px",
+                flexShrink: 0,
               }}
             >
               then
@@ -196,7 +242,7 @@ export const NavigationHUD = memo(function NavigationHUD({ nav, visible }: Props
               style={{
                 fontSize: 12,
                 fontWeight: 700,
-                color: "rgba(255,255,255,0.6)",
+                color: "rgba(250,246,239,0.55)",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
@@ -207,7 +253,6 @@ export const NavigationHUD = memo(function NavigationHUD({ nav, visible }: Props
           </div>
         )}
       </div>
-
     </div>
   );
 });

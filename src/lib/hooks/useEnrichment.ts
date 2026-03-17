@@ -18,8 +18,9 @@ export function useEnrichment(onPack: (kind: PackKind, data: unknown) => void) {
   const onPackRef = useRef(onPack);
   useEffect(() => { onPackRef.current = onPack; });
 
-  const isEnriching = progress !== null && progress.phase !== "done" && progress.phase !== "cancelled";
+  const isEnriching = progress !== null && progress.phase !== "done" && progress.phase !== "error" && progress.phase !== "cancelled";
   const isDone = progress?.phase === "done";
+  const isError = progress?.phase === "error";
 
   const start = useCallback(
     (args: { planId: string; navPack: NavPack; departAt?: string | null }) => {
@@ -52,5 +53,5 @@ export function useEnrichment(onPack: (kind: PackKind, data: unknown) => void) {
     );
   }, []);
 
-  return { progress, start, cancel, isEnriching, isDone };
+  return { progress, start, cancel, isEnriching, isDone, isError };
 }

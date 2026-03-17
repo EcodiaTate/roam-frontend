@@ -500,9 +500,11 @@ function syncAll(map: MLMap, props: {
 function syncStops(map: MLMap, stops: TripStop[]) {
   const src = map.getSource(STOPS_SOURCE) as GeoJSONSource | undefined;
   if (!src) return;
+  // Only show pins for stops the user has actually set (non-empty name)
+  const resolved = stops.filter((s) => !!s.name?.trim());
   src.setData({
     type: "FeatureCollection",
-    features: stops.map((s, idx) => ({
+    features: resolved.map((s, idx) => ({
       type: "Feature" as const,
       geometry: { type: "Point" as const, coordinates: [s.lng, s.lat] as [number, number] },
       properties: { id: s.id ?? String(idx), type: s.type ?? "poi", name: s.name ?? "", idx },

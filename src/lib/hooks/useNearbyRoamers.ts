@@ -17,7 +17,9 @@ import { roamNotify } from "@/lib/native/notifications";
 import type { NearbyRoamer } from "@/lib/types/peer";
 import { cardinalDir } from "@/lib/nav/geo";
 
-const POLL_INTERVAL_MS = 60_000; // check every 60s
+const POLL_INTERVAL_MS = 60_000; // check every 60s default
+const POLL_INTERVAL_SHARED_MS = 20_000; // 20s on shared trips
+const STALE_PRESENCE_MS = 5 * 60_000; // drop roamers idle > 5 min
 
 type NearbyState = {
   roamers: NearbyRoamer[];
@@ -25,9 +27,10 @@ type NearbyState = {
   lastChecked: string | null;
 };
 
-export function useNearbyRoamers(opts?: { radiusKm?: number; enabled?: boolean }) {
+export function useNearbyRoamers(opts?: { radiusKm?: number; enabled?: boolean; sharedTrip?: boolean }) {
   const radiusKm = opts?.radiusKm ?? 50;
   const enabled = opts?.enabled ?? true;
+  const intervalMs = opts?.sharedTrip ? POLL_INTERVAL_SHARED_MS : POLL_INTERVAL_MS;
 
   const [state, setState] = useState<NearbyState>({
     roamers: [],
@@ -53,8 +56,15 @@ export function useNearbyRoamers(opts?: { radiusKm?: number; enabled?: boolean }
         radius_km: radiusKm,
       });
 
+      // Drop roamers whose last ping is too old — they're no
+      // longer navigating and we shouldn't surface stale positions
+      const now = Date.now();
+      const activeRoamers = res.roamers.filter(
+        (r) => now - new Date(r.last_pinged_at).getTime() < STALE_PRESENCE_MS,
+      );
+
       // Notify for newly detected roamers
-      for (const r of res.roamers) {
+      for (const r of activeRoamers) {
         if (!seenRef.current.has(r.user_id)) {
           seenRef.current.add(r.user_id);
           roamNotify.nearbyRoamer(r.distance_km, cardinalDir(r.heading_deg));
@@ -62,13 +72,13 @@ export function useNearbyRoamers(opts?: { radiusKm?: number; enabled?: boolean }
       }
 
       // Clean up stale seen entries (roamers who left range)
-      const currentIds = new Set(res.roamers.map((r) => r.user_id));
+      const currentIds = new Set(activeRoamers.map((r) => r.user_id));
       for (const id of seenRef.current) {
         if (!currentIds.has(id)) seenRef.current.delete(id);
       }
 
       setState({
-        roamers: res.roamers,
+        roamers: activeRoamers,
         loading: false,
         lastChecked: new Date().toISOString(),
       });
@@ -85,12 +95,12 @@ export function useNearbyRoamers(opts?: { radiusKm?: number; enabled?: boolean }
 
     timerRef.current = setInterval(() => {
       void poll();
-    }, POLL_INTERVAL_MS);
+    }, intervalMs);
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [enabled, poll]);
+  }, [enabled, poll, intervalMs]);
 
   return state;
 }

@@ -5,7 +5,7 @@
 "use client";
 
 import { idbGetAll, idbPut, idbDel, idbGet, idbStores } from "./idb";
-import type { PlaceCategory } from "@/lib/types/places";
+import type { PlaceCategory, PlaceExtra } from "@/lib/types/places";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -21,6 +21,8 @@ export type SavedPlace = {
   /** Optional personal note */
   note: string | null;
   saved_at: string; // ISO-8601
+  /** Enriched place metadata (phone, website, hours, facilities, etc.) */
+  extra?: (PlaceExtra & Record<string, unknown>) | null;
 };
 
 // ── IDB store key ──────────────────────────────────────────────────────────
@@ -65,6 +67,7 @@ export async function savePlace(input: {
   lng: number;
   category: PlaceCategory;
   note?: string | null;
+  extra?: (PlaceExtra & Record<string, unknown>) | null;
 }): Promise<SavedPlace> {
   const items = await readAll();
   const existing = items.find((p) => p.place_id === input.place_id);
@@ -79,6 +82,7 @@ export async function savePlace(input: {
     category: input.category,
     note: input.note ?? null,
     saved_at: new Date().toISOString(),
+    extra: input.extra ?? null,
   };
 
   await writeAll([...items, entry]);

@@ -805,7 +805,10 @@ async function execToolCall(call: GuideToolCall, context: GuideContext): Promise
     }
     if (call.tool === "places_corridor") {
       const corridorReq = { ...call.req };
-      if (context.geometry && !corridorReq.geometry) {
+      if (corridorReq.corridor_key === "auto" && context.corridor_key) {
+        corridorReq.corridor_key = context.corridor_key;
+      }
+      if (context.geometry && (!corridorReq.geometry || corridorReq.geometry === "auto")) {
         corridorReq.geometry = context.geometry;
         corridorReq.buffer_km = corridorReq.buffer_km ?? 15;
       }
@@ -813,7 +816,11 @@ async function execToolCall(call: GuideToolCall, context: GuideContext): Promise
       return { id: call.id, tool: call.tool, ok: true, result: res };
     }
     if (call.tool === "places_suggest") {
-      const res = await placesApi.suggest(call.req);
+      const suggestReq = { ...call.req };
+      if (context.geometry && (!suggestReq.geometry || suggestReq.geometry === "auto")) {
+        suggestReq.geometry = context.geometry;
+      }
+      const res = await placesApi.suggest(suggestReq);
       return { id: call.id, tool: call.tool, ok: true, result: res };
     }
     // Exhaustive check - should never reach here with current union type

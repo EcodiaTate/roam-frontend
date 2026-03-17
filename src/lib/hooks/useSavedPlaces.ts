@@ -4,7 +4,7 @@
 // when the user is authenticated.
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import type { PlaceCategory, PlaceItem } from "@/lib/types/places";
 import {
   listSavedPlaces,
@@ -70,7 +70,7 @@ export function useSavedPlaces(): UseSavedPlacesResult {
     return () => { cancelled = true; };
   }, [reload]);
 
-  const savedIds = new Set(places.map((p) => p.place_id));
+  const savedIds = useMemo(() => new Set(places.map((p) => p.place_id)), [places]);
 
   const isSaved = useCallback(
     (placeId: string) => savedIds.has(placeId),
@@ -81,31 +81,54 @@ export function useSavedPlaces(): UseSavedPlacesResult {
   const toggleSave = useCallback(
     async (place: PlaceItem) => {
       if (savedIds.has(place.id)) {
-        // Unsave
-        await unsavePlace(place.id);
+        // Unsave — optimistic removal first
+        const snapshot = places;
         setPlaces((prev) => prev.filter((p) => p.place_id !== place.id));
 
-        // Cloud delete (best-effort)
         try {
+          await unsavePlace(place.id);
+          // Cloud delete (best-effort)
           const { data: { user } } = await supabase.auth.getUser();
           if (user) await cloudDeleteSavedPlace(place.id);
-        } catch {}
+        } catch {
+          // Revert on failure
+          setPlaces(snapshot);
+        }
       } else {
-        // Save
-        const entry = await savePlace({
+        // Save — optimistic insertion first with a provisional entry
+        const now = new Date().toISOString();
+        const provisional: SavedPlace = {
+          id: crypto.randomUUID(),
           place_id: place.id,
           name: place.name,
           lat: place.lat,
           lng: place.lng,
           category: place.category,
-        });
-        setPlaces((prev) => [entry, ...prev]);
+          extra: place.extra ?? null,
+          note: null,
+          saved_at: now,
+        };
+        const snapshot = places;
+        setPlaces((prev) => [provisional, ...prev]);
 
-        // Cloud upsert (best-effort)
         try {
+          const entry = await savePlace({
+            place_id: place.id,
+            name: place.name,
+            lat: place.lat,
+            lng: place.lng,
+            category: place.category,
+            extra: place.extra ?? null,
+          });
+          // Replace provisional with real entry (has correct IDB id)
+          setPlaces((prev) => prev.map((p) => p.id === provisional.id ? entry : p));
+          // Cloud upsert (best-effort)
           const { data: { user } } = await supabase.auth.getUser();
           if (user) await cloudUpsertSavedPlace(entry);
-        } catch {}
+        } catch {
+          // Revert on failure
+          setPlaces(snapshot);
+        }
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -113,28 +136,41 @@ export function useSavedPlaces(): UseSavedPlacesResult {
   );
 
   const removeSaved = useCallback(async (placeId: string) => {
-    await unsavePlace(placeId);
+    // Optimistic removal
+    const snapshot = places;
     setPlaces((prev) => prev.filter((p) => p.place_id !== placeId));
 
     try {
+      await unsavePlace(placeId);
       const { data: { user } } = await supabase.auth.getUser();
       if (user) await cloudDeleteSavedPlace(placeId);
-    } catch {}
-  }, []);
+    } catch {
+      // Revert on failure
+      setPlaces(snapshot);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [places]);
 
   const updateNote = useCallback(async (placeId: string, note: string | null) => {
-    await updateSavedPlaceNote(placeId, note);
+    // Optimistic note update
+    const prevNote = places.find((p) => p.place_id === placeId)?.note ?? null;
     setPlaces((prev) =>
       prev.map((p) => (p.place_id === placeId ? { ...p, note } : p)),
     );
 
     try {
+      await updateSavedPlaceNote(placeId, note);
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const updated = places.find((p) => p.place_id === placeId);
         if (updated) await cloudUpsertSavedPlace({ ...updated, note });
       }
-    } catch {}
+    } catch {
+      // Revert on failure
+      setPlaces((prev) =>
+        prev.map((p) => (p.place_id === placeId ? { ...p, note: prevNote } : p)),
+      );
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [places]);
 

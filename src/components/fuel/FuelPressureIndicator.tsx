@@ -15,9 +15,11 @@ const pillBase: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
   gap: 6,
-  padding: "6px 12px",
+  padding: "7px 14px",
   borderRadius: 999,
-  boxShadow: "0 4px 16px rgba(0,0,0,0.2), 0 1px 4px rgba(0,0,0,0.1)",
+  backdropFilter: "blur(16px)",
+  WebkitBackdropFilter: "blur(16px)",
+  boxShadow: "0 4px 16px rgba(0,0,0,0.25), 0 1px 4px rgba(0,0,0,0.15)",
   fontWeight: 900,
   fontSize: 12,
   letterSpacing: "-0.2px",
@@ -42,22 +44,22 @@ const LEVEL_STYLES: Record<PressureLevel, {
   border: string;
 }> = {
   ok: {
-    bg: "#16a34a",
-    text: "#ffffff",
-    icon: "#ffffff",
-    border: "none",
+    bg: "linear-gradient(160deg, rgba(45,110,64,0.95) 0%, rgba(31,82,54,0.98) 100%)",
+    text: "var(--on-color)",
+    icon: "var(--on-color)",
+    border: "1px solid rgba(45,110,64,0.35)",
   },
   warn: {
-    bg: "#d97706",
-    text: "#ffffff",
-    icon: "#ffffff",
-    border: "none",
+    bg: "linear-gradient(160deg, rgba(184,135,42,0.95) 0%, rgba(148,107,30,0.98) 100%)",
+    text: "var(--on-color)",
+    icon: "var(--on-color)",
+    border: "1px solid rgba(184,135,42,0.35)",
   },
   critical: {
-    bg: "#ef4444",
-    text: "#ffffff",
-    icon: "#ffffff",
-    border: "none",
+    bg: "linear-gradient(160deg, rgba(181,69,46,0.95) 0%, rgba(145,50,30,0.98) 100%)",
+    text: "var(--on-color)",
+    icon: "var(--on-color)",
+    border: "1px solid rgba(181,69,46,0.35)",
   },
 };
 

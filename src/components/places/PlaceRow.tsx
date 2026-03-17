@@ -45,9 +45,11 @@ export const PlaceRow = memo(function PlaceRow({ place, distKm, ahead, onSelect,
   if (extra.has_lpg) pills.push("LPG");
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onClick={() => { haptic.selection(); onSelect?.(place); }}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); haptic.selection(); onSelect?.(place); } }}
       style={{
         width: "100%",
         display: "flex",
@@ -179,6 +181,6 @@ export const PlaceRow = memo(function PlaceRow({ place, distKm, ahead, onSelect,
           <Bookmark size={16} fill={isSaved ? "currentColor" : "none"} />
         </button>
       )}
-    </button>
+    </div>
   );
 });

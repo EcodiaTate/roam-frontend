@@ -4,9 +4,11 @@
 "use client";
 
 import {
+  memo,
   useCallback,
   useDeferredValue,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -17,6 +19,7 @@ import {
   searchPlaces,
   countByCategoryFiltered,
   type PlaceFilter,
+  type SearchResult,
   type UserPosition,
 } from "@/lib/places/offlineSearch";
 import { haptic } from "@/lib/native/haptics";
@@ -24,7 +27,6 @@ import { haptic } from "@/lib/native/haptics";
 import { fmtCat } from "@/lib/places/format";
 import { TogglePill } from "@/components/ui/TogglePill";
 import { PlaceRow } from "@/components/places/PlaceRow";
-import { SavedPlacesPanel } from "@/components/places/SavedPlacesPanel";
 import { useSavedPlaces } from "@/lib/hooks/useSavedPlaces";
 import type { SavedPlace } from "@/lib/offline/savedPlacesStore";
 
@@ -38,7 +40,6 @@ import {
   ArrowUpDown,
   MapPin,
   Layers,
-  Bookmark,
   Fuel,
   Zap,
   ParkingMeter,
@@ -249,6 +250,77 @@ function savePersistedState(s: PersistedState) {
 }
 
 // ──────────────────────────────────────────────────────────────
+// Progressively-rendered list — renders in batches to avoid
+// blocking the main thread when switching to the Places tab.
+// First INITIAL_BATCH items render immediately; the rest load
+// in BATCH_SIZE chunks via rAF so scrolling stays smooth.
+// Each row uses content-visibility:auto for browser-level skip.
+// ──────────────────────────────────────────────────────────────
+
+const INITIAL_BATCH = 20;
+const BATCH_SIZE = 40;
+const ROW_HEIGHT_ESTIMATE = 60; // px — used for content-visibility containment
+
+type VirtualListProps = {
+  items: SearchResult[];
+  savedIds: Set<string>;
+  onSelect?: (p: PlaceItem) => void;
+  onToggleSave: (p: PlaceItem) => void;
+};
+
+const VirtualList = memo(function VirtualList({
+  items,
+  savedIds,
+  onSelect,
+  onToggleSave,
+}: VirtualListProps) {
+  const [rendered, setRendered] = useState(INITIAL_BATCH);
+  const rafRef = useRef(0);
+
+  // Reset rendered count when items change (new search/filter)
+  useLayoutEffect(() => {
+    setRendered(INITIAL_BATCH);
+    cancelAnimationFrame(rafRef.current);
+  }, [items]);
+
+  // Progressively render more rows via rAF batches
+  useEffect(() => {
+    if (rendered >= items.length) return;
+
+    rafRef.current = requestAnimationFrame(() => {
+      setRendered((prev) => Math.min(prev + BATCH_SIZE, items.length));
+    });
+
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [rendered, items.length]);
+
+  const visible = items.length <= INITIAL_BATCH ? items : items.slice(0, rendered);
+
+  return (
+    <>
+      {visible.map(({ place, distKm, ahead }) => (
+        <div
+          key={place.id}
+          style={{
+            contentVisibility: "auto",
+            containIntrinsicHeight: ROW_HEIGHT_ESTIMATE,
+          } as React.CSSProperties}
+        >
+          <PlaceRow
+            place={place}
+            distKm={distKm}
+            ahead={ahead}
+            onSelect={onSelect}
+            isSaved={savedIds.has(place.id)}
+            onToggleSave={onToggleSave}
+          />
+        </div>
+      ))}
+    </>
+  );
+});
+
+// ──────────────────────────────────────────────────────────────
 // Component
 // ──────────────────────────────────────────────────────────────
 
@@ -273,14 +345,34 @@ export function PlaceSearchPanel({
   tripProgress,
   userPosition: userPositionProp,
   onSelectPlace,
-  onAddSavedToTrip,
+  onAddSavedToTrip: _onAddSavedToTrip,
   onFilteredIdsChange,
   onShowOnMap,
   maxHeight = "calc(100vh - 200px)",
 }: PlaceSearchPanelProps) {
-  const [activeTab, setActiveTab] = useState<"search" | "saved">("saved");
-  const { places: savedPlaces, isLoading: savedLoading, removeSaved, updateNote, toggleSave } = useSavedPlaces();
-  const items = useMemo(() => places?.items ?? [], [places]);
+  const { savedIds, toggleSave } = useSavedPlaces();
+  const packItems = useMemo(() => places?.items ?? [], [places]);
+
+  // Merge saved places into the searchable pool — convert SavedPlace → PlaceItem
+  // and deduplicate (pack items take priority since they have richer extra data).
+  // NOTE: savedIds is a Set<string> — we use it for the merge check too.
+  const { places: savedPlaces } = useSavedPlaces();
+  const items = useMemo(() => {
+    if (savedPlaces.length === 0) return packItems;
+    const existingIds = new Set(packItems.map((p) => p.id));
+    const converted: PlaceItem[] = savedPlaces
+      .filter((sp) => !existingIds.has(sp.place_id))
+      .map((sp) => ({
+        id: sp.place_id,
+        name: sp.name,
+        lat: sp.lat,
+        lng: sp.lng,
+        category: sp.category,
+        ...(sp.extra ? { extra: sp.extra } : {}),
+      }));
+    if (converted.length === 0) return packItems;
+    return [...packItems, ...converted];
+  }, [packItems, savedPlaces]);
 
   // ── Load persisted state ──────────────────────────────────────
   const persisted = useMemo(() => loadPersistedState(), []);
@@ -466,51 +558,6 @@ export function PlaceSearchPanel({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0, height: "100%" }}>
-
-      {/* ── Tab switcher: Saved / Search ─────────────────────────── */}
-      <div
-        style={{
-          display: "flex",
-          gap: 6,
-          padding: "10px 16px 0",
-          flexShrink: 0,
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => { haptic.selection(); setActiveTab("saved"); }}
-          style={tabStyle(activeTab === "saved")}
-        >
-          <Bookmark size={13} fill={activeTab === "saved" ? "currentColor" : "none"} />
-          Saved
-          {savedPlaces.length > 0 && (
-            <span style={badgeStyle(activeTab === "saved")}>{savedPlaces.length}</span>
-          )}
-        </button>
-        <button
-          type="button"
-          onClick={() => { haptic.selection(); setActiveTab("search"); }}
-          style={tabStyle(activeTab === "search")}
-        >
-          <Search size={13} />
-          Search
-        </button>
-      </div>
-
-      {/* ── Saved tab ────────────────────────────────────────────── */}
-      {activeTab === "saved" && (
-        <SavedPlacesPanel
-          places={savedPlaces}
-          isLoading={savedLoading}
-          onAddToTrip={onAddSavedToTrip}
-          onRemove={(placeId) => removeSaved(placeId)}
-          onUpdateNote={(placeId, note) => updateNote(placeId, note)}
-          maxHeight={maxHeight}
-        />
-      )}
-
-      {/* ── Search tab ───────────────────────────────────────────── */}
-      {activeTab === "search" && (<>
 
       {/* ── Search bar ──────────────────────────────────────────── */}
       <div
@@ -838,20 +885,14 @@ export function PlaceSearchPanel({
             )}
           </div>
         ) : (
-          sorted.map(({ place, distKm, ahead }) => (
-            <PlaceRow
-              key={place.id}
-              place={place}
-              distKm={distKm}
-              ahead={ahead}
-              onSelect={onSelectPlace}
-              isSaved={savedPlaces.some((s) => s.place_id === place.id)}
-              onToggleSave={toggleSave}
-            />
-          ))
+          <VirtualList
+            items={sorted}
+            savedIds={savedIds}
+            onSelect={onSelectPlace}
+            onToggleSave={toggleSave}
+          />
         )}
       </div>
-      </>)}
     </div>
   );
 }
@@ -895,22 +936,3 @@ function badgeStyle(active: boolean): React.CSSProperties {
   };
 }
 
-function tabStyle(active: boolean): React.CSSProperties {
-  return {
-    flex: 1,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    padding: "8px 12px",
-    borderRadius: 12,
-    border: "none",
-    fontSize: 13,
-    fontWeight: 800,
-    cursor: "pointer",
-    background: active ? "var(--roam-accent)" : "var(--roam-surface-hover)",
-    color: active ? "var(--on-color)" : "var(--roam-text-muted)",
-    transition: "background 120ms ease, color 120ms ease",
-    outline: "none",
-  };
-}

@@ -45,17 +45,46 @@ export function TripSkeleton() {
         }}
       />
 
+      {/* ── Map layers button (top-right) — matches TripMap ── */}
+      <div style={{
+        position: "absolute",
+        top: "calc(env(safe-area-inset-top, 0px) + 56px)",
+        right: 12,
+        zIndex: 25,
+      }}>
+        <Skel w={46} h={46} r={16} delay={0.1} style={{
+          background: "linear-gradient(160deg, rgba(26,21,16,0.96) 0%, rgba(16,13,10,0.98) 100%)",
+        }} />
+      </div>
+
+      {/* ── Side FAB stack (Exchange + Report) — matches ClientPage ── */}
+      <div style={{
+        position: "absolute",
+        bottom: "calc(220px + var(--roam-safe-bottom, 0px) + 24px)",
+        right: 12,
+        zIndex: 18,
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+        alignItems: "flex-end",
+      }}>
+        <Skel w={46} h={46} r={16} delay={0.25} style={{
+          background: "linear-gradient(160deg, rgba(26,21,16,0.96) 0%, rgba(16,13,10,0.98) 100%)",
+        }} />
+        <Skel w={46} h={46} r={16} delay={0.3} style={{
+          background: "linear-gradient(160deg, rgba(26,21,16,0.96) 0%, rgba(16,13,10,0.98) 100%)",
+        }} />
+      </div>
+
       {/* ── Bottom sheet — collapsed position matching ClientPage peek ── */}
       <div
         className="trip-bottom-sheet"
         style={{
           position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: "calc(100% - 80px)",
+          bottom: -200, left: 0, right: 0,
+          height: "calc(100% - 80px + 200px)",
           zIndex: 20,
-          transform: "translateY(calc(100% - 220px - var(--roam-safe-bottom, 0px)))",
+          transform: "translateY(calc(100% - 420px - var(--roam-safe-bottom, 0px)))",
         }}
       >
         {/* Drag handle */}

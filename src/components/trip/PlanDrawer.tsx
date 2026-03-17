@@ -28,7 +28,6 @@ import { InviteCodeModal } from "@/components/plans/InviteCodeModal";
 import { TripShareModal } from "@/components/share/TripShareModal";
 import { NativeShareRenderer } from "@/components/share/NativeShareRenderer";
 import type { ShareCardData } from "@/components/share/TripShareCard";
-import { AiTripModal, AI_TRIP_SEED_KEY, type AiTripSeed } from "@/components/trip/AiTripModal";
 import { getMemoryPromptsEnabled, setMemoryPromptsEnabled } from "@/lib/hooks/useStopProximity";
 import { haptic } from "@/lib/native/haptics";
 import { isNative } from "@/lib/native/platform";
@@ -603,12 +602,15 @@ export function PlanDrawer({
   open,
   onClose,
   onNewTrip,
+  onAiTrip,
 }: {
   open: boolean;
   onClose: () => void;
   currentPlanId?: string | null;
   /** Called when "New" is tapped. If provided, replaces the default router.push("/new"). */
   onNewTrip?: () => void;
+  /** Called when the AI button is tapped. If provided, opens AI planner inline; otherwise navigates to /new. */
+  onAiTrip?: () => void;
 }) {
   const router = useRouter();
   const { user } = useAuth();
@@ -627,9 +629,6 @@ export function PlanDrawer({
   // Share card state (web modal / native renderer)
   const [shareCardData, setShareCardData] = useState<ShareCardData | null>(null);
   const [nativeSharePayload, setNativeSharePayload] = useState<{ data: ShareCardData; label: string } | null>(null);
-
-  // AI trip modal state
-  const [aiOpen, setAiOpen] = useState(false);
 
   // Memory prompts toggle
   const [memPromptsOn, setMemPromptsOn] = useState(true);
@@ -782,20 +781,6 @@ export function PlanDrawer({
     setInviteMode("redeem");
     setInviteOpen(true);
   }, []);
-
-  const handleAiConfirm = useCallback(
-    (seed: AiTripSeed) => {
-      try {
-        sessionStorage.setItem(AI_TRIP_SEED_KEY, JSON.stringify(seed));
-      } catch {
-        // sessionStorage unavailable — proceed anyway, /new will just start empty
-      }
-      setAiOpen(false);
-      onClose();
-      router.push("/new");
-    },
-    [onClose, router],
-  );
 
   const handleLabelChanged = useCallback(
     (planId: string, label: string | null) => {
@@ -959,30 +944,32 @@ export function PlanDrawer({
               <Link2 size={14} />
               Join
             </button>
-            <button
-              type="button"
-              onClick={() => { haptic.light(); setAiOpen(true); }}
-              style={{
-                all: "unset",
-                cursor: "pointer",
-                flex: 1,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 5,
-                height: 42,
-                borderRadius: 10,
-                background: "var(--roam-surface-hover)",
-                border: "1px solid var(--brand-sky, #38bdf8)",
-                color: "var(--brand-sky, #38bdf8)",
-                fontSize: 13,
-                fontWeight: 700,
-                WebkitTapHighlightColor: "transparent",
-              }}
-            >
-              <Sparkles size={14} />
-              AI
-            </button>
+            {onAiTrip && (
+              <button
+                type="button"
+                onClick={() => { haptic.light(); onClose(); onAiTrip(); }}
+                style={{
+                  all: "unset",
+                  cursor: "pointer",
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 5,
+                  height: 42,
+                  borderRadius: 10,
+                  background: "var(--roam-surface-hover)",
+                  border: "1px solid var(--brand-sky, #38bdf8)",
+                  color: "var(--brand-sky, #38bdf8)",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  WebkitTapHighlightColor: "transparent",
+                }}
+              >
+                <Sparkles size={14} />
+                AI
+              </button>
+            )}
             <button
               type="button"
               onClick={() => {
@@ -1182,13 +1169,6 @@ export function PlanDrawer({
           onError={() => setNativeSharePayload(null)}
         />
       )}
-
-      {/* AI trip generator modal */}
-      <AiTripModal
-        open={aiOpen}
-        onClose={() => setAiOpen(false)}
-        onConfirm={handleAiConfirm}
-      />
 
       {/* fadeIn animation now handled by roam-fade-in in globals.css */}
     </>

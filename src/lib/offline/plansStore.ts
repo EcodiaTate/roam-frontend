@@ -171,11 +171,16 @@ export async function saveMinimalPlan(args: {
     profile,
   };
 
+  // Merge with existing record to preserve sync metadata (is_shared, share_code, label)
+  // set by pullRemote for redeemed/shared plans
+  const existing = await idbGet<OfflinePlanRecord>(idbStores.plans, plan_id);
+
   const rec: OfflinePlanRecord = {
+    ...existing,
     plan_id,
     route_key: navPack.primary.route_key,
-    created_at: now,
-    label: null,
+    created_at: existing?.created_at ?? now,
+    label: existing?.label ?? null,
     saved_at: now,
     preview,
   };

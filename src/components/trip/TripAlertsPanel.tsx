@@ -1095,6 +1095,8 @@ export function AlertCard({
     ? highlighted ? "var(--roam-danger)" : "var(--roam-border-strong)"
     : highlighted ? alert.sevColor : `color-mix(in srgb, ${alert.sevColor} 18%, transparent)`;
 
+  const hasInsights = !compact && (alert.insight.expectedDelay || alert.insight.recommendation || alert.insight.safetyWarning);
+
   return (
     <div
       onClick={handleTap}
@@ -1107,6 +1109,7 @@ export function AlertCard({
       }}
     >
       <div style={{ display: "flex", alignItems: "flex-start", gap: compact ? 8 : 10 }}>
+        {/* Icon */}
         <div style={{
           width: compact ? 30 : 34, height: compact ? 30 : 34, borderRadius: compact ? 9 : 10,
           background: isBlocker ? "var(--danger-tint)" : `color-mix(in srgb, ${alert.sevColor} 12%, var(--roam-surface))`,
@@ -1116,6 +1119,7 @@ export function AlertCard({
           {isBlocker ? <Ban size={compact ? 14 : 16} color="var(--roam-danger)" strokeWidth={2.5} /> : <AlertIcon iconKey={alert.iconKey} size={compact ? 14 : 16} />}
         </div>
 
+        {/* Content — uses a 2-column grid for non-compact cards with insights */}
         <div style={{ flex: 1, minWidth: 0 }}>
           {alert.contextLabel && (
             <div style={{
@@ -1127,72 +1131,88 @@ export function AlertCard({
             </div>
           )}
 
-          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-            <span style={{
-              fontSize: compact ? 12 : 13, fontWeight: 950, color: "var(--roam-text)",
-              lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis",
-              whiteSpace: compact ? "nowrap" : undefined,
-            }}>
-              {alert.headline}
-            </span>
-            {!compact && (
-              <>
+          {/* Two-column layout: left = headline+meta, right = insights */}
+          <div style={hasInsights ? {
+            display: "grid",
+            gridTemplateColumns: "1fr auto",
+            gap: "0 14px",
+            alignItems: "center",
+          } : undefined}>
+            {/* Left column: headline, badges, metadata */}
+            <div style={{ minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                 <span style={{
-                  fontSize: 9, fontWeight: 950, color: alert.sevColor,
-                  background: `color-mix(in srgb, ${alert.sevColor} 12%, transparent)`,
-                  padding: "2px 6px", borderRadius: 6,
-                  textTransform: "uppercase", letterSpacing: "0.5px", flexShrink: 0,
+                  fontSize: compact ? 12 : 13, fontWeight: 950, color: "var(--roam-text)",
+                  lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis",
+                  whiteSpace: compact ? "nowrap" : undefined,
                 }}>
-                  {alert.sevLabel}
+                  {alert.headline}
                 </span>
-                {(alert.routeImpact === "blocks_route" || alert.routeImpact === "affects_route") && (
-                  <span style={{
-                    fontSize: 9, fontWeight: 950, color: impactCfg.color,
-                    background: impactCfg.bg, padding: "2px 6px", borderRadius: 6,
-                    textTransform: "uppercase", letterSpacing: "0.5px", flexShrink: 0,
-                  }}>
-                    {impactCfg.label}
-                  </span>
+                {!compact && (
+                  <>
+                    <span style={{
+                      fontSize: 9, fontWeight: 950, color: alert.sevColor,
+                      background: `color-mix(in srgb, ${alert.sevColor} 12%, transparent)`,
+                      padding: "2px 6px", borderRadius: 6,
+                      textTransform: "uppercase", letterSpacing: "0.5px", flexShrink: 0,
+                    }}>
+                      {alert.sevLabel}
+                    </span>
+                    {(alert.routeImpact === "blocks_route" || alert.routeImpact === "affects_route") && (
+                      <span style={{
+                        fontSize: 9, fontWeight: 950, color: impactCfg.color,
+                        background: impactCfg.bg, padding: "2px 6px", borderRadius: 6,
+                        textTransform: "uppercase", letterSpacing: "0.5px", flexShrink: 0,
+                      }}>
+                        {impactCfg.label}
+                      </span>
+                    )}
+                  </>
                 )}
-              </>
+              </div>
+
+              {!compact && (
+                <div style={{ display: "flex", gap: 6, marginTop: 3, fontSize: 10, fontWeight: 700, color: "var(--roam-text-muted)" }}>
+                  {alert.typeLabel !== "unknown" && <span style={{ textTransform: "capitalize" }}>{alert.typeLabel}</span>}
+                  {alert.source && <span>· {alert.source}</span>}
+                  {alert.timestamp && <span>· {timeAgo(alert.timestamp)}</span>}
+                </div>
+              )}
+            </div>
+
+            {/* Right column: synthesized insights (compact vertical list) */}
+            {hasInsights && (
+              <div style={{
+                display: "flex", flexDirection: "column", gap: 3,
+                paddingLeft: 10,
+                borderLeft: `2px solid color-mix(in srgb, ${isBlocker ? "var(--roam-danger)" : alert.sevColor} 20%, transparent)`,
+                whiteSpace: "nowrap",
+              }}>
+                {alert.insight.expectedDelay && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 750, color: "var(--roam-text)" }}>
+                    <Timer size={10} strokeWidth={2.5} color="var(--roam-text-muted)" style={{ flexShrink: 0 }} />
+                    {alert.insight.expectedDelay}
+                  </div>
+                )}
+                {alert.insight.recommendation && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 750, color: isBlocker ? "var(--roam-danger)" : "var(--roam-text)" }}>
+                    <Navigation size={10} strokeWidth={2.5} color={isBlocker ? "var(--roam-danger)" : "var(--roam-info)"} style={{ flexShrink: 0 }} />
+                    {alert.insight.recommendation}
+                  </div>
+                )}
+                {alert.insight.safetyWarning && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 800, color: "var(--roam-danger)" }}>
+                    <ShieldAlert size={10} strokeWidth={2.5} color="var(--roam-danger)" style={{ flexShrink: 0 }} />
+                    {alert.insight.safetyWarning}
+                  </div>
+                )}
+                <div style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 9, fontWeight: 800 }}>
+                  <CircleCheck size={8} strokeWidth={2.5} color={alert.insight.confidenceColor} style={{ flexShrink: 0 }} />
+                  <span style={{ color: alert.insight.confidenceColor }}>{alert.insight.confidenceLabel}</span>
+                </div>
+              </div>
             )}
           </div>
-
-          {!compact && (
-            <div style={{ display: "flex", gap: 6, marginTop: 3, fontSize: 10, fontWeight: 700, color: "var(--roam-text-muted)" }}>
-              {alert.typeLabel !== "unknown" && <span style={{ textTransform: "capitalize" }}>{alert.typeLabel}</span>}
-              {alert.source && <span>· {alert.source}</span>}
-              {alert.timestamp && <span>· {timeAgo(alert.timestamp)}</span>}
-            </div>
-          )}
-
-          {/* ── Synthesized insights ── */}
-          {!compact && (alert.insight.expectedDelay || alert.insight.recommendation || alert.insight.safetyWarning) && (
-            <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 4 }}>
-              {alert.insight.expectedDelay && (
-                <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 750, color: "var(--roam-text)" }}>
-                  <Timer size={11} strokeWidth={2.5} color="var(--roam-text-muted)" style={{ flexShrink: 0 }} />
-                  {alert.insight.expectedDelay}
-                </div>
-              )}
-              {alert.insight.recommendation && (
-                <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 750, color: isBlocker ? "var(--roam-danger)" : "var(--roam-text)" }}>
-                  <Navigation size={11} strokeWidth={2.5} color={isBlocker ? "var(--roam-danger)" : "var(--roam-info)"} style={{ flexShrink: 0 }} />
-                  {alert.insight.recommendation}
-                </div>
-              )}
-              {alert.insight.safetyWarning && (
-                <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 800, color: "var(--roam-danger)" }}>
-                  <ShieldAlert size={11} strokeWidth={2.5} color="var(--roam-danger)" style={{ flexShrink: 0 }} />
-                  {alert.insight.safetyWarning}
-                </div>
-              )}
-              <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 800 }}>
-                <CircleCheck size={9} strokeWidth={2.5} color={alert.insight.confidenceColor} style={{ flexShrink: 0 }} />
-                <span style={{ color: alert.insight.confidenceColor }}>{alert.insight.confidenceLabel}</span>
-              </div>
-            </div>
-          )}
 
           {expanded && alert.description && (
             <div style={{ marginTop: 6, fontSize: 12, fontWeight: 600, color: "var(--roam-text-muted)", lineHeight: 1.5 }}>
@@ -1201,6 +1221,7 @@ export function AlertCard({
           )}
         </div>
 
+        {/* Right controls: dismiss, dot, expand */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, flexShrink: 0, paddingTop: 2 }}>
           {onDismiss && (
             <div

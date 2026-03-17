@@ -4,8 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { usePlanSync } from "@/lib/hooks/usePlanSync";
-import { useBundleBuilder } from "@/lib/hooks/useBundleBuilder";
-import { getOfflinePlan, setCurrentPlanId } from "@/lib/offline/plansStore";
+import { getOfflinePlan, setCurrentPlanId, saveMinimalPlan } from "@/lib/offline/plansStore";
+import { navApi } from "@/lib/api/nav";
 import { haptic } from "@/lib/native/haptics";
 import { toErrorMessage } from "@/lib/utils/errors";
 import { hideKeyboard } from "@/lib/native/keyboard";
@@ -27,7 +27,6 @@ type AnimState = "entering" | "open" | "exiting" | "closed";
 export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Props) {
   const router = useRouter();
   const { createInvite, redeemInvite, online } = usePlanSync();
-  const bundle = useBundleBuilder();
 
   const [code, setCode] = useState("");
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
@@ -37,9 +36,14 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
   const [anim, setAnim] = useState<AnimState>("closed");
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // Track whether we're mounted (needed for portal target)
+  // Track whether we're mounted (needed for portal target + abort stale async)
   const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    setMounted(true);
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   // Drive enter/exit animation
   useEffect(() => {
@@ -126,32 +130,50 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
     setError(null);
 
     try {
+      // 1. Redeem invite → pulls plan stub to IDB (preview with stops/geometry)
       const joinedPlanId = await redeemInvite(trimmed);
+      if (!mountedRef.current) return;
+
       const stub = await getOfflinePlan(joinedPlanId);
 
-      if (!stub?.preview?.stops?.length) {
-        throw new Error("Joined plan has no route data. Ask the owner to re-share.");
+      if (!stub) {
+        throw new Error("Plan not synced. Check your connection and try again.");
+      }
+      if (!stub.preview?.stops?.length) {
+        throw new Error("Plan has no route. The owner may need to re-share.");
       }
 
-      await bundle.build({
-        plan_id: joinedPlanId,
+      // 2. Route the plan to get a NavPack (same as /new saveAndGo)
+      const profile = stub.preview.profile || "drive";
+      const pack = await navApi.route({
+        profile,
         stops: stub.preview.stops,
-        profile: stub.preview.profile || "drive",
-        styleId: "roam-basemap-vector-bright",
+      });
+      if (!mountedRef.current) return;
+
+      // 3. Save as minimal plan (navpack in IDB) — enrichment on /trip
+      await saveMinimalPlan({
+        plan_id: joinedPlanId,
+        navPack: pack,
+        stops: stub.preview.stops,
+        profile,
       });
 
+      // 4. Set current + navigate immediately (enrichment happens in background)
       await setCurrentPlanId(joinedPlanId);
+      if (!mountedRef.current) return;
+
       haptic.success();
-      
       onRedeemed?.(joinedPlanId);
       onClose();
       router.push(`/trip?plan_id=${encodeURIComponent(joinedPlanId)}`);
     } catch (e: unknown) {
+      if (!mountedRef.current) return;
       setError(toErrorMessage(e, "Failed to join plan"));
     } finally {
-      setBusy(false);
+      if (mountedRef.current) setBusy(false);
     }
-  }, [code, redeemInvite, online, bundle, onRedeemed, onClose, router]);
+  }, [code, redeemInvite, online, onRedeemed, onClose, router]);
 
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleCopy = useCallback(() => {
@@ -167,8 +189,6 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
   // ── Don't render until client-mounted, and not when closed ─────────
   if (!mounted || anim === "closed") return null;
 
-  const isBuilding = bundle.building;
-  const buildingOrBusy = busy || isBuilding;
   const isVisible = anim === "open";
   const isExiting = anim === "exiting";
 
@@ -226,7 +246,7 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
           <button
             type="button"
             onClick={handleClose}
-            disabled={isBuilding}
+            disabled={busy}
             style={{
               border: "none",
               margin: 0,
@@ -324,86 +344,67 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
         ) : (
           /* ── Redeem mode ────────────────────────────────────────── */
           <div style={{ padding: "8px 0" }}>
-            {isBuilding ? (
-              <div style={{ textAlign: "center", padding: "20px 0" }}>
-                <div
-                  style={{
-                    width: 40,
-                    height: 40,
-                    margin: "0 auto 16px",
-                    border: "3px solid var(--roam-border, #333)",
-                    borderTop: "3px solid var(--brand-sky, #3b82f6)",
-                    borderRadius: "50%",
-                    animation: "roam-spin 0.6s linear infinite",
-                  }}
-                />
-                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6, color: "var(--roam-text, #eee)" }}>
-                  Building offline bundle…
-                </div>
-                <div style={{ fontSize: 13, color: "var(--roam-text-muted)" }}>
-                  {bundle.statusText}
-                </div>
-              </div>
-            ) : (
-              <>
-                <div style={{ fontSize: 13, color: "var(--roam-text-muted)", marginBottom: 12 }}>
-                  Enter the 6-character code from your travel partner
-                </div>
-                <input
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.toUpperCase())}
-                  placeholder="e.g. A3BX7K"
-                  maxLength={6}
-                  autoFocus
-                  disabled={buildingOrBusy}
-                  style={{
-                    width: "100%",
-                    boxSizing: "border-box",
-                    textAlign: "center",
-                    fontSize: 24,
-                    fontWeight: 700,
-                    letterSpacing: "0.2em",
-                    fontFamily: "monospace",
-                    padding: "14px",
-                    borderRadius: 12,
-                    border: "1.5px solid var(--roam-border, #333)",
-                    background: "var(--roam-surface-raised, #222)",
-                    color: "var(--roam-text, #eee)",
-                    outline: "none",
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={handleRedeem}
-                  disabled={buildingOrBusy || code.trim().length < 4}
-                  style={{
-                    width: "100%",
-                    marginTop: 16,
-                    background: "var(--brand-sky, #3b82f6)",
-                    color: "#fff",
-                    border: "none",
-                    padding: "14px",
-                    borderRadius: 12,
-                    fontSize: 15,
-                    fontWeight: 700,
-                    opacity: buildingOrBusy || code.trim().length < 4 ? 0.5 : 1,
-                    cursor: "pointer",
-                  }}
-                >
-                  {busy && !isBuilding ? "Joining…" : "Join plan"}
-                </button>
-              </>
-            )}
+            <div style={{ fontSize: 13, color: "var(--roam-text-muted)", marginBottom: 12 }}>
+              Enter the 6-character code from your travel partner
+            </div>
+            <input
+              value={code}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && code.trim().length >= 4 && !busy) {
+                  handleRedeem();
+                }
+              }}
+              placeholder="e.g. A3BX7K"
+              maxLength={6}
+              autoFocus
+              disabled={busy}
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                textAlign: "center",
+                fontSize: 24,
+                fontWeight: 700,
+                letterSpacing: "0.2em",
+                fontFamily: "monospace",
+                padding: "14px",
+                borderRadius: 12,
+                border: "1.5px solid var(--roam-border, #333)",
+                background: "var(--roam-surface-raised, #222)",
+                color: "var(--roam-text, #eee)",
+                outline: "none",
+              }}
+            />
+            <button
+              type="button"
+              onClick={handleRedeem}
+              disabled={busy || code.trim().length < 4}
+              style={{
+                width: "100%",
+                marginTop: 16,
+                background: "var(--brand-sky, #3b82f6)",
+                color: "#fff",
+                border: "none",
+                padding: "14px",
+                borderRadius: 12,
+                fontSize: 15,
+                fontWeight: 700,
+                opacity: busy || code.trim().length < 4 ? 0.5 : 1,
+                cursor: "pointer",
+              }}
+            >
+              {busy ? "Joining…" : "Join plan"}
+            </button>
           </div>
         )}
 
         {/* ── Error ───────────────────────────────────────────────── */}
-        {(error || bundle.error) && (
+        {error && (
           <div
             className="trip-err-box"
             style={{ marginTop: 16, textAlign: "center" }}
           >
-            {error || bundle.error}
+            {error}
           </div>
         )}
       </div>

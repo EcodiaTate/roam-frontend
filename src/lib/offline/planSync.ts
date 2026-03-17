@@ -18,7 +18,7 @@ import {
   type OfflinePlanRecord,
   type OfflinePlanPreview,
 } from "./plansStore";
-import { onPlanEvent, type PlanEventType, type PlanEventPayload } from "./planEvents";
+import { onPlanEvent, emitPlanEvent, type PlanEventType, type PlanEventPayload } from "./planEvents";
 
 /* ── Supabase row shape ──────────────────────────────────────────────── */
 
@@ -319,6 +319,12 @@ class PlanSyncManager {
               ...cloudToLocal(row),
             };
             await _putPlanRecordRaw(merged);
+
+            // Notify the trip view so it can react to remote changes
+            emitPlanEvent("plan:remote-updated", {
+              planId: row.plan_id,
+              routeKey: row.route_key,
+            });
           }
           // If local is newer, do nothing - drain will push it
         }
@@ -426,9 +432,46 @@ class PlanSyncManager {
       .eq("code", code.toUpperCase().trim());
 
     // 4. Pull the plan definition to local IDB
-    await this.pullRemote();
+    // Unlike the general pullRemote (which swallows errors for resilience),
+    // we need to know if the pull failed here — the caller depends on the
+    // plan stub being present in IDB before it can route.
+    await this._pullSinglePlan(invite.plan_id);
 
     return invite.plan_id;
+  }
+
+  /* ── Private: pull a single plan by ID (throws on failure) ────────── */
+
+  private async _pullSinglePlan(planId: string): Promise<void> {
+    const { data: row, error } = await supabase
+      .from("roam_plans")
+      .select("*")
+      .eq("plan_id", planId)
+      .maybeSingle();
+
+    if (error) throw new Error(`Failed to sync plan: ${error.message}`);
+    if (!row) throw new Error("Plan not found on server. It may have been deleted.");
+
+    const remoteRow = row as SupaPlanRow;
+    const local = await getOfflinePlan(planId);
+
+    if (!local) {
+      const newRec: OfflinePlanRecord = {
+        ...cloudToLocal(remoteRow),
+        plan_id: remoteRow.plan_id,
+        route_key: remoteRow.route_key,
+        created_at: remoteRow.created_at,
+        saved_at: remoteRow.updated_at,
+        is_shared: true,
+      };
+      await _putPlanRecordRaw(newRec);
+    } else {
+      const merged: OfflinePlanRecord = {
+        ...local,
+        ...cloudToLocal(remoteRow),
+      };
+      await _putPlanRecordRaw(merged);
+    }
   }
 
   /* ── Private: execute a single sync op ─────────────────────────────── */
@@ -538,6 +581,11 @@ class PlanSyncManager {
               is_shared: true,
             };
             await _putPlanRecordRaw(newRec);
+
+            emitPlanEvent("plan:remote-updated", {
+              planId: remoteRow.plan_id,
+              routeKey: remoteRow.route_key,
+            });
           } else {
             // Merge if remote is newer
             const remoteTime = new Date(remoteRow.updated_at).getTime();
@@ -549,6 +597,11 @@ class PlanSyncManager {
                 ...cloudToLocal(remoteRow),
               };
               await _putPlanRecordRaw(merged);
+
+              emitPlanEvent("plan:remote-updated", {
+                planId: row.plan_id,
+                routeKey: remoteRow.route_key,
+              });
             }
           }
 

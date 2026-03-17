@@ -69,10 +69,17 @@ type TypePickerProps = {
 
 export function ReportTypePicker({ onTypeSelected, onClose }: TypePickerProps) {
   const [mounted, setMounted] = useState(false);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     requestAnimationFrame(() => setMounted(true));
+    return () => { if (closeTimerRef.current) clearTimeout(closeTimerRef.current); };
   }, []);
+
+  const handleClose = useCallback(() => {
+    setMounted(false);
+    closeTimerRef.current = setTimeout(onClose, 370);
+  }, [onClose]);
 
   const handleSelect = useCallback(
     (type: ObservationType) => {
@@ -85,40 +92,46 @@ export function ReportTypePicker({ onTypeSelected, onClose }: TypePickerProps) {
   );
 
   return (
-    <div className="report-panel" data-mounted={mounted || undefined}>
-      <div className="report-header">
-        <span className="report-title">Report road intel</span>
-        <button onClick={onClose} className="report-close" aria-label="Close">
-          <X size={18} strokeWidth={2.5} />
-        </button>
-      </div>
+    <div
+      className="report-backdrop"
+      data-mounted={mounted || undefined}
+      onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
+    >
+      <div className="report-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="report-header">
+          <span className="report-title">Report road intel</span>
+          <button onClick={handleClose} className="report-close" aria-label="Close">
+            <X size={18} strokeWidth={2.5} />
+          </button>
+        </div>
 
-      <div className="report-grid">
-        {REPORT_OPTIONS.map((opt, i) => {
-          const Icon = opt.icon;
-          return (
-            <button
-              key={opt.type}
-              onClick={() => handleSelect(opt.type)}
-              className="report-type-btn"
-              style={{
-                "--btn-accent": opt.accent,
-                animationDelay: `${i * 40}ms`,
-              } as React.CSSProperties}
-            >
-              <div className="report-type-icon">
-                <Icon size={20} strokeWidth={1.8} />
-              </div>
-              <span className="report-type-label">{opt.label}</span>
-            </button>
-          );
-        })}
-      </div>
+        <div className="report-grid">
+          {REPORT_OPTIONS.map((opt, i) => {
+            const Icon = opt.icon;
+            return (
+              <button
+                key={opt.type}
+                onClick={() => handleSelect(opt.type)}
+                className="report-type-btn"
+                style={{
+                  "--btn-accent": opt.accent,
+                  animationDelay: `${i * 40}ms`,
+                } as React.CSSProperties}
+              >
+                <div className="report-type-icon">
+                  <Icon size={20} strokeWidth={1.8} />
+                </div>
+                <span className="report-type-label">{opt.label}</span>
+              </button>
+            );
+          })}
+        </div>
 
-      <p className="report-marker-hint">
-        <MapPin size={14} strokeWidth={2} />
-        Select a type, then place it on the map
-      </p>
+        <p className="report-marker-hint">
+          <MapPin size={14} strokeWidth={2} />
+          Select a type, then place it on the map
+        </p>
+      </div>
 
       <style>{pickerStyles}</style>
     </div>
@@ -153,27 +166,25 @@ export function ReportPlacementBar({ type, position, onSubmit, onCancel }: Place
   const handleSubmit = useCallback(async () => {
     if (!position) return;
 
-    setSubmitting(true);
-    try {
-      await onSubmit({
-        type,
-        severity: option.severity,
-        lat: position.lat,
-        lng: position.lng,
-        heading_deg: position.heading,
-        message: message.trim() || null,
-        value: value.trim() || null,
-      });
-
-      if (isNative && hasPlugin("Haptics")) {
-        Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
-      }
-
-      setSubmitted(true);
-      setTimeout(onCancel, 1200);
-    } catch {
-      setSubmitting(false);
+    // Optimistic: show success immediately, submit in background
+    if (isNative && hasPlugin("Haptics")) {
+      Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
     }
+    setSubmitted(true);
+    setTimeout(onCancel, 1200);
+
+    // Fire-and-forget — submit in background
+    onSubmit({
+      type,
+      severity: option.severity,
+      lat: position.lat,
+      lng: position.lng,
+      heading_deg: position.heading,
+      message: message.trim() || null,
+      value: value.trim() || null,
+    }).catch(() => {
+      // Silent — observation will be retried or lost. Better UX than blocking.
+    });
   }, [type, option.severity, position, message, value, onSubmit, onCancel]);
 
   if (submitted) {
@@ -280,21 +291,40 @@ const pickerStyles = /* css */ `
     to { opacity: 1; transform: translateY(0); }
   }
 
+  .report-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: rgba(10, 8, 6, 0.55);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    opacity: 0;
+    transition: opacity var(--dur-slow, 350ms) var(--ease-out, ease-out);
+  }
+  .report-backdrop[data-mounted] {
+    opacity: 1;
+  }
+
   .report-panel {
     padding: var(--space-lg);
-    background: color-mix(in srgb, var(--surface-card) 92%, transparent);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    background: var(--surface-card);
     border-radius: var(--r-card);
     box-shadow: var(--shadow-heavy), 0 0 0 1px color-mix(in srgb, var(--roam-border) 40%, transparent);
-    max-width: 360px;
     width: 100%;
-    opacity: 0;
-    transform: translateY(8px) scale(0.97);
-    transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--spring);
+    max-width: 380px;
+    min-height: 320px;
+    max-height: calc(100dvh - 100px);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    transform: translateY(10px) scale(0.97);
+    transition: transform var(--dur-slow) var(--spring);
   }
-  .report-panel[data-mounted] {
-    opacity: 1;
+  .report-backdrop[data-mounted] .report-panel {
     transform: translateY(0) scale(1);
   }
 
@@ -335,6 +365,8 @@ const pickerStyles = /* css */ `
     grid-template-columns: 1fr 1fr;
     gap: var(--space-xs);
     margin-bottom: var(--space-sm);
+    flex: 1;
+    align-content: start;
   }
 
   .report-type-btn {

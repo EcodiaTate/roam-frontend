@@ -41,6 +41,7 @@ import {
   type AlertHighlightEvent,
 } from "@/components/trip/TripAlertsPanel";
 import { PlaceSearchPanel } from "@/components/places/PlaceSearchPanel";
+import { usePlaceDetail } from "@/lib/context/PlaceDetailContext";
 import { FuelSummaryCard } from "@/components/fuel/FuelSummaryCard";
 import {
   StopQuickActionMenu,
@@ -149,6 +150,9 @@ export function TripView({
   onFilteredIdsChange?: (ids: Set<string> | null) => void;
   onStopQuickAction?: StopQuickActionHandler;
 }) {
+  /* ── Context ──────────────────────────────────────────────────────────── */
+  const { openPlace } = usePlaceDetail();
+
   /* ── Editor state ───────────────────────────────────────────────────── */
   const [stops, setStops] = useState<TripStop[]>(() => ensureStopIds(navpack?.req?.stops ?? []));
   const [dirty, setDirty] = useState(false);
@@ -974,30 +978,19 @@ export function TripView({
         </>
       )}
 
-      {/* ══ Places section ══════════════════════════════════════════════ */}
-      {activeSection === "places" && (
-        <div className={s.placesSection}>
-          {places && placesCount > 0 ? (
-            <PlaceSearchPanel
-              places={places}
-              userPosition={userPosition ? { lat: userPosition.lat, lng: userPosition.lng, heading: userPosition.heading ?? null } : undefined}
-              onSelectPlace={(p) => { onFocusPlace?.(p.id); }}
-              onFilteredIdsChange={onFilteredIdsChange}
-              maxHeight="50vh"
-            />
-          ) : (
-            <div className={s.emptyPlaces}>
-              <div className={s.emptyPlacesIcon}>
-                <MapIcon size={28} strokeWidth={1.5} />
-              </div>
-              <div className={s.emptyPlacesTitle}>No places loaded yet</div>
-              <div className={s.emptyPlacesSub}>
-                Places will appear here once your route corridor is loaded
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+      {/* ══ Places section — kept mounted, hidden via CSS to avoid re-mount lag ══ */}
+      <div
+        className={s.placesSection}
+        style={activeSection !== "places" ? { display: "none" } : undefined}
+      >
+        <PlaceSearchPanel
+          places={places ?? null}
+          userPosition={userPosition ? { lat: userPosition.lat, lng: userPosition.lng, heading: userPosition.heading ?? null } : undefined}
+          onSelectPlace={(p) => { onFocusPlace?.(p.id); openPlace(p); }}
+          onFilteredIdsChange={onFilteredIdsChange}
+          maxHeight="50vh"
+        />
+      </div>
     </div>
   );
 }

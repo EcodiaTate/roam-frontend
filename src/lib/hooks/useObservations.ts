@@ -162,7 +162,8 @@ export function useObservations(opts?: {
 
       try {
         const res = await observationsApi.submit(req);
-        // Refresh nearby observations after submission
+        setState((s) => ({ ...s, submitting: false }));
+        // Refresh nearby observations after submission (background)
         void fetchObs();
         return res;
       } catch (e) {

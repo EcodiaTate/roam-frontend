@@ -1,11 +1,11 @@
 // src/components/trips/new/useNewTripDraft.ts
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { TripStop, TripStopType } from "@/lib/types/trip";
 import { shortId } from "@/lib/utils/ids";
 import type { NavCoord } from "@/lib/types/geo";
-import { getCurrentPosition } from "@/lib/native/geolocation";
+import { useGeolocation, getCurrentPosition } from "@/lib/native/geolocation";
 
 type StopPatch = Partial<Pick<TripStop, "type" | "name" | "lat" | "lng">>;
 
@@ -27,7 +27,10 @@ export function useNewTripDraft() {
     ensureStartEnd([]),
   );
 
-  const [profile, setProfile] = useState<string>("drive");
+  // Track whether we’ve auto-applied the user’s location to the start stop
+  const [autoLocated, setAutoLocated] = useState(false);
+
+  const [profile, setProfile] = useState("drive");
   const [prefs] = useState<Record<string, unknown>>({});
   const [avoid] = useState<string[]>([]);
   const [depart_at] = useState<string | null>(null);
@@ -36,6 +39,10 @@ export function useNewTripDraft() {
 
   // Track locating state natively in the draft
   const [isLocating, setIsLocating] = useState(false);
+
+  // Live position tracking — starts immediately so map shows the user’s dot
+  // and Locate button can resolve instantly from the cached position.
+  const geo = useGeolocation({ autoStart: true, hapticOnFix: false });
 
   const updateStop = useCallback((id: string, patch: StopPatch) => {
     setStops((prev) =>
@@ -116,15 +123,18 @@ export function useNewTripDraft() {
     const start = stops.find((s) => s.type === "start");
     if (!start?.id) return;
 
+    // If we already have a live position from continuous tracking, use it instantly.
+    if (geo.position) {
+      const pos = geo.position;
+      updateStop(start.id, { lat: pos.lat, lng: pos.lng, name: "My Location" });
+      setMapCenter({ lat: pos.lat, lng: pos.lng });
+      return;
+    }
+
     setIsLocating(true);
     try {
       const pos = await getCurrentPosition();
-
-      updateStop(start.id, {
-        lat: pos.lat,
-        lng: pos.lng,
-        name: "My Location",
-      });
+      updateStop(start.id, { lat: pos.lat, lng: pos.lng, name: "My Location" });
       setMapCenter({ lat: pos.lat, lng: pos.lng });
     } catch (error) {
       console.warn("Failed to get location:", error);
@@ -132,7 +142,18 @@ export function useNewTripDraft() {
     } finally {
       setIsLocating(false);
     }
-  }, [stops, updateStop]);
+  }, [stops, updateStop, geo.position]);
+
+  // Auto-apply location to start stop once GPS is available on first load,
+  // but only if the start stop hasn't been named yet.
+  useEffect(() => {
+    if (autoLocated) return;
+    if (!geo.position) return;
+    const start = stops.find((s) => s.type === "start");
+    if (!start?.id || start.name) return;
+    setAutoLocated(true);
+    updateStop(start.id, { lat: geo.position.lat, lng: geo.position.lng, name: "My Location" });
+  }, [geo.position, autoLocated, stops, updateStop]);
 
   const stopSummary = useMemo(() => {
     const n = stops.length;
@@ -161,6 +182,8 @@ export function useNewTripDraft() {
 
     useMyLocationForStart,
     isLocating,
+
+    userPosition: geo.position,
 
     stopSummary,
   };

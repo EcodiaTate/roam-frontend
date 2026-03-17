@@ -134,7 +134,7 @@ export function TripShareModal({ open, data, onClose, mapImageUrl }: Props) {
       style={{
         position: "fixed", inset: 0, zIndex: 60,
         display: "flex", flexDirection: "column", alignItems: "center",
-        overflowY: "auto", WebkitOverflowScrolling: "touch",
+        overflowY: "auto", WebkitOverflowScrolling: "touch" as React.CSSProperties["WebkitOverflowScrolling"],
         paddingTop: "max(20px, env(safe-area-inset-top, 0px) + 12px)",
         paddingBottom: "max(28px, env(safe-area-inset-bottom, 0px) + 20px)",
         // Backdrop fade
@@ -295,5 +295,6 @@ export function TripShareModal({ open, data, onClose, mapImageUrl }: Props) {
   );
 
   if (typeof document === "undefined") return null;
+
   return createPortal(content, document.body);
 }

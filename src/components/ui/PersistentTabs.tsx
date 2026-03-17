@@ -7,6 +7,8 @@ import dynamic from "next/dynamic";
 
 import { TripSkeleton } from "@/app/(app)/trip/TripSkeleton";
 import { GuideSkeleton } from "@/app/(app)/guide/GuideSkeleton";
+import { DiscoverSkeleton } from "@/app/(app)/discover/DiscoverSkeleton";
+import { JournalSkeleton } from "@/app/(app)/journal/JournalSkeleton";
 
 const TripClientPage = dynamic(
   () => import("@/app/(app)/trip/ClientPage").then((m) => ({ default: m.TripClientPage })),
@@ -160,7 +162,7 @@ export function PersistentTabs({ children }: { children: React.ReactNode }) {
 
       <div ref={setPaneRef("/discover")} className={paneClass("/discover")}>
         {mounted.has("/discover") && (
-          <Suspense fallback={null}>
+          <Suspense fallback={<DiscoverSkeleton />}>
             <DiscoverClientPage />
           </Suspense>
         )}
@@ -176,7 +178,7 @@ export function PersistentTabs({ children }: { children: React.ReactNode }) {
 
       <div ref={setPaneRef("/journal")} className={paneClass("/journal")}>
         {mounted.has("/journal") && (
-          <Suspense fallback={null}>
+          <Suspense fallback={<JournalSkeleton />}>
             <MemoriesClientPage />
           </Suspense>
         )}

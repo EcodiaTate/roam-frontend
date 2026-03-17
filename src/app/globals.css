@@ -551,6 +551,13 @@ input, textarea, [contenteditable] {
   opacity: 1 !important;
 }
 
+/* Buttons inside .trip-interactive that use all:unset need their own press feedback */
+.trip-interactive > button:not(:disabled):active {
+  opacity: 0.7;
+  transform: scale(0.95);
+  transition: transform 0.08s ease, opacity 0.08s ease;
+}
+
 /* ── Primary button (chunky, tactile) ─────────────────────── */
 .trip-btn {
   display: flex;
@@ -782,20 +789,18 @@ input, textarea, [contenteditable] {
   height: 100%;
   background: var(--roam-surface);
   border-radius: 28px 28px 0 0;
-  box-shadow: var(--shadow-sheet);
+  box-shadow: var(--shadow-sheet), 0 -1px 0 rgba(255,255,255,0.08) inset;
   pointer-events: auto;
   display: flex;
   flex-direction: column;
   transform: translateZ(0);
-  touch-action: none;
   contain: layout style;
 }
 
 .trip-sheet-header {
-  padding: 16px 20px 10px 20px;
+  padding: 14px 20px 8px 20px;
   touch-action: none;
   flex-shrink: 0;
-  background: var(--roam-surface);
   border-radius: 28px 28px 0 0;
 }
 
@@ -803,19 +808,16 @@ input, textarea, [contenteditable] {
 .trip-list-container,
 .trip-sheet-body {
   flex: 1;
+  min-height: 0;
   padding: 0 20px calc(var(--bottom-nav-height) + 16px) 20px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  /* Contain overscroll so dragging past bounds doesn't propagate to body/map container */
+  gap: 12px;
   overscroll-behavior: contain;
   overscroll-behavior-y: contain;
-  /* Allow vertical pan inside the sheet scroller; parent has touch-action:none for drag capture */
   touch-action: pan-y;
-  /* Paint containment — children won't affect layout outside this scroller */
-  contain: layout style paint;
 }
 
 .trip-drag-handle {
@@ -825,6 +827,7 @@ input, textarea, [contenteditable] {
   margin: 0 auto 8px auto;
   opacity: 0.5;
 }
+
 
 
 /* ==========================================================================
@@ -1075,9 +1078,54 @@ input, textarea, [contenteditable] {
   50% { opacity: 0.4; }
 }
 
+/* ── Nav mode entry animations ──────────────────────────────── */
+
+/* HUD card drops in from top with spring overshoot */
+@keyframes nav-hud-in {
+  0%   { opacity: 0; transform: translateY(-28px) scale(0.94); }
+  60%  { opacity: 1; transform: translateY(4px) scale(1.01); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Bottom bar rises from below with spring */
+@keyframes nav-bar-in {
+  0%   { opacity: 0; transform: translateY(32px) scale(0.95); }
+  60%  { opacity: 1; transform: translateY(-4px) scale(1.01); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Controls pop in from right, staggered per button */
+@keyframes nav-ctrl-in {
+  0%   { opacity: 0; transform: translateX(24px) scale(0.88); }
+  65%  { opacity: 1; transform: translateX(-3px) scale(1.04); }
+  100% { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+/* Speed badge pops from centre */
+@keyframes nav-speed-in {
+  0%   { opacity: 0; transform: scale(0.6); }
+  65%  { opacity: 1; transform: scale(1.1); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* Route progress strip slides up */
+@keyframes nav-strip-in {
+  0%   { opacity: 0; transform: translateY(16px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
 /* ── Animation utility classes (prefer over inline style) ─── */
 .hud-imminent { animation: hud-pulse 0.8s ease-in-out infinite; }
 .nav-fuel-blink { animation: fuel-blink 1s ease-in-out infinite; }
+
+.nav-hud-enter    { animation: nav-hud-in  0.48s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.nav-bar-enter    { animation: nav-bar-in  0.44s cubic-bezier(0.34, 1.56, 0.64, 1) 0.06s both; }
+.nav-ctrl-enter-1 { animation: nav-ctrl-in 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) 0.08s both; }
+.nav-ctrl-enter-2 { animation: nav-ctrl-in 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) 0.14s both; }
+.nav-ctrl-enter-3 { animation: nav-ctrl-in 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) 0.20s both; }
+.nav-ctrl-enter-4 { animation: nav-ctrl-in 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) 0.26s both; }
+.nav-speed-enter  { animation: nav-speed-in 0.36s cubic-bezier(0.34, 1.56, 0.64, 1) 0.18s both; }
+.nav-strip-enter  { animation: nav-strip-in 0.32s var(--ease-out) 0.22s both; }
 
 /* ── Reduced motion ───────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {

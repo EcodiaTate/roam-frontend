@@ -14,48 +14,61 @@ type Props = {
   onEnd: () => void;
 };
 
+/* ── Single floating pill button ─────────────────────────────────── */
+
 function FloatingBtn({
   icon,
   label,
   onClick,
   danger,
   active,
+  animClass,
 }: {
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
   danger?: boolean;
   active?: boolean;
+  animClass?: string;
 }) {
   return (
     <button
       type="button"
       aria-label={label}
+      className={animClass}
       onClick={() => {
         haptic.selection();
         onClick();
       }}
       style={{
-        width: 44,
-        height: 44,
-        borderRadius: 14,
-        border: "none",
+        width: 46,
+        height: 46,
+        borderRadius: 16,
+        border: danger
+          ? "1px solid rgba(212,102,74,0.35)"
+          : active
+          ? "1px solid rgba(66,177,89,0.30)"
+          : "1px solid rgba(255,255,255,0.09)",
         cursor: "pointer",
         display: "grid",
         placeItems: "center",
         background: danger
-          ? "rgba(239,68,68,0.9)"
+          ? "linear-gradient(160deg, rgba(181,69,46,0.95) 0%, rgba(145,50,30,0.98) 100%)"
           : active
-          ? "rgba(74,108,83,0.9)"
-          : "rgba(30,30,30,0.88)",
-        color: "white",
-        backdropFilter: "blur(12px)",
-        WebkitBackdropFilter: "blur(12px)",
-        boxShadow: "0 4px 16px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.15)",
-        transition: "transform 0.1s ease, background 0.2s ease",
+          ? "linear-gradient(160deg, rgba(45,110,64,0.95) 0%, rgba(31,82,54,0.98) 100%)"
+          : "linear-gradient(160deg, rgba(26,21,16,0.96) 0%, rgba(16,13,10,0.98) 100%)",
+        color: "var(--on-color)",
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
+        boxShadow: danger
+          ? "0 4px 16px rgba(181,69,46,0.35), 0 1px 4px rgba(0,0,0,0.2)"
+          : active
+          ? "0 4px 16px rgba(45,110,64,0.30), 0 1px 4px rgba(0,0,0,0.2)"
+          : "0 4px 16px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.15)",
+        transition: "transform 0.1s ease, background 0.2s ease, box-shadow 0.2s ease",
       }}
       onPointerDown={(e) => {
-        (e.currentTarget as HTMLElement).style.transform = "scale(0.92)";
+        (e.currentTarget as HTMLElement).style.transform = "scale(0.90)";
       }}
       onPointerUp={(e) => {
         (e.currentTarget as HTMLElement).style.transform = "scale(1)";
@@ -68,6 +81,8 @@ function FloatingBtn({
     </button>
   );
 }
+
+/* ── Main component ───────────────────────────────────────────────── */
 
 export function NavigationControls({
   visible,
@@ -92,66 +107,70 @@ export function NavigationControls({
     <div
       style={{
         position: "absolute",
-        top: "calc(env(safe-area-inset-top, 0px) + 180px)",
+        top: "calc(env(safe-area-inset-top, 0px) + 168px)",
         right: 12,
         zIndex: 40,
         pointerEvents: "auto",
         display: "flex",
         flexDirection: "column",
         alignItems: "flex-end",
-        gap: 10,
+        gap: 8,
       }}
     >
       {/* Mute / unmute */}
       <FloatingBtn
-        icon={isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+        animClass="nav-ctrl-enter-1"
+        icon={isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
         label={isMuted ? "Unmute voice" : "Mute voice"}
         onClick={onToggleMute}
         active={!isMuted}
       />
 
-      {/* Overview - zoom out to see full route */}
+      {/* Route overview */}
       <FloatingBtn
-        icon={<Maximize2 size={20} />}
+        animClass="nav-ctrl-enter-2"
+        icon={<Maximize2 size={18} />}
         label="Route overview"
         onClick={onOverview}
       />
 
-      {/* Recenter on user */}
+      {/* Recenter */}
       <FloatingBtn
-        icon={<Crosshair size={20} />}
+        animClass="nav-ctrl-enter-3"
+        icon={<Crosshair size={18} />}
         label="Recenter"
         onClick={onRecenter}
       />
 
-      {/* End navigation — confirm menu opens left, anchored to right edge */}
-      <div style={{ position: "relative" }}>
+      {/* End navigation — confirm popover */}
+      <div style={{ position: "relative" }} className="nav-ctrl-enter-4">
         <FloatingBtn
-          icon={<X size={20} />}
+          icon={<X size={18} />}
           label="End navigation"
           onClick={() => setConfirmEnd((v) => !v)}
           danger
         />
 
-        {/* Confirm popover — positioned to the left of the X button */}
+        {/* Confirm popover — slides left from button */}
         <div
           style={{
             position: "absolute",
             top: 0,
-            right: 52,
+            right: 54,
             opacity: confirmEnd ? 1 : 0,
-            transform: confirmEnd ? "translateX(0) scale(1)" : "translateX(8px) scale(0.9)",
+            transform: confirmEnd ? "translateX(0) scale(1)" : "translateX(10px) scale(0.92)",
             pointerEvents: confirmEnd ? "auto" : "none",
-            transition: "opacity 0.15s ease, transform 0.15s ease",
+            transition: "opacity 0.18s ease, transform 0.18s cubic-bezier(0.34,1.56,0.64,1)",
             display: "flex",
             flexDirection: "row",
             gap: 6,
-            background: "rgba(30,30,30,0.95)",
-            borderRadius: 14,
-            padding: 6,
-            backdropFilter: "blur(12px)",
-            WebkitBackdropFilter: "blur(12px)",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+            background: "linear-gradient(160deg, rgba(26,21,16,0.98) 0%, rgba(16,13,10,0.99) 100%)",
+            borderRadius: 16,
+            padding: "6px",
+            backdropFilter: "blur(20px)",
+            WebkitBackdropFilter: "blur(20px)",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.2)",
+            border: "1px solid rgba(255,255,255,0.08)",
             whiteSpace: "nowrap",
           }}
         >
@@ -163,14 +182,15 @@ export function NavigationControls({
               onEnd();
             }}
             style={{
-              padding: "8px 14px",
-              border: "none",
-              borderRadius: 10,
+              padding: "9px 16px",
+              border: "1px solid rgba(212,102,74,0.35)",
+              borderRadius: 11,
               cursor: "pointer",
               fontSize: 12,
               fontWeight: 950,
-              color: "white",
-              background: "#ef4444",
+              color: "var(--on-color)",
+              background: "linear-gradient(160deg, rgba(181,69,46,0.95) 0%, rgba(145,50,30,0.98) 100%)",
+              letterSpacing: "-0.1px",
             }}
           >
             End nav
@@ -182,14 +202,15 @@ export function NavigationControls({
               setConfirmEnd(false);
             }}
             style={{
-              padding: "8px 14px",
-              border: "none",
-              borderRadius: 10,
+              padding: "9px 14px",
+              border: "1px solid rgba(255,255,255,0.09)",
+              borderRadius: 11,
               cursor: "pointer",
               fontSize: 12,
               fontWeight: 950,
-              color: "rgba(255,255,255,0.7)",
-              background: "rgba(255,255,255,0.1)",
+              color: "rgba(250,246,239,0.65)",
+              background: "rgba(255,255,255,0.06)",
+              letterSpacing: "-0.1px",
             }}
           >
             Cancel

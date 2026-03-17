@@ -24,33 +24,27 @@
   z-index: 8001;
   width: 100%;
   max-width: 480px;
-  max-height: 90dvh;
+  height: 88dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   background: var(--roam-surface);
   border-radius: 22px 22px 0 0;
   box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.18);
-  padding-bottom: calc(var(--bottom-nav-height, 100px) + 12px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
   /* entrance via JS transform */
   transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  /* Ensure flex children can shrink to enable scrolling */
-  min-height: 0;
-  /* Top corners handled by .dragZone */
-  overflow: hidden;
 }
 
-/* ── Drag handle ─────────────────────────────────────────────── */
-.dragZone {
-  display: flex;
-  justify-content: center;
-  padding: 10px 0 4px;
-  cursor: grab;
-  touch-action: none;
-  flex-shrink: 0;
-  /* Merge visually with the green hero below */
+/* ── Hero band (contains drag handle + stop info) ───────────── */
+.hero {
+  position: relative;
+  overflow: hidden;
   background: linear-gradient(135deg, #1a4a2e 0%, var(--brand-eucalypt, #2d6e40) 60%, #3a8f52 100%);
   border-radius: 22px 22px 0 0;
+  padding: 10px 20px 18px;
+  flex-shrink: 0;
+  touch-action: none;
 }
 
 .dragHandle {
@@ -58,15 +52,7 @@
   height: 4px;
   border-radius: 2px;
   background: rgba(255, 255, 255, 0.3);
-}
-
-/* ── Hero band ──────────────────────────────────────────────── */
-.hero {
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(135deg, #1a4a2e 0%, var(--brand-eucalypt, #2d6e40) 60%, #3a8f52 100%);
-  padding: 16px 20px 18px;
-  flex-shrink: 0;
+  margin: 0 auto 12px;
 }
 
 .heroRing1,
@@ -121,7 +107,7 @@
 
 .heroClose {
   position: absolute;
-  top: 12px;
+  top: 26px;
   right: 12px;
   width: 32px;
   height: 32px;
@@ -144,6 +130,7 @@
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  padding-bottom: 8px;
 }
 
 /* ── Section label ──────────────────────────────────────────── */
@@ -310,7 +297,7 @@
 
 /* ── Footer ──────────────────────────────────────────────────── */
 .footer {
-  padding: 8px 20px 0;
+  padding: 10px 20px calc(var(--bottom-nav-height, 80px) + 12px);
   flex-shrink: 0;
   border-top: 1px solid var(--roam-border);
   animation: mem-sectionIn 0.3s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both;

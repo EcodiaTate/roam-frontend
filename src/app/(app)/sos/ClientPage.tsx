@@ -181,6 +181,7 @@ export default function EmergencyClientPage() {
   const [busy, setBusy] = useState<null | "boot" | "save" | "delete" | "sync">(null);
   const [locating, setLocating] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [gpsSecondsLeft, setGpsSecondsLeft] = useState(0);
   const [elapsedWait, setElapsedWait] = useState(0);
 
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -198,53 +199,28 @@ export default function EmergencyClientPage() {
   const didBootRef = useRef(false);
   const syncInFlightRef = useRef(false);
   const locInFlightRef = useRef(false);
-  const timerDisplayRef = useRef<HTMLSpanElement>(null);
 
   const isLocating = locating && (lat == null || lon == null);
 
   useEffect(() => {
     if (!isLocating) {
       setElapsedWait(0);
+      setGpsSecondsLeft(0);
       return;
     }
 
-    const startTime = Date.now();
-    const durationMs = 120_000;
-    const endTime = startTime + durationMs;
-    let frameId: number;
-    let lastSecond = 0;
+    const totalSecs = 120;
+    setGpsSecondsLeft(totalSecs);
+    setElapsedWait(0);
 
-    const updateTimer = () => {
-      const now = Date.now();
-      const remaining = Math.max(0, endTime - now);
-      const elapsed = Math.floor((now - startTime) / 1000);
+    let elapsed = 0;
+    const id = setInterval(() => {
+      elapsed += 1;
+      setElapsedWait(elapsed);
+      setGpsSecondsLeft(Math.max(0, totalSecs - elapsed));
+    }, 1000);
 
-      if (elapsed !== lastSecond) {
-        setElapsedWait(elapsed);
-        lastSecond = elapsed;
-      }
-
-      if (timerDisplayRef.current) {
-        const mins = Math.floor(remaining / 60000);
-        const secs = Math.floor((remaining % 60000) / 1000);
-        const ms = Math.floor(remaining % 1000);
-
-        const formattedTime =
-          String(mins).padStart(2, '0') + ':' +
-          String(secs).padStart(2, '0') + '.' +
-          String(ms).padStart(3, '0');
-
-        timerDisplayRef.current.textContent = formattedTime;
-      }
-
-      if (remaining > 0) {
-        frameId = requestAnimationFrame(updateTimer);
-      }
-    };
-
-    frameId = requestAnimationFrame(updateTimer);
-
-    return () => cancelAnimationFrame(frameId);
+    return () => clearInterval(id);
   }, [isLocating]);
 
   const refresh = useCallback(async () => {
@@ -535,7 +511,9 @@ export default function EmergencyClientPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <Satellite size={28} className="animate-pulse" style={{ color: "var(--roam-info)" }} />
-                <span ref={timerDisplayRef} className="sos-loc-wait">02:00.000</span>
+                <span className="sos-loc-wait">
+                  {String(Math.floor(gpsSecondsLeft / 60)).padStart(2, "0")}:{String(gpsSecondsLeft % 60).padStart(2, "0")}
+                </span>
               </div>
               <div className="trip-muted">
                 {waitMessage}

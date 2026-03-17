@@ -7,6 +7,31 @@ import { Sun, Moon, Map as MapIcon, Satellite } from "lucide-react";
 export type MapBaseMode = "vector" | "hybrid";
 export type VectorTheme = "bright" | "dark";
 
+/* ── Shared pill button style (matches TripMap nav-mode aesthetic) ──── */
+
+const pillBase: React.CSSProperties = {
+  all: "unset",
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 5,
+  height: 34,
+  padding: "0 12px",
+  borderRadius: 9,
+  fontSize: 12,
+  fontWeight: 700,
+  color: "#fff",
+  WebkitTapHighlightColor: "transparent",
+  transition: "background 140ms ease, color 140ms ease, transform 100ms ease",
+};
+
+const iconPillBase: React.CSSProperties = {
+  ...pillBase,
+  width: 34,
+  padding: 0,
+};
+
 function SegBtn({
   active,
   onClick,
@@ -29,22 +54,8 @@ function SegBtn({
       title={title}
       aria-label={ariaLabel}
       style={{
-        all: "unset",
-        cursor: "pointer",
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
-        height: 40,
-        padding: "0 14px",
-        borderRadius: 12,
-        fontSize: 14,
-        fontWeight: 800,
-        letterSpacing: -0.2,
-        color: active ? "var(--roam-surface)" : "var(--roam-text)",
-        background: active ? "var(--roam-text)" : "transparent",
-        WebkitTapHighlightColor: "transparent",
-        transition: "background 160ms ease, color 160ms ease, transform 120ms ease",
+        ...pillBase,
+        background: active ? "rgba(255,255,255,0.22)" : "transparent",
         transform: active ? "scale(1.02)" : "scale(1)",
       }}
     >
@@ -75,18 +86,8 @@ function IconBtn({
       title={title}
       aria-label={ariaLabel}
       style={{
-        all: "unset",
-        cursor: "pointer",
-        width: 40,
-        height: 40,
-        borderRadius: 12,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: active ? "var(--roam-surface)" : "var(--roam-text)",
-        background: active ? "var(--roam-text)" : "transparent",
-        WebkitTapHighlightColor: "transparent",
-        transition: "background 160ms ease, color 160ms ease, transform 120ms ease",
+        ...iconPillBase,
+        background: active ? "rgba(255,255,255,0.22)" : "transparent",
         transform: active ? "scale(1.02)" : "scale(1)",
       }}
     >
@@ -94,6 +95,21 @@ function IconBtn({
     </button>
   );
 }
+
+/* ── Shared glass container style ──────────────────────────────────── */
+
+const glassBox: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 3,
+  padding: 3,
+  borderRadius: 11,
+  background: "rgba(0,0,0,0.45)",
+  backdropFilter: "blur(12px)",
+  WebkitBackdropFilter: "blur(12px)",
+  border: "1px solid rgba(255,255,255,0.12)",
+  boxShadow: "0 4px 16px rgba(0,0,0,0.28)",
+};
 
 export function MapStyleSwitcher(props: {
   mode: MapBaseMode;
@@ -104,34 +120,21 @@ export function MapStyleSwitcher(props: {
 
   return (
     <div
-      className=""
       role="group"
       aria-label="Map style"
       style={{
         position: "absolute",
-        top: "calc(env(safe-area-inset-top, 0px) + 16px)",
-        right: 12,
+        top: "calc(env(safe-area-inset-top, 0px) + 12px)",
+        right: 10,
         zIndex: 30,
         display: "flex",
         flexDirection: "column",
-        gap: 8,
+        gap: 6,
         pointerEvents: "auto",
       }}
     >
-      {/* Main segmented control */}
-      <div
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 4,
-          padding: 4,
-          borderRadius: 14,
-          background: "rgba(0,0,0,0.35)",
-          backdropFilter: "blur(10px)",
-          border: "1px solid rgba(255,255,255,0.16)",
-          boxShadow: "0 10px 26px rgba(0,0,0,0.22)",
-        }}
-      >
+      {/* Map / Sat toggle */}
+      <div style={glassBox}>
         <SegBtn
           active={mode === "vector"}
           onClick={() => {
@@ -140,7 +143,7 @@ export function MapStyleSwitcher(props: {
           }}
           title="Map"
         >
-          <MapIcon size={16} />
+          <MapIcon size={13} />
           Map
         </SegBtn>
 
@@ -152,27 +155,14 @@ export function MapStyleSwitcher(props: {
           }}
           title="Satellite"
         >
-          <Satellite size={16} />
+          <Satellite size={13} />
           Sat
         </SegBtn>
       </div>
 
-      {/* Theme toggle (only when in vector) */}
+      {/* Bright / Dark toggle (only when in vector mode) */}
       {mode === "vector" && (
-        <div
-          style={{
-            alignSelf: "flex-end",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-            padding: 4,
-            borderRadius: 14,
-            background: "rgba(0,0,0,0.35)",
-            backdropFilter: "blur(10px)",
-            border: "1px solid rgba(255,255,255,0.16)",
-            boxShadow: "0 10px 26px rgba(0,0,0,0.22)",
-          }}
-        >
+        <div style={{ ...glassBox, alignSelf: "flex-end" }}>
           <IconBtn
             active={vectorTheme === "bright"}
             title="Bright"
@@ -182,7 +172,7 @@ export function MapStyleSwitcher(props: {
               onChange({ mode: "vector", vectorTheme: "bright" });
             }}
           >
-            <Sun size={16} />
+            <Sun size={14} />
           </IconBtn>
 
           <IconBtn
@@ -194,7 +184,7 @@ export function MapStyleSwitcher(props: {
               onChange({ mode: "vector", vectorTheme: "dark" });
             }}
           >
-            <Moon size={16} />
+            <Moon size={14} />
           </IconBtn>
         </div>
       )}

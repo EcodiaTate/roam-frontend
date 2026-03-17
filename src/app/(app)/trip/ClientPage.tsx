@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import type { MapBaseMode, VectorTheme } from "@/components/trips/new/MapStyleSwitcher";
 import { createPortal } from "react-dom";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import type { Map as MLMap, GeoJSONSource } from "maplibre-gl";
 import maplibregl from "maplibre-gl";
 
@@ -20,6 +20,7 @@ import { FuelLastChanceToast } from "@/components/fuel/FuelLastChanceToast";
 import { VehicleFuelSettings } from "@/components/fuel/VehicleFuelSettings";
 
 // ── Active navigation components ──
+import { NavModeOverlay } from "@/components/nav/NavModeOverlay";
 import { NavigationHUD } from "@/components/nav/NavigationHUD";
 import { NavigationBar } from "@/components/nav/NavigationBar";
 import { NavigationControls } from "@/components/nav/NavigationControls";
@@ -27,7 +28,6 @@ import { OffRouteBanner } from "@/components/nav/OffRouteBanner";
 import { StartNavigationButton } from "@/components/nav/StartNavigationButton";
 import { ElevationStrip } from "@/components/nav/ElevationStrip";
 import { RouteScoreCard } from "@/components/trip/RouteScoreCard";
-import { NearbyRoamersIndicator } from "@/components/trip/NearbyRoamersIndicator";
 import { ReportTypePicker, ReportPlacementBar, REPORT_OPTIONS } from "@/components/trip/ReportPanel";
 import type { ObservationType, ObservationSeverity } from "@/lib/types/peer";
 import { ExchangePanel } from "@/components/trip/ExchangePanel";
@@ -53,6 +53,7 @@ import { getCurrentPlanId, getOfflinePlan, listOfflinePlans, setCurrentPlanId, u
 import { getAllPacks, hasCorePacks, hasNavpack, putPack, putPacksAtomic } from "@/lib/offline/packsStore";
 import type { PackKind } from "@/lib/offline/packsStore";
 import { unpackAndStoreBundle } from "@/lib/offline/unpackBundle";
+import { onPlanEvent } from "@/lib/offline/planEvents";
 import { getVehicleFuelProfile } from "@/lib/offline/fuelProfileStore";
 import { rebuildNavpackOfflineWithFuel } from "@/lib/offline/rebuildNavpack";
 
@@ -60,7 +61,7 @@ import { navApi } from "@/lib/api/nav";
 import { bundleApi } from "@/lib/api/bundle";
 import { useEnrichment } from "@/lib/hooks/useEnrichment";
 
-import { analyzeFuel, computeFuelTracking, windRangeFactor, checkFuelArbitrage, type FuelArbitrageAlert } from "@/lib/nav/fuelAnalysis";
+import { analyzeFuel, computeFuelTracking, windRangeFactor, checkFuelArbitrage, fuelOverlayToPlaceItems, type FuelArbitrageAlert } from "@/lib/nav/fuelAnalysis";
 import { computeRefreshPriority, isOverlayStale, formatAge } from "@/lib/offline/refreshPriority";
 import { decodePolyline6 } from "@/lib/nav/polyline6";
 import { cumulativeKm, buildPolylineIndex, snapToPolylineIndexed } from "@/lib/nav/snapToRoute";
@@ -109,7 +110,7 @@ const SCORE_POLL_INTERVAL_MS = 10 * 60_000;
 
 /* ── Boot phases ──────────────────────────────────────────────────────── */
 
-type BootPhase = "resolving" | "hydrating" | "ready" | "error";
+type BootPhase = "resolving" | "hydrating" | "ready" | "error" | "deferred";
 
 /* ── Types ────────────────────────────────────────────────────────────── */
 
@@ -143,7 +144,10 @@ function computeWindFactor(weather: WeatherOverlay | null, navpack: NavPack | nu
 
 export function TripClientPage(props: { initialPlanId: string | null }) {
   const router = useRouter();
+  const pathname = usePathname();
   const sp = useSearchParams();
+  const pathnameRef = useRef(pathname);
+  pathnameRef.current = pathname;
 
   const planIdFromUrl = sp.get("plan_id");
   const focusPlaceFromUrl = sp.get("focus_place_id");
@@ -216,8 +220,13 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteMode, setInviteMode] = useState<"create" | "redeem">("create");
 
+  // Remote sync toast
+  const [remoteToastVisible, setRemoteToastVisible] = useState(false);
+  const remoteToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Plans drawer state
   const [drawOpen, setDrawOpen] = useState(false);
+  const [plansDot, setPlansDot] = useState(false);
 
   // Plan status (Untethered)
   const [unlocked, setUnlocked] = useState<boolean | null>(null);
@@ -269,13 +278,23 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fluid Bottom Sheet Drag State
+  // Show notification dot on Plans button when another plan is saved (not the current one)
+  useEffect(() => {
+    return onPlanEvent((type, payload) => {
+      if (type === "plan:saved" && payload.planId !== bootedPlanIdRef.current) {
+        setPlansDot(true);
+      }
+    });
+  }, []);
+
+  // Bottom Sheet Snap State (2 snaps: expanded, peek)
   const sheetRef = useRef<HTMLDivElement>(null);
-  const [offsetY, setOffsetY] = useState(0);
+  type SheetSnap = "expanded" | "peek";
+  const [sheetSnap, setSheetSnap] = useState<SheetSnap>("peek");
   const [dragOffset, setDragOffset] = useState(0);
   const isDragging = useRef(false);
   const [isDraggingState, setIsDraggingState] = useState(false);
-  const dragData = useRef({ startY: 0 });
+  const dragData = useRef({ startY: 0, startSnap: "peek" as SheetSnap });
 
   // Overlay polling refs
   const overlayTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -348,7 +367,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   const [prevActive, setPrevActive] = useState(false);
   if (activeNav.isActive && !prevActive) {
     // Entering navigation mode → collapse sheet to just the peek handle
-    setOffsetY(0);
+    setSheetSnap("peek");
     setDragOffset(0);
     setPrevActive(true);
   } else if (!activeNav.isActive && prevActive) {
@@ -420,7 +439,13 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
             setBootError(null); // signal "no plans + paywalled" (not a real error)
             return;
           }
-          router.replace("/new");
+          // Only redirect when the user is actually viewing the /trip tab.
+          // PersistentTabs pre-mounts this page on other tabs — don't hijack navigation.
+          if (pathnameRef.current === "/trip" || pathnameRef.current === "/trip/") {
+            router.replace("/new");
+          } else {
+            setPhase("deferred");
+          }
           return;
         }
 
@@ -429,6 +454,10 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           await setCurrentPlanId(rec.plan_id);
         }
 
+        // Set plan early so the preview (geometry/bbox/stops) is available
+        // for rendering during hydration — avoids showing the skeleton
+        // for minimal plans that have preview data from saveMinimalPlan.
+        setPlan(rec);
         setPhase("hydrating");
 
         const has = await hasCorePacks(rec.plan_id);
@@ -505,9 +534,16 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           try {
             const fuelProfile = await getVehicleFuelProfile();
             const wFactor = computeWindFactor(packs.weather ?? null, packs.navpack);
+            // Merge fuel overlay stations into places so fuel analysis
+            // picks them up even if they were budget-squeezed from PlacesPack.
+            const placeIds = new Set(packs.places.items.map((p) => p.id));
+            const overlayPlaces = fuelOverlayToPlaceItems(packs.fuel ?? null, placeIds);
+            const mergedPlaces = overlayPlaces.length > 0
+              ? [...packs.places.items, ...overlayPlaces]
+              : packs.places.items;
             const analysis = analyzeFuel(
               packs.navpack.primary.geometry,
-              packs.places.items,
+              mergedPlaces,
               fuelProfile,
               packs.navpack.primary.route_key,
               placesKeyNow,
@@ -532,6 +568,14 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     boot();
     return () => { cancelled = true; };
   }, [desiredPlanId, router, sp]);
+
+  // ── Deferred redirect: boot found no plans while on another tab.
+  //    When the user actually navigates to /trip, redirect to /new.
+  useEffect(() => {
+    if (phase === "deferred" && (pathname === "/trip" || pathname === "/trip/")) {
+      router.replace("/new");
+    }
+  }, [phase, pathname, router]);
 
   // ── Background enrichment for minimal (navpack-only) plans ──────
   const enrichPackHandler = useCallback((kind: PackKind, data: unknown) => {
@@ -559,21 +603,35 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   }, []);
 
   const enrichment = useEnrichment(enrichPackHandler);
+  const enrichmentRef = useRef(enrichment);
+  enrichmentRef.current = enrichment;
+
+  // Track which plan enrichment has been kicked off for. Once enrichment
+  // starts for a plan it runs to completion — we never cancel/restart it
+  // just because an overlay pack arrived and changed React state.
+  const enrichStartedForRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (phase !== "ready" || !plan || !navpack || !isOnline) return;
-    // Only enrich if this is a minimal plan (no corridor yet, not already enriching/done)
+    // Already kicked off (or finished) for this plan — don't restart
+    if (enrichStartedForRef.current === plan.plan_id) return;
+    const e = enrichmentRef.current;
+    if (e.isEnriching || e.isDone) return;
+    // Full-bundle plans already have a corridor — no enrichment needed
     if (corridor) return;
-    if (enrichment.isEnriching || enrichment.isDone) return;
 
-    enrichment.start({
+    enrichStartedForRef.current = plan.plan_id;
+    e.start({
       planId: plan.plan_id,
       navPack: navpack,
       departAt: navpack.req?.depart_at ?? null,
     });
 
-    return () => enrichment.cancel();
-  }, [phase, plan, navpack, corridor, isOnline, enrichment]);
+    // NOTE: no cleanup cancellation. Enrichment runs to completion even if
+    // this effect re-fires (e.g. isOnline flickers). The enrichStartedForRef
+    // guard prevents double-starting. We only cancel on unmount via the ref.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, plan, navpack, isOnline]);
 
   // Focus place from URL — expand sheet to show detail
   const [prevFocusUrl, setPrevFocusUrl] = useState<string | null>(null);
@@ -583,11 +641,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   }
   useEffect(() => {
     if (!focusPlaceFromUrl) return;
-    if (sheetRef.current) {
-      const h = sheetRef.current.clientHeight;
-      const maxUp = -(h - 180);
-      setOffsetY(Math.max(maxUp, Math.round(maxUp * 0.6)));
-    }
+    setSheetSnap("expanded");
   }, [focusPlaceFromUrl]);
 
   // ── Live fuel tracking from GPS ──────────────────────────────────
@@ -595,12 +649,25 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   const effectivePosition = activeNav.isActive ? activeNav.lastPosition : geo.position;
 
   // ── Feed GPS position into presence beacon ──
+  const isSharedTrip = !!plan?.is_shared;
   useEffect(() => {
     if (effectivePosition) presenceBeacon.updatePosition(effectivePosition);
   }, [effectivePosition]);
 
+  // Faster presence pings on shared trips (15s vs 30s)
+  useEffect(() => {
+    presenceBeacon.setSharedTrip(isSharedTrip);
+  }, [isSharedTrip]);
+
+  // Only broadcast presence while actively navigating —
+  // no point tracking someone parked at home
+  useEffect(() => {
+    presenceBeacon.setNavigating(activeNav.isActive);
+  }, [activeNav.isActive]);
+
   // ── Nearby roamers (dead-reckoning proximity) ──
-  const { roamers: nearbyRoamers } = useNearbyRoamers({ radiusKm: 50, enabled: !!effectivePosition });
+  // Polls every 20s on shared trips (vs 60s default) for real-time awareness
+  const { roamers: nearbyRoamers } = useNearbyRoamers({ radiusKm: 50, enabled: !!effectivePosition, sharedTrip: isSharedTrip });
 
   // ── Peer sync: pull delta when a new roamer is detected ──
   const prevRoamerCountRef = useRef(0);
@@ -1036,9 +1103,12 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       try {
         const fuelProfile = await getVehicleFuelProfile();
         const wFactor = computeWindFactor(weather, { primary: result.primary } as NavPack);
+        const pIds = new Set(places.items.map((p) => p.id));
+        const ovPlaces = fuelOverlayToPlaceItems(fuelOverlay, pIds);
+        const merged = ovPlaces.length > 0 ? [...places.items, ...ovPlaces] : places.items;
         const analysis = analyzeFuel(
           result.primary.geometry,
-          places.items,
+          merged,
           fuelProfile,
           result.primary.route_key,
           undefined,
@@ -1087,14 +1157,84 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     }
   }, [navpack, plan, places, corridor, isOnline]);
 
+  // ── React to remote plan changes (shared trip sync) ───────────────
+  // planSync merges Supabase Realtime updates into IDB and emits
+  // "plan:remote-updated". We re-read IDB and either update metadata
+  // (label change) or trigger a full route rebuild (stop/route change).
+  // If enrichment is in progress, we defer the rebuild to avoid concurrent
+  // IDB writes between the enrichment pipeline and the rebuild path.
+  const pendingRemoteRebuildRef = useRef<{ stops: TripStop[] } | null>(null);
+
+  useEffect(() => {
+    const activePlanId = plan?.plan_id;
+    if (!activePlanId || phase !== "ready") return;
+
+    const unsub = onPlanEvent(async (type, payload) => {
+      if (type !== "plan:remote-updated") return;
+      if (payload.planId !== activePlanId) return;
+
+      try {
+        const freshPlan = await getOfflinePlan(activePlanId);
+        if (!freshPlan) return;
+
+        const currentRouteKey = plan?.route_key;
+        const routeChanged = freshPlan.route_key !== currentRouteKey;
+
+        // Always update the plan record (label, manifest status, etc.)
+        setPlan(freshPlan);
+
+        if (routeChanged && freshPlan.preview?.stops && freshPlan.preview.stops.length >= 2) {
+          if (enrichmentRef.current.isEnriching) {
+            // Defer rebuild until enrichment finishes to avoid concurrent IDB writes
+            console.info("[Trip] deferring remote rebuild — enrichment in progress");
+            pendingRemoteRebuildRef.current = { stops: freshPlan.preview.stops };
+          } else {
+            // Route changed by collaborator — rebuild locally
+            handleRebuild({ stops: freshPlan.preview.stops, mode: "auto" }).catch((e) => {
+              console.warn("[Trip] remote sync rebuild failed:", e);
+            });
+          }
+        }
+
+        // Show toast
+        setRemoteToastVisible(true);
+        if (remoteToastTimerRef.current) clearTimeout(remoteToastTimerRef.current);
+        remoteToastTimerRef.current = setTimeout(() => setRemoteToastVisible(false), 3000);
+      } catch (e) {
+        console.warn("[Trip] remote plan sync failed:", e);
+      }
+    });
+
+    return () => {
+      unsub();
+      if (remoteToastTimerRef.current) clearTimeout(remoteToastTimerRef.current);
+    };
+  }, [plan?.plan_id, plan?.route_key, phase, handleRebuild]);
+
+  // Flush deferred remote rebuild once enrichment finishes
+  useEffect(() => {
+    const e = enrichmentRef.current;
+    if ((e.isDone || e.isError) && pendingRemoteRebuildRef.current) {
+      const { stops } = pendingRemoteRebuildRef.current;
+      pendingRemoteRebuildRef.current = null;
+      console.info("[Trip] flushing deferred remote rebuild");
+      handleRebuild({ stops, mode: "auto" }).catch((err) => {
+        console.warn("[Trip] deferred remote rebuild failed:", err);
+      });
+    }
+  }, [enrichment.isDone, enrichment.isError, handleRebuild]);
+
   // ── Fuel settings saved handler ──────────────────────────────────
   const handleFuelProfileSaved = useCallback(async (newProfile: VehicleFuelProfile) => {
     if (!navpack?.primary?.geometry || !places?.items) return;
     try {
       const wFactor = computeWindFactor(weather, navpack);
+      const pIds = new Set(places.items.map((p) => p.id));
+      const ovPlaces = fuelOverlayToPlaceItems(fuelOverlay, pIds);
+      const merged = ovPlaces.length > 0 ? [...places.items, ...ovPlaces] : places.items;
       const analysis = analyzeFuel(
         navpack.primary.geometry,
-        places.items,
+        merged,
         newProfile,
         navpack.primary.route_key,
         undefined,
@@ -1107,7 +1247,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     } catch (e) {
       console.warn("[Trip] fuel recompute on settings change failed:", e);
     }
-  }, [navpack, places, plan, weather]);
+  }, [navpack, places, plan, weather, fuelOverlay]);
 
   // ── Guide navigation handler ────────────────────────────────────
   const handleNavigateToGuide = useCallback((placeId: string, placeName?: string) => {
@@ -1231,7 +1371,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   const handleHighlightAlert = useCallback((ev: AlertHighlightEvent) => {
     haptic.selection();
     setHighlightedAlertId(ev.id);
-    setOffsetY(0); // collapse sheet to peek so the map is visible
+    setSheetSnap("peek"); // collapse sheet to peek so the map is visible
 
     // Pan map to the alert location
     const map = mapInstanceRef.current;
@@ -1335,36 +1475,56 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     isDragging.current = true;
     setIsDraggingState(true);
-    dragData.current = { startY: e.clientY };
+    dragData.current = { startY: e.clientY, startSnap: sheetSnap };
     e.currentTarget.setPointerCapture(e.pointerId);
-  }, []);
+  }, [sheetSnap]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDragging.current || !sheetRef.current) return;
-    const totalDelta = e.clientY - dragData.current.startY;
-    const sheetHeight = sheetRef.current.clientHeight;
-    const maxUp = -(sheetHeight - 220);
-    let proposedOffset = offsetY + totalDelta;
-    if (proposedOffset < maxUp) proposedOffset = maxUp;
-    if (proposedOffset > 0) proposedOffset = 0;
-    setDragOffset(proposedOffset - offsetY);
-  }, [offsetY]);
+    if (!isDragging.current) return;
+    const delta = e.clientY - dragData.current.startY;
+    setDragOffset(delta);
+  }, []);
 
   const handlePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     isDragging.current = false;
     setIsDraggingState(false);
     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {}
-    setOffsetY((prev) => prev + dragOffset);
+
+    const delta = dragOffset;
+    const startSnap = dragData.current.startSnap;
+    const THRESHOLD = 60;
+
+    // Determine next snap based on drag direction + distance
+    if (delta < -THRESHOLD) {
+      // Dragged up → expand
+      if (startSnap === "peek") { setSheetSnap("expanded"); haptic.tap(); }
+    } else if (delta > THRESHOLD) {
+      // Dragged down → peek
+      if (startSnap === "expanded") { setSheetSnap("peek"); haptic.tap(); }
+    }
+
     setDragOffset(0);
   }, [dragOffset]);
 
   // ── Derived values ─────────────────────────────────────────────
-  const peekBase = `calc(100% - 220px - var(--roam-safe-bottom, 0px))`;
-  const sheetTransform = activeNav.isActive
-    ? `translateY(calc(100% - 60px))` // Collapsed to just the drag handle during navigation
-    : `translateY(clamp(0px, calc(${peekBase} + ${offsetY + dragOffset}px), ${peekBase}))`;
+  // Snap positions (translateY values).
+  // The sheet extends 300px below the viewport to absorb spring bounce,
+  // so peek/nav snaps add 300px to compensate.
+  //   expanded:  0px (sheet fills from 80px down)
+  //   peek:      calc(100% - 520px - safe-bottom)   [220px visible + 300px offset]
+  const snapY = (() => {
+    if (activeNav.isActive) return `calc(100% - 360px)`;
+    switch (sheetSnap) {
+      case "expanded":  return "0px";
+      case "peek":
+      default:          return `calc(100% - 520px - var(--roam-safe-bottom, 0px))`;
+    }
+  })();
+  const sheetTransform = isDraggingState
+    ? `translateY(calc(${snapY} + ${dragOffset}px))`
+    : `translateY(${snapY})`;
 
-  const sheetTransition = isDraggingState ? "none" : "transform 0.25s cubic-bezier(0.4,0,0.2,1)";
+  const sheetTransition = isDraggingState ? "none" : "transform 0.35s cubic-bezier(0.34, 1.12, 0.64, 1)";
 
   const effectiveStops = useMemo(() => navpack?.req?.stops ?? plan?.preview?.stops ?? [], [navpack, plan]);
   const effectiveGeom = navpack?.primary?.geometry ?? plan?.preview?.geometry ?? null;
@@ -1397,7 +1557,11 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   }, [fuelTracking]);
 
   // ── Render gates ────────────────────────────────────────────────
-  if (phase === "resolving") {
+  // For minimal plans (from /new → saveAndGo), the plan record has a preview
+  // with geometry/bbox/stops. Skip the skeleton entirely if we already have
+  // enough to render the map — this makes the transition feel instant.
+  const hasPreviewData = plan?.preview?.geometry && plan?.preview?.bbox;
+  if (phase === "deferred" || (phase === "resolving" && !hasPreviewData)) {
     return <TripSkeleton />;
   }
 
@@ -1441,9 +1605,17 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     );
   }
 
-  if (phase === "hydrating" || !plan || !effectiveGeom || !effectiveBbox) {
+  if ((phase === "hydrating" || !plan || !effectiveGeom || !effectiveBbox) && !hasPreviewData) {
     return <TripSkeleton />;
   }
+
+  // If we're still resolving/hydrating but have preview data, render the trip
+  // view with what we have. The map shows the route from the preview while
+  // packs load in the background — feels instant to the user.
+  // hasPreviewData guarantees plan is non-null (plan?.preview?.geometry is truthy).
+  if (!plan) return <TripSkeleton />;
+  const renderGeom = effectiveGeom ?? plan.preview!.geometry;
+  const renderBbox = effectiveBbox ?? plan.preview!.bbox;
 
   // ── Ready ──────────────────────────────────────────────────────
   return (
@@ -1454,8 +1626,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           styleId={styleId}
           onStyleChange={(next) => { setBaseMode(next.mode); setVectorTheme(next.vectorTheme); }}
           stops={effectiveStops}
-          geometry={effectiveGeom}
-          bbox={effectiveBbox}
+          geometry={renderGeom}
+          bbox={renderBbox}
           focusedStopId={focusedStopId}
           onStopPress={(id) => { haptic.selection(); setFocusedStopId(id); }}
           onStopLongPress={handleMapStopLongPress}
@@ -1500,6 +1672,31 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       {/* ── Enrichment banner (progressive trip loading) ── */}
       <EnrichmentBanner progress={enrichment.progress} />
 
+      {/* ── Remote sync toast ── */}
+      {remoteToastVisible && (
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(var(--roam-safe-top, 0px) + 8px)",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 30,
+            background: "rgba(0,0,0,0.8)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
+            color: "#fff",
+            fontSize: 13,
+            fontWeight: 600,
+            padding: "8px 16px",
+            borderRadius: 20,
+            whiteSpace: "nowrap",
+            pointerEvents: "none",
+          }}
+        >
+          Trip updated by travel partner
+        </div>
+      )}
+
       {/* ── Map stop pin quick action menu ── */}
       <StopQuickActionMenu
         state={mapQuickMenu}
@@ -1509,11 +1706,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         onClose={() => setMapQuickMenu(null)}
       />
 
-      {/* ── Nearby Roamers Indicator ── */}
-      {!activeNav.isActive && <NearbyRoamersIndicator roamers={nearbyRoamers} />}
-
       {/* ── FAB Stack (Report + Exchange) ── */}
-      {!activeNav.isActive && reportPhase === null && (
+      {!activeNav.isActive && (
         <div style={{
           position: "absolute",
           bottom: "calc(220px + var(--roam-safe-bottom, 0px) + 24px)",
@@ -1524,26 +1718,53 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           gap: 8,
           alignItems: "flex-end",
         }}>
-          {/* Exchange / Listen FAB */}
+          {/* Exchange FAB — badge shows nearby roamer count */}
           <button
             type="button"
             onClick={() => { haptic.selection(); setExchangeOpen(true); }}
-            aria-label="Exchange data with nearby roamer"
+            aria-label={nearbyRoamers.length > 0
+              ? `Exchange — ${nearbyRoamers.length} roamer${nearbyRoamers.length > 1 ? "s" : ""} nearby`
+              : "Exchange data with nearby roamer"}
             style={{
-              width: 48, height: 48,
-              borderRadius: 14,
-              background: "rgba(30, 30, 30, 0.88)",
-              color: "rgba(255, 255, 255, 0.9)",
-              border: "none",
-              backdropFilter: "blur(12px)",
-              WebkitBackdropFilter: "blur(12px)",
+              position: "relative",
+              width: 46, height: 46,
+              borderRadius: 16,
+              background: "linear-gradient(160deg, rgba(26,21,16,0.96) 0%, rgba(16,13,10,0.98) 100%)",
+              color: "var(--on-color)",
+              border: "1px solid rgba(255,255,255,0.09)",
+              backdropFilter: "blur(16px)",
+              WebkitBackdropFilter: "blur(16px)",
               boxShadow: "0 4px 16px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.15)",
               display: "grid",
               placeItems: "center",
               cursor: "pointer",
+              transition: "transform 0.1s ease",
             }}
+            onPointerDown={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(0.90)"; }}
+            onPointerUp={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(1)"; }}
+            onPointerCancel={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(1)"; }}
           >
-            <Radio size={20} strokeWidth={2.5} />
+            <Radio size={19} strokeWidth={2.5} />
+            {nearbyRoamers.length > 0 && (
+              <span style={{
+                position: "absolute",
+                top: -4, right: -4,
+                minWidth: 18, height: 18,
+                borderRadius: 9,
+                background: "var(--brand-eucalypt, #2d6e40)",
+                color: "#fff",
+                fontSize: 11,
+                fontWeight: 800,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "0 4px",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.25)",
+                lineHeight: 1,
+              }}>
+                {nearbyRoamers.length}
+              </span>
+            )}
           </button>
           {/* Report FAB */}
           <button
@@ -1551,42 +1772,37 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
             onClick={() => { haptic.selection(); setReportPhase("picking"); }}
             aria-label="Report road condition"
             style={{
-              width: 48, height: 48,
-              borderRadius: 14,
-              background: "rgba(30, 30, 30, 0.88)",
-              color: "rgba(255, 255, 255, 0.9)",
-              border: "none",
-              backdropFilter: "blur(12px)",
-              WebkitBackdropFilter: "blur(12px)",
+              width: 46, height: 46,
+              borderRadius: 16,
+              background: "linear-gradient(160deg, rgba(26,21,16,0.96) 0%, rgba(16,13,10,0.98) 100%)",
+              color: "var(--on-color)",
+              border: "1px solid rgba(255,255,255,0.09)",
+              backdropFilter: "blur(16px)",
+              WebkitBackdropFilter: "blur(16px)",
               boxShadow: "0 4px 16px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.15)",
               display: "grid",
               placeItems: "center",
               cursor: "pointer",
+              transition: "transform 0.1s ease",
             }}
+            onPointerDown={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(0.90)"; }}
+            onPointerUp={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(1)"; }}
+            onPointerCancel={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(1)"; }}
           >
-            <Megaphone size={20} strokeWidth={2.5} />
+            <Megaphone size={19} strokeWidth={2.5} />
           </button>
         </div>
       )}
 
       {/* ── Report Phase 1: Type Picker Overlay ── */}
       {reportPhase === "picking" && (
-        <div style={{
-          position: "absolute",
-          top: "calc(var(--roam-safe-top, 0px) + 60px)",
-          left: 12, right: 12,
-          zIndex: 25,
-          display: "flex",
-          justifyContent: "center",
-        }}>
-          <ReportTypePicker
-            onTypeSelected={(type) => {
-              const opt = REPORT_OPTIONS.find((o) => o.type === type)!;
-              setReportPhase({ type, severity: opt.severity });
-            }}
-            onClose={() => setReportPhase(null)}
-          />
-        </div>
+        <ReportTypePicker
+          onTypeSelected={(type) => {
+            const opt = REPORT_OPTIONS.find((o) => o.type === type)!;
+            setReportPhase({ type, severity: opt.severity });
+          }}
+          onClose={() => setReportPhase(null)}
+        />
       )}
 
       {/* ── Report Phase 2: Placement Bar (map marker mode) ── */}
@@ -1609,7 +1825,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       )}
 
       {/* ── Exchange Panel (ultrasonic peer transfer) ── */}
-      <ExchangePanel open={exchangeOpen} onClose={() => setExchangeOpen(false)} />
+      <ExchangePanel open={exchangeOpen} onClose={() => setExchangeOpen(false)} nearbyRoamers={nearbyRoamers} />
 
       {/* Navigation overlays are rendered at the end of the tree (after bottom sheet)
          so they paint above all other layers. See below. */}
@@ -1808,14 +2024,15 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         document.body,
       )}
 
-      {/* Bottom Sheet */}
+      {/* Bottom Sheet — extra 300px below absorbs spring overshoot so
+           the bottom edge never lifts above the tab bar */}
       <div
         ref={sheetRef}
         className="trip-bottom-sheet"
         style={{
           position: "absolute",
-          bottom: 0, left: 0, right: 0,
-          height: "calc(100% - 80px)",
+          bottom: -300, left: 0, right: 0,
+          height: "calc(100% - 80px + 300px)",
           zIndex: 20,
           transform: sheetTransform,
           transition: sheetTransition,
@@ -1876,15 +2093,32 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
                 type="button"
                 className="trip-interactive trip-btn-icon"
                 aria-label="Plans"
-                onClick={() => { haptic.selection(); setDrawOpen(true); }}
+                onClick={() => { haptic.selection(); setPlansDot(false); setDrawOpen(true); }}
                 style={{
                   borderRadius: 10, width: 32, height: 32,
                   display: "grid", placeItems: "center",
                   background: "transparent", color: "var(--roam-text-muted)",
                   border: "none",
+                  position: "relative",
                 }}
               >
                 <Library size={16} strokeWidth={1.8} />
+                {plansDot && (
+                  <span
+                    aria-label="New plan available"
+                    style={{
+                      position: "absolute",
+                      top: 4,
+                      right: 4,
+                      width: 8,
+                      height: 8,
+                      borderRadius: "50%",
+                      background: "var(--roam-accent, #b5452e)",
+                      border: "2px solid var(--roam-surface, #f4efe6)",
+                      pointerEvents: "none",
+                    }}
+                  />
+                )}
               </button>
 
               <button
@@ -1994,7 +2228,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
             style={{
               height: "100%",
               overflowY: "auto",
-              padding: "0 20px calc(var(--bottom-nav-height) + 120px)",
+              padding: "0 20px calc(var(--bottom-nav-height) + 320px)",
             }}
           >
             {/* ── Start Navigation button (shown when NOT actively navigating) ── */}
@@ -2077,7 +2311,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
               focusedStopId={focusedStopId}
               onFocusStop={(id) => {
                 setFocusedStopId(id);
-                setOffsetY(0);           // collapse sheet to peek so the map is visible
+                setSheetSnap("peek");    // collapse sheet to peek so the map is visible
               }}
               focusedPlaceId={focusedPlaceId}
               onFocusPlace={setFocusedPlaceId}
@@ -2109,7 +2343,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
             />
           </div>
         </div>
-      </div>
+      </div>{/* end trip-bottom-sheet */}
 
       {/* ── Stop memory sheet (note + photos) ── */}
       {memorySheetStop && plan && (
@@ -2131,51 +2365,51 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
 
       {/* ── Active Navigation Overlays ──
            Rendered last in the tree so they sit above the bottom sheet
-           and all other layers in the stacking context. */}
-      <NavigationHUD
-        nav={activeNav.nav}
-        visible={activeNav.isActive && activeNav.nav.status !== "off_route"}
-      />
-      <OffRouteBanner
-        visible={activeNav.nav.status === "off_route"}
-        distFromRoute_m={activeNav.nav.distFromRoute_m}
-        hasCorridorGraph={!!corridor}
-        onReroute={handleOffRouteReroute}
-      />
-      <NavigationControls
-        visible={activeNav.isActive}
-        isMuted={activeNav.isMuted}
-        onToggleMute={activeNav.toggleMute}
-        onOverview={mapNavMode.showOverview}
-        onRecenter={mapNavMode.recenter}
-        onEnd={activeNav.stop}
-      />
-      {activeNav.isActive && (
-        <div style={{
-          position: "absolute",
-          bottom: "calc(env(safe-area-inset-bottom, 0px) + var(--roam-tab-h, 64px) + 130px)",
-          right: 12,
-          zIndex: 31,
-          pointerEvents: "auto",
-        }}>
-          <QuickReportWheel
-            position={effectivePosition}
-            onSubmit={observations.submit}
-          />
-        </div>
-      )}
-      <NavigationBar
-        nav={activeNav.nav}
-        fuelTracking={fuelTracking}
-        visible={activeNav.isActive}
-        onTap={() => {
-          if (sheetRef.current) {
-            const h = sheetRef.current.clientHeight;
-            setOffsetY(-(h - 300));
-            setTimeout(() => setOffsetY(0), 8000);
-          }
-        }}
-      />
+           and all other layers in the stacking context.
+           NavModeOverlay fires a cinematic flash + vignette when active flips true. */}
+      <NavModeOverlay active={activeNav.isActive}>
+        <NavigationHUD
+          nav={activeNav.nav}
+          visible={activeNav.isActive && activeNav.nav.status !== "off_route"}
+        />
+        <OffRouteBanner
+          visible={activeNav.nav.status === "off_route"}
+          distFromRoute_m={activeNav.nav.distFromRoute_m}
+          hasCorridorGraph={!!corridor}
+          onReroute={handleOffRouteReroute}
+        />
+        <NavigationControls
+          visible={activeNav.isActive}
+          isMuted={activeNav.isMuted}
+          onToggleMute={activeNav.toggleMute}
+          onOverview={mapNavMode.showOverview}
+          onRecenter={mapNavMode.recenter}
+          onEnd={activeNav.stop}
+        />
+        {activeNav.isActive && (
+          <div style={{
+            position: "absolute",
+            bottom: "calc(env(safe-area-inset-bottom, 0px) + var(--roam-tab-h, 64px) + 130px)",
+            right: 12,
+            zIndex: 31,
+            pointerEvents: "auto",
+          }}>
+            <QuickReportWheel
+              position={effectivePosition}
+              onSubmit={observations.submit}
+            />
+          </div>
+        )}
+        <NavigationBar
+          nav={activeNav.nav}
+          fuelTracking={fuelTracking}
+          visible={activeNav.isActive}
+          onTap={() => {
+            setSheetSnap("expanded");
+            setTimeout(() => setSheetSnap("peek"), 8000);
+          }}
+        />
+      </NavModeOverlay>
     </div>
   );
 }

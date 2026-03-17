@@ -13,7 +13,7 @@
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
   scroll-behavior: smooth;
-  padding-bottom: calc(var(--bottom-nav-height, 80px) + 20px);
+  padding-bottom: calc(var(--bottom-nav-height, 80px) + 24px);
   background: var(--roam-bg);
 }
 
@@ -22,10 +22,10 @@
   position: sticky;
   top: 0;
   z-index: 10;
-  padding: 28px 20px 12px;
-  background: color-mix(in srgb, var(--roam-bg) 88%, transparent);
-  backdrop-filter: blur(20px) saturate(140%);
-  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  padding: 20px 20px 12px;
+  background: color-mix(in srgb, var(--roam-bg) 90%, transparent);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
 }
 
 /* Fixed height so switching Memories ↔ Places doesn't shift layout */
@@ -33,22 +33,17 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 34px;
+  height: 36px;
+  margin-bottom: 12px;
 }
 
 .pageTitle {
-  font-size: 26px;
+  font-size: 28px;
   font-weight: 900;
   color: var(--roam-text);
   margin: 0;
-  line-height: 1.1;
-}
-
-.pageSub {
-  font-size: var(--font-sm);
-  font-weight: 600;
-  color: var(--roam-text-muted);
-  margin: 4px 0 0;
+  line-height: 1;
+  letter-spacing: -0.5px;
 }
 
 /* ── Inner tab bar (Memories | Places) ──────────────────────── */
@@ -56,11 +51,11 @@
 .innerTabBar {
   display: flex;
   gap: 4px;
-  background: var(--roam-surface-hover);
+  background: var(--roam-bg);
   border-radius: 12px;
   padding: 3px;
-  margin-top: 12px;
-  position: relative;
+  margin-top: 0;
+  margin-bottom: 0;
 }
 
 .innerTab {
@@ -69,20 +64,21 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 8px 12px;
-  min-height: 44px;
-  border-radius: 10px;
+  padding: 9px 12px;
+  min-height: 40px;
+  border-radius: 9px;
   border: none;
   background: transparent;
   color: var(--roam-text-muted);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 700;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   transition:
     background 200ms var(--ease-out, cubic-bezier(0.25, 0.46, 0.45, 0.94)),
     color 200ms var(--ease-out, cubic-bezier(0.25, 0.46, 0.45, 0.94)),
+    box-shadow 200ms var(--ease-out, cubic-bezier(0.25, 0.46, 0.45, 0.94)),
     transform 60ms ease-out;
   will-change: transform;
   position: relative;
@@ -96,19 +92,28 @@
 .innerTabActive {
   background: var(--roam-surface);
   color: var(--roam-text);
+  font-weight: 800;
   box-shadow: 0 1px 4px rgba(40, 32, 20, 0.10), 0 0.5px 1px rgba(40, 32, 20, 0.06);
+}
+
+/* ── Content area below sticky header ───────────────────────── */
+.contentArea {
+  flex: 1;
+  background: var(--roam-surface);
+  border-top: 1.5px solid var(--roam-border);
+  min-height: 0;
 }
 
 /* ── Trip selector (horizontal scroll of chips) ──────────────── */
 .tripSelector {
-  padding: 0 0 8px;
+  padding: 12px 0 0;
   animation: jrn-fadeSlideDown 300ms var(--ease-out, cubic-bezier(0.25, 0.46, 0.45, 0.94)) both;
 }
 
 .tripSelectorScroll {
   display: flex;
   gap: 8px;
-  padding: 0 20px;
+  padding: 0 16px 12px;
   overflow-x: auto;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
@@ -123,14 +128,14 @@
 .tripChipActive {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 10px 16px;
-  min-height: 44px;
-  border-radius: 22px;
-  border: 1.5px solid var(--roam-border);
-  background: transparent;
+  gap: 5px;
+  padding: 8px 14px;
+  min-height: 36px;
+  border-radius: 999px;
+  border: 1.5px solid var(--roam-border-strong);
+  background: var(--roam-bg);
   color: var(--roam-text-muted);
-  font-size: var(--font-xs);
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
@@ -156,7 +161,7 @@
   background: var(--brand-eucalypt);
   color: var(--on-color);
   border-color: var(--brand-eucalypt);
-  box-shadow: 0 2px 8px rgba(45, 110, 64, 0.25);
+  box-shadow: 0 2px 10px rgba(45, 110, 64, 0.28);
 }
 
 .tripChipLabel {
@@ -169,8 +174,8 @@
 .tripSummary {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 20px 14px;
+  gap: 0;
+  padding: 0 16px 14px;
   animation: jrn-fadeIn 350ms var(--ease-out, cubic-bezier(0.25, 0.46, 0.45, 0.94)) both;
   animation-delay: 80ms;
 }
@@ -179,22 +184,29 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: var(--font-xs);
+  font-size: 11px;
   font-weight: 700;
   color: var(--roam-text-muted);
+  padding: 5px 10px;
+  background: var(--roam-bg);
+  border-radius: 8px;
+  border: 1px solid var(--roam-border);
+}
+
+.tripSummaryItem + .tripSummaryItem {
+  margin-left: 6px;
 }
 
 .tripSummaryDot {
-  color: var(--roam-text-muted);
-  opacity: 0.4;
-  font-size: var(--font-xs);
+  display: none;
 }
 
 /* ── Timeline ────────────────────────────────────────────────── */
 .timeline {
-  padding: 0 20px;
+  padding: 8px 16px 80px;
 }
 
+/* ── Timeline entry card ─────────────────────────────────────── */
 .timelineEntry {
   position: relative;
   animation: jrn-entryIn 400ms var(--ease-out, cubic-bezier(0.25, 0.46, 0.45, 0.94)) both;
@@ -214,53 +226,58 @@
 /* ── Connector between stops ─────────────────────────────────── */
 .connector {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 6px 0 6px 18px;
+  padding: 0;
+  height: 32px;
   position: relative;
+  /* Aligns with the center of the 36px marker */
+  margin-left: 18px;
+  width: 36px;
 }
 
 .connectorLine {
   position: absolute;
-  left: 24px;
+  left: 50%;
+  transform: translateX(-50%);
   top: 0;
   bottom: 0;
   width: 2px;
   background: linear-gradient(
     180deg,
     var(--roam-border-strong) 0%,
-    var(--roam-border) 100%
+    color-mix(in srgb, var(--brand-eucalypt) 30%, transparent) 100%
   );
   border-radius: 1px;
 }
 
 .connectorSegment {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 7px;
-  background: var(--roam-surface-hover);
-  color: var(--roam-text-muted);
-  z-index: 1;
-  transition: color 150ms, background 150ms;
+  display: none;
+}
+
+/* ── Stop card ───────────────────────────────────────────────── */
+.stopCard {
+  background: var(--roam-surface-raised);
+  border: 1.5px solid var(--roam-border);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: var(--shadow-soft);
+  margin-bottom: 4px;
 }
 
 /* ── Marker row ──────────────────────────────────────────────── */
 .markerRow {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 0;
-  min-height: 48px;
+  gap: 12px;
+  padding: 14px 14px 12px;
 }
 
 .marker {
-  width: 38px;
-  height: 38px;
-  border-radius: 11px;
-  background: var(--accent-tint, rgba(45, 110, 64, 0.1));
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--brand-eucalypt) 14%, transparent);
   color: var(--brand-eucalypt);
   display: grid;
   place-items: center;
@@ -281,29 +298,30 @@
 }
 
 .markerName {
-  font-size: var(--font-sm);
+  font-size: 15px;
   font-weight: 800;
   color: var(--roam-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  letter-spacing: -0.2px;
 }
 
 .markerTime {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: var(--font-xxs);
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   color: var(--roam-text-muted);
 }
 
 .editBtn {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  border: 1.5px solid var(--roam-border);
-  background: transparent;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1.5px solid var(--roam-border-strong);
+  background: var(--roam-surface-hover);
   color: var(--roam-text-muted);
   display: grid;
   place-items: center;
@@ -320,22 +338,28 @@
 }
 
 .editBtn:active {
-  transform: scale(0.90);
+  transform: scale(0.88);
   border-color: var(--brand-eucalypt);
   color: var(--brand-eucalypt);
-  background: var(--accent-tint, rgba(45, 110, 64, 0.06));
+  background: color-mix(in srgb, var(--brand-eucalypt) 10%, transparent);
+}
+
+/* ── Divider between header and content within card ──────────── */
+.cardDivider {
+  height: 1px;
+  background: var(--roam-border);
+  margin: 0 14px;
 }
 
 /* ── Photo strip ─────────────────────────────────────────────── */
 .photoStrip {
   display: flex;
-  gap: 10px;
-  padding: 6px 0 10px 48px;
+  gap: 8px;
+  padding: 12px 14px;
   overflow-x: auto;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
   scroll-snap-type: x mandatory;
-  scroll-padding-left: 48px;
 }
 
 .photoStrip::-webkit-scrollbar {
@@ -343,20 +367,21 @@
 }
 
 .timelinePhoto {
-  width: 140px;
-  height: 105px;
-  border-radius: 14px;
+  width: 130px;
+  height: 96px;
+  border-radius: 10px;
   overflow: hidden;
   flex-shrink: 0;
   background: var(--roam-surface-hover);
   scroll-snap-align: start;
   transition: transform 200ms var(--spring, cubic-bezier(0.34, 1.56, 0.64, 1));
   will-change: transform;
-  box-shadow: var(--shadow-soft, 0 2px 12px rgba(40, 32, 20, 0.06));
+  box-shadow: 0 1px 6px rgba(40, 32, 20, 0.10);
+  border: 1px solid var(--roam-border);
 }
 
 .timelinePhoto:active {
-  transform: scale(0.96);
+  transform: scale(0.95);
 }
 
 .timelinePhotoImg {
@@ -365,32 +390,24 @@
   object-fit: cover;
   -webkit-user-drag: none;
   user-select: none;
+  display: block;
 }
 
 /* ── Note card ───────────────────────────────────────────────── */
 .noteCard {
-  margin: 6px 0 10px 48px;
-  padding: 14px 16px;
-  border-radius: 14px;
-  background: var(--roam-surface);
-  border: 1px solid var(--roam-border);
-  box-shadow: var(--shadow-soft, 0 2px 12px rgba(40, 32, 20, 0.06));
-  transition: transform 200ms var(--spring, cubic-bezier(0.34, 1.56, 0.64, 1));
-  will-change: transform;
-}
-
-.noteCard:active {
-  transform: scale(0.98);
+  padding: 12px 14px 14px;
 }
 
 .noteText {
-  font-size: var(--font-sm);
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 500;
   color: var(--roam-text);
-  line-height: 1.55;
+  line-height: 1.6;
   margin: 0;
   white-space: pre-wrap;
   word-break: break-word;
+  font-style: italic;
+  opacity: 0.85;
 }
 
 /* ── Add prompt (empty memory) ───────────────────────────────── */
@@ -399,33 +416,51 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 6px 0 10px 48px;
-  padding: 14px 16px;
+  padding: 13px 14px;
   min-height: 44px;
-  border-radius: 14px;
-  border: 1.5px dashed var(--roam-border-strong);
   background: transparent;
   color: var(--roam-text-muted);
-  font-size: var(--font-xs);
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   transition:
-    border-color 180ms,
     color 180ms,
     background 180ms,
     transform 60ms ease-out;
-  width: calc(100% - 48px);
+  width: 100%;
   box-sizing: border-box;
   will-change: transform;
+  border-top: 1.5px dashed var(--roam-border-strong);
+}
+
+.addPromptIcon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--roam-surface-hover);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  color: var(--roam-text-muted);
+  transition: background 180ms, color 180ms;
 }
 
 .addPrompt:active {
-  transform: scale(0.97);
-  border-color: var(--brand-eucalypt);
+  transform: scale(0.98);
   color: var(--brand-eucalypt);
-  background: var(--accent-tint, rgba(45, 110, 64, 0.06));
+  background: color-mix(in srgb, var(--brand-eucalypt) 5%, transparent);
+}
+
+.addPrompt:active .addPromptIcon {
+  background: color-mix(in srgb, var(--brand-eucalypt) 12%, transparent);
+  color: var(--brand-eucalypt);
+}
+
+.addPromptChevron {
+  margin-left: auto;
+  opacity: 0.4;
 }
 
 /* ── Empty / loading states ──────────────────────────────────── */
@@ -435,37 +470,39 @@
   align-items: center;
   justify-content: center;
   flex: 1;
-  padding: 60px 40px;
+  padding: 64px 40px;
   text-align: center;
   animation: jrn-emptyIn 500ms var(--ease-out, cubic-bezier(0.25, 0.46, 0.45, 0.94)) both;
   animation-delay: 100ms;
 }
 
 .emptyIcon {
-  width: 80px;
-  height: 80px;
-  border-radius: 22px;
-  background: var(--roam-surface);
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  background: var(--roam-surface-raised);
   color: var(--roam-text-muted);
   display: grid;
   place-items: center;
-  margin-bottom: 20px;
-  box-shadow: var(--shadow-soft, 0 2px 12px rgba(40, 32, 20, 0.06));
+  margin-bottom: 18px;
+  box-shadow: var(--shadow-soft);
+  border: 1.5px solid var(--roam-border);
 }
 
 .emptyTitle {
-  font-size: var(--font-md, 1rem);
+  font-size: 17px;
   font-weight: 800;
   color: var(--roam-text);
-  margin: 0 0 8px;
+  margin: 0 0 6px;
+  letter-spacing: -0.2px;
 }
 
 .emptySub {
-  font-size: var(--font-sm);
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--roam-text-muted);
   margin: 0;
-  max-width: 240px;
+  max-width: 220px;
   line-height: 1.55;
 }
 
@@ -474,11 +511,11 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 16px;
+  gap: 14px;
   flex: 1;
   padding: 60px 20px;
-  font-size: var(--font-sm);
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
   color: var(--roam-text-muted);
   animation: jrn-fadeIn 300ms var(--ease-out, cubic-bezier(0.25, 0.46, 0.45, 0.94)) both;
 }
@@ -486,8 +523,8 @@
 /* Loading spinner */
 .loadingState::before {
   content: "";
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   border: 2.5px solid var(--spinner-track, rgba(26, 22, 19, 0.10));
   border-top-color: var(--spinner-head, var(--brand-eucalypt));
@@ -497,19 +534,20 @@
 /* ── View mode toggle ────────────────────────────────────────── */
 .viewToggle {
   display: flex;
-  gap: 4px;
-  background: var(--roam-surface-hover);
+  gap: 3px;
+  background: var(--roam-bg);
   border-radius: 10px;
   padding: 3px;
+  border: 1.5px solid var(--roam-border-strong);
 }
 
 .viewToggleBtn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 28px;
-  border-radius: 7px;
+  width: 30px;
+  height: 26px;
+  border-radius: 6px;
   border: none;
   cursor: pointer;
   background: transparent;
@@ -525,13 +563,13 @@
 }
 
 .viewToggleBtn:active {
-  transform: scale(0.90);
+  transform: scale(0.88);
 }
 
 .viewToggleBtnActive {
-  background: var(--roam-surface);
+  background: var(--roam-surface-raised);
   color: var(--roam-accent);
-  box-shadow: var(--shadow-soft, 0 2px 12px rgba(40, 32, 20, 0.06));
+  box-shadow: var(--shadow-soft);
 }
 
 /* ── Keyframes ───────────────────────────────────────────────── */
@@ -539,7 +577,7 @@
 @keyframes jrn-entryIn {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -576,6 +614,16 @@
 
 @keyframes jrn-spin {
   to { transform: rotate(360deg); }
+}
+
+/* ── Journal map ─────────────────────────────────────────────── */
+.mapContainer {
+  position: relative;
+  width: 100%;
+  height: 240px;
+  flex-shrink: 0;
+  background: var(--roam-bg);
+  border-bottom: 1.5px solid var(--roam-border);
 }
 
 /* ── Reduced motion ──────────────────────────────────────────── */

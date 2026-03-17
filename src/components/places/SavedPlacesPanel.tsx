@@ -88,7 +88,11 @@ function NoteEditor({
         </button>
         <button
           type="button"
-          onClick={() => { onSave(value.trim() || null); onClose(); }}
+          onClick={() => {
+            haptic.tap();
+            onSave(value.trim() || null);
+            onClose();
+          }}
           style={{
             background: "var(--roam-accent)",
             border: "none",
@@ -101,6 +105,14 @@ function NoteEditor({
             display: "flex",
             alignItems: "center",
             gap: 6,
+            transition: "transform 0.1s ease",
+            WebkitTapHighlightColor: "transparent",
+          }}
+          onPointerDown={(e) => {
+            (e.currentTarget as HTMLElement).style.transform = "scale(0.95)";
+          }}
+          onPointerUp={(e) => {
+            (e.currentTarget as HTMLElement).style.transform = "";
           }}
         >
           <Check size={13} />
@@ -277,6 +289,20 @@ function ActionChip({
         fontWeight: 700,
         color: danger ? "var(--roam-danger)" : "var(--roam-text-muted)",
         cursor: "pointer",
+        transition: "transform 0.1s ease, opacity 0.1s ease",
+        WebkitTapHighlightColor: "transparent",
+      }}
+      onPointerDown={(e) => {
+        (e.currentTarget as HTMLElement).style.transform = "scale(0.93)";
+        (e.currentTarget as HTMLElement).style.opacity = "0.7";
+      }}
+      onPointerUp={(e) => {
+        (e.currentTarget as HTMLElement).style.transform = "";
+        (e.currentTarget as HTMLElement).style.opacity = "";
+      }}
+      onPointerLeave={(e) => {
+        (e.currentTarget as HTMLElement).style.transform = "";
+        (e.currentTarget as HTMLElement).style.opacity = "";
       }}
     >
       <Icon size={12} />

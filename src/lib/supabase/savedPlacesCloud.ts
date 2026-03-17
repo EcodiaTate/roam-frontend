@@ -10,7 +10,7 @@ const TABLE = "saved_places";
 export async function cloudListSavedPlaces(): Promise<SavedPlace[]> {
   const { data, error } = await supabase
     .from(TABLE)
-    .select("id, place_id, name, lat, lng, category, note, saved_at")
+    .select("id, place_id, name, lat, lng, category, note, saved_at, extra")
     .order("saved_at", { ascending: false });
 
   if (error) throw new Error(error.message);
@@ -28,6 +28,7 @@ export async function cloudUpsertSavedPlace(p: SavedPlace): Promise<void> {
       category: p.category,
       note: p.note ?? null,
       saved_at: p.saved_at,
+      extra: p.extra ?? null,
     },
     { onConflict: "place_id" },
   );
