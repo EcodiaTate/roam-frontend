@@ -207,7 +207,7 @@ export type WirePlace = {
   max_stay_days?: number;
   price_per_night_aud?: number;
   // ── Overnight legality (rest_area + free camps) ───────────
-  overnight_allowed?: boolean | "check" | "prohibited";
+  overnight_allowed?: string;
   overnight_max_hours?: number;
   overnight_notes?: string;
 };

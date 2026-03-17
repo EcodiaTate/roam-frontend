@@ -56,6 +56,7 @@ import { unpackAndStoreBundle } from "@/lib/offline/unpackBundle";
 import { onPlanEvent } from "@/lib/offline/planEvents";
 import { getVehicleFuelProfile } from "@/lib/offline/fuelProfileStore";
 import { rebuildNavpackOfflineWithFuel } from "@/lib/offline/rebuildNavpack";
+import { overlaysToHazardZones, overlaysToAvoidZoneRequests } from "@/lib/nav/routeAvoidance";
 
 import { navApi } from "@/lib/api/nav";
 import { bundleApi } from "@/lib/api/bundle";
@@ -985,12 +986,15 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         alternates: { alternates: [] },
       } as NavPack;
       const routeKey = `offline_${shortId(12)}`;
+      // Build hazard penalty zones from cached traffic/hazards so A* avoids them
+      const hazardZones = overlaysToHazardZones(traffic, hazards);
       const { navpack: offlineNavpack, fuelAnalysis: offlineFuel } = await rebuildNavpackOfflineWithFuel({
         planId: planId ?? "",
         prevNavpack: prev,
         corridor,
         stops: args.stops,
         route_key: routeKey,
+        hazardZones: hazardZones.length > 0 ? hazardZones : undefined,
       });
 
       setNavpack(offlineNavpack);
@@ -1030,15 +1034,19 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     // stuck without a route when the corridor graph is available.
     let result: NavPack | null = null;
     try {
+      // Build avoid zones from current traffic/hazards so OSRM picks the safest alternative
+      const avoidZones = overlaysToAvoidZoneRequests(traffic, hazards);
       result = await navApi.route({
         profile: navpack?.primary?.profile ?? "drive",
         stops: args.stops,
+        ...(avoidZones.length > 0 ? { avoid_zones: avoidZones } : {}),
       });
     } catch (onlineErr) {
       // ── Fallback: corridor A* when online OSRM fails ────────────
       if (corridor && navpack) {
         console.warn("[Trip] online rebuild failed, falling back to offline corridor A*:", onlineErr);
         const routeKey = `offline_fallback_${shortId(12)}`;
+        const fallbackHazardZones = overlaysToHazardZones(traffic, hazards);
         const { navpack: offlineNavpack, fuelAnalysis: offlineFuel } = await rebuildNavpackOfflineWithFuel({
           planId: planId ?? "",
           prevNavpack: navpack,
@@ -1046,6 +1054,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           stops: args.stops,
           route_key: routeKey,
           reason: "online_fallback",
+          hazardZones: fallbackHazardZones.length > 0 ? fallbackHazardZones : undefined,
         });
 
         setNavpack(offlineNavpack);
@@ -1155,7 +1164,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         }
       } catch {}
     }
-  }, [navpack, plan, places, corridor, isOnline]);
+  }, [navpack, plan, places, corridor, isOnline, traffic, hazards]);
 
   // ── React to remote plan changes (shared trip sync) ───────────────
   // planSync merges Supabase Realtime updates into IDB and emits

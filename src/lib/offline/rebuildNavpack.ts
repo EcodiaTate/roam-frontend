@@ -13,6 +13,7 @@ import {
   pathToGeoJSON,
   encodePolyline6,
   bboxFromStopsOrLine,
+  type HazardZone,
 } from "@/lib/offline/corridorRouter";
 
 // ── Fuel reanalysis (after reroute) ─────────────────────────────────────
@@ -39,6 +40,7 @@ export function rebuildNavpackOffline(args: {
   stops: TripStop[];
   route_key: string; // must change when stops change
   max_snap_m?: number;
+  hazardZones?: HazardZone[];
 }): NavPack {
   const prev = args.prevNavpack;
   const corridor = args.corridor;
@@ -74,7 +76,7 @@ export function rebuildNavpackOffline(args: {
       );
     }
 
-    const path = aStar(idx, sa.nodeId, sb.nodeId);
+    const path = aStar(idx, sa.nodeId, sb.nodeId, args.hazardZones);
     const geo = pathToGeoJSON(idx, path.nodeIds);
 
     const coords = geo.geometry.coordinates as [number, number][];
@@ -135,6 +137,7 @@ export async function rebuildNavpackOfflineWithFuel(args: {
   stops: TripStop[];
   route_key: string;
   max_snap_m?: number;
+  hazardZones?: HazardZone[];
 
   // Optional: override analysis reason label
   reason?: string;
@@ -145,6 +148,7 @@ export async function rebuildNavpackOfflineWithFuel(args: {
     stops: args.stops,
     route_key: args.route_key,
     max_snap_m: args.max_snap_m,
+    hazardZones: args.hazardZones,
   });
 
   // ── Recompute fuel on rerouted path ──

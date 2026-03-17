@@ -649,10 +649,6 @@ export function StopsEditor(props: {
         {/* CONTENT */}
         <div
           className="trip-sheet-content"
-          style={{
-            paddingBottom: `calc(var(--bottom-nav-height, 56px) + 120px)`,
-            overscrollBehaviorY: "auto",
-          }}
         >
           {isBuilding ? (
             <BuildProgressView
@@ -839,6 +835,9 @@ export function StopsEditor(props: {
               </div>
 
               {props.error && <div className="trip-err-box">{props.error}</div>}
+
+              {/* Spacer so buttons can be scrolled above the tab bar */}
+              <div aria-hidden style={{ minHeight: 300, flexShrink: 0 }} />
             </>
           )}
         </div>

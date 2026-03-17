@@ -2,12 +2,19 @@
 import type { BBox4 } from "./geo";
 import type { TripStop } from "./trip";
 
+export type AvoidZoneRequest = {
+  lat: number;
+  lng: number;
+  radius_km?: number; // default 5.0
+};
+
 /** Matches backend: NavRequest.profile is string (e.g. "drive") */
 export type NavRequest = {
   profile?: string; // default "drive"
   prefs?: Record<string, unknown>; // default {}
   stops: TripStop[];
   avoid?: string[]; // default []
+  avoid_zones?: AvoidZoneRequest[]; // default []
   depart_at?: string | null; // ISO8601 UTC recommended
 };
 

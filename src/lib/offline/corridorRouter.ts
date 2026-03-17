@@ -61,6 +61,17 @@ export function snapStopToNearestNode(idx: GraphIndex, stop: TripStop): { nodeId
   return { nodeId: bestId, distance_m: best };
 }
 
+// --- Hazard zone type for penalized routing ---
+
+/** A hazard zone that the A* router should penalize */
+export type HazardZone = {
+  lat: number;
+  lng: number;
+  radiusKm: number;
+  /** Penalty multiplier: edges within the zone have cost multiplied by this. Higher = more avoidance. */
+  penalty: number;
+};
+
 // --- A* (Dijkstra if heuristic=0, but we use haversine to goal) ---
 
 type CameFrom = Map<number, number>;
@@ -85,9 +96,47 @@ export type PathResult = {
   duration_s: number;
 };
 
-export function aStar(idx: GraphIndex, startId: number, goalId: number): PathResult {
+/**
+ * Compute the hazard penalty for an edge between two nodes.
+ * If the edge midpoint is within a hazard zone's radius, the edge cost
+ * is multiplied by the zone's penalty factor.
+ *
+ * Multiple zones stack multiplicatively.
+ */
+function hazardPenalty(
+  idx: GraphIndex,
+  fromId: number,
+  toId: number,
+  hazardZones: HazardZone[],
+): number {
+  if (hazardZones.length === 0) return 1;
+
+  const a = idx.nodeById.get(fromId);
+  const b = idx.nodeById.get(toId);
+  if (!a || !b) return 1;
+
+  // Check midpoint of edge against each hazard zone
+  const midLat = (a.lat + b.lat) / 2;
+  const midLng = (a.lng + b.lng) / 2;
+
+  let multiplier = 1;
+  for (const hz of hazardZones) {
+    const dKm = haversineMeters({ lat: midLat, lng: midLng }, { lat: hz.lat, lng: hz.lng }) / 1000;
+    if (dKm < hz.radiusKm) {
+      // Penalty is strongest at centre, tapers linearly to edge of radius
+      const proximity = 1 - (dKm / hz.radiusKm); // 1 at centre, 0 at edge
+      const factor = 1 + (hz.penalty - 1) * proximity;
+      multiplier *= factor;
+    }
+  }
+
+  return multiplier;
+}
+
+export function aStar(idx: GraphIndex, startId: number, goalId: number, hazardZones?: HazardZone[]): PathResult {
   if (startId === goalId) return { nodeIds: [startId], distance_m: 0, duration_s: 0 };
 
+  const zones = hazardZones ?? [];
   const open = new Set<number>([startId]);
   const cameFrom: CameFrom = new Map();
 
@@ -107,6 +156,7 @@ export function aStar(idx: GraphIndex, startId: number, goalId: number): PathRes
 
     if (current === goalId) {
       const nodeIds = reconstructPath(cameFrom, current);
+      // Reconstruct actual (unpenalized) distance/duration for the path
       let dist = 0;
       let dur = 0;
       for (let i = 0; i < nodeIds.length - 1; i++) {
@@ -127,7 +177,9 @@ export function aStar(idx: GraphIndex, startId: number, goalId: number): PathRes
     const gCur = gScore.get(current) ?? Infinity;
 
     for (const nb of neighbors) {
-      const tentative = gCur + nb.distance_m; // distance-based gScore
+      // Apply hazard penalty to edge cost so A* naturally avoids hazard zones
+      const penalty = hazardPenalty(idx, current, nb.to, zones);
+      const tentative = gCur + nb.distance_m * penalty;
       const gNb = gScore.get(nb.to) ?? Infinity;
       if (tentative < gNb) {
         cameFrom.set(nb.to, current);

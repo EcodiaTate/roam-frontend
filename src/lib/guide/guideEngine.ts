@@ -461,7 +461,7 @@ function rankedToWire(places: RankedPlace[]): WirePlace[] {
       if (typeof extra.price_per_night_aud === "number") wire.price_per_night_aud = extra.price_per_night_aud;
       // Overnight legality — use pre-computed RankedPlace field first, then fallback to extra
       const overnightAllowed = p.overnight_allowed ?? extra.overnight_allowed;
-      if (overnightAllowed !== undefined) wire.overnight_allowed = overnightAllowed as boolean | "check" | "prohibited";
+      if (overnightAllowed !== undefined) wire.overnight_allowed = String(overnightAllowed);
       const overnightHours = p.overnight_max_hours ?? extra.overnight_max_hours;
       if (typeof overnightHours === "number") wire.overnight_max_hours = overnightHours;
       const overnightNotes = p.overnight_notes ?? (extra.overnight_notes as string | undefined);

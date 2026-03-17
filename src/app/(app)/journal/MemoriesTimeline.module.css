@@ -9,11 +9,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
-  scroll-behavior: smooth;
-  padding-bottom: calc(var(--bottom-nav-height, 80px) + 24px);
+  overflow: hidden;
   background: var(--roam-bg);
 }
 
@@ -22,19 +18,20 @@
   position: sticky;
   top: 0;
   z-index: 10;
-  padding: 20px 20px 12px;
-  background: color-mix(in srgb, var(--roam-bg) 90%, transparent);
-  backdrop-filter: blur(24px) saturate(150%);
-  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  padding: 20px 20px 0;
+  background: color-mix(in srgb, var(--roam-bg) 88%, transparent);
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border-bottom: 1px solid var(--roam-border);
 }
 
-/* Fixed height so switching Memories ↔ Places doesn't shift layout */
+/* Title row: title left | tabs center | right action */
 .pageTitleRow {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
-  height: 36px;
-  margin-bottom: 12px;
+  height: 44px;
+  margin-bottom: 0;
 }
 
 .pageTitle {
@@ -44,45 +41,53 @@
   margin: 0;
   line-height: 1;
   letter-spacing: -0.5px;
+  justify-self: start;
 }
 
-/* ── Inner tab bar (Memories | Places) ──────────────────────── */
+/* Right-side slot — keeps tabs truly centred even when switcher is absent */
+.tabRightSpacer {
+  /* matches ViewModeToggle's approximate width */
+  width: 96px;
+  justify-self: end;
+}
+
+/* ── Inner tab bar (Memories | Places) — centered in title row ── */
 
 .innerTabBar {
   display: flex;
-  gap: 4px;
-  background: var(--roam-bg);
-  border-radius: 12px;
-  padding: 3px;
-  margin-top: 0;
-  margin-bottom: 0;
+  gap: 0;
+  background: transparent;
+  padding: 0;
+  justify-self: center;
 }
 
 .innerTab {
-  flex: 1;
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 9px 12px;
-  min-height: 40px;
-  border-radius: 9px;
+  padding: 8px 14px;
+  height: 44px;
+  border-radius: 0;
   border: none;
+  border-bottom: 3px solid transparent;
   background: transparent;
   color: var(--roam-text-muted);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   transition:
-    background 200ms var(--ease-out, cubic-bezier(0.25, 0.46, 0.45, 0.94)),
+    border-color 200ms var(--ease-out, cubic-bezier(0.25, 0.46, 0.45, 0.94)),
     color 200ms var(--ease-out, cubic-bezier(0.25, 0.46, 0.45, 0.94)),
-    box-shadow 200ms var(--ease-out, cubic-bezier(0.25, 0.46, 0.45, 0.94)),
     transform 60ms ease-out;
   will-change: transform;
   position: relative;
   z-index: 1;
+  /* nudge border flush with bottom of header */
+  margin-bottom: -1px;
 }
 
 .innerTab:active {
@@ -90,38 +95,116 @@
 }
 
 .innerTabActive {
-  background: var(--roam-surface);
-  color: var(--roam-text);
+  color: var(--brand-eucalypt);
   font-weight: 800;
-  box-shadow: 0 1px 4px rgba(40, 32, 20, 0.10), 0 0.5px 1px rgba(40, 32, 20, 0.06);
+  border-bottom-color: var(--brand-eucalypt);
+}
+
+/* ── Sliding tab track ────────────────────────────────────────── */
+.tabTrackOuter {
+  overflow: hidden;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tabTrack {
+  display: flex;
+  flex: 1;
+  width: 200%;
+  will-change: transform;
+  /* initial position set imperatively via JS */
+}
+
+.tabPanel {
+  width: 50%;
+  min-width: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  scroll-behavior: smooth;
+  padding-bottom: calc(var(--bottom-nav-height, 80px) + 24px);
+  /* needs a fixed height for overflow-y to work inside the flex track */
+  align-self: stretch;
 }
 
 /* ── Content area below sticky header ───────────────────────── */
 .contentArea {
   flex: 1;
-  background: var(--roam-surface);
-  border-top: 1.5px solid var(--roam-border);
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--roam-bg);
 }
 
-/* ── Trip selector (horizontal scroll of chips) ──────────────── */
-.tripSelector {
-  padding: 12px 0 0;
+/* ── Trip controls row (selector + stats side-by-side on desktop) */
+.tripControlsRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px 0;
   animation: jrn-fadeSlideDown 300ms var(--ease-out, cubic-bezier(0.25, 0.46, 0.45, 0.94)) both;
 }
 
+/* Chips scroll takes all leftover space */
 .tripSelectorScroll {
   display: flex;
   gap: 8px;
-  padding: 0 16px 12px;
   overflow-x: auto;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
   scroll-snap-type: x proximity;
+  flex: 1 1 0;
+  min-width: 0;
+  padding-bottom: 2px;
 }
 
 .tripSelectorScroll::-webkit-scrollbar {
   display: none;
+}
+
+/* Stats cluster — sits to the right on wide screens, stacks below on narrow */
+.tripStats {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  animation: jrn-fadeIn 350ms var(--ease-out, cubic-bezier(0.25, 0.46, 0.45, 0.94)) both;
+  animation-delay: 80ms;
+}
+
+/* When there's only one trip (no chip row), stats stand alone */
+.tripStatsOnly {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 14px 20px 0;
+  animation: jrn-fadeIn 350ms var(--ease-out, cubic-bezier(0.25, 0.46, 0.45, 0.94)) both;
+  animation-delay: 80ms;
+}
+
+/* On narrow screens, stack selector chips above stats */
+@media (max-width: 520px) {
+  .tripControlsRow {
+    flex-wrap: wrap;
+  }
+  .tripSelectorScroll {
+    flex: 1 1 100%;
+    order: 0;
+  }
+  .tripStats {
+    order: 1;
+    flex: 1 1 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .tripStats::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .tripChip,
@@ -129,11 +212,11 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 8px 14px;
-  min-height: 36px;
+  padding: 7px 14px;
+  min-height: 34px;
   border-radius: 999px;
   border: 1.5px solid var(--roam-border-strong);
-  background: var(--roam-bg);
+  background: var(--roam-surface);
   color: var(--roam-text-muted);
   font-size: 12px;
   font-weight: 700;
@@ -170,40 +253,40 @@
   text-overflow: ellipsis;
 }
 
-/* ── Trip summary bar ────────────────────────────────────────── */
-.tripSummary {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  padding: 0 16px 14px;
-  animation: jrn-fadeIn 350ms var(--ease-out, cubic-bezier(0.25, 0.46, 0.45, 0.94)) both;
-  animation-delay: 80ms;
-}
-
-.tripSummaryItem {
+/* ── Stat pill ────────────────────────────────────────────────── */
+.statPill {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  font-weight: 700;
+  gap: 5px;
+  padding: 6px 11px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1.5px solid var(--roam-border);
+  background: var(--roam-surface);
   color: var(--roam-text-muted);
-  padding: 5px 10px;
-  background: var(--roam-bg);
-  border-radius: 8px;
-  border: 1px solid var(--roam-border);
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.tripSummaryItem + .tripSummaryItem {
-  margin-left: 6px;
+/* ── Map section header (trip name + divider) ─────────────────── */
+.sectionDivider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 20px 0;
 }
 
-.tripSummaryDot {
-  display: none;
+.sectionDividerLine {
+  flex: 1;
+  height: 1px;
+  background: var(--roam-border);
 }
 
 /* ── Timeline ────────────────────────────────────────────────── */
 .timeline {
-  padding: 8px 16px 80px;
+  padding: 16px 16px 80px;
 }
 
 /* ── Timeline entry card ─────────────────────────────────────── */
@@ -229,7 +312,7 @@
   flex-direction: column;
   align-items: center;
   padding: 0;
-  height: 32px;
+  height: 24px;
   position: relative;
   /* Aligns with the center of the 36px marker */
   margin-left: 18px;
@@ -257,11 +340,11 @@
 
 /* ── Stop card ───────────────────────────────────────────────── */
 .stopCard {
-  background: var(--roam-surface-raised);
+  background: var(--roam-surface);
   border: 1.5px solid var(--roam-border);
   border-radius: 18px;
   overflow: hidden;
-  box-shadow: var(--shadow-soft);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04);
   margin-bottom: 4px;
 }
 
@@ -321,7 +404,7 @@
   height: 36px;
   border-radius: 10px;
   border: 1.5px solid var(--roam-border-strong);
-  background: var(--roam-surface-hover);
+  background: transparent;
   color: var(--roam-text-muted);
   display: grid;
   place-items: center;
@@ -480,12 +563,12 @@
   width: 72px;
   height: 72px;
   border-radius: 20px;
-  background: var(--roam-surface-raised);
+  background: var(--roam-surface);
   color: var(--roam-text-muted);
   display: grid;
   place-items: center;
   margin-bottom: 18px;
-  box-shadow: var(--shadow-soft);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04);
   border: 1.5px solid var(--roam-border);
 }
 
@@ -535,10 +618,11 @@
 .viewToggle {
   display: flex;
   gap: 3px;
-  background: var(--roam-bg);
+  background: var(--roam-surface);
   border-radius: 10px;
   padding: 3px;
   border: 1.5px solid var(--roam-border-strong);
+  justify-self: end;
 }
 
 .viewToggleBtn {
@@ -623,16 +707,105 @@
   height: 240px;
   flex-shrink: 0;
   background: var(--roam-bg);
-  border-bottom: 1.5px solid var(--roam-border);
+  border-top: 1px solid var(--roam-border);
+  border-bottom: 1px solid var(--roam-border);
+  margin-top: 16px;
+}
+
+/* ── Past trips (detached memories) ─────────────────────────── */
+.pastTripsSection {
+  padding: 0 0 24px;
+  animation: jrn-fadeIn 400ms var(--ease-out, cubic-bezier(0.25, 0.46, 0.45, 0.94)) both;
+  animation-delay: 200ms;
+}
+
+.pastTripsHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 20px 8px;
+}
+
+.pastTripsLabel {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--roam-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  flex-shrink: 0;
+}
+
+.pastTripGroup {
+  padding: 0 0 8px;
+}
+
+.pastTripTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px 4px;
+}
+
+.pastTripName {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--roam-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+}
+
+.pastTripBadge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--roam-text-muted);
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--roam-surface);
+  border: 1px solid var(--roam-border);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.pastTripPurge {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1.5px solid var(--roam-border-strong);
+  background: transparent;
+  color: var(--roam-text-muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition:
+    border-color 150ms,
+    color 150ms,
+    background 150ms,
+    transform 60ms ease-out;
+  will-change: transform;
+}
+
+.pastTripPurge:active {
+  transform: scale(0.88);
+  border-color: var(--roam-danger, #d44);
+  color: var(--roam-danger, #d44);
+  background: color-mix(in srgb, var(--roam-danger, #d44) 8%, transparent);
 }
 
 /* ── Reduced motion ──────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .timelineEntry,
-  .tripSelector,
-  .tripSummary,
+  .tripControlsRow,
+  .tripStats,
+  .tripStatsOnly,
   .emptyState,
-  .loadingState {
+  .loadingState,
+  .pastTripsSection {
     animation: none !important;
   }
   .loadingState::before {

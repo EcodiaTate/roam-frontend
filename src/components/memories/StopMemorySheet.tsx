@@ -445,7 +445,12 @@ export function StopMemorySheet({
 
           {/* Close button */}
           {!saving && (
-            <button type="button" className={s.heroClose} onClick={onClose}>
+            <button
+              type="button"
+              className={s.heroClose}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={onClose}
+            >
               <X size={15} strokeWidth={2} />
             </button>
           )}

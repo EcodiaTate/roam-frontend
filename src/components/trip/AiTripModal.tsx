@@ -657,7 +657,7 @@ export function AiTripModal({
                   }}
                   placeholder={"e.g. \u201CSydney to Byron Bay, 3 days, coastal roads and hidden beaches\u201D"}
                   rows={3}
-                  maxLength={400}
+                  maxLength={800}
                   style={{
                     width: "100%",
                     boxSizing: "border-box",

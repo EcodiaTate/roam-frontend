@@ -32,10 +32,10 @@ import { computeTripProgress } from "@/lib/guide/tripProgress";
 import { addPlaceToTrip } from "@/lib/guide/addToTrip";
 import { usePlaceDetail } from "@/lib/context/PlaceDetailContext";
 
-import { GuideView } from "@/components/trip/GuideView";
+import { GuideView, type GuideTabBarProps } from "@/components/trip/GuideView";
 
 import Image from "next/image";
-import { Wifi, WifiOff, Satellite, AlertTriangle } from "lucide-react";
+import { Sparkles, MapPin, Wifi, WifiOff, Satellite, AlertTriangle } from "lucide-react";
 import { GuideSkeleton } from "./GuideSkeleton";
 
 import type { GuideBootstrap } from "@/lib/guide/guideEngine";
@@ -155,6 +155,16 @@ export default function GuideClientPage(props: {
 
   const [busy, setBusy] = useState<null | "boot" | "chat" | "add">(null);
   const [err, setErr] = useState<string | null>(null);
+
+  // Hoisted tab bar state from GuideView
+  const [guideTabBar, setGuideTabBar] = useState<GuideTabBarProps | null>(null);
+  const handleTabBarRender = useCallback((props: GuideTabBarProps) => {
+    setGuideTabBar((prev) =>
+      prev?.activeTab === props.activeTab && prev?.discoveredCount === props.discoveredCount
+        ? prev
+        : props
+    );
+  }, []);
 
   useEffect(() => setFocusedPlaceId(desiredFocusPlaceId), [desiredFocusPlaceId]);
 
@@ -488,54 +498,79 @@ export default function GuideClientPage(props: {
         style={{
           flexShrink: 0,
           zIndex: 50,
-          padding: "calc(env(safe-area-inset-top, 0px) + 30px) 16px 0",
+          padding: "calc(env(safe-area-inset-top, 0px) + 20px) 16px 0",
           background: "var(--roam-bg)",
+          borderBottom: "1px solid var(--roam-border)",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-
-
-          <div style={{ minWidth: 0, flex: 1 }}>
+        {/* Title row: title | tabs (centered) | status */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", height: 44 }}>
+          <div style={{ minWidth: 0, justifySelf: "start" }}>
             <div
               className="trip-truncate"
-              style={{
-                fontSize: 28,
-                fontWeight: 900,
-                letterSpacing: "-0.025rem",
-              }}
+              style={{ fontSize: 28, fontWeight: 900, letterSpacing: "-0.025rem" }}
             >
               {headerTitle}
             </div>
           </div>
 
-          {tripProgress && tripProgress.total_km > 0 ? (
-            <>
-              <span style={{ fontSize: 11, fontWeight: 900, color: "var(--roam-text-muted)", whiteSpace: "nowrap" }}>
-                {tripProgress.km_from_start.toFixed(0)} km done
-              </span>
-              <span style={{ fontSize: 11, fontWeight: 900, color: "var(--roam-text-muted)", whiteSpace: "nowrap" }}>
-                {tripProgress.km_remaining.toFixed(0)} km to go
-              </span>
-            </>
-          ) : null}
+          {/* Underline tab switcher — centered */}
+          {guideTabBar && (
+            <div style={{ display: "flex", gap: 0, justifySelf: "center" }}>
+              {([
+                { key: "chat" as const, label: "Guide", Icon: Sparkles, badge: null },
+                { key: "discoveries" as const, label: "Found", Icon: MapPin, badge: guideTabBar.discoveredCount > 0 ? guideTabBar.discoveredCount : null },
+              ]).map((tab) => {
+                const active = guideTabBar.activeTab === tab.key;
+                const TIcon = tab.Icon;
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => { haptic.selection(); guideTabBar.setActiveTab(tab.key); }}
+                    style={{
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      gap: 6, padding: "8px 14px", height: 44, border: "none",
+                      borderBottom: active ? "3px solid var(--brand-eucalypt)" : "3px solid transparent",
+                      marginBottom: "-1px",
+                      background: "transparent",
+                      color: active ? "var(--brand-eucalypt)" : "var(--roam-text-muted)",
+                      fontSize: 13, fontWeight: active ? 800 : 600,
+                      cursor: "pointer", WebkitTapHighlightColor: "transparent",
+                      transition: "color 200ms, border-color 200ms",
+                    }}
+                  >
+                    <TIcon size={13} strokeWidth={2.5} />
+                    {tab.label}
+                    {tab.badge != null && (
+                      <span style={{
+                        fontSize: 10, fontWeight: 800,
+                        background: active ? "var(--brand-eucalypt)" : "var(--roam-surface-hover)",
+                        color: active ? "white" : "var(--roam-text-muted)",
+                        borderRadius: 999, padding: "1px 6px", minWidth: 18, textAlign: "center",
+                      }}>
+                        {tab.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
-          <div
-            style={{
-              padding: "8px 10px",
-              borderRadius: 999,
-              fontSize: 12,
-              fontWeight: 900,
-              background: isOnline ? "var(--accent-tint)" : "var(--bg-warn)",
-              color: isOnline ? "var(--roam-success)" : "var(--text-warn)",
-              whiteSpace: "nowrap",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              flexShrink: 0,
-            }}
-          >
-            {isOnline ? <Wifi size={14} /> : <WifiOff size={14} />}
-            {isOnline ? "Online" : "Offline"}
+          {/* Right: status pill */}
+          <div style={{ justifySelf: "end" }}>
+            <div
+              style={{
+                padding: "6px 10px", borderRadius: 999, fontSize: 12, fontWeight: 700,
+                background: isOnline ? "var(--accent-tint)" : "var(--bg-warn)",
+                color: isOnline ? "var(--roam-success)" : "var(--text-warn)",
+                whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6,
+              }}
+            >
+              {isOnline ? <Wifi size={13} /> : <WifiOff size={13} />}
+              {isOnline ? "Online" : "Offline"}
+            </div>
           </div>
         </div>
 
@@ -678,6 +713,7 @@ export default function GuideClientPage(props: {
           onShowOnMap={handleShowOnMap}
           initialTab={askAboutFromUrl && !isOnline ? "discoveries" : "chat"}
           autoAskMessage={askAboutFromUrl && isOnline ? decodeURIComponent(askAboutFromUrl) : null}
+          renderTabBar={handleTabBarRender}
         />
       </div>
     </div>

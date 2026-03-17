@@ -60,6 +60,110 @@ export async function deleteMemory(id: string): Promise<void> {
 }
 
 /**
+ * Detach memories from a deleted plan. Memories with actual content
+ * (notes or photos) are preserved with `plan_deleted: true` and blobs
+ * stripped to save space. Empty memories (no note, no photos) are deleted
+ * outright to prevent bloat.
+ *
+ * @param planId - The plan being deleted
+ * @param planLabel - Snapshot of the plan label so journal can still display it
+ * @returns Number of memories preserved (detached)
+ */
+export async function detachMemoriesForPlan(
+  planId: string,
+  planLabel: string | null,
+): Promise<number> {
+  const all = await getMemoriesForPlan(planId);
+  if (!all.length) return 0;
+
+  let preserved = 0;
+  for (const mem of all) {
+    const hasContent = !!mem.note || mem.photos.length > 0;
+
+    if (!hasContent) {
+      // No content — delete to save space
+      await idbDel(idbStores.memories, mem.id);
+      continue;
+    }
+
+    // Strip blobs from photos to reclaim storage (URLs/paths are kept for cloud fetch)
+    const strippedPhotos: StopPhoto[] = mem.photos.map((p) => ({
+      path: p.path,
+      url: p.url,
+      localUrl: p.localUrl,
+      // blob intentionally omitted — reclaims the large binary data
+    }));
+
+    const detached: StopMemory = {
+      ...mem,
+      photos: strippedPhotos,
+      plan_deleted: true,
+      plan_label: planLabel,
+      updated_at: new Date().toISOString(),
+    };
+    await idbPut(idbStores.memories, detached);
+    preserved++;
+  }
+
+  return preserved;
+}
+
+/**
+ * Hard-delete all memories for a plan (no preservation).
+ * Use when the user explicitly wants to purge everything.
+ */
+export async function deleteMemoriesForPlan(planId: string): Promise<number> {
+  const all = await getMemoriesForPlan(planId);
+  for (const mem of all) {
+    await idbDel(idbStores.memories, mem.id);
+  }
+  return all.length;
+}
+
+/**
+ * Get all detached (orphaned) memories grouped by plan_id.
+ * These are memories whose parent plan was deleted but the memory
+ * had content worth preserving.
+ */
+export async function getDetachedMemories(): Promise<
+  Map<string, { label: string | null; memories: StopMemory[] }>
+> {
+  const all = await idbGetAll<StopMemory>(idbStores.memories);
+  const grouped = new Map<string, { label: string | null; memories: StopMemory[] }>();
+
+  for (const mem of all) {
+    if (!mem.plan_deleted) continue;
+
+    let group = grouped.get(mem.plan_id);
+    if (!group) {
+      group = { label: mem.plan_label ?? null, memories: [] };
+      grouped.set(mem.plan_id, group);
+    }
+    group.memories.push(mem);
+  }
+
+  // Sort memories within each group by stop_index
+  for (const group of grouped.values()) {
+    group.memories.sort((a, b) => a.stop_index - b.stop_index);
+  }
+
+  return grouped;
+}
+
+/**
+ * Permanently purge all detached memories for a specific former plan.
+ * Called when user dismisses past-trip memories from journal.
+ */
+export async function purgeDetachedMemories(planId: string): Promise<number> {
+  const all = await idbGetAll<StopMemory>(idbStores.memories);
+  const targets = all.filter((m) => m.plan_id === planId && m.plan_deleted);
+  for (const mem of targets) {
+    await idbDel(idbStores.memories, mem.id);
+  }
+  return targets.length;
+}
+
+/**
  * Record arrival at a stop — creates or updates the memory with arrived_at.
  */
 export async function recordArrival(args: {

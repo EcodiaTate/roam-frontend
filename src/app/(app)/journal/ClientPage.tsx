@@ -1,7 +1,7 @@
 // src/app/(app)/journal/ClientPage.tsx
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BookOpen,
   Bookmark,
@@ -13,6 +13,7 @@ import {
   MapPin,
   Pencil,
   Route,
+  Trash2,
 } from "lucide-react";
 
 import type { StopMemory } from "@/lib/types/memories";
@@ -20,6 +21,8 @@ import type { OfflinePlanRecord } from "@/lib/offline/plansStore";
 import {
   getMemoriesForPlan,
   resolvePhotoUrls,
+  getDetachedMemories,
+  purgeDetachedMemories,
 } from "@/lib/offline/memoriesStore";
 import { listOfflinePlans, getCurrentPlanId } from "@/lib/offline/plansStore";
 import { haptic } from "@/lib/native/haptics";
@@ -46,6 +49,8 @@ type TripOption = {
   stopCount: number;
   firstStop: import("@/lib/types/trip").TripStop | null;
 };
+
+type DetachedGroup = { planId: string; label: string | null; memories: ResolvedMemory[] };
 
 /* ── Helpers ──────────────────────────────────────────────────────────── */
 
@@ -86,10 +91,88 @@ function SplitIcon({ size = 14 }: { size?: number }) {
 export default function MemoriesClientPage() {
   const [innerTab, setInnerTab] = useState<InnerTab>("memories");
   const [placesViewMode, setPlacesViewMode] = useState<ViewMode>("split");
+
+  // Swipe between tabs
+  const TABS: InnerTab[] = ["memories", "places"];
+  const trackRef = useRef<HTMLDivElement>(null);
+  const swipeRef = useRef<{ x: number; y: number; locked: boolean } | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  function getTrackPct(tab: InnerTab) {
+    return -(TABS.indexOf(tab) * 100) / TABS.length;
+  }
+
+  function setTrackTransform(pct: number, animated: boolean) {
+    const el = trackRef.current;
+    if (!el) return;
+    el.style.transition = animated ? "transform 0.28s cubic-bezier(0.25,0.46,0.45,0.94)" : "none";
+    el.style.transform = `translateX(${pct}%)`;
+  }
+
+  useEffect(() => {
+    setTrackTransform(getTrackPct(innerTab), true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [innerTab]);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const node = el;
+
+    function onTouchStart(e: TouchEvent) {
+      const t = e.touches[0];
+      swipeRef.current = { x: t.clientX, y: t.clientY, locked: false };
+    }
+
+    function onTouchMove(e: TouchEvent) {
+      const sw = swipeRef.current;
+      if (!sw) return;
+      const dx = e.touches[0].clientX - sw.x;
+      const dy = e.touches[0].clientY - sw.y;
+      if (!sw.locked) {
+        if (Math.abs(dy) > Math.abs(dx) * 1.5) { swipeRef.current = null; return; }
+        sw.locked = true;
+      }
+      e.preventDefault();
+      const basePct = getTrackPct(innerTab);
+      const w = node.offsetWidth || 1;
+      const dragPct = (dx / w) * (100 / TABS.length);
+      setTrackTransform(basePct + dragPct, false);
+    }
+
+    function onTouchEnd(e: TouchEvent) {
+      const sw = swipeRef.current;
+      swipeRef.current = null;
+      if (!sw || !sw.locked) return;
+      const dx = e.changedTouches[0].clientX - sw.x;
+      const w = node.offsetWidth || 1;
+      const currentIndex = TABS.indexOf(innerTab);
+      if (dx < -w * 0.2 && currentIndex < TABS.length - 1) {
+        setInnerTab(TABS[currentIndex + 1]);
+      } else if (dx > w * 0.2 && currentIndex > 0) {
+        setInnerTab(TABS[currentIndex - 1]);
+      } else {
+        setTrackTransform(getTrackPct(innerTab), true);
+      }
+    }
+
+    node.addEventListener("touchstart", onTouchStart, { passive: true });
+    node.addEventListener("touchmove", onTouchMove, { passive: false });
+    node.addEventListener("touchend", onTouchEnd, { passive: true });
+    return () => {
+      node.removeEventListener("touchstart", onTouchStart);
+      node.removeEventListener("touchmove", onTouchMove);
+      node.removeEventListener("touchend", onTouchEnd);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [innerTab]);
   const [trips, setTrips] = useState<TripOption[]>([]);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [memories, setMemories] = useState<ResolvedMemory[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Detached memories from deleted trips (preserved for journal)
+  const [pastTrips, setPastTrips] = useState<DetachedGroup[]>([]);
 
   // Map style state — default satellite when online, vector when offline-only
   const [baseMode, setBaseMode] = useState<MapBaseMode>(() =>
@@ -112,32 +195,47 @@ export default function MemoriesClientPage() {
     lng: number;
   } | null>(null);
 
-  // Load trip list
-  useEffect(() => {
-    (async () => {
-      const plans = await listOfflinePlans();
-      const currentId = await getCurrentPlanId();
+  // Load trip list + detached (past) memories
+  const loadTripsAndPast = useCallback(async () => {
+    const plans = await listOfflinePlans();
+    const currentId = await getCurrentPlanId();
 
-      const opts: TripOption[] = plans.map((p) => ({
-        plan_id: p.plan_id,
-        label: tripLabel(p),
-        distance_m: p.preview?.distance_m ?? 0,
-        duration_s: p.preview?.duration_s ?? 0,
-        stopCount: p.preview?.stops?.length ?? 0,
-        firstStop: p.preview?.stops?.[0] ?? null,
-      }));
+    const opts: TripOption[] = plans.map((p) => ({
+      plan_id: p.plan_id,
+      label: tripLabel(p),
+      distance_m: p.preview?.distance_m ?? 0,
+      duration_s: p.preview?.duration_s ?? 0,
+      stopCount: p.preview?.stops?.length ?? 0,
+      firstStop: p.preview?.stops?.[0] ?? null,
+    }));
 
-      setTrips(opts);
+    setTrips(opts);
 
-      // Auto-select current trip if it has memories, otherwise first trip with memories
-      if (currentId && opts.some((o) => o.plan_id === currentId)) {
-        setSelectedPlanId(currentId);
-      } else if (opts.length > 0) {
-        setSelectedPlanId(opts[0].plan_id);
-      }
-      setLoading(false);
-    })();
+    // Auto-select current trip if available
+    if (currentId && opts.some((o) => o.plan_id === currentId)) {
+      setSelectedPlanId(currentId);
+    } else if (opts.length > 0) {
+      setSelectedPlanId(opts[0].plan_id);
+    }
+
+    // Load detached memories from deleted trips
+    const detached = await getDetachedMemories();
+    const groups: DetachedGroup[] = [];
+    for (const [planId, group] of detached) {
+      const resolved: ResolvedMemory[] = await Promise.all(
+        group.memories.map(async (m) => ({
+          ...m,
+          resolvedUrls: await resolvePhotoUrls(m),
+        })),
+      );
+      groups.push({ planId, label: group.label, memories: resolved });
+    }
+    setPastTrips(groups);
+
+    setLoading(false);
   }, []);
+
+  useEffect(() => { loadTripsAndPast(); }, [loadTripsAndPast]);
 
   // Load memories for selected plan
   useEffect(() => {
@@ -199,6 +297,13 @@ export default function MemoriesClientPage() {
     }
   }, [selectedPlanId]);
 
+  // Purge all detached memories for a past trip
+  const handlePurgePastTrip = useCallback(async (planId: string) => {
+    haptic.medium();
+    await purgeDetachedMemories(planId);
+    setPastTrips((prev) => prev.filter((g) => g.planId !== planId));
+  }, []);
+
   // Derive map pins from resolved memories
   const mapPins: JournalPin[] = useMemo(
     () =>
@@ -238,260 +343,309 @@ export default function MemoriesClientPage() {
     <div className={s.pageHeader}>
       <div className={s.pageTitleRow}>
         <h1 className={s.pageTitle}>Journal</h1>
+        <div className={s.innerTabBar}>
+          <button
+            type="button"
+            className={innerTab === "memories" ? `${s.innerTab} ${s.innerTabActive}` : s.innerTab}
+            onClick={() => { haptic.selection(); setInnerTab("memories"); }}
+          >
+            <BookOpen size={13} strokeWidth={2.5} /> Memories
+          </button>
+          <button
+            type="button"
+            className={innerTab === "places" ? `${s.innerTab} ${s.innerTabActive}` : s.innerTab}
+            onClick={() => { haptic.selection(); setInnerTab("places"); }}
+          >
+            <Bookmark size={13} strokeWidth={2.5} /> Places
+          </button>
+        </div>
         {innerTab === "places" && (
           <ViewModeToggle viewMode={placesViewMode} setViewMode={setPlacesViewMode} />
         )}
-      </div>
-      <div className={s.innerTabBar}>
-        <button
-          type="button"
-          className={innerTab === "memories" ? `${s.innerTab} ${s.innerTabActive}` : s.innerTab}
-          onClick={() => { haptic.selection(); setInnerTab("memories"); }}
-        >
-          <BookOpen size={13} strokeWidth={2.5} /> Memories
-        </button>
-        <button
-          type="button"
-          className={innerTab === "places" ? `${s.innerTab} ${s.innerTabActive}` : s.innerTab}
-          onClick={() => { haptic.selection(); setInnerTab("places"); }}
-        >
-          <Bookmark size={13} strokeWidth={2.5} /> Places
-        </button>
+        {innerTab === "memories" && <div className={s.tabRightSpacer} />}
       </div>
     </div>
   );
 
-  /* ── Empty state (no trips) ───────────────────────────────────────── */
-  if (!loading && trips.length === 0) {
-    return (
-      <div className={s.root}>
-        {header}
-        <div className={s.contentArea}>
-          <div className={s.emptyState}>
-            <div className={s.emptyIcon}>
-              <BookOpen size={32} strokeWidth={1.5} />
-            </div>
-            <h2 className={s.emptyTitle}>No trips yet</h2>
-            <p className={s.emptySub}>
-              Plan a trip and memories will appear here as you travel
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (innerTab === "places") {
-    return (
-      <div className={s.root}>
-        {header}
-        <div className={s.contentArea}>
-          <PlacesClientPage viewMode={placesViewMode} setViewMode={setPlacesViewMode} />
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className={s.root}>
-      {header}
-      <div className={s.contentArea}>
-
-      {/* Trip selector */}
-      {trips.length > 1 && (
-        <div className={s.tripSelector}>
-          <div className={s.tripSelectorScroll}>
-            {trips.map((trip) => {
-              const active = trip.plan_id === selectedPlanId;
-              return (
-                <button
-                  key={trip.plan_id}
-                  type="button"
-                  className={active ? s.tripChipActive : s.tripChip}
-                  onClick={() => {
-                    haptic.selection();
-                    setSelectedPlanId(trip.plan_id);
-                  }}
-                >
-                  <Route size={12} strokeWidth={2.5} />
-                  <span className={s.tripChipLabel}>{trip.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Trip summary bar */}
-      {selectedTrip && (
-        <div className={s.tripSummary}>
-          <span className={s.tripSummaryItem}>
-            <Route size={13} strokeWidth={2} />
-            {formatDistance(selectedTrip.distance_m)}
-          </span>
-          <span className={s.tripSummaryDot}>&middot;</span>
-          <span className={s.tripSummaryItem}>
-            <Clock size={13} strokeWidth={2} />
-            {formatDuration(selectedTrip.duration_s)}
-          </span>
-          <span className={s.tripSummaryDot}>&middot;</span>
-          <span className={s.tripSummaryItem}>
-            <MapPin size={13} strokeWidth={2} />
-            {selectedTrip.stopCount} stops
-          </span>
-        </div>
-      )}
-
-      {/* Map */}
-      {!loading && displayMemories.length > 0 && (
-        <div className={s.mapContainer}>
-          <JournalMap
-            pins={mapPins}
-            onPinPress={handleMapPinPress}
-            mode={baseMode}
-            vectorTheme={vectorTheme}
-          />
-          <MapStyleSwitcher
-            mode={baseMode}
-            vectorTheme={vectorTheme}
-            onChange={({ mode, vectorTheme: vt }) => {
-              setBaseMode(mode);
-              setVectorTheme(vt);
-            }}
-          />
-        </div>
-      )}
-
-      {/* Timeline */}
-      {loading ? (
-        <div className={s.loadingState}>Loading memories…</div>
-      ) : displayMemories.length === 0 ? (
+  /* ── Memories panel ──────────────────────────────────────────────── */
+  const memoriesPanel = (
+    <div className={s.tabPanel}>
+      {/* Trip selector + stats */}
+      {!loading && trips.length === 0 && pastTrips.length === 0 ? (
         <div className={s.emptyState}>
-          <div className={s.emptyIcon}>
-            <Camera size={32} strokeWidth={1.5} />
-          </div>
-          <h2 className={s.emptyTitle}>No memories yet</h2>
-          <p className={s.emptySub}>
-            As you visit stops, your photos and notes will appear here
-          </p>
-          {selectedTrip?.firstStop && (
-            <button
-              type="button"
-              className={s.addPrompt}
-              onClick={() => {
-                haptic.tap();
-                const stop = selectedTrip.firstStop!;
-                setSheetStop({
-                  stopId: stop.id ?? selectedTrip.plan_id + "_0",
-                  stopName: stop.name ?? null,
-                  stopIndex: 0,
-                  lat: stop.lat,
-                  lng: stop.lng,
-                });
-                setSheetOpen(true);
-              }}
-            >
-              <span className={s.addPromptIcon}>
-                <Camera size={13} strokeWidth={2} />
-              </span>
-              Add a memory manually
-              <span className={s.addPromptChevron}><ChevronRight size={14} strokeWidth={2} /></span>
-            </button>
-          )}
+          <div className={s.emptyIcon}><BookOpen size={32} strokeWidth={1.5} /></div>
+          <h2 className={s.emptyTitle}>No trips yet</h2>
+          <p className={s.emptySub}>Plan a trip and memories will appear here as you travel</p>
         </div>
-      ) : (
-        <div className={s.timeline}>
-          {displayMemories.map((mem, idx) => (
-            <div key={mem.id} className={s.timelineEntry}>
-              {/* Connector line between stops */}
-              {idx > 0 && (
-                <div className={s.connector}>
-                  <div className={s.connectorLine} />
-                </div>
-              )}
-
-              {/* Stop card */}
-              <div className={s.stopCard}>
-                {/* Header row */}
-                <div className={s.markerRow}>
-                  <div className={s.marker}>
-                    <MapPin size={15} strokeWidth={2.5} />
-                  </div>
-                  <div className={s.markerInfo}>
-                    <span className={s.markerName}>
-                      {mem.stop_name ?? `Stop ${mem.stop_index + 1}`}
-                    </span>
-                    {mem.arrived_at && (
-                      <span className={s.markerTime}>
-                        <Clock size={10} strokeWidth={2} />
-                        {formatArrivalShort(mem.arrived_at)}
-                      </span>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    className={s.editBtn}
-                    onClick={() => openMemorySheet(mem)}
-                  >
-                    <Pencil size={13} strokeWidth={2} />
-                  </button>
-                </div>
-
-                {/* Photos */}
-                {mem.resolvedUrls.length > 0 && (
-                  <>
-                    <div className={s.cardDivider} />
-                    <div className={s.photoStrip}>
-                      {mem.resolvedUrls.map((url, i) => (
-                        <div
-                          key={i}
-                          className={s.timelinePhoto}
-                          onClick={() => setLightbox({ urls: mem.resolvedUrls, index: i })}
-                          style={{ cursor: "pointer" }}
-                        >
-                          <img
-                            src={url}
-                            alt={`${mem.stop_name ?? "Stop"} photo ${i + 1}`}
-                            className={s.timelinePhotoImg}
-                            loading="lazy"
-                          />
+      ) : !loading && trips.length === 0 && pastTrips.length > 0 ? (
+        /* No active trips but past memories exist */
+        <div className={s.pastTripsSection}>
+          <div className={s.pastTripsHeader}>
+            <span className={s.pastTripsLabel}>Past Trips</span>
+            <div className={s.sectionDividerLine} />
+          </div>
+          {pastTrips.map((group) => (
+            <div key={group.planId} className={s.pastTripGroup}>
+              <div className={s.pastTripTitleRow}>
+                <span className={s.pastTripName}>{group.label ?? "Deleted trip"}</span>
+                <span className={s.pastTripBadge}>
+                  {group.memories.length} {group.memories.length === 1 ? "memory" : "memories"}
+                </span>
+                <button type="button" className={s.pastTripPurge} onClick={() => handlePurgePastTrip(group.planId)} aria-label="Delete past trip memories">
+                  <Trash2 size={13} strokeWidth={2} />
+                </button>
+              </div>
+              <div className={s.timeline}>
+                {group.memories.map((mem, idx) => (
+                  <div key={mem.id} className={s.timelineEntry}>
+                    {idx > 0 && <div className={s.connector}><div className={s.connectorLine} /></div>}
+                    <div className={s.stopCard}>
+                      <div className={s.markerRow}>
+                        <div className={s.marker}><MapPin size={15} strokeWidth={2.5} /></div>
+                        <div className={s.markerInfo}>
+                          <span className={s.markerName}>{mem.stop_name ?? `Stop ${mem.stop_index + 1}`}</span>
+                          {mem.arrived_at && (
+                            <span className={s.markerTime}><Clock size={10} strokeWidth={2} />{formatArrivalShort(mem.arrived_at)}</span>
+                          )}
                         </div>
-                      ))}
+                      </div>
+                      {mem.resolvedUrls.length > 0 && (
+                        <>
+                          <div className={s.cardDivider} />
+                          <div className={s.photoStrip}>
+                            {mem.resolvedUrls.map((url, i) => (
+                              <div key={i} className={s.timelinePhoto} onClick={() => setLightbox({ urls: mem.resolvedUrls, index: i })} style={{ cursor: "pointer" }}>
+                                <img src={url} alt={`${mem.stop_name ?? "Stop"} photo ${i + 1}`} className={s.timelinePhotoImg} loading="lazy" />
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                      {mem.note && (
+                        <>
+                          {mem.resolvedUrls.length === 0 && <div className={s.cardDivider} />}
+                          <div className={s.noteCard}><p className={s.noteText}>{mem.note}</p></div>
+                        </>
+                      )}
                     </div>
-                  </>
-                )}
-
-                {/* Note */}
-                {mem.note && (
-                  <>
-                    {mem.resolvedUrls.length === 0 && <div className={s.cardDivider} />}
-                    <div className={s.noteCard}>
-                      <p className={s.noteText}>{mem.note}</p>
-                    </div>
-                  </>
-                )}
-
-                {/* No content yet — prompt */}
-                {!mem.note && mem.resolvedUrls.length === 0 && (
-                  <button
-                    type="button"
-                    className={s.addPrompt}
-                    onClick={() => openMemorySheet(mem)}
-                  >
-                    <span className={s.addPromptIcon}>
-                      <Camera size={13} strokeWidth={2} />
-                    </span>
-                    Add a photo or note
-                    <span className={s.addPromptChevron}><ChevronRight size={14} strokeWidth={2} /></span>
-                  </button>
-                )}
+                  </div>
+                ))}
               </div>
             </div>
           ))}
         </div>
-      )}
+      ) : (
+        <>
+          {trips.length > 1 ? (
+            <div className={s.tripControlsRow}>
+              <div className={s.tripSelectorScroll}>
+                {trips.map((trip) => {
+                  const active = trip.plan_id === selectedPlanId;
+                  return (
+                    <button
+                      key={trip.plan_id}
+                      type="button"
+                      className={active ? s.tripChipActive : s.tripChip}
+                      onClick={() => { haptic.selection(); setSelectedPlanId(trip.plan_id); }}
+                    >
+                      <Route size={12} strokeWidth={2.5} />
+                      <span className={s.tripChipLabel}>{trip.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {selectedTrip && (
+                <div className={s.tripStats}>
+                  <span className={s.statPill}><Route size={12} strokeWidth={2} />{formatDistance(selectedTrip.distance_m)}</span>
+                  <span className={s.statPill}><Clock size={12} strokeWidth={2} />{formatDuration(selectedTrip.duration_s)}</span>
+                  <span className={s.statPill}><MapPin size={12} strokeWidth={2} />{selectedTrip.stopCount} stops</span>
+                </div>
+              )}
+            </div>
+          ) : selectedTrip ? (
+            <div className={s.tripStatsOnly}>
+              <span className={s.statPill}><Route size={12} strokeWidth={2} />{formatDistance(selectedTrip.distance_m)}</span>
+              <span className={s.statPill}><Clock size={12} strokeWidth={2} />{formatDuration(selectedTrip.duration_s)}</span>
+              <span className={s.statPill}><MapPin size={12} strokeWidth={2} />{selectedTrip.stopCount} stops</span>
+            </div>
+          ) : null}
 
-      </div>{/* /contentArea */}
+          {/* Map */}
+          {!loading && displayMemories.length > 0 && (
+            <div className={s.mapContainer}>
+              <JournalMap pins={mapPins} onPinPress={handleMapPinPress} mode={baseMode} vectorTheme={vectorTheme} />
+              <MapStyleSwitcher
+                mode={baseMode}
+                vectorTheme={vectorTheme}
+                onChange={({ mode, vectorTheme: vt }) => { setBaseMode(mode); setVectorTheme(vt); }}
+              />
+            </div>
+          )}
+
+          {/* Timeline */}
+          {loading ? (
+            <div className={s.loadingState}>Loading memories…</div>
+          ) : displayMemories.length === 0 ? (
+            <div className={s.emptyState}>
+              <div className={s.emptyIcon}><Camera size={32} strokeWidth={1.5} /></div>
+              <h2 className={s.emptyTitle}>No memories yet</h2>
+              <p className={s.emptySub}>As you visit stops, your photos and notes will appear here</p>
+              {selectedTrip?.firstStop && (
+                <button
+                  type="button"
+                  className={s.addPrompt}
+                  onClick={() => {
+                    haptic.tap();
+                    const stop = selectedTrip.firstStop!;
+                    setSheetStop({ stopId: stop.id ?? selectedTrip.plan_id + "_0", stopName: stop.name ?? null, stopIndex: 0, lat: stop.lat, lng: stop.lng });
+                    setSheetOpen(true);
+                  }}
+                >
+                  <span className={s.addPromptIcon}><Camera size={13} strokeWidth={2} /></span>
+                  Add a memory manually
+                  <span className={s.addPromptChevron}><ChevronRight size={14} strokeWidth={2} /></span>
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className={s.timeline}>
+              {displayMemories.map((mem, idx) => (
+                <div key={mem.id} className={s.timelineEntry}>
+                  {idx > 0 && <div className={s.connector}><div className={s.connectorLine} /></div>}
+                  <div className={s.stopCard}>
+                    <div className={s.markerRow}>
+                      <div className={s.marker}><MapPin size={15} strokeWidth={2.5} /></div>
+                      <div className={s.markerInfo}>
+                        <span className={s.markerName}>{mem.stop_name ?? `Stop ${mem.stop_index + 1}`}</span>
+                        {mem.arrived_at && (
+                          <span className={s.markerTime}>
+                            <Clock size={10} strokeWidth={2} />
+                            {formatArrivalShort(mem.arrived_at)}
+                          </span>
+                        )}
+                      </div>
+                      <button type="button" className={s.editBtn} onClick={() => openMemorySheet(mem)}>
+                        <Pencil size={13} strokeWidth={2} />
+                      </button>
+                    </div>
+                    {mem.resolvedUrls.length > 0 && (
+                      <>
+                        <div className={s.cardDivider} />
+                        <div className={s.photoStrip}>
+                          {mem.resolvedUrls.map((url, i) => (
+                            <div key={i} className={s.timelinePhoto} onClick={() => setLightbox({ urls: mem.resolvedUrls, index: i })} style={{ cursor: "pointer" }}>
+                              <img src={url} alt={`${mem.stop_name ?? "Stop"} photo ${i + 1}`} className={s.timelinePhotoImg} loading="lazy" />
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                    {mem.note && (
+                      <>
+                        {mem.resolvedUrls.length === 0 && <div className={s.cardDivider} />}
+                        <div className={s.noteCard}><p className={s.noteText}>{mem.note}</p></div>
+                      </>
+                    )}
+                    {!mem.note && mem.resolvedUrls.length === 0 && (
+                      <button type="button" className={s.addPrompt} onClick={() => openMemorySheet(mem)}>
+                        <span className={s.addPromptIcon}><Camera size={13} strokeWidth={2} /></span>
+                        Add a photo or note
+                        <span className={s.addPromptChevron}><ChevronRight size={14} strokeWidth={2} /></span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Past trips — detached memories from deleted plans */}
+          {!loading && pastTrips.length > 0 && (
+            <div className={s.pastTripsSection}>
+              <div className={s.pastTripsHeader}>
+                <span className={s.pastTripsLabel}>Past Trips</span>
+                <div className={s.sectionDividerLine} />
+              </div>
+              {pastTrips.map((group) => (
+                <div key={group.planId} className={s.pastTripGroup}>
+                  <div className={s.pastTripTitleRow}>
+                    <span className={s.pastTripName}>
+                      {group.label ?? "Deleted trip"}
+                    </span>
+                    <span className={s.pastTripBadge}>
+                      {group.memories.length} {group.memories.length === 1 ? "memory" : "memories"}
+                    </span>
+                    <button
+                      type="button"
+                      className={s.pastTripPurge}
+                      onClick={() => handlePurgePastTrip(group.planId)}
+                      aria-label="Delete past trip memories"
+                    >
+                      <Trash2 size={13} strokeWidth={2} />
+                    </button>
+                  </div>
+                  <div className={s.timeline}>
+                    {group.memories.map((mem, idx) => (
+                      <div key={mem.id} className={s.timelineEntry}>
+                        {idx > 0 && <div className={s.connector}><div className={s.connectorLine} /></div>}
+                        <div className={s.stopCard}>
+                          <div className={s.markerRow}>
+                            <div className={s.marker}><MapPin size={15} strokeWidth={2.5} /></div>
+                            <div className={s.markerInfo}>
+                              <span className={s.markerName}>{mem.stop_name ?? `Stop ${mem.stop_index + 1}`}</span>
+                              {mem.arrived_at && (
+                                <span className={s.markerTime}>
+                                  <Clock size={10} strokeWidth={2} />
+                                  {formatArrivalShort(mem.arrived_at)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          {mem.resolvedUrls.length > 0 && (
+                            <>
+                              <div className={s.cardDivider} />
+                              <div className={s.photoStrip}>
+                                {mem.resolvedUrls.map((url, i) => (
+                                  <div key={i} className={s.timelinePhoto} onClick={() => setLightbox({ urls: mem.resolvedUrls, index: i })} style={{ cursor: "pointer" }}>
+                                    <img src={url} alt={`${mem.stop_name ?? "Stop"} photo ${i + 1}`} className={s.timelinePhotoImg} loading="lazy" />
+                                  </div>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                          {mem.note && (
+                            <>
+                              {mem.resolvedUrls.length === 0 && <div className={s.cardDivider} />}
+                              <div className={s.noteCard}><p className={s.noteText}>{mem.note}</p></div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+
+  return (
+    <div className={s.root}>
+      {header}
+      <div className={s.contentArea} ref={containerRef}>
+        {/* Sliding track */}
+        <div className={s.tabTrackOuter}>
+          <div ref={trackRef} className={s.tabTrack}>
+            {memoriesPanel}
+            <div className={s.tabPanel}>
+              <PlacesClientPage viewMode={placesViewMode} setViewMode={setPlacesViewMode} />
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Memory editor sheet */}
       {sheetStop && selectedPlanId && (
@@ -508,7 +662,6 @@ export default function MemoriesClientPage() {
         />
       )}
 
-      {/* Photo lightbox preview */}
       {lightbox && (
         <PhotoLightbox
           urls={lightbox.urls}

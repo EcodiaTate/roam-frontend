@@ -8,6 +8,7 @@ import type { BBox4 } from "@/lib/types/geo";
 import { idbDel, idbGet, idbGetAll, idbPut, idbStores, idbWithTx } from "./idb";
 import { emitPlanEvent } from "./planEvents";
 import { putPack } from "./packsStore";
+import { detachMemoriesForPlan } from "./memoriesStore";
 
 /* ── Types ────────────────────────────────────────────────────────────── */
 
@@ -227,6 +228,23 @@ export async function deleteOfflinePlan(planId: string): Promise<void> {
   const current = await getCurrentPlanId();
   if (current === planId) {
     await setCurrentPlanId(null);
+  }
+
+  // Snapshot the plan label before deletion so detached memories can display it
+  const plan = await getOfflinePlan(planId);
+  const planLabel = plan?.label ?? (() => {
+    const stops = plan?.preview?.stops ?? [];
+    const start = stops.find((s) => s.type === "start") ?? stops[0];
+    const end = stops.find((s) => s.type === "end") ?? stops[stops.length - 1];
+    if (start?.name && end?.name) return `${start.name} → ${end.name}`;
+    return null;
+  })();
+
+  // Detach memories: preserve those with content, delete empty ones, strip blobs
+  try {
+    await detachMemoriesForPlan(planId, planLabel);
+  } catch (e) {
+    console.warn("[Plans] memory detach failed (non-critical):", e);
   }
 
   // Atomic delete: plan record + all packs in one transaction

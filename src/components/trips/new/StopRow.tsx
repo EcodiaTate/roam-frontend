@@ -231,18 +231,18 @@ export function StopRow(props: {
         </div>
       </div>
 
-      {/* Reorder / remove controls */}
+      {/* Reorder / remove controls — horizontal row */}
       {(canMoveUp || canMoveDown || canRemove) && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 4, paddingTop: 6, flexShrink: 0 }}>
+        <div style={{ display: "flex", gap: 3, paddingTop: 8, flexShrink: 0, alignItems: "center" }}>
           {canMoveUp && (
             <button
               type="button"
               onClick={() => { haptic.selection(); props.onMoveUp(); }}
               className="trip-interactive trip-btn-icon"
-              style={{ width: 34, height: 34, background: "var(--roam-surface-raised)" }}
+              style={{ width: 30, height: 30, background: "var(--roam-surface-raised)" }}
               aria-label="Move up"
             >
-              <ChevronUp size={16} />
+              <ChevronUp size={14} />
             </button>
           )}
           {canMoveDown && (
@@ -250,10 +250,10 @@ export function StopRow(props: {
               type="button"
               onClick={() => { haptic.selection(); props.onMoveDown(); }}
               className="trip-interactive trip-btn-icon"
-              style={{ width: 34, height: 34, background: "var(--roam-surface-raised)" }}
+              style={{ width: 30, height: 30, background: "var(--roam-surface-raised)" }}
               aria-label="Move down"
             >
-              <ChevronDown size={16} />
+              <ChevronDown size={14} />
             </button>
           )}
           {canRemove && (
@@ -261,10 +261,10 @@ export function StopRow(props: {
               type="button"
               onClick={() => { haptic.medium(); props.onRemove(); }}
               className="trip-interactive trip-btn-icon trip-btn-danger"
-              style={{ width: 34, height: 34 }}
+              style={{ width: 30, height: 30 }}
               aria-label="Remove stop"
             >
-              <X size={15} />
+              <X size={13} />
             </button>
           )}
         </div>

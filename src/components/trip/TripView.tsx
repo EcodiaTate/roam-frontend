@@ -43,6 +43,8 @@ import {
 import { PlaceSearchPanel } from "@/components/places/PlaceSearchPanel";
 import { usePlaceDetail } from "@/lib/context/PlaceDetailContext";
 import { FuelSummaryCard } from "@/components/fuel/FuelSummaryCard";
+import { alertsToAvoidZones, buildAvoidanceStops } from "@/lib/nav/routeAvoidance";
+import { decodePolyline6AsLngLat } from "@/lib/nav/polyline6";
 import {
   StopQuickActionMenu,
   type QuickActionMenuState,
@@ -403,7 +405,25 @@ export function TripView({
     setBusy("rebuilding");
     setErr(null);
     try {
-      await onRebuildRequested({ stops: ensureStopIds(stops), mode });
+      let rebuildStops = ensureStopIds(stops);
+
+      // When route blockers or high-severity alerts exist, compute avoidance waypoints
+      // that detour around hazard zones before sending to OSRM
+      if (routeBlockers.length > 0 || allAlerts.some((a) => a.routeImpact === "affects_route" && (a.severity === "major" || a.severity === "high"))) {
+        const geom = routeGeometry;
+        if (geom) {
+          try {
+            const routeCoords = decodePolyline6AsLngLat(geom);
+            const zones = alertsToAvoidZones([...routeBlockers, ...allAlerts]);
+            const avoidStops = buildAvoidanceStops(rebuildStops, zones, routeCoords);
+            if (avoidStops) rebuildStops = ensureStopIds(avoidStops);
+          } catch (avoidErr) {
+            console.warn("[TripView] avoidance waypoint computation failed, rebuilding without avoidance:", avoidErr);
+          }
+        }
+      }
+
+      await onRebuildRequested({ stops: rebuildStops, mode });
       setDirty(false);
       haptic.success();
     } catch (e: unknown) {
@@ -412,7 +432,7 @@ export function TripView({
     } finally {
       setBusy(null);
     }
-  }, [canRebuild, onRebuildRequested, stops, mode]);
+  }, [canRebuild, onRebuildRequested, stops, mode, routeBlockers, allAlerts, routeGeometry]);
 
   /* ── Drag-to-reorder ─────────────────────────────────────────────── */
   const listRef = useRef<HTMLDivElement>(null);

@@ -2725,10 +2725,7 @@ export function TripMap(props: Props) {
         const p = f.properties;
         const label = p?.name ? String(p.name) : "Rest Area";
         const typeStr = String(p?.type ?? "rest_area").replace(/_/g, " ");
-        const qs = typeof p?.quality_score === "number" ? p.quality_score : null;
-        const qualityLine = qs != null
-          ? `<div style="margin-top:4px;font-size:11px;font-weight:700;color:var(--roam-text-muted)">Quality: <span style="color:${qs >= 7 ? "#22c55e" : qs >= 4 ? "#f59e0b" : "#ef4444"};font-weight:800">${qs.toFixed(1)}/10</span></div>`
-          : "";
+        const qualityLine = "";
         const facilitiesStr = p?.facilities_summary ? `<div style="margin-top:2px;font-size:10px;color:var(--roam-text-muted)">${escapeHtml(String(p.facilities_summary))}</div>` : "";
         try {
           popupRef.current?.remove();

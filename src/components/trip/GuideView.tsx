@@ -979,10 +979,16 @@ function DiscoveryGroup({
 // MAIN COMPONENT
 // ══════════════════════════════════════════════════════════════
 
+export type GuideTabBarProps = {
+  activeTab: ViewTab;
+  setActiveTab: (tab: ViewTab) => void;
+  discoveredCount: number;
+};
+
 export function GuideView({
   focusedPlaceId, onFocusPlace, onAddStop, isOnline = true, onShowOnMap,
   guideReady = false, guidePack, tripProgress, onSendMessage, chatBusy = false,
-  initialTab, autoAskMessage,
+  initialTab, autoAskMessage, renderTabBar,
 }: {
   focusedPlaceId: string | null;
   onFocusPlace: (id: string | null) => void; onAddStop: (place: PlaceItem) => void;
@@ -994,6 +1000,8 @@ export function GuideView({
   initialTab?: "chat" | "discoveries";
   /** If set and online, auto-send this message once guide is ready */
   autoAskMessage?: string | null;
+  /** If provided, GuideView won't render its own tab bar — caller renders it externally */
+  renderTabBar?: (props: GuideTabBarProps) => void;
 }) {
   const { openPlace } = usePlaceDetail();
   const [chatInput, setChatInput] = useState("");
@@ -1021,6 +1029,14 @@ export function GuideView({
     setTrackTransform(getTrackX(activeTab), true);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
+
+  // Notify external tab bar renderer on every relevant change
+  // (discoveredPlaces is derived below, so we read from guidePack directly here)
+  useEffect(() => {
+    const count = guidePack?.discovered_places?.length ?? 0;
+    renderTabBar?.({ activeTab, setActiveTab, discoveredCount: count });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, guidePack?.discovered_places?.length]);
 
   // Imperative touch listeners so we can preventDefault on touchmove
   // to block vertical scroll while a horizontal tab-swipe is active.
@@ -1246,45 +1262,47 @@ export function GuideView({
         @keyframes guidePulse { 0%,100%{opacity:0.6} 50%{opacity:1} }
       `}</style>
 
-      {/* ── Tab switcher ────────────────────────────────────── */}
-      <div style={{ flexShrink: 0, zIndex: 40, background: "var(--roam-bg)", paddingTop: 8, paddingBottom: 4 }}>
-      <div style={{ display: "flex", gap: 2, background: "var(--roam-surface)", borderRadius: 14, padding: 3, border: "1px solid var(--roam-border, rgba(255,255,255,0.06))" }}>
-        {([
-          { key: "chat" as ViewTab, label: "Guide", Icon: Sparkles, badge: null },
-          { key: "discoveries" as ViewTab, label: "Found", Icon: MapPin, badge: discoveredPlaces.length > 0 ? discoveredPlaces.length : null },
-        ] as const).map((tab) => {
-          const active = activeTab === tab.key;
-          const TIcon = tab.Icon;
-          return (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => { haptic.selection(); setActiveTab(tab.key); }}
-              style={{
-                flex: 1, borderRadius: 11, border: "none", padding: "10px 8px",
-                fontSize: 13, fontWeight: 700,
-                background: active ? "var(--brand-sky)" : "transparent",
-                color: active ? "white" : "var(--roam-text-muted)",
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                cursor: "pointer", transition: "all 0.15s ease",
-                WebkitTapHighlightColor: "transparent",
-              }}
-            >
-              <TIcon size={14} />
-              {tab.label}
-              {tab.badge != null ? (
-                <span style={{
-                  fontSize: 10, fontWeight: 800, background: active ? "rgba(255,255,255,0.25)" : "var(--brand-sky)",
-                  color: "white", borderRadius: 999, padding: "1px 6px", minWidth: 18, textAlign: "center",
-                }}>
-                  {tab.badge}
-                </span>
-              ) : null}
-            </button>
-          );
-        })}
-      </div>
-      </div>
+      {/* ── Tab switcher (only rendered when not hoisted externally) ── */}
+      {!renderTabBar && (
+        <div style={{ flexShrink: 0, zIndex: 40, background: "var(--roam-bg)", paddingTop: 8, paddingBottom: 4 }}>
+          <div style={{ display: "flex", gap: 2, background: "var(--roam-surface)", borderRadius: 14, padding: 3, border: "1px solid var(--roam-border, rgba(255,255,255,0.06))" }}>
+            {([
+              { key: "chat" as ViewTab, label: "Guide", Icon: Sparkles, badge: null },
+              { key: "discoveries" as ViewTab, label: "Found", Icon: MapPin, badge: discoveredPlaces.length > 0 ? discoveredPlaces.length : null },
+            ] as const).map((tab) => {
+              const active = activeTab === tab.key;
+              const TIcon = tab.Icon;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => { haptic.selection(); setActiveTab(tab.key); }}
+                  style={{
+                    flex: 1, borderRadius: 11, border: "none", padding: "10px 8px",
+                    fontSize: 13, fontWeight: 700,
+                    background: active ? "var(--brand-sky)" : "transparent",
+                    color: active ? "white" : "var(--roam-text-muted)",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                    cursor: "pointer", transition: "all 0.15s ease",
+                    WebkitTapHighlightColor: "transparent",
+                  }}
+                >
+                  <TIcon size={14} />
+                  {tab.label}
+                  {tab.badge != null ? (
+                    <span style={{
+                      fontSize: 10, fontWeight: 800, background: active ? "rgba(255,255,255,0.25)" : "var(--brand-sky)",
+                      color: "white", borderRadius: 999, padding: "1px 6px", minWidth: 18, textAlign: "center",
+                    }}>
+                      {tab.badge}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ════════════════════════════════════════════════════════
           SLIDING TRACK — all tab panels always mounted
