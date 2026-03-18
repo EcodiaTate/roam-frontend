@@ -38,10 +38,13 @@ async function safeFetch<T>(
   label: string,
   fn: () => Promise<T>,
 ): Promise<T | null> {
+  const t0 = performance.now();
   try {
-    return await fn();
+    const result = await fn();
+    console.info(`[enrich] ${label} done in ${((performance.now() - t0) / 1000).toFixed(1)}s`);
+    return result;
   } catch (e) {
-    console.warn(`[enrich] ${label} failed:`, e);
+    console.warn(`[enrich] ${label} failed after ${((performance.now() - t0) / 1000).toFixed(1)}s:`, e);
     return null;
   }
 }
@@ -87,27 +90,25 @@ export function startEnrichment(args: {
 
   let lastEmittedPhase: EnrichPhase = "idle";
 
-  function tick() {
-    completed++;
-    if (cancelled) return;
-    callbacks.onProgress({
-      phase: lastEmittedPhase,
-      completed,
-      total: TOTAL_ENRICHMENT_ITEMS,
-      corridorReady,
-    });
-  }
-
   /** Fetch + tick a single overlay item. */
   function overlay(kind: PackKind, fn: () => Promise<unknown>): Promise<void> {
     return safeFetch(kind, fn).then(async (v) => {
       if (cancelled) return;
       if (v) await savePack(planId, kind, v, callbacks);
-      tick();
+      completed++;
+      console.info(`[enrich] step ${completed}/${TOTAL_ENRICHMENT_ITEMS}: ${kind}`);
+      if (cancelled) return;
+      callbacks.onProgress({
+        phase: lastEmittedPhase,
+        completed,
+        total: TOTAL_ENRICHMENT_ITEMS,
+        corridorReady,
+      });
     });
   }
 
   async function run() {
+    const runStart = performance.now();
     // ── 1. Places FIRST — we need stop coordinates for the corridor ──
     // The corridor graph must include road coverage around every
     // suggested stop. Fetch places using routeKey (no corridor key
@@ -127,7 +128,9 @@ export function startEnrichment(args: {
     } catch (e) {
       console.warn("[enrich] places error:", e);
     }
-    tick();
+    completed++;
+    console.info(`[enrich] step ${completed}/${TOTAL_ENRICHMENT_ITEMS}: places`);
+    callbacks.onProgress({ phase: lastEmittedPhase, completed, total: TOTAL_ENRICHMENT_ITEMS, corridorReady });
 
     // Extract stop coordinates for corridor building
     const stopCoords: number[][] = [];
@@ -140,6 +143,7 @@ export function startEnrichment(args: {
 
     // ── 2. Corridor (with stop coordinates) ──────────────────────────
     const corridorWork = (async () => {
+      const t0 = performance.now();
       try {
         const meta = await safeFetch("corridor_ensure", () =>
           navApi.corridorEnsure({
@@ -158,14 +162,19 @@ export function startEnrichment(args: {
           if (cancelled) return;
 
           if (corridorPack) {
+            const idbStart = performance.now();
             await savePack(planId, "corridor", corridorPack, callbacks);
+            console.info(`[enrich] corridor IDB save: ${((performance.now() - idbStart) / 1000).toFixed(1)}s`);
             corridorReady = true;
           }
         }
       } catch (e) {
         console.warn("[enrich] corridor error:", e);
       }
-      tick();
+      console.info(`[enrich] corridor total (ensure+get+save): ${((performance.now() - t0) / 1000).toFixed(1)}s`);
+      completed++;
+      console.info(`[enrich] step ${completed}/${TOTAL_ENRICHMENT_ITEMS}: corridor`);
+      callbacks.onProgress({ phase: lastEmittedPhase, completed, total: TOTAL_ENRICHMENT_ITEMS, corridorReady });
     })();
 
     // ── 3. Fire ALL non-corridor-dependent overlays immediately ──────
@@ -185,7 +194,11 @@ export function startEnrichment(args: {
       overlay("air_quality", () => navApi.airQualityAlongRoute({ geometry })),
       departAt
         ? overlay("weather", () => navApi.weatherForecast({ polyline6: geometry, departure_iso: departAt }))
-        : Promise.resolve(tick()), // still count the slot
+        : Promise.resolve().then(() => {
+            completed++;
+            console.info(`[enrich] step ${completed}/${TOTAL_ENRICHMENT_ITEMS}: weather (skipped, no departAt)`);
+            callbacks.onProgress({ phase: lastEmittedPhase, completed, total: TOTAL_ENRICHMENT_ITEMS, corridorReady });
+          }),
 
       // Info/POI (Phase 5)
       overlay("rest_areas", () => navApi.restAreasAlongRoute({ geometry })),
@@ -201,6 +214,7 @@ export function startEnrichment(args: {
 
     // Wait for corridor + overlays
     await Promise.allSettled([corridorWork, overlayWork]);
+    console.info(`[enrich] all overlays + corridor done in ${((performance.now() - runStart) / 1000).toFixed(1)}s`);
     if (cancelled) return;
 
     // ── Route score (last — benefits from overlays being saved) ─────
@@ -216,11 +230,14 @@ export function startEnrichment(args: {
     } catch (e) {
       console.warn("[enrich] route_score error:", e);
     }
-    tick();
+    completed++;
+    console.info(`[enrich] step ${completed}/${TOTAL_ENRICHMENT_ITEMS}: route_score`);
+    callbacks.onProgress({ phase: lastEmittedPhase, completed, total: TOTAL_ENRICHMENT_ITEMS, corridorReady });
 
     if (cancelled) return;
 
     // ── Done ─────────────────────────────────────────────────────────
+    console.info(`[enrich] TOTAL enrichment: ${((performance.now() - runStart) / 1000).toFixed(1)}s`);
     emit("done");
     callbacks.onDone();
   }
