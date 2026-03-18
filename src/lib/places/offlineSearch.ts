@@ -183,25 +183,37 @@ function matchesAttributes(place: PlaceItem, attrs: Record<string, unknown>): bo
  * All operations are synchronous array filters — no indexing overhead.
  * Filtering 8,000 places typically takes <20ms.
  */
+export type SearchPlacesResult = {
+  results: SearchResult[];
+  /** Per-category counts of places passing text/free/openNow filters (ignoring category/geo filters). */
+  categoryCounts: Record<string, number>;
+};
+
+/**
+ * Filter and rank places offline.
+ * All operations are synchronous array filters — no indexing overhead.
+ * Filtering 8,000 places typically takes <20ms.
+ *
+ * Returns both the filtered results AND per-category counts in a single pass,
+ * eliminating the need for a separate countByCategoryFiltered() call.
+ */
 export function searchPlaces(
   places: PlaceItem[],
   filter: PlaceFilter,
   userPosition: UserPosition | null,
   /** polyline6 route — reserved for future ahead-on-route calculation */
   _routeGeometry?: string,
-): SearchResult[] {
+): SearchPlacesResult {
   const queryLower = (filter.query ?? "").trim().toLowerCase();
   const catSet = filter.categories && filter.categories.length > 0
     ? new Set(filter.categories)
     : null;
 
-  // Single pass: compute distance + ahead while filtering
+  // Single pass: compute distance + ahead while filtering, AND count per-category
   const results: SearchResult[] = [];
+  const categoryCounts: Record<string, number> = {};
 
   for (const place of places) {
-    // ── Category filter ──────────────────────────────────────
-    if (catSet && !catSet.has(place.category)) continue;
-
     // ── Text search ──────────────────────────────────────────
     if (queryLower && !matchesQuery(place, queryLower)) continue;
 
@@ -217,6 +229,21 @@ export function searchPlaces(
       if (!isFree) continue;
     }
 
+    // ── Opening hours ────────────────────────────────────────
+    if (filter.openNow) {
+      const extra = place.extra ?? {};
+      const oh = extra.opening_hours as string | undefined;
+      const open = isOpenNow(oh);
+      if (open === false) continue;
+    }
+
+    // Count per-category BEFORE applying category/geo/attribute filters
+    // so chip badges reflect text+free+openNow filtering only.
+    categoryCounts[place.category] = (categoryCounts[place.category] ?? 0) + 1;
+
+    // ── Category filter (after counting) ─────────────────────
+    if (catSet && !catSet.has(place.category)) continue;
+
     // ── Wheelchair/accessible ────────────────────────────────
     if (filter.attributes?.wheelchair === "yes") {
       const wc = (place.extra ?? {}).wheelchair;
@@ -226,17 +253,8 @@ export function searchPlaces(
     // ── Attribute filter ─────────────────────────────────────
     if (filter.attributes && Object.keys(filter.attributes).length > 0) {
       const attrsWithoutWheelchair = { ...filter.attributes };
-      delete attrsWithoutWheelchair.wheelchair; // already handled above
+      delete attrsWithoutWheelchair.wheelchair;
       if (!matchesAttributes(place, attrsWithoutWheelchair)) continue;
-    }
-
-    // ── Opening hours ────────────────────────────────────────
-    if (filter.openNow) {
-      const extra = place.extra ?? {};
-      const oh = extra.opening_hours as string | undefined;
-      const open = isOpenNow(oh);
-      // Only exclude if we KNOW it's closed (null = unknown, keep it)
-      if (open === false) continue;
     }
 
     // ── Geo: distance + ahead ────────────────────────────────
@@ -253,13 +271,10 @@ export function searchPlaces(
         const diff = Math.abs(angleDiff(userPosition.heading, bearing));
         ahead = diff <= 120;
       } else {
-        ahead = true; // assume ahead when no heading
+        ahead = true;
       }
 
-      // ── Distance filter ──────────────────────────────────
       if (filter.maxDistanceKm != null && distKm > filter.maxDistanceKm) continue;
-
-      // ── Ahead only ───────────────────────────────────────
       if (filter.aheadOnly && ahead === false) continue;
     }
 
@@ -268,7 +283,6 @@ export function searchPlaces(
 
   // ── Sort: distance asc (nulls last), then ahead first ───────
   results.sort((a, b) => {
-    // Ahead first when both have heading data
     if (a.ahead !== null && b.ahead !== null && a.ahead !== b.ahead) {
       return a.ahead ? -1 : 1;
     }
@@ -277,7 +291,7 @@ export function searchPlaces(
     return da - db;
   });
 
-  return results;
+  return { results, categoryCounts };
 }
 
 // ──────────────────────────────────────────────────────────────

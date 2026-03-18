@@ -46,6 +46,12 @@ export function formatDurationOrDash(seconds?: number | null): string {
   return formatDuration(seconds);
 }
 
+/** Round duration to nearest hour for share cards (e.g. "12h", "1h"). */
+export function formatDurationHours(seconds: number): string {
+  const hrs = Math.round(Math.max(seconds, 0) / 3600);
+  return hrs < 1 ? "< 1h" : `${hrs}h`;
+}
+
 /**
  * Format a distance already in kilometres for display.
  *   < 1 km  → "800 m"

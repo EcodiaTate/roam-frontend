@@ -107,12 +107,12 @@
 
 .heroClose {
   position: absolute;
-  top: 26px;
-  right: 12px;
+  top: 22px;
+  right: 10px;
   z-index: 2;
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(0, 0, 0, 0.15);
   backdrop-filter: blur(8px);
@@ -131,7 +131,7 @@
   min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
+  overscroll-behavior-x: contain;
   padding-bottom: 8px;
 }
 
@@ -186,11 +186,11 @@
 
 .photoRemove {
   position: absolute;
-  top: 5px;
-  right: 5px;
-  width: 24px;
-  height: 24px;
-  border-radius: 8px;
+  top: 3px;
+  right: 3px;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
   border: none;
   background: rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(4px);
@@ -303,6 +303,12 @@
   flex-shrink: 0;
   border-top: 1px solid var(--roam-border);
   animation: mem-sectionIn 0.3s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both;
+}
+
+/* When keyboard is open the tab bar is hidden — shrink footer padding
+   so the Save button stays visible above the keyboard. */
+:global(.keyboard-open) .footer {
+  padding-bottom: 12px;
 }
 
 .saveBtn {

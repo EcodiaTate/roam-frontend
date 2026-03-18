@@ -288,9 +288,9 @@
 }
 
 .controlBtn {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
   border: none;
   background: transparent;
   color: var(--roam-text-muted);
@@ -299,7 +299,7 @@
   place-items: center;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
-  transition: background 80ms ease;
+  transition: background 80ms ease, transform 80ms ease;
 }
 
 .controlBtn:active:not(:disabled) {
@@ -312,9 +312,9 @@
 }
 
 .controlBtnDanger {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
   border: none;
   background: transparent;
   color: var(--roam-text-muted);
@@ -323,7 +323,7 @@
   place-items: center;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
-  transition: color 80ms ease, background 80ms ease;
+  transition: color 80ms ease, background 80ms ease, transform 80ms ease;
 }
 
 .controlBtnDanger:active:not(:disabled) {

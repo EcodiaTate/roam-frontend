@@ -1,5 +1,6 @@
 // capacitor.config.ts
 import type { CapacitorConfig } from "@capacitor/cli";
+import { KeyboardResize } from "@capacitor/keyboard";
 
 const config: CapacitorConfig = {
   appId: "au.ecodia.roam",
@@ -26,6 +27,13 @@ const config: CapacitorConfig = {
       style: "DARK",
       backgroundColor: "#00000000",
       overlaysWebView: true,
+    },
+
+    Keyboard: {
+      // "body" resizes the WebView so content scrolls naturally above the keyboard.
+      // Matches the runtime config in src/lib/native/keyboard.ts.
+      resize: "body" as KeyboardResize,
+      resizeOnFullScreen: true,
     },
   },
 

@@ -231,6 +231,8 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
           position: "relative",
           maxHeight: "90dvh",
           overflowY: "auto",
+          WebkitOverflowScrolling: "touch" as React.CSSProperties["WebkitOverflowScrolling"],
+          overscrollBehaviorX: "contain",
           flexShrink: 0,
           transform: isVisible ? "scale(1) translateY(0)" : isExiting ? "scale(0.95) translateY(20px)" : "scale(0.95) translateY(20px)",
           transition: isExiting

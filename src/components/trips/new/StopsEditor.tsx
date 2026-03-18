@@ -9,7 +9,7 @@ import { StopSuggestions } from "./StopSuggestions";
 import { haptic } from "@/lib/native/haptics";
 import { hideKeyboard } from "@/lib/native/keyboard";
 
-import { useRouter } from "next/navigation";
+
 import {
   Rocket,
   Compass,
@@ -420,8 +420,6 @@ export function StopsEditor(props: {
   /** Called when user taps the upgrade button. */
   onUpgrade?: () => void;
 }) {
-  const router = useRouter();
-
   // --- Smooth Drag Controller ---
   const [snapState, setSnapState] = useState<"peek" | "expanded">("peek");
   const [dragOffset, setDragOffset] = useState(0);
@@ -587,7 +585,7 @@ export function StopsEditor(props: {
                   className="trip-interactive"
                   aria-label="Roam Untethered"
                   onPointerDown={(e) => e.stopPropagation()}
-                  onClick={() => { haptic.selection(); router.push("/untethered"); }}
+                  onClick={() => { haptic.selection(); props.onUpgrade?.(); }}
                   style={{
                     position: "relative",
                     display: "grid", placeItems: "center",
@@ -617,7 +615,7 @@ export function StopsEditor(props: {
                   className="trip-interactive"
                   aria-label="Upgrade to Roam Untethered"
                   onPointerDown={(e) => e.stopPropagation()}
-                  onClick={() => { haptic.selection(); router.push("/untethered"); }}
+                  onClick={() => { haptic.selection(); props.onUpgrade?.(); }}
                   style={{
                     position: "relative",
                     display: "flex", alignItems: "center", gap: 5,

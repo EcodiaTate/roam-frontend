@@ -28,7 +28,7 @@ export default function TripPreviewMap({ geometry, stops, bbox }: Props) {
       container: el,
       style: {
         version: 8,
-        glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+        glyphs: "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf",
         sources: {
           osm: {
             type: "raster",

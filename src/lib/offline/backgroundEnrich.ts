@@ -108,28 +108,54 @@ export function startEnrichment(args: {
   }
 
   async function run() {
-    emit("corridor");
+    // ── 1. Places FIRST — we need stop coordinates for the corridor ──
+    // The corridor graph must include road coverage around every
+    // suggested stop. Fetch places using routeKey (no corridor key
+    // needed), then pass their coords to corridorEnsure.
+    emit("corridor"); // UI phase — covers places + corridor together
 
-    // ── Corridor (produces corridorKey for places) ──────────────────
-    // We expose a promise so places can await it while everything
-    // else fires immediately.
-    let resolveCorridor: (key: string | null) => void;
-    const corridorKeyP = new Promise<string | null>((r) => { resolveCorridor = r; });
+    let placesData: { items?: { lat: number; lng: number }[] } | null = null;
+    try {
+      placesData = await safeFetch("places", () =>
+        placesApi.corridor({
+          corridor_key: routeKey,
+          geometry,
+        }),
+      ) as { items?: { lat: number; lng: number }[] } | null;
+      if (cancelled) return;
+      if (placesData) await savePack(planId, "places", placesData, callbacks);
+    } catch (e) {
+      console.warn("[enrich] places error:", e);
+    }
+    tick();
 
+    // Extract stop coordinates for corridor building
+    const stopCoords: number[][] = [];
+    if (placesData?.items) {
+      for (const item of placesData.items) {
+        if (item.lat && item.lng) stopCoords.push([item.lat, item.lng]);
+      }
+    }
+    console.info("[enrich] passing %d stop coords to corridor", stopCoords.length);
+
+    // ── 2. Corridor (with stop coordinates) ──────────────────────────
     const corridorWork = (async () => {
-      let corridorKey: string | null = null;
       try {
         const meta = await safeFetch("corridor_ensure", () =>
-          navApi.corridorEnsure({ route_key: routeKey, geometry, profile }),
+          navApi.corridorEnsure({
+            route_key: routeKey,
+            geometry,
+            profile,
+            stop_coords: stopCoords.length > 0 ? stopCoords : undefined,
+          }),
         );
-        if (cancelled) { resolveCorridor!(null); return; }
+        if (cancelled) return;
 
         if (meta?.corridor_key) {
-          corridorKey = meta.corridor_key;
           const corridorPack = await safeFetch("corridor_get", () =>
             navApi.corridorGet(meta.corridor_key),
           );
-          if (cancelled) { resolveCorridor!(corridorKey); return; }
+          if (cancelled) return;
 
           if (corridorPack) {
             await savePack(planId, "corridor", corridorPack, callbacks);
@@ -140,10 +166,9 @@ export function startEnrichment(args: {
         console.warn("[enrich] corridor error:", e);
       }
       tick();
-      resolveCorridor!(corridorKey);
     })();
 
-    // ── Fire ALL non-corridor-dependent overlays immediately ────────
+    // ── 3. Fire ALL non-corridor-dependent overlays immediately ──────
     // These only need geometry/bbox, so they run in parallel with the
     // corridor fetch. The counter starts climbing right away.
     emit("overlays");
@@ -174,27 +199,8 @@ export function startEnrichment(args: {
       overlay("wildlife", () => navApi.wildlifeAlongRoute({ polyline6: geometry })),
     ]);
 
-    // ── Places (needs corridor key, falls back to routeKey) ────────
-    const placesWork = (async () => {
-      const corridorKey = await corridorKeyP;
-      if (cancelled) return;
-      try {
-        const placesData = await safeFetch("places", () =>
-          placesApi.corridor({
-            corridor_key: corridorKey ?? routeKey,
-            geometry,
-          }),
-        );
-        if (cancelled) return;
-        if (placesData) await savePack(planId, "places", placesData, callbacks);
-      } catch (e) {
-        console.warn("[enrich] places error:", e);
-      }
-      tick();
-    })();
-
-    // Wait for corridor + overlays + places
-    await Promise.allSettled([corridorWork, overlayWork, placesWork]);
+    // Wait for corridor + overlays
+    await Promise.allSettled([corridorWork, overlayWork]);
     if (cancelled) return;
 
     // ── Route score (last — benefits from overlays being saved) ─────

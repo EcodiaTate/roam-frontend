@@ -1,11 +1,11 @@
 // src/components/share/NativeShareRenderer.tsx
 // Headless component that renders a TripShareCard off-screen, captures it as a PNG,
-// invokes the native share sheet, then calls onDone. Only mount on native platforms.
+// invokes the OS share sheet (native or Web Share API), then calls onDone.
 "use client";
 
 import { useEffect, useRef } from "react";
 import { TripShareCard, type ShareCardData } from "./TripShareCard";
-import { buildCardBlob, nativeShareBlob, loadIconDataUrl } from "@/lib/share/buildCardBlob";
+import { buildCardBlob, shareBlob, loadIconDataUrl } from "@/lib/share/buildCardBlob";
 import { haptic } from "@/lib/native/haptics";
 
 type Props = {
@@ -36,7 +36,7 @@ export function NativeShareRenderer({ data, mapImageUrl, tripLabel, onDone, onEr
         const blob = await buildCardBlob(liveSvg, mapImageUrl);
         if (cancelled) return;
 
-        await nativeShareBlob(blob, tripLabel);
+        await shareBlob(blob, tripLabel, "share");
         haptic.success();
         onDone();
       } catch (e) {

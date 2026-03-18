@@ -4,7 +4,7 @@
 import { useCallback, useRef, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X, Download, Share2, Image as ImageIcon, Map as MapIcon, Loader2 } from "lucide-react";
-import { TripShareCard, CARD_W, CARD_H, type ShareCardData } from "./TripShareCard";
+import { TripShareCard, CARD_W, CARD_H, type ShareCardData, type ShareTheme } from "./TripShareCard";
 import { haptic } from "@/lib/native/haptics";
 import { toErrorMessage } from "@/lib/utils/errors";
 import { isNative } from "@/lib/native/platform";
@@ -24,23 +24,22 @@ type Props = {
 
 function PhotoPicker({ onPick }: { onPick: (url: string) => void }) {
   const ref = useRef<HTMLInputElement>(null);
+  const trigger = () => ref.current?.click();
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center",
-      justifyContent: "center", gap: 14, height: "100%", padding: 32, textAlign: "center" }}>
+    <div
+      role="button" tabIndex={0}
+      onClick={trigger} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") trigger(); }}
+      style={{ display: "flex", flexDirection: "column", alignItems: "center",
+        justifyContent: "center", gap: 14, height: "100%", padding: 32, textAlign: "center",
+        cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
       <div style={{ width: 60, height: 60, borderRadius: 18,
         background: "rgba(255,255,255,0.05)", border: "1.5px dashed rgba(255,255,255,0.15)",
         display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.4)" }}>
         <ImageIcon size={26} />
       </div>
       <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>
-        Pick a photo — your route will be overlaid on top
+        Tap anywhere to pick a photo
       </p>
-      <button type="button" onClick={() => ref.current?.click()}
-        style={{ all: "unset", cursor: "pointer", padding: "11px 28px", borderRadius: 14,
-          background: "#4ade80", color: "#0a1f0e", fontSize: 14, fontWeight: 700,
-          WebkitTapHighlightColor: "transparent" }}>
-        Choose Photo
-      </button>
       <input ref={ref} type="file" accept="image/*" style={{ display: "none" }}
         onChange={(e) => {
           const f = e.target.files?.[0]; if (!f) return;
@@ -62,6 +61,7 @@ export function TripShareModal({ open, data, onClose, mapImageUrl }: Props) {
   const [iconDataUrl, setIconDataUrl] = useState<string | null>(null);
   const [visible, setVisible] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [theme, setTheme] = useState<ShareTheme>("dark");
 
   const cardSvgRef    = useRef<SVGSVGElement | null>(null);
   const overlaySvgRef = useRef<SVGSVGElement | null>(null);
@@ -70,6 +70,7 @@ export function TripShareModal({ open, data, onClose, mapImageUrl }: Props) {
     if (open) {
       setMode("card"); setPhoto(null); setErr(null);
       if (!iconDataUrl) loadIconDataUrl().then(setIconDataUrl);
+      setTheme(window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
       setMounted(true);
       // Two RAFs: first lets React flush the mount paint, second triggers the transition
       let raf2: number;
@@ -134,7 +135,7 @@ export function TripShareModal({ open, data, onClose, mapImageUrl }: Props) {
       style={{
         position: "fixed", inset: 0, zIndex: 60,
         display: "flex", flexDirection: "column", alignItems: "center",
-        overflowY: "auto", WebkitOverflowScrolling: "touch" as React.CSSProperties["WebkitOverflowScrolling"],
+        overflowY: "auto", WebkitOverflowScrolling: "touch" as React.CSSProperties["WebkitOverflowScrolling"], overscrollBehaviorX: "contain",
         paddingTop: "max(20px, env(safe-area-inset-top, 0px) + 12px)",
         paddingBottom: "max(28px, env(safe-area-inset-bottom, 0px) + 20px)",
         // Backdrop fade
@@ -162,10 +163,10 @@ export function TripShareModal({ open, data, onClose, mapImageUrl }: Props) {
         <button type="button" onClick={onClose}
           style={{ all: "unset", cursor: "pointer", display: "flex",
             alignItems: "center", justifyContent: "center",
-            width: 36, height: 36, borderRadius: 10,
+            width: 40, height: 40, borderRadius: 10,
             background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.6)",
             WebkitTapHighlightColor: "transparent" }}>
-          <X size={17} />
+          <X size={18} />
         </button>
       </div>
 
@@ -177,13 +178,13 @@ export function TripShareModal({ open, data, onClose, mapImageUrl }: Props) {
             onClick={() => { haptic.light(); setMode(m); }}
             style={{ all: "unset", cursor: "pointer", flex: 1,
               display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-              height: 38, borderRadius: 11,
+              height: 44, borderRadius: 12,
               background: mode === m ? "#4ade80" : "rgba(255,255,255,0.06)",
               color: mode === m ? "#0a1f0e" : "rgba(255,255,255,0.5)",
               fontSize: 12, fontWeight: 700,
               transition: "background 0.15s, color 0.15s",
               WebkitTapHighlightColor: "transparent" }}>
-            {m === "card" ? <MapIcon size={13} /> : <ImageIcon size={13} />}
+            {m === "card" ? <MapIcon size={16} /> : <ImageIcon size={16} />}
             {m === "card" ? "Route Card" : "Photo Overlay"}
           </button>
         ))}
@@ -212,7 +213,7 @@ export function TripShareModal({ open, data, onClose, mapImageUrl }: Props) {
             )}
             {/* SVG overlay (no <image> tag — route + stats + branding only) */}
             <div style={{ position: "absolute", inset: 0 }}>
-              <TripShareCard data={activeData} mode="card" svgRef={cardSvgRef} hasMap={!!mapImageUrl} iconDataUrl={iconDataUrl} />
+              <TripShareCard data={activeData} mode="card" svgRef={cardSvgRef} hasMap={!!mapImageUrl} iconDataUrl={iconDataUrl} theme={theme} />
             </div>
           </div>
         ) : (
@@ -226,16 +227,16 @@ export function TripShareModal({ open, data, onClose, mapImageUrl }: Props) {
                 <img src={photo} alt="" style={{ position: "absolute", inset: 0,
                   width: "100%", height: "100%", objectFit: "cover" }} />
                 <div style={{ position: "absolute", inset: 0 }}>
-                  <TripShareCard data={activeData} mode="overlay" svgRef={overlaySvgRef} iconDataUrl={iconDataUrl} />
+                  <TripShareCard data={activeData} mode="overlay" svgRef={overlaySvgRef} iconDataUrl={iconDataUrl} theme={theme} />
                 </div>
                 <button type="button" onClick={() => setPhoto(null)}
                   style={{ all: "unset", cursor: "pointer", position: "absolute",
                     bottom: 10, right: 10, display: "flex", alignItems: "center", gap: 4,
-                    padding: "6px 12px", borderRadius: 9,
+                    padding: "8px 14px", borderRadius: 10,
                     background: "rgba(0,0,0,0.6)", color: "#fff",
-                    fontSize: 11, fontWeight: 600,
+                    fontSize: 12, fontWeight: 600, minHeight: 36,
                     backdropFilter: "blur(8px)", WebkitTapHighlightColor: "transparent" }}>
-                  <ImageIcon size={11} /> Change
+                  <ImageIcon size={14} /> Change
                 </button>
               </>
             ) : (

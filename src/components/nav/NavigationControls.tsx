@@ -182,15 +182,18 @@ export function NavigationControls({
               onEnd();
             }}
             style={{
-              padding: "9px 16px",
+              padding: "12px 18px",
+              minHeight: 44,
               border: "1px solid rgba(212,102,74,0.35)",
-              borderRadius: 11,
+              borderRadius: 12,
               cursor: "pointer",
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: 950,
               color: "var(--on-color)",
               background: "linear-gradient(160deg, rgba(181,69,46,0.95) 0%, rgba(145,50,30,0.98) 100%)",
               letterSpacing: "-0.1px",
+              touchAction: "manipulation",
+              WebkitTapHighlightColor: "transparent",
             }}
           >
             End nav
@@ -202,15 +205,18 @@ export function NavigationControls({
               setConfirmEnd(false);
             }}
             style={{
-              padding: "9px 14px",
+              padding: "12px 16px",
+              minHeight: 44,
               border: "1px solid rgba(255,255,255,0.09)",
-              borderRadius: 11,
+              borderRadius: 12,
               cursor: "pointer",
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: 950,
               color: "rgba(250,246,239,0.65)",
               background: "rgba(255,255,255,0.06)",
               letterSpacing: "-0.1px",
+              touchAction: "manipulation",
+              WebkitTapHighlightColor: "transparent",
             }}
           >
             Cancel

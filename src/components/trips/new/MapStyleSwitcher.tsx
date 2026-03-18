@@ -126,7 +126,7 @@ export function MapStyleSwitcher(props: {
         position: "absolute",
         top: "calc(env(safe-area-inset-top, 0px) + 12px)",
         right: 10,
-        zIndex: 30,
+        zIndex: 15,
         display: "flex",
         flexDirection: "column",
         gap: 6,

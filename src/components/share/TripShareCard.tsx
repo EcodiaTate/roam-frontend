@@ -4,13 +4,28 @@
 import { useMemo } from "react";
 import { decodePolyline6 } from "@/lib/nav/polyline6";
 import type { TripStop } from "@/lib/types/trip";
-import { formatDistance, formatDuration } from "@/lib/utils/format";
+import { formatDistance, formatDurationHours } from "@/lib/utils/format";
 
 export const CARD_W = 390;
 export const CARD_H = 693;
 
-// Route occupies the full card, stat strip floats at the bottom
-const ROUTE_PAD = 80;    // inset so the route never kisses the edge
+const STATE_ABBR: Record<string, string> = {
+  "queensland": "QLD", "new south wales": "NSW", "victoria": "VIC",
+  "south australia": "SA", "western australia": "WA", "tasmania": "TAS",
+  "northern territory": "NT", "australian capital territory": "ACT",
+};
+
+/** "Brisbane, Queensland" → "Brisbane, QLD" */
+function abbreviateState(name: string): string {
+  const comma = name.lastIndexOf(",");
+  if (comma < 0) return name;
+  const city = name.slice(0, comma);
+  const state = name.slice(comma + 1).trim().toLowerCase();
+  const abbr = STATE_ABBR[state];
+  return abbr ? `${city}, ${abbr}` : name;
+}
+
+// Stat strip floats at the bottom, route fills the full card behind it
 const STAT_H = 80;            // stat strip height
 const STAT_FROM_BOTTOM = 170; // bottom of stats this far from card bottom
 const BRAND_GAP = 6;          // gap between stats bottom and branding row
@@ -37,36 +52,52 @@ function thinCoords(
 }
 
 /**
- * Project lat/lng → SVG space, fitting within [padX, padY] insets.
- * All coords share the same transform so stops overlay correctly.
+ * Convert latitude to Web Mercator Y in degree-equivalent units.
+ * This matches MapLibre's internal fitBounds projection.
  */
+function latToMercY(lat: number): number {
+  const rad = (lat * Math.PI) / 180;
+  return (180 / Math.PI) * Math.log(Math.tan(Math.PI / 4 + rad / 2));
+}
+
+/**
+ * Project lat/lng → SVG space using Mercator, matching the map snapshot's
+ * fitBounds viewport so the SVG route overlays the map correctly.
+ *
+ * Padding is asymmetric: extra bottom space keeps the route above the
+ * stats strip / branding area (bottom ~170px of the card).
+ * These values are kept in sync with captureMapSnapshot's fitBounds padding.
+ */
+const PAD_TOP = 70;  // clear Instagram Stories header UI
+const PAD_LR  = 30;
+const PAD_BOT = 190; // clears stats (STAT_FROM_BOTTOM) + breathing room
+
 function project(
   coords: Array<{ lat: number; lng: number }>,
-  padX = ROUTE_PAD,
-  padY = ROUTE_PAD,
 ): { x: number; y: number }[] {
   if (!coords.length) return [];
-  let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
-  for (const c of coords) {
-    if (c.lat < minLat) minLat = c.lat;
-    if (c.lat > maxLat) maxLat = c.lat;
-    if (c.lng < minLng) minLng = c.lng;
-    if (c.lng > maxLng) maxLng = c.lng;
+  let minLng = Infinity, maxLng = -Infinity;
+  let minMY = Infinity, maxMY = -Infinity;
+  const mercYs = coords.map((c) => latToMercY(c.lat));
+  for (let i = 0; i < coords.length; i++) {
+    if (coords[i].lng < minLng) minLng = coords[i].lng;
+    if (coords[i].lng > maxLng) maxLng = coords[i].lng;
+    if (mercYs[i] < minMY) minMY = mercYs[i];
+    if (mercYs[i] > maxMY) maxMY = mercYs[i];
   }
-  const latSpan = maxLat - minLat || 1e-4;
   const lngSpan = maxLng - minLng || 1e-4;
+  const mySpan = maxMY - minMY || 1e-4;
 
-  // Keep bottom zone clear for stats + branding + breathing room
-  const usableH = CARD_H - STAT_FROM_BOTTOM - padY - 40;
-  const usableW = CARD_W - padX * 2;
+  const usableW = CARD_W - PAD_LR * 2;
+  const usableH = CARD_H - PAD_TOP - PAD_BOT;
 
-  const scale = Math.min(usableW / lngSpan, usableH / latSpan);
-  const offX = padX + (usableW - lngSpan * scale) / 2;
-  const offY = padY + (usableH - latSpan * scale) / 2;
+  const scale = Math.min(usableW / lngSpan, usableH / mySpan);
+  const offX = PAD_LR + (usableW - lngSpan * scale) / 2;
+  const offY = PAD_TOP + (usableH - mySpan * scale) / 2;
 
-  return coords.map((c) => ({
+  return coords.map((c, i) => ({
     x: offX + (c.lng - minLng) * scale,
-    y: offY + (maxLat - c.lat) * scale,
+    y: offY + (maxMY - mercYs[i]) * scale,
   }));
 }
 
@@ -75,15 +106,48 @@ function toPath(pts: { x: number; y: number }[]): string {
   return pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
 }
 
+/**
+ * Pick the most visually significant intermediate stops to label.
+ * Significance = perpendicular distance from the start→end line in projected
+ * SVG space — the stops that represent the biggest "detours" get labels.
+ */
+function pickIntermediateLabels(
+  stops: TripStop[],
+  stopPts: { x: number; y: number }[],
+  maxLabels: number,
+): Set<number> {
+  if (stops.length <= 2) return new Set();
+  const s = stopPts[0];
+  const e = stopPts[stopPts.length - 1];
+  const dx = e.x - s.x;
+  const dy = e.y - s.y;
+  const len = Math.sqrt(dx * dx + dy * dy) || 1;
+
+  // Score each intermediate by perpendicular distance to start→end line
+  const scored: { idx: number; dist: number }[] = [];
+  for (let i = 1; i < stops.length - 1; i++) {
+    const p = stopPts[i];
+    const dist = Math.abs(dx * (s.y - p.y) - dy * (s.x - p.x)) / len;
+    scored.push({ idx: i, dist });
+  }
+
+  // Sort by distance descending, take top N
+  scored.sort((a, b) => b.dist - a.dist);
+  return new Set(scored.slice(0, maxLabels).map((s) => s.idx));
+}
+
+export type ShareTheme = "dark" | "light";
+
 type Props = {
   data: ShareCardData;
   mode?: "card" | "overlay";
   svgRef?: React.RefObject<SVGSVGElement | null>;
   hasMap?: boolean;
   iconDataUrl?: string | null;
+  theme?: ShareTheme;
 };
 
-export function TripShareCard({ data, mode = "card", svgRef, hasMap = false, iconDataUrl }: Props) {
+export function TripShareCard({ data, mode = "card", svgRef, hasMap = false, iconDataUrl, theme = "dark" }: Props) {
   const { stops, geometry, distance_m, duration_s } = data;
   const isOverlay = mode === "overlay";
 
@@ -101,8 +165,8 @@ export function TripShareCard({ data, mode = "card", svgRef, hasMap = false, ico
 
   const poiCount = stops.filter((s) => s.type !== "start" && s.type !== "end").length;
   const stats = [
-    { v: formatDistance(distance_m),  l: "km"    },
-    { v: formatDuration(duration_s),  l: "drive" },
+    { v: formatDurationHours(duration_s), l: "drive" },
+    { v: formatDistance(distance_m),      l: "km"    },
     { v: String(poiCount || stops.length), l: "stops" },
   ];
 
@@ -183,50 +247,63 @@ export function TripShareCard({ data, mode = "card", svgRef, hasMap = false, ico
         )}
 
         {/* ── STOP MARKERS ───────────────────────────────────────────── */}
-        {stopPts.map((pt, i) => {
-          const stop = stops[i];
-          const isEnd = stop.type === "start" || stop.type === "end";
-          const name = (stop.name?.trim() || (stop.type === "start" ? "Start" : stop.type === "end" ? "Finish" : `Stop ${i}`));
-          const label = name.length > 18 ? name.slice(0, 17) + "…" : name;
+        {(() => {
+          // Pick which intermediates get labels (most significant detours)
+          const midCount = stops.length - 2;
+          const MAX_MID = 2;
+          const labelledMids = midCount > MAX_MID
+            ? pickIntermediateLabels(stops, stopPts, MAX_MID)
+            : new Set(stops.map((_, i) => i).filter((i) => i > 0 && i < stops.length - 1));
 
-          const cx = Math.max(8, Math.min(CARD_W - 8, pt.x));
-          const cy = Math.max(8, Math.min(STAT_Y - 16, pt.y));
+          // Theme-aware label colours (match app surface tokens)
+          const pillFill = theme === "light" ? "rgba(244,239,230,0.85)" : "rgba(26,26,26,0.75)";
+          const pillStroke = theme === "light" ? "rgba(26,22,19,0.1)" : "rgba(255,255,255,0.15)";
+          const pillText = theme === "light" ? "rgba(26,22,19,0.85)" : "rgba(255,255,255,0.9)";
 
-          const accent = stop.type === "start" ? "#4ade80" : stop.type === "end" ? "#fb923c" : "#fff";
+          return stopPts.map((pt, i) => {
+            const stop = stops[i];
+            const isEnd = stop.type === "start" || stop.type === "end";
+            const rawName = (stop.name?.trim() || (stop.type === "start" ? "Start" : stop.type === "end" ? "Finish" : `Stop ${i}`));
+            const label = abbreviateState(rawName);
 
-          // Alternate above / below to avoid overlap
-          const above = i % 2 === 0;
-          const labelW = Math.max(52, label.length * 6.4 + 20);
-          const labelH = 20;
-          const lx = Math.max(6, Math.min(CARD_W - labelW - 6, cx - labelW / 2));
-          const ly = above ? cy - labelH - 10 : cy + 10;
+            const cx = Math.max(8, Math.min(CARD_W - 8, pt.x));
+            const cy = Math.max(8, Math.min(CARD_H - 8, pt.y));
 
-          return (
-            <g key={stop.id ?? i}>
-              {/* Dot */}
-              <g clipPath="url(#sc-map)">
-                {isEnd && <circle cx={cx} cy={cy} r="12" fill={accent} opacity="0.2" />}
-                <circle cx={cx} cy={cy} r={isEnd ? 7 : 5} fill="#fff" stroke={accent} strokeWidth="2.5" />
-                {isEnd && <circle cx={cx} cy={cy} r="3" fill={accent} />}
+            const accent = stop.type === "start" ? "#4ade80" : stop.type === "end" ? "#fb923c" : "rgba(255,255,255,0.6)";
+
+            const showLabel = isEnd || labelledMids.has(i);
+
+            const above = i % 2 === 0;
+            const labelW = Math.max(48, label.length * 5.4 + 18);
+            const labelH = 18;
+            const lx = Math.max(4, Math.min(CARD_W - labelW - 4, cx - labelW / 2));
+            const ly = above ? cy - labelH - 8 : cy + 8;
+
+            return (
+              <g key={stop.id ?? i}>
+                {/* Dot */}
+                {isEnd && <circle cx={cx} cy={cy} r="10" fill={accent} opacity="0.18" />}
+                <circle cx={cx} cy={cy} r={isEnd ? 5.5 : 3.5} fill="rgba(255,255,255,0.9)"
+                  stroke={accent} strokeWidth={isEnd ? 2 : 1.5} />
+                {isEnd && <circle cx={cx} cy={cy} r="2" fill={accent} />}
+
+                {showLabel && (
+                  <g>
+                    {/* Glassmorphic pill */}
+                    <rect x={lx} y={ly} width={labelW} height={labelH} rx={labelH / 2}
+                      fill={pillFill} stroke={pillStroke} strokeWidth="0.5" />
+                    <text x={lx + labelW / 2} y={ly + 12.5} textAnchor="middle"
+                      fontSize="8" fontWeight="600" fill={pillText}
+                      fontFamily="'Plus Jakarta Sans', sans-serif"
+                      letterSpacing="0.02em">
+                      {label}
+                    </text>
+                  </g>
+                )}
               </g>
-              {/* Connector */}
-              <line
-                x1={cx} y1={above ? cy - 8 : cy + 8}
-                x2={lx + labelW / 2} y2={above ? ly + labelH : ly}
-                stroke="rgba(255,255,255,0.25)" strokeWidth="1"
-              />
-              {/* Pill */}
-              <rect x={lx} y={ly} width={labelW} height={labelH} rx={labelH / 2}
-                fill="rgba(0,0,0,0.65)" stroke={accent} strokeWidth="1" />
-              <text x={lx + labelW / 2} y={ly + 13.5} textAnchor="middle"
-                fontSize="9" fontWeight="600" fill="#fff"
-                fontFamily="'Plus Jakarta Sans', sans-serif"
-                letterSpacing="0.01em">
-                {label}
-              </text>
-            </g>
-          );
-        })}
+            );
+          });
+        })()}
 
         {/* ── STAT STRIP ─────────────────────────────────────────────── */}
         {!isOverlay && stats.map((s, i) => {

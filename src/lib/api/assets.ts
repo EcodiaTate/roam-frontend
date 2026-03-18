@@ -109,7 +109,7 @@ export const assetsApi = {
    * Glyphs URL template - local tile server when available, CDN fallback.
    *
    * When local:  http://127.0.0.1:8765/glyphs/{fontstack}/{range}.pbf
-   * When remote: https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf
+   * When remote: https://fonts.openmaptiles.org/{fontstack}/{range}.pbf
    */
   glyphsUrl(): string {
     return getGlyphsUrl();

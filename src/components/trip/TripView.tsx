@@ -161,6 +161,9 @@ export function TripView({
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<ActiveSection>("route");
+  // Defer mounting PlaceSearchPanel until the user first opens the Places tab.
+  // Avoids search/filter/merge work on initial render and while Route tab is active.
+  const [placesEverOpened, setPlacesEverOpened] = useState(false);
   const mode: TripEditorRebuildMode = "auto";
 
   useEffect(() => {
@@ -750,7 +753,7 @@ export function TripView({
           {offlineRouted && (
             <div className={s.offlineBanner}>
               <WifiOff size={12} strokeWidth={2} />
-              <span>Offline route &mdash; no turn-by-turn</span>
+              <span>Offline route</span>
               {isOnline && (
                 <span className={s.offlineRebuild}>
                   Rebuild online
@@ -998,19 +1001,23 @@ export function TripView({
         </>
       )}
 
-      {/* ══ Places section — kept mounted, hidden via CSS to avoid re-mount lag ══ */}
-      <div
-        className={s.placesSection}
-        style={activeSection !== "places" ? { display: "none" } : undefined}
-      >
-        <PlaceSearchPanel
-          places={places ?? null}
-          userPosition={userPosition ? { lat: userPosition.lat, lng: userPosition.lng, heading: userPosition.heading ?? null } : undefined}
-          onSelectPlace={(p) => { onFocusPlace?.(p.id); openPlace(p); }}
-          onFilteredIdsChange={onFilteredIdsChange}
-          maxHeight="50vh"
-        />
-      </div>
+      {/* ══ Places section — lazy-mounted on first tab open, hidden via CSS after ══ */}
+      {activeSection === "places" || placesEverOpened ? (
+        <div
+          className={s.placesSection}
+          style={activeSection !== "places" ? { display: "none" } : undefined}
+          ref={(el) => { if (el && !placesEverOpened) setPlacesEverOpened(true); }}
+        >
+          <PlaceSearchPanel
+            places={places ?? null}
+            userPosition={userPosition ? { lat: userPosition.lat, lng: userPosition.lng, heading: userPosition.heading ?? null } : undefined}
+            onSelectPlace={(p) => { openPlace(p); }}
+            onShowPlaceOnMap={onFocusPlace ? (p) => { onFocusPlace(p.id); } : undefined}
+            onFilteredIdsChange={onFilteredIdsChange}
+            maxHeight="50vh"
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -430,7 +430,7 @@ export function StopMemorySheet({
 
           {/* Badge */}
           <div className={s.heroBadge}>
-            <BookOpen size={10} style={{ color: "rgba(255,255,255,0.85)" }} />
+            <BookOpen size={12} style={{ color: "rgba(255,255,255,0.85)" }} />
             <span className={s.heroBadgeText}>Stop memory</span>
           </div>
 
@@ -439,7 +439,7 @@ export function StopMemorySheet({
 
           {/* Arrival time */}
           <div className={s.heroMeta}>
-            <Clock size={11} strokeWidth={2} />
+            <Clock size={13} strokeWidth={2} />
             {formatArrival(memory?.arrived_at ?? null)}
           </div>
 
@@ -451,7 +451,7 @@ export function StopMemorySheet({
               onPointerDown={(e) => e.stopPropagation()}
               onClick={onClose}
             >
-              <X size={15} strokeWidth={2} />
+              <X size={18} strokeWidth={2} />
             </button>
           )}
         </div>
@@ -472,7 +472,7 @@ export function StopMemorySheet({
             <div className={s.body}>
               {/* Photos section */}
               <div className={s.sectionLabel}>
-                <Camera size={11} strokeWidth={2.5} style={{ verticalAlign: "-1px", marginRight: 5 }} />
+                <Camera size={13} strokeWidth={2.5} style={{ verticalAlign: "-1px", marginRight: 5 }} />
                 Photos {photoCount > 0 ? `(${photoCount}/5)` : ""}
               </div>
               <div className={s.photoSection}>
@@ -492,7 +492,7 @@ export function StopMemorySheet({
                         onClick={() => handleRemovePhoto(i)}
                         disabled={busy}
                       >
-                        <Trash2 size={12} strokeWidth={2} />
+                        <Trash2 size={14} strokeWidth={2} />
                       </button>
                     </div>
                   ))}

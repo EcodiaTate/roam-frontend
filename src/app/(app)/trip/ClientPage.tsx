@@ -65,7 +65,7 @@ import { useEnrichment } from "@/lib/hooks/useEnrichment";
 import { analyzeFuel, computeFuelTracking, windRangeFactor, checkFuelArbitrage, fuelOverlayToPlaceItems, type FuelArbitrageAlert } from "@/lib/nav/fuelAnalysis";
 import { computeRefreshPriority, isOverlayStale, formatAge } from "@/lib/offline/refreshPriority";
 import { decodePolyline6 } from "@/lib/nav/polyline6";
-import { cumulativeKm, buildPolylineIndex, snapToPolylineIndexed } from "@/lib/nav/snapToRoute";
+import { cumulativeKm, buildPolylineIndex, snapToPolylineIndexed, haversineM } from "@/lib/nav/snapToRoute";
 import { shortId } from "@/lib/utils/ids";
 
 import type { NavPack, CorridorGraphPack, TrafficOverlay, HazardOverlay, ElevationResponse } from "@/lib/types/navigation";
@@ -91,16 +91,15 @@ import type {
 } from "@/lib/types/overlays";
 
 // Updated icons here
-import { Image as ImageIcon, UserPlus, Library, WifiOff, Megaphone, Radio } from "lucide-react";
+import { Image as ImageIcon, UserPlus, Library, WifiOff, Megaphone, Radio, Plus } from "lucide-react";
 import { TripSkeleton } from "./TripSkeleton";
 import { EnrichmentBanner } from "@/components/trip/EnrichmentBanner";
 import { isUnlocked as checkIsUnlocked, checkTripGate } from "@/lib/paywall/tripGate";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
-import { TripShareModal } from "@/components/share/TripShareModal";
 import { NativeShareRenderer } from "@/components/share/NativeShareRenderer";
+import { usePlaceDetail } from "@/lib/context/PlaceDetailContext";
 import type { ShareCardData } from "@/components/share/TripShareCard";
 import { captureMapSnapshot } from "@/lib/share/captureMapSnapshot";
-import { isNative } from "@/lib/native/platform";
 
 /* ── Constants ────────────────────────────────────────────────────────── */
 
@@ -165,6 +164,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   const geo = useGeolocation({ autoStart: true, highAccuracy: true });
   useKeepAwake({ auto: true });
   const { online: isOnline } = useNetworkStatus();
+  const { registerNavigateHandler, registerShowOnMapHandler, closePlace, openPlace, setStopPlaceIds: setContextStopPlaceIds } = usePlaceDetail();
 
   // Boot state
   const [phase, setPhase] = useState<BootPhase>("resolving");
@@ -245,8 +245,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   const [exchangeOpen, setExchangeOpen] = useState(false);
   const [reportMarker, setReportMarker] = useState<{ lat: number; lng: number } | null>(null);
 
-  // Share card modal (web) / native share state
-  const [shareCardData, setShareCardData] = useState<ShareCardData | null>(null);
+  // Share state — OS share sheet (native or Web Share API)
   const [nativeSharePayload, setNativeSharePayload] = useState<{ data: ShareCardData; mapImageUrl: string | null; label: string } | null>(null);
 
   // Map style
@@ -256,7 +255,9 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     if (baseMode === "hybrid") return "roam-basemap-hybrid";
     return vectorTheme === "dark" ? "roam-basemap-vector-dark" : "roam-basemap-vector-bright";
   }, [baseMode, vectorTheme]);
-  const [shareMapImageUrl, setShareMapImageUrl] = useState<string | null>(null);
+
+  // Stop-added toast
+  const [stopAddedToast, setStopAddedToast] = useState<string | null>(null);
 
   // Memory sheet state — opened by proximity notification or stop quick action
   const [memorySheetOpen, setMemorySheetOpen] = useState(false);
@@ -980,47 +981,54 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
 
     // ── Offline path: use corridor A* ───────────────────────────────
     if (!isOnline && corridor) {
-      const prev = navpack ?? {
-        req: { stops: args.stops, profile: "drive" },
-        primary: { profile: "drive", provider: "corridor", algo_version: "offline.astar.v1", route_key: "", geometry: "", bbox: { minLng: 0, minLat: 0, maxLng: 0, maxLat: 0 }, distance_m: 0, duration_s: 0, legs: [], created_at: new Date().toISOString() },
-        alternates: { alternates: [] },
-      } as NavPack;
-      const routeKey = `offline_${shortId(12)}`;
-      // Build hazard penalty zones from cached traffic/hazards so A* avoids them
-      const hazardZones = overlaysToHazardZones(traffic, hazards);
-      const { navpack: offlineNavpack, fuelAnalysis: offlineFuel } = await rebuildNavpackOfflineWithFuel({
-        planId: planId ?? "",
-        prevNavpack: prev,
-        corridor,
-        stops: args.stops,
-        route_key: routeKey,
-        hazardZones: hazardZones.length > 0 ? hazardZones : undefined,
-      });
-
-      setNavpack(offlineNavpack);
-      setOfflineRouted(true);
-      if (offlineFuel) setFuelAnalysis(offlineFuel as FuelAnalysis);
-
-      // Persist offline rebuild to IDB so the app can resume after kill
-      if (planId) {
-        const preview = {
+      try {
+        const prev = navpack ?? {
+          req: { stops: args.stops, profile: "drive" },
+          primary: { profile: "drive", provider: "corridor", algo_version: "offline.astar.v1", route_key: "", geometry: "", bbox: { minLng: 0, minLat: 0, maxLng: 0, maxLat: 0 }, distance_m: 0, duration_s: 0, legs: [], created_at: new Date().toISOString() },
+          alternates: { alternates: [] },
+        } as NavPack;
+        const routeKey = `offline_${shortId(12)}`;
+        // Build hazard penalty zones from cached traffic/hazards so A* avoids them
+        const hazardZones = overlaysToHazardZones(traffic, hazards);
+        const { navpack: offlineNavpack, fuelAnalysis: offlineFuel } = await rebuildNavpackOfflineWithFuel({
+          planId: planId ?? "",
+          prevNavpack: prev,
+          corridor,
           stops: args.stops,
-          geometry: offlineNavpack.primary.geometry,
-          bbox: offlineNavpack.primary.bbox,
-          distance_m: offlineNavpack.primary.distance_m,
-          duration_s: offlineNavpack.primary.duration_s,
-          profile: offlineNavpack.primary.profile,
-        };
+          route_key: routeKey,
+          hazardZones: hazardZones.length > 0 ? hazardZones : undefined,
+        });
 
-        putPacksAtomic({
-          planId,
-          updates: {
-            navpack: offlineNavpack,
-            ...(offlineFuel ? { fuel_analysis: offlineFuel } : {}),
-          },
-        }).catch(() => {});
+        setNavpack(offlineNavpack);
+        setOfflineRouted(true);
+        if (offlineFuel) setFuelAnalysis(offlineFuel as FuelAnalysis);
 
-        updateOfflinePlan(planId, { route_key: routeKey, preview }).catch(() => {});
+        // Persist offline rebuild to IDB so the app can resume after kill
+        if (planId) {
+          const preview = {
+            stops: args.stops,
+            geometry: offlineNavpack.primary.geometry,
+            bbox: offlineNavpack.primary.bbox,
+            distance_m: offlineNavpack.primary.distance_m,
+            duration_s: offlineNavpack.primary.duration_s,
+            profile: offlineNavpack.primary.profile,
+          };
+
+          putPacksAtomic({
+            planId,
+            updates: {
+              navpack: offlineNavpack,
+              ...(offlineFuel ? { fuel_analysis: offlineFuel } : {}),
+            },
+          }).catch(() => {});
+
+          updateOfflinePlan(planId, { route_key: routeKey, preview }).catch(() => {});
+        }
+      } catch (offlineErr) {
+        console.error("[Trip] offline corridor A* rebuild failed:", offlineErr);
+        // Don't throw — keep the existing route intact. The user's current
+        // navpack is better than no navpack. The error is logged so we can
+        // diagnose what's happening with the corridor graph.
       }
 
       // Traffic + hazards stay as-is from the cached bundle (still valid for the corridor)
@@ -1081,8 +1089,9 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         }
         return;
       }
-      // No corridor available either — rethrow so UI shows the error
-      throw onlineErr;
+      // No corridor available — log and keep existing route
+      console.error("[Trip] rebuild failed: online unreachable, no corridor available for offline fallback", onlineErr);
+      return;
     }
 
     setNavpack(result);
@@ -1270,23 +1279,23 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   }, [plan, places, router]);
 
   // ── Add stop from map popup ──────────────────────────────────────
-  const handleAddStopFromMap = useCallback(async (placeId: string) => {
+  const handleAddStopFromMap = useCallback(async (placeId: string, coords?: { lat: number; lng: number; name?: string }) => {
     if (!plan || !navpack) return;
     // Check already in stops
     const currentStops = navpack.req?.stops ?? plan.preview?.stops ?? [];
     if (currentStops.some((s) => s.id === placeId)) return;
 
-    // Find the PlaceItem from places pack, or fall back to URL coords (guide-suggested place)
+    // Find the PlaceItem from places pack, or fall back to passed coords, or URL coords
     const place = places?.items?.find((x) => x.id === placeId);
-    const fallbackLat = focusLatFromUrl ? parseFloat(focusLatFromUrl) : null;
-    const fallbackLng = focusLngFromUrl ? parseFloat(focusLngFromUrl) : null;
+    const fallbackLat = coords?.lat ?? (focusLatFromUrl ? parseFloat(focusLatFromUrl) : null);
+    const fallbackLng = coords?.lng ?? (focusLngFromUrl ? parseFloat(focusLngFromUrl) : null);
     if (!place && (!fallbackLat || !fallbackLng)) return;
 
     haptic.medium();
     try {
       const newStop: TripStop = place
         ? { id: place.id, name: place.name ?? "Stop", lat: place.lat, lng: place.lng, type: "poi" }
-        : { id: placeId, name: "Stop", lat: fallbackLat!, lng: fallbackLng!, type: "poi" };
+        : { id: placeId, name: coords?.name ?? "Stop", lat: fallbackLat!, lng: fallbackLng!, type: "poi" };
 
       const endIdx = currentStops.findIndex((s) => (s.type ?? "poi") === "end");
       const newStops: TripStop[] = [...currentStops];
@@ -1301,6 +1310,66 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       console.warn("[Trip] addStopFromMap failed:", e);
     }
   }, [plan, navpack, places, focusLatFromUrl, focusLngFromUrl, handleRebuild]);
+
+  // ── Register "Add to trip" for PlaceDetailSheet popup ─────────────
+  useEffect(() => {
+    registerNavigateHandler((placeId, lat, lng, name) => {
+      closePlace();
+      setStopAddedToast(name || "Stop");
+      setTimeout(() => setStopAddedToast(null), 2400);
+      handleAddStopFromMap(placeId, { lat, lng, name });
+    });
+    return () => registerNavigateHandler(null);
+  }, [handleAddStopFromMap, registerNavigateHandler, closePlace]);
+
+  // ── Register "Show on Map" for PlaceDetailSheet ─────────────────
+  useEffect(() => {
+    registerShowOnMapHandler((placeId, lat, lng) => {
+      closePlace();
+      setFocusedPlaceId(placeId);
+    });
+    return () => registerShowOnMapHandler(null);
+  }, [registerShowOnMapHandler, closePlace]);
+
+  // ── Open place detail from map tap (suggestions, fuel, EV, rest areas) ──
+  const handleOpenPlaceDetail = useCallback((placeId: string, coords: { lat: number; lng: number; name?: string; category?: string; extra?: Record<string, unknown> }) => {
+    haptic.selection();
+    // Try to find existing PlaceItem in places pack for full detail
+    const existing = places?.items?.find((x) => x.id === placeId);
+    if (existing) {
+      openPlace(existing);
+    } else {
+      // Build a minimal PlaceItem from marker data
+      openPlace({
+        id: placeId,
+        name: coords.name ?? "Place",
+        lat: coords.lat,
+        lng: coords.lng,
+        category: (coords.category ?? "rest_area") as import("@/lib/types/places").PlaceCategory,
+        extra: coords.extra as import("@/lib/types/places").PlaceExtra & Record<string, unknown>,
+      });
+    }
+  }, [places, openPlace]);
+
+  // ── Stable TripMap callback props (avoid inline arrow fns) ───────
+  const handleStyleChange = useCallback((next: { mode: MapBaseMode; vectorTheme: VectorTheme }) => {
+    setBaseMode(next.mode);
+    setVectorTheme(next.vectorTheme);
+  }, []);
+
+  const handleStopPress = useCallback((id: string) => {
+    haptic.selection();
+    setFocusedStopId(id);
+  }, []);
+
+  const handleSuggestionPress = useCallback((id: string) => {
+    haptic.selection();
+    setFocusedPlaceId(id);
+  }, []);
+
+  const handleOverlayEventPress = useCallback(() => {
+    haptic.selection();
+  }, []);
 
   // ── Map stop long-press → quick action menu ─────────────────────
   const handleMapStopLongPress = useCallback(
@@ -1396,7 +1465,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   }, []);
 
   // ── Off-route reroute handler ───────────────────────────────────
-  // Falls back to offline corridor A* when the backend is unreachable.
+  // Offline-first: always try corridor A* first for instant reroute,
+  // then optionally enrich with OSRM in the background when online.
   const handleOffRouteReroute = useCallback(async () => {
     if (!activeNav.lastPosition || !navpack) return;
 
@@ -1414,9 +1484,9 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       ...allStops.filter((s) => s.type !== "start"),
     ];
 
-    try {
-      // ── Offline: corridor A* reroute ────────────────────────────
-      if (!isOnline && corridor) {
+    // ── 1. Instant offline corridor A* reroute (always tried first) ──
+    if (corridor) {
+      try {
         const routeKey = `offline_reroute_${shortId(12)}`;
         const { navpack: offlineNavpack, fuelAnalysis: offlineFuel } = await rebuildNavpackOfflineWithFuel({
           planId: plan?.plan_id ?? "",
@@ -1442,43 +1512,65 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
             },
           }).catch(() => {});
         }
-        return;
-      }
 
-      // ── Online: OSRM reroute ────────────────────────────────────
-      const result = await navApi.route({
-        profile: navpack.primary.profile,
-        stops: remainingStops,
-      });
-      setNavpack(result);
-      setOfflineRouted(false);
-      activeNav.applyReroute(result);
-    } catch (e) {
-      // Last resort: try offline A* even if we thought we were online
-      if (corridor) {
-        try {
-          const routeKey = `offline_reroute_fallback_${shortId(12)}`;
-          const { navpack: fallbackNavpack, fuelAnalysis: fallbackFuel } = await rebuildNavpackOfflineWithFuel({
-            planId: plan?.plan_id ?? "",
-            prevNavpack: navpack,
-            corridor,
+        // ── 2. Background OSRM enrichment (better turn-by-turn steps) ──
+        if (isOnline) {
+          navApi.route({
+            profile: navpack.primary.profile,
             stops: remainingStops,
-            route_key: routeKey,
-            reason: "off_route_reroute_fallback",
+          }).then((osrmResult) => {
+            setNavpack(osrmResult);
+            setOfflineRouted(false);
+            activeNav.applyReroute(osrmResult);
+            if (plan?.plan_id) {
+              putPacksAtomic({
+                planId: plan.plan_id,
+                updates: { navpack: osrmResult },
+              }).catch(() => {});
+            }
+          }).catch(() => {
+            // Non-fatal — we already have the offline route working
           });
-
-          setNavpack(fallbackNavpack);
-          setOfflineRouted(true);
-          if (fallbackFuel) setFuelAnalysis(fallbackFuel as FuelAnalysis);
-          activeNav.applyReroute(fallbackNavpack);
-          return;
-        } catch (offlineErr) {
-          console.warn("[Trip] offline reroute fallback also failed:", offlineErr);
         }
+        return;
+      } catch (corridorErr) {
+        console.warn("[Trip] corridor A* reroute failed:", corridorErr);
       }
-      console.warn("[Trip] reroute failed:", e);
+    }
+
+    // ── 3. Fallback: OSRM reroute if no corridor graph available ──
+    if (isOnline) {
+      try {
+        const result = await navApi.route({
+          profile: navpack.primary.profile,
+          stops: remainingStops,
+        });
+        setNavpack(result);
+        setOfflineRouted(false);
+        activeNav.applyReroute(result);
+      } catch (e) {
+        console.warn("[Trip] reroute failed (no corridor, OSRM failed):", e);
+      }
     }
   }, [activeNav, navpack, corridor, isOnline, plan]);
+
+  // ── Auto-reroute on navigation start from different position ─────
+  // If the user's GPS position is > 500m from the route start, reroute
+  // from their actual position so they get directions from where they are.
+  const handleStartNavigation = useCallback(async () => {
+    await activeNav.start();
+
+    // Check distance from user's position to route start
+    const userPos = geo.position;
+    const routeStart = navpack?.req.stops.find((s) => s.type === "start") ?? navpack?.req.stops[0];
+    if (!userPos || !routeStart || !navpack) return;
+
+    const distToStart = haversineM(userPos.lat, userPos.lng, routeStart.lat, routeStart.lng);
+    if (distToStart > 500) {
+      // User is far from the planned start — reroute from current position
+      handleOffRouteReroute();
+    }
+  }, [activeNav, navpack, geo.position, handleOffRouteReroute]);
 
   // ── Bottom Sheet Handlers ───────────────────────────────────────
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
@@ -1556,8 +1648,31 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     }, []),
   });
 
-  // Set of place IDs already in the trip — passed to TripMap to mark "Already in Trip" in popups
+  // Set of place IDs already in the trip — passed to TripMap and PlaceDetailSheet context
   const stopPlaceIds = useMemo(() => new Set(effectiveStops.map((s) => s.id).filter((id): id is string => !!id)), [effectiveStops]);
+
+  // Sync stop IDs into PlaceDetailContext so PlaceDetailSheet shows "Already in Trip"
+  useEffect(() => { setContextStopPlaceIds(stopPlaceIds); }, [stopPlaceIds, setContextStopPlaceIds]);
+
+  // Stable reference for focus fallback coord (avoid [new, array] on every render)
+  const focusFallbackCoord = useMemo<[number, number] | null>(() => {
+    if (!focusLatFromUrl || !focusLngFromUrl) return null;
+    return [parseFloat(focusLngFromUrl), parseFloat(focusLatFromUrl)];
+  }, [focusLatFromUrl, focusLngFromUrl]);
+
+  const focusFallbackName = useMemo<string | null>(() => {
+    if (!focusPlaceFromUrl) return null;
+    return places?.items?.find((x) => x.id === focusPlaceFromUrl)?.name ?? focusPlaceNameFromUrl ?? null;
+  }, [focusPlaceFromUrl, places, focusPlaceNameFromUrl]);
+
+  // Stable user position reference — avoid ternary object swap on every render
+  const mapUserPosition = useMemo(
+    () => activeNav.isActive ? activeNav.lastPosition : geo.position,
+    [activeNav.isActive, activeNav.lastPosition, geo.position],
+  );
+
+  // Stable suggestions reference
+  const mapSuggestions = useMemo(() => places?.items ?? null, [places]);
 
   // Current km along route for fuel tracking + elevation strip
   const currentKm = useMemo(() => {
@@ -1633,24 +1748,25 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       <div style={{ position: "absolute", inset: 0, zIndex: 1 }}>
         <TripMap
           styleId={styleId}
-          onStyleChange={(next) => { setBaseMode(next.mode); setVectorTheme(next.vectorTheme); }}
+          onStyleChange={handleStyleChange}
           stops={effectiveStops}
           geometry={renderGeom}
           bbox={renderBbox}
           focusedStopId={focusedStopId}
-          onStopPress={(id) => { haptic.selection(); setFocusedStopId(id); }}
+          onStopPress={handleStopPress}
           onStopLongPress={handleMapStopLongPress}
-          suggestions={places?.items ?? null}
+          suggestions={mapSuggestions}
           filteredSuggestionIds={filteredPlaceIds}
           focusedSuggestionId={focusedPlaceId}
-          focusFallbackCoord={focusLatFromUrl && focusLngFromUrl ? [parseFloat(focusLngFromUrl), parseFloat(focusLatFromUrl)] : null}
-          focusFallbackName={focusPlaceFromUrl ? (places?.items?.find((x) => x.id === focusPlaceFromUrl)?.name ?? focusPlaceNameFromUrl ?? null) : null}
-          onSuggestionPress={(id) => { haptic.selection(); setFocusedPlaceId(id); }}
+          focusFallbackCoord={focusFallbackCoord}
+          focusFallbackName={focusFallbackName}
+          onSuggestionPress={handleSuggestionPress}
+          onOpenPlaceDetail={handleOpenPlaceDetail}
           traffic={traffic}
           hazards={hazards}
-          onTrafficEventPress={(_id) => { haptic.selection(); }}
-          onHazardEventPress={(_id) => { haptic.selection(); }}
-          userPosition={activeNav.isActive ? activeNav.lastPosition : geo.position}
+          onTrafficEventPress={handleOverlayEventPress}
+          onHazardEventPress={handleOverlayEventPress}
+          userPosition={mapUserPosition}
           planId={plan.plan_id}
           onNavigateToGuide={handleNavigateToGuide}
           onAddStopFromMap={handleAddStopFromMap}
@@ -1675,6 +1791,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           roadkill={roadkill}
           navigationMode={activeNav.isActive}
           mapInstanceRef={mapInstanceRef}
+          corridorDebug={corridor ? { bbox: corridor.bbox } : null}
         />
       </div>
 
@@ -1706,6 +1823,37 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         </div>
       )}
 
+      {/* ── Stop-added toast ── */}
+      {stopAddedToast && (
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(var(--roam-safe-top, 0px) + 8px)",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 30,
+            background: "var(--brand-eucalypt, #2d6e40)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
+            color: "#fff",
+            fontSize: 13,
+            fontWeight: 700,
+            padding: "8px 16px",
+            borderRadius: 20,
+            whiteSpace: "nowrap",
+            pointerEvents: "none",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            boxShadow: "0 4px 16px rgba(0,0,0,0.25)",
+            animation: "roam-fadeIn 0.2s ease",
+          }}
+        >
+          <Plus size={13} strokeWidth={2.5} />
+          {stopAddedToast} added to trip
+        </div>
+      )}
+
       {/* ── Map stop pin quick action menu ── */}
       <StopQuickActionMenu
         state={mapQuickMenu}
@@ -1730,6 +1878,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           {/* Exchange FAB — badge shows nearby roamer count */}
           <button
             type="button"
+            className="map-fab-btn"
             onClick={() => { haptic.selection(); setExchangeOpen(true); }}
             aria-label={nearbyRoamers.length > 0
               ? `Exchange — ${nearbyRoamers.length} roamer${nearbyRoamers.length > 1 ? "s" : ""} nearby`
@@ -1738,15 +1887,11 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
               position: "relative",
               width: 46, height: 46,
               borderRadius: 16,
-              background: "linear-gradient(160deg, rgba(26,21,16,0.96) 0%, rgba(16,13,10,0.98) 100%)",
-              color: "var(--on-color)",
-              border: "1px solid rgba(255,255,255,0.09)",
-              backdropFilter: "blur(16px)",
-              WebkitBackdropFilter: "blur(16px)",
-              boxShadow: "0 4px 16px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.15)",
               display: "grid",
               placeItems: "center",
               cursor: "pointer",
+              backdropFilter: "blur(16px)",
+              WebkitBackdropFilter: "blur(16px)",
               transition: "transform 0.1s ease",
             }}
             onPointerDown={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(0.90)"; }}
@@ -1778,20 +1923,17 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           {/* Report FAB */}
           <button
             type="button"
+            className="map-fab-btn"
             onClick={() => { haptic.selection(); setReportPhase("picking"); }}
             aria-label="Report road condition"
             style={{
               width: 46, height: 46,
               borderRadius: 16,
-              background: "linear-gradient(160deg, rgba(26,21,16,0.96) 0%, rgba(16,13,10,0.98) 100%)",
-              color: "var(--on-color)",
-              border: "1px solid rgba(255,255,255,0.09)",
-              backdropFilter: "blur(16px)",
-              WebkitBackdropFilter: "blur(16px)",
-              boxShadow: "0 4px 16px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.15)",
               display: "grid",
               placeItems: "center",
               cursor: "pointer",
+              backdropFilter: "blur(16px)",
+              WebkitBackdropFilter: "blur(16px)",
               transition: "transform 0.1s ease",
             }}
             onPointerDown={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(0.90)"; }}
@@ -1919,17 +2061,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         }}
       />
 
-      {/* Web share modal — only shown on non-native */}
-      {!isNative && (
-        <TripShareModal
-          open={shareCardData !== null}
-          data={shareCardData}
-          mapImageUrl={shareMapImageUrl}
-          onClose={() => { setShareCardData(null); setShareMapImageUrl(null); }}
-        />
-      )}
-
-      {/* Native share — renders card off-screen, invokes iOS/Android share sheet */}
+      {/* Share — renders card off-screen, invokes OS share sheet (native or Web Share API) */}
       {nativeSharePayload && (
         <NativeShareRenderer
           data={nativeSharePayload.data}
@@ -2104,7 +2236,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
                 aria-label="Plans"
                 onClick={() => { haptic.selection(); setPlansDot(false); setDrawOpen(true); }}
                 style={{
-                  borderRadius: 10, width: 32, height: 32,
+                  borderRadius: 10, width: 40, height: 40,
                   display: "grid", placeItems: "center",
                   background: "transparent", color: "var(--roam-text-muted)",
                   border: "none",
@@ -2136,7 +2268,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
                 aria-label="Invite"
                 onClick={() => { haptic.selection(); setInviteMode("create"); setInviteOpen(true); }}
                 style={{
-                  borderRadius: 10, width: 32, height: 32,
+                  borderRadius: 10, width: 40, height: 40,
                   display: "grid", placeItems: "center",
                   background: "transparent", color: "var(--roam-text-muted)",
                   border: "none",
@@ -2165,22 +2297,13 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
                     const e = preview.stops.find((x) => x.type === "end");
                     return `${s?.name || "Start"} → ${e?.name || "End"}`;
                   })();
-                  if (isNative) {
-                    // Native: capture map snapshot then share directly — no modal
-                    captureMapSnapshot(preview.bbox).then((mapImageUrl) => {
-                      setNativeSharePayload({ data: cardData, mapImageUrl, label });
-                    });
-                  } else {
-                    // Web: open custom modal (with async map snapshot)
-                    setShareMapImageUrl(null);
-                    setShareCardData(cardData);
-                    captureMapSnapshot(preview.bbox).then((url) => {
-                      setShareMapImageUrl(url);
-                    });
-                  }
+                  // Capture map snapshot then invoke OS share sheet (native or Web Share API)
+                  captureMapSnapshot(preview.bbox).then((mapImageUrl) => {
+                    setNativeSharePayload({ data: cardData, mapImageUrl, label });
+                  });
                 }}
                 style={{
-                  borderRadius: 10, width: 32, height: 32,
+                  borderRadius: 10, width: 40, height: 40,
                   display: "grid", placeItems: "center",
                   background: "transparent", color: "var(--roam-text-muted)",
                   border: "none",
@@ -2193,18 +2316,26 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
                 <button
                   type="button"
                   className="trip-interactive"
-                  onClick={() => { haptic.selection(); router.push("/untethered"); }}
+                  onClick={() => { haptic.selection(); setPaywallVariant("upgrade"); setPaywallOpen(true); }}
                   style={{
+                    position: "relative",
                     display: "grid", placeItems: "center",
-                    background: "rgba(181, 69, 46, 0.10)",
-                    borderRadius: 10, width: 32, height: 32,
-                    border: "none", cursor: "pointer",
+                    background: "linear-gradient(135deg, #5c1a0e 0%, var(--brand-ochre, #b5452e) 40%, #d4664a 70%, #e8956a 100%)",
+                    borderRadius: 10, width: 40, height: 40,
+                    border: "1px solid rgba(255,255,255,0.15)", cursor: "pointer",
+                    boxShadow: "0 2px 10px rgba(181,69,46,0.35), inset 0 1px 0 rgba(255,255,255,0.12)",
+                    overflow: "hidden",
                     WebkitTapHighlightColor: "transparent",
                   }}
                   title="Roam Untethered"
                 >
-                  <svg width="14" height="14" viewBox="0 0 12 12" fill="none">
-                    <path d="M6 1L7.5 4.5H11L8.25 6.75L9.25 10.5L6 8.5L2.75 10.5L3.75 6.75L1 4.5H4.5L6 1Z" fill="var(--brand-ochre)" />
+                  <div style={{
+                    position: "absolute", inset: 0,
+                    background: "linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.14) 50%, transparent 70%)",
+                    borderRadius: "inherit", pointerEvents: "none",
+                  }} />
+                  <svg width="13" height="13" viewBox="0 0 12 12" fill="none" style={{ position: "relative" }}>
+                    <path d="M6 1L7.5 4.5H11L8.25 6.75L9.25 10.5L6 8.5L2.75 10.5L3.75 6.75L1 4.5H4.5L6 1Z" fill="rgba(255,255,255,0.95)" />
                   </svg>
                 </button>
               ) : unlocked === false ? (
@@ -2212,18 +2343,29 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
                   type="button"
                   className="trip-interactive"
                   aria-label="Upgrade to Roam Untethered"
-                  onClick={() => { haptic.selection(); router.push("/untethered"); }}
+                  onClick={() => { haptic.selection(); setPaywallVariant("upgrade"); setPaywallOpen(true); }}
                   style={{
+                    position: "relative",
                     display: "flex", alignItems: "center", gap: 4,
-                    background: "var(--roam-surface-hover)",
-                    borderRadius: 10, padding: "0 10px",
-                    height: 32, border: "none", cursor: "pointer",
+                    background: "linear-gradient(135deg, #122d1e 0%, var(--brand-eucalypt-dark, #1f5236) 40%, var(--brand-eucalypt, #2d6e40) 80%, #3d8f54 100%)",
+                    borderRadius: 10, padding: "0 12px",
+                    height: 40, border: "1px solid rgba(255,255,255,0.12)", cursor: "pointer",
+                    boxShadow: "0 2px 10px rgba(31,82,54,0.40), inset 0 1px 0 rgba(255,255,255,0.10)",
+                    overflow: "hidden",
                     WebkitTapHighlightColor: "transparent",
                   }}
                 >
-                  <span style={{ fontSize: 10, fontWeight: 700, color: "var(--roam-text-muted)", letterSpacing: "0.03em", textTransform: "uppercase" }}>
+                  <div style={{
+                    position: "absolute", inset: 0,
+                    background: "linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.10) 50%, transparent 70%)",
+                    borderRadius: "inherit", pointerEvents: "none",
+                  }} />
+                  <span style={{ fontSize: 10, fontWeight: 800, color: "#fff", letterSpacing: "0.06em", textTransform: "uppercase", position: "relative" }}>
                     Upgrade
                   </span>
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ flexShrink: 0, position: "relative" }}>
+                    <path d="M2 5h6M5.5 2.5L8 5l-2.5 2.5" stroke="rgba(255,255,255,0.85)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
                 </button>
               ) : null}
             </div>
@@ -2244,7 +2386,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
             {!activeNav.isActive && navpack && (
               <div style={{ marginBottom: 16 }}>
                 <StartNavigationButton
-                  onStart={activeNav.start}
+                  onStart={handleStartNavigation}
                   disabled={!navpack?.primary?.legs?.some((l) => l.steps && l.steps.length > 0)}
                 />
                 {!navpack?.primary?.legs?.some((l) => l.steps && l.steps.length > 0) && (
@@ -2419,6 +2561,23 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           }}
         />
       </NavModeOverlay>
+
+      <style>{`
+        .map-fab-btn {
+          background: linear-gradient(160deg, rgba(255,255,255,0.92) 0%, rgba(244,239,230,0.96) 100%);
+          color: var(--text-main, #1a1613);
+          border: 1px solid rgba(0,0,0,0.10);
+          box-shadow: 0 4px 16px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.06);
+        }
+        @media (prefers-color-scheme: dark) {
+          .map-fab-btn {
+            background: linear-gradient(160deg, rgba(26,21,16,0.96) 0%, rgba(16,13,10,0.98) 100%);
+            color: var(--on-color);
+            border: 1px solid rgba(255,255,255,0.09);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.15);
+          }
+        }
+      `}</style>
     </div>
   );
 }

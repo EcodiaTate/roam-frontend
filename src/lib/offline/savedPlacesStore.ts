@@ -36,7 +36,7 @@ const META_KEY = "saved_places_v1";
 
 async function readAll(): Promise<SavedPlace[]> {
   const raw = await idbGet<SavedPlace[]>(idbStores.meta, META_KEY);
-  return raw ?? [];
+  return Array.isArray(raw) ? raw : [];
 }
 
 async function writeAll(places: SavedPlace[]): Promise<void> {

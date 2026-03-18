@@ -295,7 +295,7 @@ const pickerStyles = /* css */ `
     position: fixed;
     inset: 0;
     z-index: 200;
-    background: rgba(10, 8, 6, 0.55);
+    background: rgba(120, 110, 95, 0.35);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     display: flex;
@@ -308,12 +308,17 @@ const pickerStyles = /* css */ `
   .report-backdrop[data-mounted] {
     opacity: 1;
   }
+  @media (prefers-color-scheme: dark) {
+    .report-backdrop {
+      background: rgba(10, 8, 6, 0.55);
+    }
+  }
 
   .report-panel {
     padding: var(--space-lg);
     background: var(--surface-card);
     border-radius: var(--r-card);
-    box-shadow: var(--shadow-heavy), 0 0 0 1px color-mix(in srgb, var(--roam-border) 40%, transparent);
+    box-shadow: 0 12px 40px rgba(40,32,20,0.13), 0 0 0 1px color-mix(in srgb, var(--roam-border) 40%, transparent);
     width: 100%;
     max-width: 380px;
     min-height: 320px;
@@ -326,6 +331,11 @@ const pickerStyles = /* css */ `
   }
   .report-backdrop[data-mounted] .report-panel {
     transform: translateY(0) scale(1);
+  }
+  @media (prefers-color-scheme: dark) {
+    .report-panel {
+      box-shadow: 0 12px 40px rgba(0,0,0,0.45), 0 0 0 1px color-mix(in srgb, var(--roam-border) 40%, transparent);
+    }
   }
 
   .report-header {
@@ -345,11 +355,14 @@ const pickerStyles = /* css */ `
     border: none;
     color: var(--text-muted);
     cursor: pointer;
-    padding: 6px;
-    border-radius: var(--r-pill);
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
     transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
   }
   .report-close:hover {
@@ -445,14 +458,14 @@ const barStyles = /* css */ `
 
   .rp-bar {
     padding: 12px 14px;
-    background: rgba(22, 22, 22, 0.92);
+    background: rgba(255, 255, 255, 0.92);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     border-radius: 18px;
     box-shadow:
-      0 8px 40px rgba(0,0,0,0.45),
-      0 1px 3px rgba(0,0,0,0.2),
-      inset 0 0.5px 0 rgba(255,255,255,0.06);
+      0 8px 40px rgba(0,0,0,0.12),
+      0 1px 3px rgba(0,0,0,0.08),
+      inset 0 0.5px 0 rgba(255,255,255,0.8);
     width: 100%;
     max-width: 400px;
     opacity: 0;
@@ -462,6 +475,15 @@ const barStyles = /* css */ `
   .rp-bar[data-mounted] {
     opacity: 1;
     transform: translateY(0);
+  }
+  @media (prefers-color-scheme: dark) {
+    .rp-bar {
+      background: rgba(22, 22, 22, 0.92);
+      box-shadow:
+        0 8px 40px rgba(0,0,0,0.45),
+        0 1px 3px rgba(0,0,0,0.2),
+        inset 0 0.5px 0 rgba(255,255,255,0.06);
+    }
   }
 
   .rp-bar-top {
@@ -489,7 +511,7 @@ const barStyles = /* css */ `
   .rp-bar-type-label {
     font-size: 13px;
     font-weight: 700;
-    color: rgba(255,255,255,0.9);
+    color: var(--text-main, #1a1613);
     white-space: nowrap;
   }
 
@@ -498,19 +520,19 @@ const barStyles = /* css */ `
     align-items: center;
     gap: 4px;
     font-size: 11px;
-    color: rgba(255,255,255,0.4);
+    color: var(--text-muted, #7a7067);
     flex: 1;
     justify-content: center;
     white-space: nowrap;
   }
 
   .rp-bar-cancel {
-    width: 28px;
-    height: 28px;
-    border-radius: 8px;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
     border: none;
-    background: rgba(255,255,255,0.08);
-    color: rgba(255,255,255,0.6);
+    background: rgba(0,0,0,0.06);
+    color: var(--text-muted, #7a7067);
     display: grid;
     place-items: center;
     cursor: pointer;
@@ -518,7 +540,15 @@ const barStyles = /* css */ `
     transition: background 0.15s ease;
   }
   .rp-bar-cancel:active {
-    background: rgba(255,255,255,0.15);
+    background: rgba(0,0,0,0.12);
+  }
+  @media (prefers-color-scheme: dark) {
+    .rp-bar-cancel {
+      background: rgba(255,255,255,0.08);
+    }
+    .rp-bar-cancel:active {
+      background: rgba(255,255,255,0.15);
+    }
   }
 
   .rp-bar-inputs {
@@ -532,18 +562,25 @@ const barStyles = /* css */ `
     min-width: 0;
     padding: 7px 10px;
     border-radius: 10px;
-    border: 1px solid rgba(255,255,255,0.08);
-    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(0,0,0,0.08);
+    background: rgba(0,0,0,0.04);
     font-size: 13px;
-    color: rgba(255,255,255,0.9);
+    color: var(--text-main, #1a1613);
     outline: none;
     transition: border-color 0.15s ease;
   }
   .rp-bar-input::placeholder {
-    color: rgba(255,255,255,0.3);
+    color: var(--text-muted, #7a7067);
+    opacity: 0.7;
   }
   .rp-bar-input:focus {
     border-color: rgba(74,108,83,0.6);
+  }
+  @media (prefers-color-scheme: dark) {
+    .rp-bar-input {
+      border-color: rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.06);
+    }
   }
   .rp-bar-input-msg {
     flex: 2;
@@ -555,11 +592,13 @@ const barStyles = /* css */ `
     justify-content: center;
     gap: 6px;
     width: 100%;
-    padding: 9px 14px;
+    padding: 12px 14px;
+    min-height: 44px;
+    box-sizing: border-box;
     border-radius: 12px;
     border: none;
-    background: rgba(74,108,83,0.9);
-    color: white;
+    background: var(--brand-eucalypt, #2d6e40);
+    color: var(--on-color, #faf6ef);
     font-size: 14px;
     font-weight: 700;
     cursor: pointer;
@@ -581,7 +620,7 @@ const barStyles = /* css */ `
     justify-content: center;
     gap: 8px;
     padding: 4px 0;
-    color: rgba(74,108,83,1);
+    color: var(--brand-eucalypt, #2d6e40);
     font-size: 14px;
     font-weight: 700;
     animation: rp-bar-success-pop 0.35s cubic-bezier(0.34,1.56,0.64,1) both;
@@ -593,7 +632,8 @@ const barStyles = /* css */ `
     justify-content: center;
     gap: 4px;
     font-size: 11px;
-    color: rgba(255,255,255,0.35);
+    color: var(--text-muted, #7a7067);
+    opacity: 0.6;
     margin-top: 6px;
   }
 `;

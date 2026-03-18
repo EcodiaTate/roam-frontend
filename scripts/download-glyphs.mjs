@@ -20,6 +20,7 @@ const OUT_DIR = join(process.cwd(), "public", "offline", "glyphs");
 // The OpenMapTiles CDN uses these exact names:
 const FONTS = [
   "Open Sans Regular",
+  "Open Sans Bold",
   "Arial Unicode MS Regular",
 ];
 

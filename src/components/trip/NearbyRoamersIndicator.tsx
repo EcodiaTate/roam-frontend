@@ -44,7 +44,7 @@ export const NearbyRoamersIndicator = memo(function NearbyRoamersIndicator({ roa
           {roamers.length} roamer{roamers.length > 1 ? "s" : ""} nearby
         </span>
         <svg
-          width="10" height="10" viewBox="0 0 24 24" fill="none"
+          width="14" height="14" viewBox="0 0 24 24" fill="none"
           stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
           style={{ opacity: 0.5, transition: "transform 0.2s ease", transform: expanded ? "rotate(180deg)" : "rotate(0deg)" }}
         >
@@ -91,7 +91,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: "flex",
     alignItems: "center",
     gap: 8,
-    height: 42,
+    height: 44,
     padding: "0 14px",
     borderRadius: 14,
     background: "linear-gradient(160deg, rgba(45,110,64,0.92) 0%, rgba(31,82,54,0.96) 100%)",

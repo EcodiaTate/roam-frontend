@@ -181,15 +181,17 @@ function StopPreviewRow({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            width: 30,
-            height: 30,
-            borderRadius: 8,
+            width: 40,
+            height: 40,
+            borderRadius: 10,
             color: "var(--roam-text-muted)",
             flexShrink: 0,
+            touchAction: "manipulation",
+            WebkitTapHighlightColor: "transparent",
           }}
           aria-label={`Remove ${stop.name}`}
         >
-          <Trash2 size={14} />
+          <Trash2 size={16} />
         </button>
       )}
     </div>
@@ -597,14 +599,16 @@ export function AiTripModal({
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                width: 34,
-                height: 34,
+                width: 40,
+                height: 40,
                 borderRadius: 10,
                 background: "var(--roam-surface-hover)",
                 color: "var(--roam-text-muted)",
+                touchAction: "manipulation",
+                WebkitTapHighlightColor: "transparent",
               }}
             >
-              <X size={15} />
+              <X size={18} />
             </button>
           )}
         </div>

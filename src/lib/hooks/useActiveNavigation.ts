@@ -12,6 +12,7 @@ import {
   resetAfterReroute,
   updateActiveNav,
   buildFlatSteps,
+  buildLegBoundaries,
 } from "@/lib/nav/activeNav";
 import {
   type VoiceState,
@@ -167,12 +168,19 @@ export function useActiveNavigation(
     return { pts, totalM };
   }, [navpack]);
 
+  const legBoundaries = useMemo(() => {
+    if (!navpack) return [];
+    return buildLegBoundaries(navpack);
+  }, [navpack]);
+
   const flatStepsRef = useRef(flatSteps);
   const routeDataRef = useRef(routeData);
+  const legBoundariesRef = useRef(legBoundaries);
   useEffect(() => {
     flatStepsRef.current = flatSteps;
     routeDataRef.current = routeData;
-  }, [flatSteps, routeData]);
+    legBoundariesRef.current = legBoundaries;
+  }, [flatSteps, routeData, legBoundaries]);
 
   // ── GPS tick handler (~1 Hz from background GPS) ──
   const handlePosition = useCallback((pos: RoamPosition) => {
@@ -203,6 +211,7 @@ export function useActiveNavigation(
       routeDataRef.current.pts,
       routeDataRef.current.totalM,
       configRef.current,
+      legBoundariesRef.current,
     );
 
     // 2. Update fatigue — with weather-aware conditions
@@ -221,6 +230,18 @@ export function useActiveNavigation(
     // 4. Check for off-route → haptic
     if (newNav.status === "off_route" && currentNav.status !== "off_route") {
       haptic.error();
+    }
+
+    // 4b. Check for leg transition (arrived at intermediate stop) → voice + haptic
+    if (newNav.currentLegIdx > currentNav.currentLegIdx && newNav.status === "navigating") {
+      haptic.success();
+      if (!isMutedRef.current) {
+        const arrivedStopName = legBoundariesRef.current[currentNav.currentLegIdx]?.toStopName;
+        const nextLegStopName = newNav.nextStopName;
+        const arrivedMsg = arrivedStopName ? `Arriving at ${arrivedStopName}.` : "Arriving at stop.";
+        const continueMsg = nextLegStopName ? ` Continuing to ${nextLegStopName}.` : "";
+        speak(`${arrivedMsg}${continueMsg}`);
+      }
     }
 
     // 5. Check for arrival → haptic

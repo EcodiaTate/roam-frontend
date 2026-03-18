@@ -76,12 +76,14 @@ export async function captureMapSnapshot(
       const timer = setTimeout(() => reject(new Error("map snapshot timeout")), timeoutMs);
 
       map!.once("load", () => {
+        // Asymmetric padding: extra bottom space keeps the route above the
+        // stats strip / branding overlay (~170px at 1× = 340px at 2×, +40 breathing)
         map!.fitBounds(
           [
             [bounds.minLng, bounds.minLat],
             [bounds.maxLng, bounds.maxLat],
           ],
-          { padding: 60, animate: false },
+          { padding: { top: 140, left: 60, right: 60, bottom: 380 }, animate: false },
         );
       });
 

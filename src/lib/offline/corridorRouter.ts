@@ -1,7 +1,7 @@
 // src/lib/nav/offline/corridorRouter.ts
 "use client";
 
-import type { CorridorGraphPack, CorridorNode } from "@/lib/types/navigation";
+import type { CorridorGraphPack, CorridorNode, NavStep, NavManeuver, ManeuverType, ManeuverModifier } from "@/lib/types/navigation";
 import type { TripStop } from "@/lib/types/trip";
 import type { BBox4 } from "@/lib/types/geo";
 import { haversineM } from "@/lib/nav/snapToRoute";
@@ -20,6 +20,8 @@ export type GraphIndex = {
   nodes: CorridorNode[];
   nodeById: Map<number, CorridorNode>;
   adj: Map<number, { to: number; distance_m: number; duration_s: number }[]>;
+  /** Largest connected component — only these nodes are mutually reachable */
+  mainComponent: Set<number> | null;
 };
 
 export function indexCorridorGraph(graph: CorridorGraphPack): GraphIndex {
@@ -38,18 +40,104 @@ export function indexCorridorGraph(graph: CorridorGraphPack): GraphIndex {
     push(e.b, e.a, e.distance_m, e.duration_s);
   }
 
-  return { nodes: graph.nodes, nodeById, adj };
+  // Find the largest connected component via BFS.
+  // The corridor bbox grabs all roads in a spatial slice, which can include
+  // disconnected fragments (roads across a river with no bridge, dead-end
+  // service roads, etc.). Snapping stops to nodes on these fragments causes
+  // A* to fail with "No path found". Constraining to the largest component
+  // guarantees all snapped nodes are mutually reachable.
+  const mainComponent = findLargestComponent(nodeById, adj);
+
+  return { nodes: graph.nodes, nodeById, adj, mainComponent };
+}
+
+/**
+ * BFS to find all connected components, return the largest one.
+ */
+function findLargestComponent(
+  nodeById: Map<number, CorridorNode>,
+  adj: Map<number, { to: number }[]>,
+): Set<number> | null {
+  if (nodeById.size === 0) return null;
+
+  const visited = new Set<number>();
+  let largest: Set<number> | null = null;
+
+  for (const startId of nodeById.keys()) {
+    if (visited.has(startId)) continue;
+
+    // BFS from this unvisited node
+    const component = new Set<number>();
+    const queue = [startId];
+    visited.add(startId);
+
+    while (queue.length > 0) {
+      const current = queue.pop()!;
+      component.add(current);
+
+      const neighbors = adj.get(current);
+      if (neighbors) {
+        for (const nb of neighbors) {
+          if (!visited.has(nb.to)) {
+            visited.add(nb.to);
+            queue.push(nb.to);
+          }
+        }
+      }
+    }
+
+    if (!largest || component.size > largest.size) {
+      largest = component;
+    }
+  }
+
+  return largest;
+}
+
+/**
+ * BFS from a single node to find its connected component.
+ * Used to find what fragment a snapped stop belongs to.
+ */
+export function findComponentOf(idx: GraphIndex, startId: number): Set<number> {
+  const component = new Set<number>();
+  const queue = [startId];
+  component.add(startId);
+
+  while (queue.length > 0) {
+    const current = queue.pop()!;
+    const neighbors = idx.adj.get(current);
+    if (neighbors) {
+      for (const nb of neighbors) {
+        if (!component.has(nb.to)) {
+          component.add(nb.to);
+          queue.push(nb.to);
+        }
+      }
+    }
+  }
+
+  return component;
 }
 
 function haversineMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
   return haversineM(a.lat, a.lng, b.lat, b.lng);
 }
 
-export function snapStopToNearestNode(idx: GraphIndex, stop: TripStop): { nodeId: number; distance_m: number } {
+/**
+ * Snap a stop to the nearest corridor node.
+ * When `reachable` is provided, only considers nodes in that set —
+ * this ensures the snapped node is on the main connected component.
+ */
+export function snapStopToNearestNode(
+  idx: GraphIndex,
+  stop: TripStop,
+  reachable?: Set<number> | null,
+): { nodeId: number; distance_m: number } {
   let bestId = -1;
   let best = Infinity;
 
   for (const n of idx.nodes) {
+    if (reachable && !reachable.has(n.id)) continue;
     const d = haversineMeters({ lat: stop.lat, lng: stop.lng }, { lat: n.lat, lng: n.lng });
     if (d < best) {
       best = d;
@@ -72,22 +160,61 @@ export type HazardZone = {
   penalty: number;
 };
 
-// --- A* (Dijkstra if heuristic=0, but we use haversine to goal) ---
+// --- A* (with binary min-heap for O(V log V) performance) ---
 
 type CameFrom = Map<number, number>;
 type Score = Map<number, number>;
 
-function popLowest(open: Set<number>, fScore: Score): number {
-  let bestNode = -1;
-  let bestVal = Infinity;
-  for (const n of open) {
-    const v = fScore.get(n) ?? Infinity;
-    if (v < bestVal) {
-      bestVal = v;
-      bestNode = n;
+/**
+ * Binary min-heap keyed by fScore.
+ * Handles the "decrease-key" pattern by allowing duplicate inserts;
+ * stale entries are skipped at pop time via the closed set.
+ */
+class MinHeap {
+  private heap: { nodeId: number; f: number }[] = [];
+
+  get size() { return this.heap.length; }
+
+  push(nodeId: number, f: number) {
+    this.heap.push({ nodeId, f });
+    this._bubbleUp(this.heap.length - 1);
+  }
+
+  pop(): number {
+    if (this.heap.length === 0) return -1;
+    const top = this.heap[0];
+    const last = this.heap.pop()!;
+    if (this.heap.length > 0) {
+      this.heap[0] = last;
+      this._sinkDown(0);
+    }
+    return top.nodeId;
+  }
+
+  private _bubbleUp(i: number) {
+    const h = this.heap;
+    while (i > 0) {
+      const parent = (i - 1) >> 1;
+      if (h[i].f >= h[parent].f) break;
+      [h[i], h[parent]] = [h[parent], h[i]];
+      i = parent;
     }
   }
-  return bestNode;
+
+  private _sinkDown(i: number) {
+    const h = this.heap;
+    const n = h.length;
+    while (true) {
+      let smallest = i;
+      const l = 2 * i + 1;
+      const r = 2 * i + 2;
+      if (l < n && h[l].f < h[smallest].f) smallest = l;
+      if (r < n && h[r].f < h[smallest].f) smallest = r;
+      if (smallest === i) break;
+      [h[i], h[smallest]] = [h[smallest], h[i]];
+      i = smallest;
+    }
+  }
 }
 
 export type PathResult = {
@@ -137,11 +264,12 @@ export function aStar(idx: GraphIndex, startId: number, goalId: number, hazardZo
   if (startId === goalId) return { nodeIds: [startId], distance_m: 0, duration_s: 0 };
 
   const zones = hazardZones ?? [];
-  const open = new Set<number>([startId]);
+  const closed = new Set<number>();
   const cameFrom: CameFrom = new Map();
-
   const gScore: Score = new Map([[startId, 0]]);
-  const fScore: Score = new Map([[startId, heuristic(idx, startId, goalId)]]);
+
+  const heap = new MinHeap();
+  heap.push(startId, heuristic(idx, startId, goalId));
 
   // For quick cost lookup between consecutive nodes (for metrics reconstruction)
   const edgeCost = (a: number, b: number) => {
@@ -150,9 +278,13 @@ export function aStar(idx: GraphIndex, startId: number, goalId: number, hazardZo
     return null;
   };
 
-  while (open.size) {
-    const current = popLowest(open, fScore);
+  while (heap.size > 0) {
+    const current = heap.pop();
     if (current === -1) break;
+
+    // Skip stale heap entries (node already expanded with a better score)
+    if (closed.has(current)) continue;
+    closed.add(current);
 
     if (current === goalId) {
       const nodeIds = reconstructPath(cameFrom, current);
@@ -171,12 +303,12 @@ export function aStar(idx: GraphIndex, startId: number, goalId: number, hazardZo
       return { nodeIds, distance_m: dist, duration_s: dur };
     }
 
-    open.delete(current);
-
     const neighbors = idx.adj.get(current) ?? [];
     const gCur = gScore.get(current) ?? Infinity;
 
     for (const nb of neighbors) {
+      if (closed.has(nb.to)) continue;
+
       // Apply hazard penalty to edge cost so A* naturally avoids hazard zones
       const penalty = hazardPenalty(idx, current, nb.to, zones);
       const tentative = gCur + nb.distance_m * penalty;
@@ -184,8 +316,8 @@ export function aStar(idx: GraphIndex, startId: number, goalId: number, hazardZo
       if (tentative < gNb) {
         cameFrom.set(nb.to, current);
         gScore.set(nb.to, tentative);
-        fScore.set(nb.to, tentative + heuristic(idx, nb.to, goalId));
-        open.add(nb.to);
+        const f = tentative + heuristic(idx, nb.to, goalId);
+        heap.push(nb.to, f);
       }
     }
   }
@@ -208,6 +340,160 @@ function reconstructPath(cameFrom: CameFrom, current: number): number[] {
   }
   out.reverse();
   return out;
+}
+
+// --- Offline step synthesis from corridor paths ---
+
+/**
+ * Compute bearing (0-360°) from point A to point B.
+ */
+function bearing(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const y = Math.sin(dLng) * Math.cos(lat2 * Math.PI / 180);
+  const x = Math.cos(lat1 * Math.PI / 180) * Math.sin(lat2 * Math.PI / 180) -
+    Math.sin(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.cos(dLng);
+  return ((Math.atan2(y, x) * 180 / Math.PI) + 360) % 360;
+}
+
+/**
+ * Classify a bearing delta into a turn type.
+ * delta is signed degrees: positive = right, negative = left
+ */
+function classifyTurn(delta: number): { type: ManeuverType; modifier: ManeuverModifier } {
+  const abs = Math.abs(delta);
+  const side = delta >= 0 ? "right" : "left";
+  if (abs < 20) return { type: "continue", modifier: "straight" };
+  if (abs < 55) return { type: "turn", modifier: side === "right" ? "slight right" : "slight left" };
+  if (abs < 120) return { type: "turn", modifier: side };
+  if (abs < 160) return { type: "turn", modifier: side === "right" ? "sharp right" : "sharp left" };
+  return { type: "turn", modifier: "uturn" };
+}
+
+/**
+ * Synthesize basic NavSteps from a corridor A* path.
+ * Groups consecutive "continue" nodes into single long steps,
+ * only creating a new step when a turn is detected (bearing change > 20°).
+ *
+ * Produces: depart → [turn steps...] → arrive
+ */
+export function synthesizeStepsFromPath(
+  idx: GraphIndex,
+  nodeIds: number[],
+): NavStep[] {
+  if (nodeIds.length < 2) return [];
+
+  const nodes: CorridorNode[] = [];
+  for (const id of nodeIds) {
+    const n = idx.nodeById.get(id);
+    if (n) nodes.push(n);
+  }
+  if (nodes.length < 2) return [];
+
+  // Compute edges between consecutive nodes
+  type Edge = { from: CorridorNode; to: CorridorNode; dist_m: number; dur_s: number; bearing: number };
+  const edges: Edge[] = [];
+  for (let i = 0; i < nodes.length - 1; i++) {
+    const a = nodes[i];
+    const b = nodes[i + 1];
+    const dist_m = haversineMeters(a, b);
+    const adjEdge = idx.adj.get(a.id)?.find(e => e.to === b.id);
+    const dur_s = adjEdge?.duration_s ?? (dist_m / 13.89); // fallback: 50km/h
+    edges.push({
+      from: a, to: b, dist_m, dur_s,
+      bearing: bearing(a.lat, a.lng, b.lat, b.lng),
+    });
+  }
+
+  const steps: NavStep[] = [];
+  let isFirstStep = true;
+  let stepDist = 0;
+  let stepDur = 0;
+  const stepCoords: [number, number][] = [[edges[0].from.lng, edges[0].from.lat]];
+
+  // The maneuver for the step being accumulated.
+  // First step always gets "depart"; turn steps get the turn maneuver;
+  // the final flush always gets "arrive".
+  let pendingManeuver: NavManeuver = {
+    type: "depart",
+    location: [edges[0].from.lng, edges[0].from.lat],
+    bearing_before: 0,
+    bearing_after: edges[0].bearing,
+  };
+
+  function flushStep(maneuverOverride?: NavManeuver) {
+    if (stepDist <= 0 && stepCoords.length < 2) return;
+    steps.push({
+      maneuver: maneuverOverride ?? pendingManeuver,
+      name: "",
+      distance_m: Math.round(stepDist),
+      duration_s: Math.round(stepDur),
+      geometry: encodePolyline6([...stepCoords]),
+      mode: "driving",
+    });
+  }
+
+  for (let i = 0; i < edges.length; i++) {
+    const edge = edges[i];
+    stepDist += edge.dist_m;
+    stepDur += edge.dur_s;
+    stepCoords.push([edge.to.lng, edge.to.lat]);
+
+    const nextEdge = i + 1 < edges.length ? edges[i + 1] : null;
+
+    if (nextEdge) {
+      let delta = nextEdge.bearing - edge.bearing;
+      if (delta > 180) delta -= 360;
+      if (delta < -180) delta += 360;
+
+      if (Math.abs(delta) >= 20) {
+        // Significant turn — flush the accumulated step
+        flushStep();
+        isFirstStep = false;
+
+        // Start a new step with the turn maneuver
+        const { type, modifier } = classifyTurn(delta);
+        pendingManeuver = {
+          type,
+          modifier,
+          location: [edge.to.lng, edge.to.lat],
+          bearing_before: edge.bearing,
+          bearing_after: nextEdge.bearing,
+        };
+
+        stepDist = 0;
+        stepDur = 0;
+        stepCoords.length = 0;
+        stepCoords.push([edge.to.lng, edge.to.lat]);
+      }
+    } else {
+      // Last edge — flush everything as an arrive step
+      const arriveManeuver: NavManeuver = {
+        type: "arrive",
+        location: [edge.to.lng, edge.to.lat],
+        bearing_before: edge.bearing,
+        bearing_after: 0,
+      };
+
+      if (isFirstStep) {
+        // Entire path was one straight segment: emit depart + arrive
+        flushStep(); // depart step with all accumulated distance
+        // Add a zero-distance arrive step at the end
+        steps.push({
+          maneuver: arriveManeuver,
+          name: "",
+          distance_m: 0,
+          duration_s: 0,
+          geometry: encodePolyline6([[edge.to.lng, edge.to.lat]]),
+          mode: "driving",
+        });
+      } else {
+        // Normal: flush the last segment as an arrive step
+        flushStep(arriveManeuver);
+      }
+    }
+  }
+
+  return steps;
 }
 
 // --- Path -> geometry helpers ---

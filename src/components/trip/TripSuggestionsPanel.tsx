@@ -388,7 +388,7 @@ export function TripSuggestionsPanel(props: {
       <div
         ref={listRef}
         className="trip-list-compact"
-        style={{ maxHeight: props.maxHeight ?? "35vh", overflowY: "auto" }}
+        style={{ maxHeight: props.maxHeight ?? "35vh", overflowY: "auto", WebkitOverflowScrolling: "touch" as React.CSSProperties["WebkitOverflowScrolling"], overscrollBehaviorX: "contain" }}
       >
         {filtered.length ? (
           filtered.map((p) => {

@@ -66,7 +66,7 @@ export type NavLeg = {
   distance_m: number;
   duration_s: number;
   geometry: string;                  // polyline6 (this leg only)
-  steps: NavStep[];                  // ← NEW - turn-by-turn steps
+  steps: NavStep[];                  // turn-by-turn steps (synthesized offline or from OSRM)
 };
 
 export type NavRoute = {

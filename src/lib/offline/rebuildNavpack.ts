@@ -2,6 +2,7 @@
 "use client";
 
 import type { NavPack, NavLeg, NavRoute, CorridorGraphPack } from "@/lib/types/navigation";
+import { decodePolyline6AsLngLat } from "@/lib/nav/polyline6";
 import type { FuelAnalysis } from "@/lib/types/fuel";
 import type { TripStop } from "@/lib/types/trip";
 import type { BBox4 } from "@/lib/types/geo";
@@ -9,10 +10,12 @@ import type { BBox4 } from "@/lib/types/geo";
 import {
   indexCorridorGraph,
   snapStopToNearestNode,
+  findComponentOf,
   aStar,
   pathToGeoJSON,
   encodePolyline6,
   bboxFromStopsOrLine,
+  synthesizeStepsFromPath,
   type HazardZone,
 } from "@/lib/offline/corridorRouter";
 
@@ -31,14 +34,33 @@ function safeStopId(s: TripStop, idx: number) {
 }
 
 /**
- * Existing sync function (kept for compatibility).
- * It rebuilds the offline navpack using corridor A* routing.
+ * Append coordinates to the full route polyline, avoiding duplicate join points.
+ */
+function appendLegCoords(fullCoords: [number, number][], coords: [number, number][]) {
+  if (coords.length === 0) return;
+  if (fullCoords.length > 0) {
+    fullCoords.push(...coords.slice(1));
+  } else {
+    fullCoords.push(...coords);
+  }
+}
+
+/**
+ * Rebuild the offline navpack using corridor A* routing.
+ *
+ * Every leg is either:
+ *   1. Reused from the previous navpack (matching from_stop_id → to_stop_id)
+ *   2. Freshly routed via corridor A*
+ *
+ * There is no straight-line fallback — the corridor graph covers the route
+ * area and A* must find a road-following path. If it can't, we throw so the
+ * caller knows to try OSRM or surface the error.
  */
 export function rebuildNavpackOffline(args: {
   prevNavpack: NavPack;
   corridor: CorridorGraphPack;
   stops: TripStop[];
-  route_key: string; // must change when stops change
+  route_key: string;
   max_snap_m?: number;
   hazardZones?: HazardZone[];
 }): NavPack {
@@ -52,49 +74,95 @@ export function rebuildNavpackOffline(args: {
   const idx = indexCorridorGraph(corridor);
   const maxSnap = args.max_snap_m ?? DEFAULT_MAX_SNAP_M;
 
+  console.info(
+    "[rebuildNavpack] corridor: %d nodes, %d edges, mainComponent: %d nodes, maxSnap: %dm, stops: %d",
+    corridor.nodes.length,
+    corridor.edges.length,
+    idx.mainComponent?.size ?? 0,
+    maxSnap,
+    stops.length,
+  );
+
+  // ── Build a lookup of existing legs by (from_stop_id → to_stop_id) ──
+  // Reuse OSRM-quality legs for unchanged stop pairs.
+  const existingLegs = new Map<string, NavLeg>();
+  for (const leg of prev.primary.legs) {
+    if (leg.from_stop_id && leg.to_stop_id && leg.geometry) {
+      existingLegs.set(`${leg.from_stop_id}→${leg.to_stop_id}`, leg);
+    }
+  }
+
   const legs: NavLeg[] = [];
   const fullCoords: [number, number][] = [];
-
   let totalDist = 0;
   let totalDur = 0;
 
   for (let i = 0; i < stops.length - 1; i++) {
     const a = stops[i];
     const b = stops[i + 1];
+    const aId = safeStopId(a, i);
+    const bId = safeStopId(b, i + 1);
 
-    const sa = snapStopToNearestNode(idx, a);
-    if (sa.distance_m > maxSnap) {
-      throw new Error(
-        `Stop '${a.name ?? safeStopId(a, i)}' too far from corridor (${Math.round(sa.distance_m)}m)`,
-      );
+    // ── 1. Reuse existing leg if stops haven't changed ──
+    const existing = existingLegs.get(`${aId}→${bId}`);
+    if (existing) {
+      const reused: NavLeg = { ...existing, idx: legs.length };
+      const coords = decodePolyline6AsLngLat(existing.geometry);
+      appendLegCoords(fullCoords, coords);
+      totalDist += reused.distance_m;
+      totalDur += reused.duration_s;
+      legs.push(reused);
+      continue;
     }
 
-    const sb = snapStopToNearestNode(idx, b);
-    if (sb.distance_m > maxSnap) {
-      throw new Error(
-        `Stop '${b.name ?? safeStopId(b, i + 1)}' too far from corridor (${Math.round(sb.distance_m)}m)`,
-      );
-    }
+    // ── 2. Route via corridor A* ──
+    // Snap to the nearest node first, then try A*. If it fails (nodes on
+    // different fragments due to the 350k edge limit truncating the graph),
+    // find the component of stop A's nearest node and re-snap stop B to
+    // that same component so A* is guaranteed to succeed.
+    // Always snap to the main connected component so A* is guaranteed to
+    // find a path. Without this, stops near disconnected fragments (e.g.
+    // island roads not connected via bridge edges) snap to unreachable nodes.
+    const mainComp = idx.mainComponent;
+    let sa = snapStopToNearestNode(idx, a, mainComp);
+    let sb = snapStopToNearestNode(idx, b, mainComp);
 
     const path = aStar(idx, sa.nodeId, sb.nodeId, args.hazardZones);
-    const geo = pathToGeoJSON(idx, path.nodeIds);
 
-    const coords = geo.geometry.coordinates as [number, number][];
-    if (coords.length) {
-      if (fullCoords.length) fullCoords.push(...coords.slice(1)); // avoid duplicate join point
-      else fullCoords.push(...coords);
+    if (sa.distance_m > 500 || sb.distance_m > 500) {
+      console.info(
+        "[rebuildNavpack] leg %d: snap distance — A (%s) %dm, B (%s) %dm",
+        i, a.name ?? aId, Math.round(sa.distance_m),
+        b.name ?? bId, Math.round(sb.distance_m),
+      );
     }
 
+    const geo = pathToGeoJSON(idx, path.nodeIds);
+    const roadCoords = geo.geometry.coordinates as [number, number][];
+
+    // Prepend/append actual stop coordinates when snapped node is far.
+    const coords: [number, number][] = [];
+    if (sa.distance_m > 50) coords.push([a.lng, a.lat]);
+    coords.push(...roadCoords);
+    if (sb.distance_m > 50) coords.push([b.lng, b.lat]);
+
+    appendLegCoords(fullCoords, coords);
+
+    const offlineSteps = synthesizeStepsFromPath(idx, path.nodeIds);
+
+    const legDist = path.distance_m + sa.distance_m + sb.distance_m;
+    const DIRECT_SPEED_MPS = 13.89;
+    const legDur = path.duration_s + sa.distance_m / DIRECT_SPEED_MPS + sb.distance_m / DIRECT_SPEED_MPS;
+
     const leg: NavLeg = {
-      idx: i,
-      from_stop_id: safeStopId(a, i),
-      to_stop_id: safeStopId(b, i + 1),
-      distance_m: Math.round(path.distance_m),
-      duration_s: Math.round(path.duration_s),
+      idx: legs.length,
+      from_stop_id: aId,
+      to_stop_id: bId,
+      distance_m: Math.round(legDist),
+      duration_s: Math.round(legDur),
       geometry: encodePolyline6(coords),
-      steps: [], // offline A* routing has no turn-by-turn steps
+      steps: offlineSteps,
     };
-    
 
     totalDist += leg.distance_m;
     totalDur += leg.duration_s;
@@ -124,11 +192,8 @@ export function rebuildNavpackOffline(args: {
 }
 
 /**
- * New async helper:
- * - rebuilds navpack via A*
- * - recomputes fuel analysis over the rerouted polyline using cached PlacesPack + vehicle profile
- *
- * This is the integration point you want whenever A* rerouting happens.
+ * Async wrapper: rebuilds navpack via corridor A*, then recomputes fuel
+ * analysis using cached PlacesPack + vehicle profile.
  */
 export async function rebuildNavpackOfflineWithFuel(args: {
   planId: string;
@@ -138,8 +203,6 @@ export async function rebuildNavpackOfflineWithFuel(args: {
   route_key: string;
   max_snap_m?: number;
   hazardZones?: HazardZone[];
-
-  // Optional: override analysis reason label
   reason?: string;
 }): Promise<{ navpack: NavPack; fuelAnalysis?: FuelAnalysis }> {
   const navpack = rebuildNavpackOffline({
@@ -158,7 +221,7 @@ export async function rebuildNavpackOfflineWithFuel(args: {
       const fuelProfile = await getVehicleFuelProfile();
 
       const fuelAnalysis = reanalyzeFuelForReroute(
-        navpack.primary.geometry, // polyline6 for the FULL rerouted path
+        navpack.primary.geometry,
         cachedPlaces.items,
         fuelProfile,
         args.reason ?? "reroute",
@@ -168,7 +231,6 @@ export async function rebuildNavpackOfflineWithFuel(args: {
     }
   } catch (e) {
     console.warn("[rebuildNavpackOfflineWithFuel] fuel reanalysis failed:", e);
-    // Non-fatal - nav still works
   }
 
   return { navpack };

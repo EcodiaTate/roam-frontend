@@ -322,11 +322,11 @@ const styles = /* css */ `
     cursor: pointer;
     display: grid;
     place-items: center;
-    background: rgba(30, 30, 30, 0.88);
-    color: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.88);
+    color: var(--text-main, #1a1613);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.06);
     transition:
       transform 0.12s cubic-bezier(0.34,1.56,0.64,1),
       background 0.2s ease,
@@ -338,23 +338,33 @@ const styles = /* css */ `
   }
   .qr-fab:active { transform: scale(0.9); }
   .qr-fab.open {
-    background: rgba(50, 50, 50, 0.95);
+    background: rgba(235, 230, 220, 0.95);
     border-radius: 14px;
   }
   .qr-fab.done {
     animation: qr-fab-confirm 0.6s ease;
   }
+  @media (prefers-color-scheme: dark) {
+    .qr-fab {
+      background: rgba(30, 30, 30, 0.88);
+      color: rgba(255, 255, 255, 0.9);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.15);
+    }
+    .qr-fab.open {
+      background: rgba(50, 50, 50, 0.95);
+    }
+  }
 
   /* ── Tray ── */
   .qr-tray {
     border-radius: 18px;
-    background: rgba(22, 22, 22, 0.92);
+    background: rgba(255, 255, 255, 0.92);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     box-shadow:
-      0 8px 40px rgba(0,0,0,0.45),
-      0 1px 3px rgba(0,0,0,0.2),
-      inset 0 0.5px 0 rgba(255,255,255,0.06);
+      0 8px 40px rgba(0,0,0,0.12),
+      0 1px 3px rgba(0,0,0,0.08),
+      inset 0 0.5px 0 rgba(255,255,255,0.8);
     padding: 10px;
     opacity: 0;
     transform: translateY(12px) scale(0.92);
@@ -363,6 +373,15 @@ const styles = /* css */ `
     transition: opacity 0.15s ease, transform 0.15s ease;
     position: relative;
     z-index: 1;
+  }
+  @media (prefers-color-scheme: dark) {
+    .qr-tray {
+      background: rgba(22, 22, 22, 0.92);
+      box-shadow:
+        0 8px 40px rgba(0,0,0,0.45),
+        0 1px 3px rgba(0,0,0,0.2),
+        inset 0 0.5px 0 rgba(255,255,255,0.06);
+    }
   }
   .qr-tray.open {
     opacity: 1;
@@ -396,10 +415,13 @@ const styles = /* css */ `
     animation: qr-item-in 0.22s cubic-bezier(0.34,1.56,0.64,1) var(--d) both;
   }
   .qr-item:active {
-    background: rgba(255,255,255,0.06);
+    background: rgba(0,0,0,0.04);
   }
   .qr-item.hot {
     background: color-mix(in srgb, var(--c) 15%, transparent);
+  }
+  @media (prefers-color-scheme: dark) {
+    .qr-item:active { background: rgba(255,255,255,0.06); }
   }
 
   /* Icon circle */
@@ -409,7 +431,7 @@ const styles = /* css */ `
     border-radius: 50%;
     display: grid;
     place-items: center;
-    background: rgba(255,255,255,0.07);
+    background: rgba(0,0,0,0.05);
     color: var(--c);
     transition:
       background 0.15s ease,
@@ -429,11 +451,15 @@ const styles = /* css */ `
     animation: qr-chosen-pop 0.3s cubic-bezier(0.34,1.56,0.64,1), qr-ring 0.5s ease 0.1s both;
   }
 
+  @media (prefers-color-scheme: dark) {
+    .qr-item-icon { background: rgba(255,255,255,0.07); }
+  }
+
   /* Label */
   .qr-item-label {
     font-size: 9px;
     font-weight: 700;
-    color: rgba(255,255,255,0.45);
+    color: var(--text-muted, #7a7067);
     text-transform: uppercase;
     letter-spacing: 0.2px;
     white-space: nowrap;

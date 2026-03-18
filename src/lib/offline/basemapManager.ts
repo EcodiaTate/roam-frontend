@@ -172,7 +172,7 @@ export function getGlyphsUrl(): string {
   if (_serverInfo.running && _serverInfo.url) {
     return `${_serverInfo.url}/glyphs/{fontstack}/{range}.pbf`;
   }
-  return "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf";
+  return "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf";
 }
 
 /**

@@ -55,6 +55,7 @@ import {
   WifiOff,
   CheckCircle2,
   XCircle,
+  Map as MapIcon,
   type LucideIcon,
 } from "lucide-react";
 
@@ -308,7 +309,7 @@ export function PlaceDetailSheet({
   isOnline?: boolean;
   onNavigate?: (placeId: string, lat: number, lng: number, name: string) => void;
 }) {
-  const { place, closePlace, navigateHandler: contextNavigate, saveHandler: contextSave, savedIds, setSavedIds } = usePlaceDetail();
+  const { place, closePlace, navigateHandler: contextNavigate, saveHandler: contextSave, showOnMapHandler: contextShowOnMap, savedIds, setSavedIds, stopPlaceIds } = usePlaceDetail();
   const [imgError, setImgError] = useState(false);
   const [visible, setVisible] = useState(false);
 
@@ -370,6 +371,29 @@ export function PlaceDetailSheet({
   const fuelTypes = Array.isArray(extra.fuel_types) ? (extra.fuel_types as string[]) : [];
   const socketTypes = Array.isArray(extra.socket_types) ? (extra.socket_types as string[]) : [];
 
+  // Fuel prices (from map marker data or bundle)
+  type FuelPrice = { fuel_type: string; price_cents: number };
+  let fuelPrices: FuelPrice[] = [];
+  try {
+    const raw = extra.fuel_prices_json;
+    if (typeof raw === "string" && raw.length > 2) {
+      fuelPrices = JSON.parse(raw) as FuelPrice[];
+    }
+  } catch {}
+
+  // EV connector details (from map marker data)
+  type EvConnector = { type: string; power_kw?: number | null; quantity: number };
+  let evConnectors: EvConnector[] = [];
+  try {
+    const raw = extra.connectors_json;
+    if (typeof raw === "string" && raw.length > 2) {
+      evConnectors = JSON.parse(raw) as EvConnector[];
+    }
+  } catch {}
+  const evMaxPower = typeof extra.max_power_kw === "number" ? extra.max_power_kw : null;
+  const evCost = extra.usage_cost ? String(extra.usage_cost) : null;
+  const evOperational = extra.is_operational;
+
   const hasPowered = !!extra.powered_sites;
   const hasWater = !!extra.has_water;
   const hasToilets = !!extra.has_toilets;
@@ -417,9 +441,13 @@ export function PlaceDetailSheet({
     const handler = onNavigate ?? contextNavigate;
     if (handler) {
       handler(p.id, p.lat, p.lng, p.name);
-    } else {
-      safeOpen(`https://maps.google.com/?q=${p.lat},${p.lng}`);
     }
+    // No fallback to Google Maps — navigation is handled in-house
+  }
+
+  function handleShowOnMap() {
+    haptic.medium();
+    contextShowOnMap?.(p.id, p.lat, p.lng);
   }
 
   function handleShare() {
@@ -528,7 +556,7 @@ export function PlaceDetailSheet({
               position: "absolute",
               top: 8,
               right: 8,
-              width: 30, height: 30,
+              width: 40, height: 40,
               borderRadius: "50%",
               border: "none",
               background: "rgba(0,0,0,0.4)",
@@ -538,11 +566,12 @@ export function PlaceDetailSheet({
               display: "grid",
               placeItems: "center",
               cursor: "pointer",
+              touchAction: "manipulation",
               WebkitTapHighlightColor: "transparent",
               zIndex: 1,
             }}
           >
-            <X size={14} strokeWidth={2.5} />
+            <X size={18} strokeWidth={2.5} />
           </button>
         </div>
 
@@ -551,7 +580,7 @@ export function PlaceDetailSheet({
           flex: 1,
           overflowY: "auto",
           WebkitOverflowScrolling: "touch" as React.CSSProperties["WebkitOverflowScrolling"],
-          overscrollBehavior: "contain",
+          overscrollBehaviorX: "contain",
           touchAction: "pan-y",
           paddingBottom: 20,
         }}>
@@ -725,17 +754,32 @@ export function PlaceDetailSheet({
                 borderRadius: 16,
                 background: "var(--roam-surface-hover)",
               }}>
-                <ActionBtn
-                  Icon={(onNavigate ?? contextNavigate) ? Plus : Navigation}
-                  label={(onNavigate ?? contextNavigate) ? "Add to trip" : "Navigate"}
-                  color="var(--brand-eucalypt)"
-                  onClick={handleNavigate}
-                />
+                {(onNavigate ?? contextNavigate) && (
+                  stopPlaceIds.has(p.id) ? (
+                    <div style={{ opacity: 0.45, pointerEvents: "none", flex: 1, display: "flex", justifyContent: "center" }}>
+                      <ActionBtn
+                        Icon={Plus}
+                        label="In trip"
+                        color="var(--roam-text-muted)"
+                      />
+                    </div>
+                  ) : (
+                    <ActionBtn
+                      Icon={Plus}
+                      label="Add to trip"
+                      color="var(--brand-eucalypt)"
+                      onClick={handleNavigate}
+                    />
+                  )
+                )}
                 {phone && (
                   <ActionBtn Icon={Phone} label="Call" color="var(--brand-sky)" href={`tel:${phone}`} />
                 )}
                 {website && isOnline && (
                   <ActionBtn Icon={Globe} label="Website" color="var(--brand-sky)" onClick={() => safeOpen(website)} />
+                )}
+                {contextShowOnMap && (
+                  <ActionBtn Icon={MapIcon} label="Map" color="var(--brand-sky)" onClick={handleShowOnMap} />
                 )}
                 <ActionBtn Icon={Share2} label="Share" color="var(--roam-text-muted)" onClick={handleShare} />
                 {contextSave && (
@@ -827,54 +871,139 @@ export function PlaceDetailSheet({
               </div>
             )}
 
-            {/* ── FUEL TYPES ──────────────────────────────── */}
+            {/* ── FUEL TYPES + PRICES ──────────────────────── */}
             {hasFuelAttrs && (
               <div>
                 <SectionHeader title="Fuel Available" />
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {fuelTypes.map((f) => (
-                    <span key={f} style={{
-                      padding: "6px 12px",
-                      borderRadius: "var(--r-pill)",
-                      fontSize: "var(--font-sm)",
-                      fontWeight: 700,
-                      background: "rgba(245,158,11,0.1)",
-                      color: "#d97706",
-                      border: "1px solid rgba(245,158,11,0.2)",
-                      textTransform: "capitalize",
-                    }}>
-                      <Fuel size={12} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
-                      {f.replace(/_/g, " ")}
-                    </span>
-                  ))}
-                  {extra.has_diesel && !fuelTypes.includes("diesel") && <FacilityChip label="Diesel" active />}
-                  {extra.has_unleaded && !fuelTypes.includes("unleaded") && <FacilityChip label="Unleaded" active />}
-                  {extra.has_lpg && !fuelTypes.includes("lpg") && <FacilityChip label="LPG" active />}
-                </div>
+                {fuelPrices.length > 0 ? (
+                  <div style={{ borderRadius: 16, background: "var(--roam-surface-hover)", overflow: "hidden", padding: "0 14px" }}>
+                    {fuelPrices
+                      .sort((a, b) => {
+                        const order = ["unleaded", "e10", "premium_unleaded_95", "premium_unleaded_98", "diesel", "premium_diesel", "lpg"];
+                        return (order.indexOf(a.fuel_type) === -1 ? 99 : order.indexOf(a.fuel_type)) - (order.indexOf(b.fuel_type) === -1 ? 99 : order.indexOf(b.fuel_type));
+                      })
+                      .map((fp) => (
+                        <div key={fp.fuel_type} style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          padding: "10px 0",
+                          borderBottom: "1px solid var(--roam-border)",
+                        }}>
+                          <span style={{ fontSize: "var(--font-sm)", fontWeight: 600, color: "var(--roam-text-muted)", textTransform: "capitalize" }}>
+                            <Fuel size={12} style={{ display: "inline", verticalAlign: "middle", marginRight: 6 }} />
+                            {fp.fuel_type.replace(/_/g, " ")}
+                          </span>
+                          <span style={{ fontSize: "var(--font-sm)", fontWeight: 800, color: "var(--roam-text)" }}>
+                            ${(fp.price_cents / 100).toFixed(2)}/L
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    {fuelTypes.map((f) => (
+                      <span key={f} style={{
+                        padding: "6px 12px",
+                        borderRadius: "var(--r-pill)",
+                        fontSize: "var(--font-sm)",
+                        fontWeight: 700,
+                        background: "rgba(245,158,11,0.1)",
+                        color: "#d97706",
+                        border: "1px solid rgba(245,158,11,0.2)",
+                        textTransform: "capitalize",
+                      }}>
+                        <Fuel size={12} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
+                        {f.replace(/_/g, " ")}
+                      </span>
+                    ))}
+                    {extra.has_diesel && !fuelTypes.includes("diesel") && <FacilityChip label="Diesel" active />}
+                    {extra.has_unleaded && !fuelTypes.includes("unleaded") && <FacilityChip label="Unleaded" active />}
+                    {extra.has_lpg && !fuelTypes.includes("lpg") && <FacilityChip label="LPG" active />}
+                  </div>
+                )}
               </div>
             )}
 
-            {/* ── EV SOCKETS ──────────────────────────────── */}
-            {hasEvAttrs && (
+            {/* ── EV SOCKETS / CHARGER DETAILS ─────────────── */}
+            {(hasEvAttrs || evConnectors.length > 0) && (
               <div>
-                <SectionHeader title="Charging Sockets" />
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {socketTypes.map((s) => (
-                    <span key={s} style={{
-                      padding: "6px 12px",
-                      borderRadius: "var(--r-pill)",
-                      fontSize: "var(--font-sm)",
-                      fontWeight: 700,
-                      background: "rgba(16,185,129,0.1)",
-                      color: "#059669",
-                      border: "1px solid rgba(16,185,129,0.2)",
-                      textTransform: "capitalize",
-                    }}>
-                      <Zap size={12} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
-                      {s.replace(/_/g, " ")}
-                    </span>
-                  ))}
-                </div>
+                <SectionHeader title="Charging" />
+                {evOperational != null && (
+                  <div style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "4px 10px",
+                    borderRadius: "var(--r-pill)",
+                    fontSize: "var(--font-xs)",
+                    fontWeight: 800,
+                    marginBottom: 8,
+                    background: evOperational ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
+                    color: evOperational ? "#22c55e" : "#ef4444",
+                  }}>
+                    {evOperational ? "Operational" : "Out of Service"}
+                  </div>
+                )}
+                {evConnectors.length > 0 ? (
+                  <div style={{ borderRadius: 16, background: "var(--roam-surface-hover)", overflow: "hidden", padding: "0 14px" }}>
+                    {evConnectors.map((cn, i) => (
+                      <div key={`${cn.type}-${i}`} style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "10px 0",
+                        borderBottom: "1px solid var(--roam-border)",
+                      }}>
+                        <span style={{ fontSize: "var(--font-sm)", fontWeight: 600, color: "var(--roam-text-muted)" }}>
+                          <Zap size={12} style={{ display: "inline", verticalAlign: "middle", marginRight: 6 }} />
+                          {cn.type}{cn.quantity > 1 ? ` x${cn.quantity}` : ""}
+                        </span>
+                        {cn.power_kw ? (
+                          <span style={{ fontSize: "var(--font-sm)", fontWeight: 800, color: "var(--roam-text)" }}>
+                            {cn.power_kw}kW
+                          </span>
+                        ) : null}
+                      </div>
+                    ))}
+                    {evCost && (
+                      <div style={{ padding: "10px 0", fontSize: "var(--font-xs)", fontWeight: 600, color: "var(--roam-text-muted)" }}>
+                        {evCost}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    {socketTypes.map((s) => (
+                      <span key={s} style={{
+                        padding: "6px 12px",
+                        borderRadius: "var(--r-pill)",
+                        fontSize: "var(--font-sm)",
+                        fontWeight: 700,
+                        background: "rgba(16,185,129,0.1)",
+                        color: "#059669",
+                        border: "1px solid rgba(16,185,129,0.2)",
+                        textTransform: "capitalize",
+                      }}>
+                        <Zap size={12} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
+                        {s.replace(/_/g, " ")}
+                      </span>
+                    ))}
+                    {evMaxPower && (
+                      <span style={{
+                        padding: "6px 12px",
+                        borderRadius: "var(--r-pill)",
+                        fontSize: "var(--font-sm)",
+                        fontWeight: 700,
+                        background: "var(--roam-surface-hover)",
+                        color: "var(--roam-text-muted)",
+                        border: "1px solid var(--roam-border)",
+                      }}>
+                        {evMaxPower}kW max
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 

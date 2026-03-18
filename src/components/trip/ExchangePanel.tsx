@@ -252,7 +252,7 @@ const panelStyles = /* css */ `
     position: fixed;
     inset: 0;
     z-index: 200;
-    background: rgba(10, 8, 6, 0.55);
+    background: rgba(120, 110, 95, 0.35);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     display: flex;
@@ -265,6 +265,11 @@ const panelStyles = /* css */ `
   .exchange-backdrop[data-mounted] {
     opacity: 1;
   }
+  @media (prefers-color-scheme: dark) {
+    .exchange-backdrop {
+      background: rgba(10, 8, 6, 0.55);
+    }
+  }
 
   .exchange-panel {
     width: 100%;
@@ -276,12 +281,17 @@ const panelStyles = /* css */ `
     background: var(--surface-card, #f4efe6);
     border-radius: var(--r-card, 24px);
     overflow: hidden;
-    box-shadow: var(--shadow-heavy, 0 12px 40px rgba(40,32,20,0.13));
+    box-shadow: 0 12px 40px rgba(40,32,20,0.13), 0 0 0 1px rgba(0,0,0,0.06);
     transform: translateY(10px) scale(0.97);
     transition: transform var(--dur-slow, 350ms) var(--spring, cubic-bezier(0.34,1.56,0.64,1));
   }
   .exchange-backdrop[data-mounted] .exchange-panel {
     transform: translateY(0) scale(1);
+  }
+  @media (prefers-color-scheme: dark) {
+    .exchange-panel {
+      box-shadow: 0 12px 40px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.06);
+    }
   }
 
   .exchange-header {
@@ -301,9 +311,18 @@ const panelStyles = /* css */ `
     border: none;
     color: var(--text-muted, #7a7067);
     cursor: pointer;
-    padding: 6px;
-    border-radius: 999px;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
     display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s ease;
+  }
+  .exchange-close:active {
+    background: rgba(0, 0, 0, 0.08);
   }
 
   .exchange-viz {

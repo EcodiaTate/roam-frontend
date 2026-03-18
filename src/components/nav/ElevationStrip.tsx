@@ -217,7 +217,7 @@ export const ElevationStrip = memo(function ElevationStrip({
           alignItems: "center",
           justifyContent: "space-between",
           width: "100%",
-          height: 36,
+          height: 44,
           padding: "0 14px",
           background: "none",
           border: "none",
@@ -227,7 +227,7 @@ export const ElevationStrip = memo(function ElevationStrip({
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Mountain size={13} strokeWidth={2.2} style={{ opacity: 0.6 }} />
+          <Mountain size={16} strokeWidth={2.2} style={{ opacity: 0.6 }} />
           <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.03em" }}>
             ELEVATION
           </span>
@@ -243,8 +243,8 @@ export const ElevationStrip = memo(function ElevationStrip({
             ↓{Math.round(profile.total_descent_m)}m
           </span>
           {isCollapsed
-            ? <ChevronUp size={14} strokeWidth={2.5} style={{ opacity: 0.5 }} />
-            : <ChevronDown size={14} strokeWidth={2.5} style={{ opacity: 0.5 }} />}
+            ? <ChevronUp size={16} strokeWidth={2.5} style={{ opacity: 0.5 }} />
+            : <ChevronDown size={16} strokeWidth={2.5} style={{ opacity: 0.5 }} />}
         </div>
       </button>
 

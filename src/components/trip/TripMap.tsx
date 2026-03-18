@@ -10,6 +10,8 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { Protocol } from "pmtiles";
 
 import { decodePolyline6AsLngLat } from "@/lib/nav/polyline6";
+import { useMapViewport, useCulledFC, cullFeatures } from "@/lib/hooks/useViewportCull";
+import type { ViewportBounds } from "@/lib/hooks/useViewportCull";
 import type { BBox4 } from "@/lib/types/geo";
 import type { TripStop } from "@/lib/types/trip";
 import type { PlaceItem } from "@/lib/types/places";
@@ -60,6 +62,9 @@ type Props = {
   focusFallbackName?: string | null;
   onSuggestionPress?: (placeId: string) => void;
 
+  /** Called when user taps a place marker (suggestion, fuel, EV, rest area) — opens PlaceDetailSheet */
+  onOpenPlaceDetail?: (placeId: string, coords: { lat: number; lng: number; name?: string; category?: string; extra?: Record<string, unknown> }) => void;
+
   // Overlays
   traffic?: TrafficOverlay | null;
   hazards?: HazardOverlay | null;
@@ -77,7 +82,7 @@ type Props = {
   onNavigateToGuide?: (placeId: string, placeName?: string) => void;
 
   // Add stop from map popup
-  onAddStopFromMap?: (placeId: string) => void;
+  onAddStopFromMap?: (placeId: string, coords?: { lat: number; lng: number; name?: string }) => void;
   /** IDs of stops already in the trip — used to show "Already added" in popup */
   stopPlaceIds?: Set<string> | null;
   /** Whether the device is online — controls popup button labels */
@@ -111,18 +116,16 @@ type Props = {
    /** Ref that TripMap populates with the MapLibre instance for external control */
    mapInstanceRef?: React.MutableRefObject<import("maplibre-gl").Map | null>;
 
+   /** Debug: corridor bbox outline on the map */
+   corridorDebug?: { bbox: { minLng: number; minLat: number; maxLng: number; maxLat: number } } | null;
  };
 
-/* ── Hoisted style constants ───────────────────────────────────────── */
-
-const MAP_STYLE_BTN_BASE: React.CSSProperties = {
-  flex: 1, height: 34, borderRadius: 9, border: "none",
-  cursor: "pointer", fontSize: 12, fontWeight: 700,
-  display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-  transition: "background 140ms ease, color 140ms ease",
-};
-
 /* ── Layer / source IDs ─────────────────────────────────────────────── */
+
+const CORRIDOR_DEBUG_SRC = "roam-corridor-debug-src";
+const CORRIDOR_DEBUG_LINE = "roam-corridor-debug-line";
+const CORRIDOR_BBOX_SRC = "roam-corridor-bbox-src";
+const CORRIDOR_BBOX_FILL = "roam-corridor-bbox-fill";
 
 const ROUTE_SRC = "roam-route-src";
 const ROUTE_GLOW = "roam-route-glow";
@@ -631,13 +634,6 @@ function bboxToBounds(b: BBox4): LngLatBoundsLike {
   ];
 }
 
-function routeGeoJSON(polyline6: string): GeoJSON.FeatureCollection {
-  return {
-    type: "FeatureCollection",
-    features: [{ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: decodePolyline6AsLngLat(polyline6) } }],
-  };
-}
-
 function stopsGeoJSON(stops: TripStop[]): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
@@ -881,6 +877,56 @@ function floodGaugesGeoJSON(overlay: FloodOverlay | null | undefined): GeoJSON.F
   };
 }
 
+/** Cubic B-spline smoothing: produces very round curves from coarse input polygons. */
+function bsplineSmooth(ring: number[][], granularity = 6): number[][] {
+  // Remove closing duplicate if present
+  const closed = ring.length > 1 &&
+    ring[0][0] === ring[ring.length - 1][0] &&
+    ring[0][1] === ring[ring.length - 1][1];
+  const pts = closed ? ring.slice(0, -1) : ring;
+  const n = pts.length;
+  if (n < 3) return ring;
+
+  const result: number[][] = [];
+  for (let i = 0; i < n; i++) {
+    const p0 = pts[((i - 1) + n) % n];
+    const p1 = pts[i];
+    const p2 = pts[(i + 1) % n];
+    const p3 = pts[(i + 2) % n];
+    for (let s = 0; s < granularity; s++) {
+      const t = s / granularity;
+      const t2 = t * t, t3 = t2 * t;
+      // Uniform cubic B-spline basis
+      const b0 = (-t3 + 3 * t2 - 3 * t + 1) / 6;
+      const b1 = (3 * t3 - 6 * t2 + 4) / 6;
+      const b2 = (-3 * t3 + 3 * t2 + 3 * t + 1) / 6;
+      const b3 = t3 / 6;
+      result.push([
+        b0 * p0[0] + b1 * p1[0] + b2 * p2[0] + b3 * p3[0],
+        b0 * p0[1] + b1 * p1[1] + b2 * p2[1] + b3 * p3[1],
+      ]);
+    }
+  }
+  // close the ring
+  result.push(result[0]);
+  return result;
+}
+
+function smoothGeometry(geom: { type: "Polygon" | "MultiPolygon"; coordinates: number[][][] }): GeoJSON.Geometry {
+  if (geom.type === "MultiPolygon") {
+    return {
+      type: "MultiPolygon",
+      coordinates: (geom.coordinates as unknown as number[][][][]).map(
+        (polygon) => polygon.map((ring) => bsplineSmooth(ring)),
+      ),
+    };
+  }
+  return {
+    type: "Polygon",
+    coordinates: geom.coordinates.map((ring) => bsplineSmooth(ring)),
+  };
+}
+
 function floodCatchmentsGeoJSON(overlay: FloodOverlay | null | undefined): GeoJSON.FeatureCollection {
   if (!overlay?.catchments?.length) return { type: "FeatureCollection", features: [] };
   return {
@@ -892,7 +938,7 @@ function floodCatchmentsGeoJSON(overlay: FloodOverlay | null | undefined): GeoJS
         dist_name: c.dist_name,
         level: c.level,
       },
-      geometry: c.geometry as GeoJSON.Geometry,
+      geometry: smoothGeometry(c.geometry),
     })),
   };
 }
@@ -1022,7 +1068,7 @@ const HAZARD_SEV_COLORS: Record<string, string> = { high: "#dc2626", medium: "#e
    Component
    ══════════════════════════════════════════════════════════════════════ */
 
-export function TripMap(props: Props) {
+export const TripMap = React.memo(function TripMap(props: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MLMap | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
@@ -1066,19 +1112,50 @@ export function TripMap(props: Props) {
   isOnlineRef.current = props.isOnline ?? true;
   const onSugPressRef = useRef(props.onSuggestionPress);
   onSugPressRef.current = props.onSuggestionPress;
+  const onOpenPlaceDetailRef = useRef(props.onOpenPlaceDetail);
+  onOpenPlaceDetailRef.current = props.onOpenPlaceDetail;
   const onTrafficPressRef = useRef(props.onTrafficEventPress);
   onTrafficPressRef.current = props.onTrafficEventPress;
   const onHazardPressRef = useRef(props.onHazardEventPress);
   onHazardPressRef.current = props.onHazardEventPress;
 
-  const routeFC = useMemo(() => routeGeoJSON(props.geometry), [props.geometry]);
-  const stopsFC = useMemo(() => stopsGeoJSON(props.stops), [props.stops]);
-  const activeFuelCats = useMemo(() => fuelLayerCats(props.fuelStations), [props.fuelStations]);
+  /* ── Viewport-based frustum culling ────────────────────────────────────
+     Tracks the visible map bounds and filters overlay FCs to only features
+     within ~1.5× the viewport.  This avoids feeding thousands of features
+     across a 4,000 km route to MapLibre when the user only sees 50 km. */
+  const vpBounds = useMapViewport(mapRef, 150, styleReady);
+  const vpBoundsRef = useRef<ViewportBounds | null>(null);
+  vpBoundsRef.current = vpBounds;
 
-  // Decode route once for coverage gap slicing
+  // Decode polyline once — shared by routeFC, coverageFC, and routeCumKm
   const routeCoords = useMemo<Array<[number, number]>>(() => {
     try { return decodePolyline6AsLngLat(props.geometry); } catch { return []; }
   }, [props.geometry]);
+  const routeFC = useMemo<GeoJSON.FeatureCollection>(() => ({
+    type: "FeatureCollection",
+    features: routeCoords.length ? [{ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: routeCoords } }] : [],
+  }), [routeCoords]);
+  const stopsFC = useMemo(() => stopsGeoJSON(props.stops), [props.stops]);
+
+  // ── Corridor debug overlay (bbox outline only) ──
+  const corridorBboxFC = useMemo<GeoJSON.FeatureCollection>(() => {
+    const cd = props.corridorDebug;
+    if (!cd?.bbox) return { type: "FeatureCollection", features: [] };
+    const { minLng, minLat, maxLng, maxLat } = cd.bbox;
+    return {
+      type: "FeatureCollection",
+      features: [{
+        type: "Feature",
+        properties: {},
+        geometry: {
+          type: "Polygon",
+          coordinates: [[[minLng, minLat], [maxLng, minLat], [maxLng, maxLat], [minLng, maxLat], [minLng, minLat]]],
+        },
+      }],
+    };
+  }, [props.corridorDebug]);
+
+  const activeFuelCats = useMemo(() => fuelLayerCats(props.fuelStations), [props.fuelStations]);
   const routeCumKm = useMemo<number[]>(() => {
     if (routeCoords.length === 0) return [];
     const km: number[] = [0];
@@ -1097,29 +1174,55 @@ export function TripMap(props: Props) {
     [props.suggestions, props.filteredSuggestionIds, activeFuelCats],
   );
 
-  const trafficPtFC = useMemo(() => trafficPointsGeoJSON(props.traffic ?? null), [props.traffic]);
-  const trafficLineFC = useMemo(() => trafficLinesGeoJSON(props.traffic ?? null), [props.traffic]);
-  const trafficPolyFC = useMemo(() => trafficPolygonsGeoJSON(props.traffic ?? null), [props.traffic]);
-  const hazardPtFC = useMemo(() => hazardPointsGeoJSON(props.hazards ?? null), [props.hazards]);
-  const hazardPolyFC = useMemo(() => hazardPolygonsGeoJSON(props.hazards ?? null), [props.hazards]);
+  const trafficPtFCFull = useMemo(() => trafficPointsGeoJSON(props.traffic ?? null), [props.traffic]);
+  const trafficLineFCFull = useMemo(() => trafficLinesGeoJSON(props.traffic ?? null), [props.traffic]);
+  const trafficPolyFCFull = useMemo(() => trafficPolygonsGeoJSON(props.traffic ?? null), [props.traffic]);
+  const hazardPtFCFull = useMemo(() => hazardPointsGeoJSON(props.hazards ?? null), [props.hazards]);
+  const hazardPolyFCFull = useMemo(() => hazardPolygonsGeoJSON(props.hazards ?? null), [props.hazards]);
+
+  // Viewport-culled versions — only features near the visible area
+  const trafficPtFC = useCulledFC(trafficPtFCFull, vpBounds);
+  const trafficLineFC = useCulledFC(trafficLineFCFull, vpBounds);
+  const trafficPolyFC = useCulledFC(trafficPolyFCFull, vpBounds);
+  const hazardPtFC = useCulledFC(hazardPtFCFull, vpBounds);
+  const hazardPolyFC = useCulledFC(hazardPolyFCFull, vpBounds);
 
   const userLocFC = useMemo(() => userLocGeoJSON(props.userPosition), [props.userPosition]);
   const headingFC = useMemo(() => headingConeGeoJSON(props.userPosition), [props.userPosition]);
 
   const fuelFC = useMemo<GeoJSON.FeatureCollection>(() => {
     // Build overlay lookup — per-station prices from government APIs
-    // IDs come from different sources (Overpass vs NSW FuelCheck etc.) so match by proximity
+    // IDs come from different sources (Overpass vs NSW FuelCheck etc.) so match by proximity.
+    // Uses a grid spatial index for O(1) nearest-neighbour instead of O(n) linear scan.
     type OvStation = import("@/lib/types/overlays").FuelStationOverlay;
     const overlayStations: OvStation[] = props.fuelOverlay?.stations ?? [];
 
     const MATCH_THRESHOLD = 0.005; // ~500m in degrees
+    const CELL = MATCH_THRESHOLD; // grid cell size matches threshold
+
+    // Build grid index: key → list of overlay stations in that cell
+    const grid = new Map<string, OvStation[]>();
+    for (const os of overlayStations) {
+      const key = `${Math.floor(os.lat / CELL)},${Math.floor(os.lng / CELL)}`;
+      const arr = grid.get(key);
+      if (arr) arr.push(os); else grid.set(key, [os]);
+    }
 
     function findNearestOverlay(lat: number, lng: number): OvStation | null {
+      const cy = Math.floor(lat / CELL);
+      const cx = Math.floor(lng / CELL);
       let best: OvStation | null = null;
       let bestDist = MATCH_THRESHOLD;
-      for (const os of overlayStations) {
-        const d = Math.abs(os.lat - lat) + Math.abs(os.lng - lng);
-        if (d < bestDist) { bestDist = d; best = os; }
+      // Check 3×3 neighbourhood to handle cell-boundary cases
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const bucket = grid.get(`${cy + dy},${cx + dx}`);
+          if (!bucket) continue;
+          for (const os of bucket) {
+            const d = Math.abs(os.lat - lat) + Math.abs(os.lng - lng);
+            if (d < bestDist) { bestDist = d; best = os; }
+          }
+        }
       }
       return best;
     }
@@ -1158,17 +1261,35 @@ export function TripMap(props: Props) {
       }
     }
 
+    // Build grid of placed features for O(1) proximity dedup
+    const placedGrid = new Map<string, Array<[number, number]>>();
+    for (const f of features) {
+      const c = (f.geometry as GeoJSON.Point).coordinates;
+      const key = `${Math.floor(c[1] / CELL)},${Math.floor(c[0] / CELL)}`;
+      const arr = placedGrid.get(key);
+      if (arr) arr.push([c[1], c[0]]); else placedGrid.set(key, [[c[1], c[0]]]);
+    }
+
+    function isTooClose(lat: number, lng: number): boolean {
+      const cy = Math.floor(lat / CELL);
+      const cx = Math.floor(lng / CELL);
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const bucket = placedGrid.get(`${cy + dy},${cx + dx}`);
+          if (!bucket) continue;
+          for (const [pLat, pLng] of bucket) {
+            if (Math.abs(pLat - lat) + Math.abs(pLng - lng) < MATCH_THRESHOLD) return true;
+          }
+        }
+      }
+      return false;
+    }
+
     // 2. Government-sourced overlay stations that had no OSM match — these carry
     //    verified live pricing and must not be invisible just because OSM is sparse.
     for (const ov of overlayStations) {
       if (ov.id && matchedOverlayIds.has(ov.id)) continue;
-      // Also skip if already very close to an existing feature (fuzzy dedup)
-      let tooClose = false;
-      for (const f of features) {
-        const c = (f.geometry as GeoJSON.Point).coordinates;
-        if (Math.abs(c[1] - ov.lat) + Math.abs(c[0] - ov.lng) < MATCH_THRESHOLD) { tooClose = true; break; }
-      }
-      if (tooClose) continue;
+      if (isTooClose(ov.lat, ov.lng)) continue;
 
       const fuelTypesJson = ov.fuel_types?.length ? JSON.stringify(ov.fuel_types) : null;
       const hasDiesel = ov.has_diesel ?? ov.fuel_types?.some((ft) => ft.fuel_type.toLowerCase().includes("diesel")) ?? false;
@@ -1231,39 +1352,23 @@ export function TripMap(props: Props) {
     };
   }, [props.fuelOverlay?.ev_chargers]);
 
-  const wildlifeFC = useMemo(() => wildlifeZonesGeoJSON(props.wildlife), [props.wildlife]);
-  const coverageFC = useMemo(
+  const wildlifeFCFull = useMemo(() => wildlifeZonesGeoJSON(props.wildlife), [props.wildlife]);
+  const coverageFCFull = useMemo(
     () => coverageGapsLineGeoJSON(props.coverage, routeCoords, routeCumKm),
     [props.coverage, routeCoords, routeCumKm],
   );
-  const floodFC = useMemo(() => floodGaugesGeoJSON(props.flood), [props.flood]);
-  const floodCatchFC = useMemo(() => floodCatchmentsGeoJSON(props.flood), [props.flood]);
-  const restAreasFC = useMemo(() => restAreasGeoJSON(props.restAreas), [props.restAreas]);
+  const floodFCFull = useMemo(() => floodGaugesGeoJSON(props.flood), [props.flood]);
+  const floodCatchFCFull = useMemo(() => floodCatchmentsGeoJSON(props.flood), [props.flood]);
+  const restAreasFCFull = useMemo(() => restAreasGeoJSON(props.restAreas), [props.restAreas]);
 
-  /* ── Build popup HTML ───────────────────────────────────────────────── */
+  // Viewport-culled versions
+  const wildlifeFC = useCulledFC(wildlifeFCFull, vpBounds);
+  const coverageFC = useCulledFC(coverageFCFull, vpBounds);
+  const floodFC = useCulledFC(floodFCFull, vpBounds);
+  const floodCatchFC = useCulledFC(floodCatchFCFull, vpBounds);
+  const restAreasFC = useCulledFC(restAreasFCFull, vpBounds);
 
-  const buildSuggestionPopupHtml = useCallback((name: string, category: string, placeId: string) => {
-    const cfg = getCatConfig(category);
-    const alreadyAdded = stopPlaceIdsRef.current?.has(placeId) ?? false;
-    const online = isOnlineRef.current;
-    const guideLabel = online ? "View in Guide" : "View in Found";
-    const addBtn = alreadyAdded
-      ? `<button disabled style="display:flex;align-items:center;justify-content:center;width:100%;margin-top:8px;padding:10px 0;min-height:40px;border:none;border-radius:var(--r-btn,14px);font-size:12px;font-weight:800;letter-spacing:0.2px;background:var(--roam-surface-hover,rgba(255,255,255,0.08));color:var(--roam-text-muted,#888);cursor:default;opacity:0.5;">Already in Trip</button>`
-      : `<button data-roam-add-stop="${escapeHtml(placeId)}" style="display:flex;align-items:center;justify-content:center;width:100%;margin-top:8px;padding:10px 0;min-height:40px;border:none;border-radius:var(--r-btn,14px);cursor:pointer;font-size:12px;font-weight:800;letter-spacing:0.2px;background:var(--roam-accent,#2d6e40);color:var(--on-color,#faf6ef);box-shadow:0 3px 0 rgba(40,32,20,0.10);transform:translateY(0);transition:transform 80ms ease,box-shadow 80ms ease,opacity 120ms ease;-webkit-tap-highlight-color:transparent" onpointerdown="this.style.transform='translateY(2px) scale(0.97)';this.style.boxShadow='none'" onpointerup="this.style.transform='';this.style.boxShadow='0 3px 0 rgba(40,32,20,0.10)'" onpointerleave="this.style.transform='';this.style.boxShadow='0 3px 0 rgba(40,32,20,0.10)'">Add Stop</button>`;
-    return `<div style="font-family:inherit;min-width:180px">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-        <div style="width:32px;height:32px;border-radius:10px;background:${cfg.color};display:grid;place-items:center;flex-shrink:0;opacity:0.9;box-shadow:0 2px 8px rgba(0,0,0,0.12)">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(250,246,239,0.95)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="${ICON_PATHS[cfg.icon] ?? ICON_PATHS.pin}"/></svg>
-        </div>
-        <div>
-          <div style="font-size:14px;font-weight:800;letter-spacing:-0.3px;color:var(--roam-text)">${escapeHtml(name)}</div>
-          <div style="font-size:11px;font-weight:700;color:var(--roam-text-muted);text-transform:capitalize;margin-top:1px">${escapeHtml(category.replace(/_/g, " "))}</div>
-        </div>
-      </div>
-      ${addBtn}
-      <button data-roam-guide-place="${escapeHtml(placeId)}" data-roam-guide-name="${escapeHtml(name)}" style="display:flex;align-items:center;justify-content:center;width:100%;margin-top:4px;padding:10px 0;min-height:40px;border:1.5px solid var(--roam-border-strong,rgba(26,22,19,0.15));border-radius:var(--r-btn,14px);cursor:pointer;font-size:12px;font-weight:800;letter-spacing:0.2px;background:transparent;color:var(--roam-text-muted,#7a7067);box-shadow:none;transform:translateY(0);transition:transform 80ms ease,opacity 120ms ease;-webkit-tap-highlight-color:transparent" onpointerdown="this.style.transform='translateY(2px) scale(0.97)'" onpointerup="this.style.transform=''" onpointerleave="this.style.transform=''">${escapeHtml(guideLabel)}</button>
-    </div>`;
-  }, []);
+  /* ── Build popup HTML (for info-only overlays: traffic, hazards, etc.) ── */
 
   const buildOverlayPopupHtml = useCallback((title: string, severity: string, sevColor: string, description?: string | null) => {
     return `<div style="font-family:inherit;min-width:160px;max-width:260px">
@@ -1381,28 +1486,6 @@ export function TripMap(props: Props) {
       longPressPos = null;
     });
 
-    // Global click handler for popup action buttons
-    document.addEventListener("click", (e) => {
-      const target = e.target as HTMLElement;
-      const guidePlaceId = target?.getAttribute?.("data-roam-guide-place");
-      if (guidePlaceId) {
-        e.preventDefault();
-        e.stopPropagation();
-        const guidePlaceName = target?.getAttribute?.("data-roam-guide-name") ?? undefined;
-        onNavToGuideRef.current?.(guidePlaceId, guidePlaceName);
-        return;
-      }
-      const addStopPlaceId = target?.getAttribute?.("data-roam-add-stop");
-      if (addStopPlaceId) {
-        e.preventDefault();
-        e.stopPropagation();
-        // Swap button to "Adding…" immediately for feedback
-        (target as HTMLButtonElement).disabled = true;
-        target.textContent = "Adding…";
-        onAddStopFromMapRef.current?.(addStopPlaceId);
-      }
-    });
-
     map.on("style.load", async () => {
       await Promise.all([loadHeadingArrow(map), loadCategoryIcons(map), loadOverlayIcons(map), loadStopIcons(map), loadFuelIcons(map), loadEvChargerIcons(map), loadNewOverlayIcons(map)]);
 
@@ -1418,10 +1501,26 @@ export function TripMap(props: Props) {
          8. Alert highlight (ring → ping animation)
          ════════════════════════════════════════════════════════════════ */
 
+      /* ── 0. Corridor debug overlay (when enabled) ─────────────────────── */
+      addOrUpdateGeoJsonSource(map, CORRIDOR_BBOX_SRC, corridorBboxFC);
+      if (!map.getLayer(CORRIDOR_BBOX_FILL)) {
+        map.addLayer({
+          id: CORRIDOR_BBOX_FILL,
+          type: "fill",
+          source: CORRIDOR_BBOX_SRC,
+          paint: {
+            "fill-color": "rgba(255,140,0,0.06)",
+            "fill-outline-color": "rgba(255,140,0,0.3)",
+          },
+        });
+      }
+
       /* ── 1. Route layers — glassmorphic warm outback ─────────────────── */
       addOrUpdateGeoJsonSource(map, ROUTE_SRC, routeFC);
 
-      // Outer glow — bright route haze for visibility
+      // Outer glow — wide translucent line simulates blur cheaply on mobile GPUs.
+      // Using line-blur is expensive (GPU fragment shader per pixel); a wider
+      // low-opacity line gives a similar haze without the mobile perf hit.
       if (!map.getLayer(ROUTE_GLOW)) {
         map.addLayer({
           id: ROUTE_GLOW,
@@ -1429,10 +1528,9 @@ export function TripMap(props: Props) {
           source: ROUTE_SRC,
           layout: { "line-cap": "round", "line-join": "round" },
           paint: {
-            "line-color": "rgba(30,100,210,0.25)",
-            "line-width": ["interpolate", ["linear"], ["zoom"], 4, 6, 10, 10, 14, 16],
-            "line-blur": ["interpolate", ["linear"], ["zoom"], 4, 5, 14, 9],
-            "line-opacity": 0.6,
+            "line-color": "rgba(30,100,210,0.12)",
+            "line-width": ["interpolate", ["linear"], ["zoom"], 4, 12, 10, 20, 14, 30],
+            "line-opacity": 0.55,
           },
         });
       }
@@ -1477,6 +1575,7 @@ export function TripMap(props: Props) {
           id: TRAFFIC_POLY_LAYER,
           type: "fill",
           source: TRAFFIC_POLY_SRC,
+          minzoom: 4,
           paint: {
             "fill-color": [
               "match",
@@ -1500,6 +1599,7 @@ export function TripMap(props: Props) {
           id: TRAFFIC_LINE_CASING,
           type: "line",
           source: TRAFFIC_LINE_SRC,
+          minzoom: 4,
           layout: { "line-cap": "round", "line-join": "round" },
           paint: {
             "line-color": [
@@ -1525,6 +1625,7 @@ export function TripMap(props: Props) {
           id: TRAFFIC_LINE_LAYER,
           type: "line",
           source: TRAFFIC_LINE_SRC,
+          minzoom: 4,
           layout: { "line-cap": "round", "line-join": "round" },
           paint: {
             "line-color": ["match", ["get", "severity"], "major", "#ef4444", "moderate", "#f97316", "minor", "#facc15", "#94a3b8"],
@@ -1541,6 +1642,7 @@ export function TripMap(props: Props) {
           id: TRAFFIC_PULSE_LAYER,
           type: "circle",
           source: TRAFFIC_POINT_SRC,
+          minzoom: 5,
           paint: {
             "circle-radius": ["interpolate", ["linear"], ["zoom"], 6, 14, 12, 20, 16, 26],
             "circle-color": [
@@ -1572,6 +1674,7 @@ export function TripMap(props: Props) {
           id: TRAFFIC_POINT_LAYER,
           type: "symbol",
           source: TRAFFIC_POINT_SRC,
+          minzoom: 5,
           layout: {
             "icon-image": ["get", "iconId"],
             "icon-size": ["interpolate", ["linear"], ["zoom"], 6, 0.7, 12, 0.9, 16, 1.1],
@@ -1608,6 +1711,7 @@ export function TripMap(props: Props) {
           id: HAZARD_POLY_LAYER,
           type: "fill",
           source: HAZARD_POLY_SRC,
+          minzoom: 3,
           paint: {
             "fill-color": [
               "match",
@@ -1638,6 +1742,7 @@ export function TripMap(props: Props) {
           id: HAZARD_POLY_OUTLINE,
           type: "line",
           source: HAZARD_POLY_SRC,
+          minzoom: 3,
           paint: {
             "line-color": [
               "match",
@@ -1670,6 +1775,7 @@ export function TripMap(props: Props) {
           id: HAZARD_ICON_LAYER,
           type: "symbol",
           source: HAZARD_POINT_SRC,
+          minzoom: 4,
           layout: {
             "icon-image": ["get", "iconId"],
             "icon-size": ["interpolate", ["linear"], ["zoom"], 6, 0.7, 12, 0.9, 16, 1.1],
@@ -1873,23 +1979,19 @@ export function TripMap(props: Props) {
         }).catch(() => {});
       });
 
-      // Suggestion click → popup
+      // Suggestion click → open PlaceDetailSheet
       const handleSugClick = (e: MapLayerMouseEvent) => {
         const f = e?.features?.[0];
         if (!f) return;
         const id = f.properties?.id ? String(f.properties.id) : null;
         if (!id) return;
-        const coords = f.geometry.type === "Point" ? f.geometry.coordinates : null;
-        if (Array.isArray(coords) && coords.length === 2) easeToCoord(map, [Number(coords[0]), Number(coords[1])], { zoom: Math.max(map.getZoom(), 13), duration: 420 });
         onSugPressRef.current?.(id);
-        const html = buildSuggestionPopupHtml(f.properties?.name ?? "", f.properties?.category ?? "", id);
-        try {
-          popupRef.current?.remove();
-          popupRef.current = new maplibregl.Popup({ closeButton: true, closeOnClick: true, className: "trip-map-popup", maxWidth: "280px" })
-            .setLngLat(e.lngLat)
-            .setHTML(html)
-            .addTo(map);
-        } catch {}
+        onOpenPlaceDetailRef.current?.(id, {
+          lat: e.lngLat.lat,
+          lng: e.lngLat.lng,
+          name: f.properties?.name ?? undefined,
+          category: f.properties?.category ?? undefined,
+        });
       };
       map.on("click", SUG_UNCLUSTERED, handleSugClick);
       map.on("click", SUG_ICON_LAYER, handleSugClick);
@@ -2236,78 +2338,38 @@ export function TripMap(props: Props) {
       map.on("mouseenter", FUEL_CLUSTER_CIRCLE, () => (map.getCanvas().style.cursor = "pointer"));
       map.on("mouseleave", FUEL_CLUSTER_CIRCLE, () => (map.getCanvas().style.cursor = ""));
 
-      // Individual fuel station click → popup with per-station prices
+      // Individual fuel station click → open PlaceDetailSheet
       map.on("click", FUEL_ICON_LAYER, (e: MapLayerMouseEvent) => {
         const f = e?.features?.[0];
         if (!f) return;
         const p = f.properties;
         const name = p?.name ? String(p.name) : "Fuel Station";
-        const brand = p?.brand ? String(p.brand) : null;
-        const km = typeof p?.km === "number" ? Math.round(p.km) : null;
+        const fuelId = p?.id ? String(p.id) : `fuel_${e.lngLat.lat}_${e.lngLat.lng}`;
 
-        // Parse per-station prices from JSON (GeoJSON can only store flat properties)
-        type FP = { fuel_type: string; price_cents: number; last_updated?: string | null };
-        let fuelPrices: FP[] = [];
+        // Build extra props from feature properties so PlaceDetailSheet can display fuel info
+        const extra: Record<string, unknown> = {};
+        if (p?.brand) extra.brand = String(p.brand);
+        if (p?.open_hours) extra.opening_hours = String(p.open_hours);
+        if (p?.has_unleaded) extra.has_unleaded = true;
+        if (p?.has_diesel) extra.has_diesel = true;
+        if (p?.has_lpg) extra.has_lpg = true;
+        // Parse fuel_types_json into fuel_types array for PlaceDetailSheet
         try {
           const raw = p?.fuel_types_json;
           if (typeof raw === "string" && raw.length > 2) {
-            fuelPrices = JSON.parse(raw) as FP[];
+            const parsed = JSON.parse(raw) as { fuel_type: string; price_cents: number }[];
+            extra.fuel_types = parsed.map((fp) => fp.fuel_type);
+            extra.fuel_prices_json = raw;
           }
         } catch {}
 
-        const subtitle = [
-          brand,
-          km != null ? `${km}km along route` : null,
-        ].filter(Boolean).join(" · ");
-
-        // Build price lines from actual per-station data
-        const FUEL_LABELS: Record<string, string> = {
-          unleaded: "Unleaded 91",
-          e10: "E10",
-          premium_unleaded_95: "Premium 95",
-          premium_unleaded_98: "Premium 98",
-          diesel: "Diesel",
-          premium_diesel: "Prem Diesel",
-          lpg: "LPG",
-          adblue: "AdBlue",
-          truck_diesel: "Truck Diesel",
-        };
-
-        let priceHtml = "";
-        if (fuelPrices.length > 0) {
-          const rows = fuelPrices
-            .sort((a, b) => {
-              const order = ["unleaded", "e10", "premium_unleaded_95", "premium_unleaded_98", "diesel", "premium_diesel", "lpg"];
-              return (order.indexOf(a.fuel_type) === -1 ? 99 : order.indexOf(a.fuel_type)) - (order.indexOf(b.fuel_type) === -1 ? 99 : order.indexOf(b.fuel_type));
-            })
-            .map((fp) => {
-              const label = FUEL_LABELS[fp.fuel_type] ?? fp.fuel_type;
-              const dollars = (fp.price_cents / 100).toFixed(2);
-              return `<div style="display:flex;justify-content:space-between;gap:8px"><span>${escapeHtml(label)}</span><span style="font-weight:800;color:var(--roam-text)">$${dollars}/L</span></div>`;
-            })
-            .join("");
-          priceHtml = `<div style="margin-top:6px;font-size:11px;font-weight:600;color:var(--roam-text-muted);line-height:1.7">${rows}</div>`;
-        } else {
-          // Fallback: show fuel type flags without prices
-          const types: string[] = [];
-          if (p?.has_unleaded) types.push("Unleaded");
-          if (p?.has_diesel) types.push("Diesel");
-          if (p?.has_lpg) types.push("LPG");
-          if (types.length > 0) {
-            priceHtml = `<div style="margin-top:4px;font-size:11px;font-weight:600;color:var(--roam-text-muted)">${types.join(" · ")}</div>`;
-          }
-        }
-
-        // Open status
-        const openHtml = p?.open_hours ? `<div style="margin-top:3px;font-size:10px;font-weight:700;color:#9ca3af">Hours: ${escapeHtml(String(p.open_hours))}</div>` : "";
-
-        try {
-          popupRef.current?.remove();
-          popupRef.current = new maplibregl.Popup({ closeButton: true, closeOnClick: true, className: "trip-map-popup" })
-            .setLngLat(e.lngLat)
-            .setHTML(buildOverlayPopupHtml(name, subtitle, "#d97706") + priceHtml + openHtml)
-            .addTo(map);
-        } catch {}
+        onOpenPlaceDetailRef.current?.(fuelId, {
+          lat: e.lngLat.lat,
+          lng: e.lngLat.lng,
+          name,
+          category: "fuel",
+          extra,
+        });
       });
       map.on("mouseenter", FUEL_ICON_LAYER, () => (map.getCanvas().style.cursor = "pointer"));
       map.on("mouseleave", FUEL_ICON_LAYER, () => (map.getCanvas().style.cursor = ""));
@@ -2392,54 +2454,39 @@ export function TripMap(props: Props) {
       map.on("mouseenter", EV_CLUSTER_CIRCLE, () => (map.getCanvas().style.cursor = "pointer"));
       map.on("mouseleave", EV_CLUSTER_CIRCLE, () => (map.getCanvas().style.cursor = ""));
 
-      // EV charger click → popup with connector details
+      // EV charger click → open PlaceDetailSheet
       map.on("click", EV_ICON_LAYER, (e: MapLayerMouseEvent) => {
         const f = e?.features?.[0];
         if (!f) return;
         const p = f.properties;
         const name = p?.name ? String(p.name) : "EV Charger";
-        const operator = p?.operator ? String(p.operator) : null;
-        const address = p?.address ? String(p.address) : null;
-        const distKm = typeof p?.distance_km === "number" ? `${Math.round(p.distance_km)}km from route` : null;
-        const maxPower = typeof p?.max_power_kw === "number" && p.max_power_kw > 0 ? `${p.max_power_kw}kW max` : null;
-        const connCount = typeof p?.connector_count === "number" ? `${p.connector_count} connector${p.connector_count !== 1 ? "s" : ""}` : null;
+        const evId = p?.id ? String(p.id) : `ev_${e.lngLat.lat}_${e.lngLat.lng}`;
 
-        const subtitle = [operator, distKm].filter(Boolean).join(" · ");
-
-        // Parse connectors from JSON
-        type Conn = { type: string; power_kw?: number | null; quantity: number };
-        let connectors: Conn[] = [];
+        // Build extra props from feature properties so PlaceDetailSheet can display EV info
+        const extra: Record<string, unknown> = {};
+        if (p?.operator) extra.operator = String(p.operator);
+        if (p?.address) extra.address = String(p.address);
+        if (p?.max_power_kw) extra.max_power_kw = p.max_power_kw;
+        if (p?.connector_count) extra.connector_count = p.connector_count;
+        if (p?.usage_cost) extra.usage_cost = String(p.usage_cost);
+        if (p?.is_operational != null) extra.is_operational = p.is_operational;
+        // Parse connectors from JSON for the sheet
         try {
           const raw = p?.connectors_json;
           if (typeof raw === "string" && raw.length > 2) {
-            connectors = JSON.parse(raw) as Conn[];
+            const parsed = JSON.parse(raw) as { type: string; power_kw?: number | null; quantity: number }[];
+            extra.socket_types = parsed.map((cn) => cn.type);
+            extra.connectors_json = raw;
           }
         } catch {}
 
-        let connectorHtml = "";
-        if (connectors.length > 0) {
-          const rows = connectors.map((cn) => {
-            const power = cn.power_kw ? `${cn.power_kw}kW` : "";
-            const qty = cn.quantity > 1 ? `×${cn.quantity}` : "";
-            return `<div style="display:flex;justify-content:space-between;gap:8px"><span>${escapeHtml(cn.type)} ${qty}</span><span style="font-weight:800;color:var(--roam-text)">${power}</span></div>`;
-          }).join("");
-          connectorHtml = `<div style="margin-top:6px;font-size:11px;font-weight:600;color:var(--roam-text-muted);line-height:1.7">${rows}</div>`;
-        } else if (connCount || maxPower) {
-          connectorHtml = `<div style="margin-top:4px;font-size:11px;font-weight:600;color:var(--roam-text-muted)">${[connCount, maxPower].filter(Boolean).join(" · ")}</div>`;
-        }
-
-        const costHtml = p?.usage_cost ? `<div style="margin-top:3px;font-size:10px;font-weight:700;color:#9ca3af">${escapeHtml(String(p.usage_cost))}</div>` : "";
-        const addrHtml = address ? `<div style="margin-top:3px;font-size:10px;font-weight:700;color:#9ca3af">${escapeHtml(address)}</div>` : "";
-        const statusText = p?.is_operational === true ? "Operational" : p?.is_operational === false ? "Out of Service" : "Status Unknown";
-        const statusColor = p?.is_operational === true ? "#22c55e" : p?.is_operational === false ? "#ef4444" : "#9ca3af";
-
-        try {
-          popupRef.current?.remove();
-          popupRef.current = new maplibregl.Popup({ closeButton: true, closeOnClick: true, className: "trip-map-popup" })
-            .setLngLat(e.lngLat)
-            .setHTML(buildOverlayPopupHtml(name, statusText, statusColor) + connectorHtml + costHtml + addrHtml)
-            .addTo(map);
-        } catch {}
+        onOpenPlaceDetailRef.current?.(evId, {
+          lat: e.lngLat.lat,
+          lng: e.lngLat.lng,
+          name,
+          category: "ev_charger",
+          extra,
+        });
       });
       map.on("mouseenter", EV_ICON_LAYER, () => (map.getCanvas().style.cursor = "pointer"));
       map.on("mouseleave", EV_ICON_LAYER, () => (map.getCanvas().style.cursor = ""));
@@ -2724,16 +2771,19 @@ export function TripMap(props: Props) {
         if (!f) return;
         const p = f.properties;
         const label = p?.name ? String(p.name) : "Rest Area";
-        const typeStr = String(p?.type ?? "rest_area").replace(/_/g, " ");
-        const qualityLine = "";
-        const facilitiesStr = p?.facilities_summary ? `<div style="margin-top:2px;font-size:10px;color:var(--roam-text-muted)">${escapeHtml(String(p.facilities_summary))}</div>` : "";
-        try {
-          popupRef.current?.remove();
-          popupRef.current = new maplibregl.Popup({ closeButton: true, closeOnClick: true, className: "trip-map-popup" })
-            .setLngLat(e.lngLat)
-            .setHTML(buildOverlayPopupHtml(label, typeStr, "#6366f1") + qualityLine + facilitiesStr)
-            .addTo(map);
-        } catch {}
+        const restId = p?.id ? String(p.id) : `rest_${e.lngLat.lat}_${e.lngLat.lng}`;
+
+        const extra: Record<string, unknown> = {};
+        if (p?.type) extra.rest_area_type = String(p.type);
+        if (p?.facilities_summary) extra.description = String(p.facilities_summary);
+
+        onOpenPlaceDetailRef.current?.(restId, {
+          lat: e.lngLat.lat,
+          lng: e.lngLat.lng,
+          name: label,
+          category: "rest_area",
+          extra,
+        });
       });
       map.on("mouseenter", REST_AREAS_ICON_LAYER, () => (map.getCanvas().style.cursor = "pointer"));
       map.on("mouseleave", REST_AREAS_ICON_LAYER, () => (map.getCanvas().style.cursor = ""));
@@ -2809,6 +2859,10 @@ export function TripMap(props: Props) {
   }, [props.styleId]);
 
   /* ── Data updates ───────────────────────────────────────────────────── */
+  useEffect(() => {
+    const s = mapRef.current?.getSource(CORRIDOR_BBOX_SRC) as GeoJSONSource | undefined;
+    s?.setData(corridorBboxFC);
+  }, [corridorBboxFC]);
   useEffect(() => {
     const s = mapRef.current?.getSource(ROUTE_SRC) as GeoJSONSource | undefined;
     s?.setData(routeFC);
@@ -2961,11 +3015,12 @@ export function TripMap(props: Props) {
       return undefined;
     })();
 
+    const culledWeatherFC = vpBoundsRef.current ? cullFeatures(weatherFC, vpBoundsRef.current) : weatherFC;
     const existingSrc = map.getSource(WEATHER_SRC) as GeoJSONSource | undefined;
     if (existingSrc) {
-      existingSrc.setData(weatherFC);
+      existingSrc.setData(culledWeatherFC);
     } else {
-      map.addSource(WEATHER_SRC, { type: "geojson", data: weatherFC, cluster: false });
+      map.addSource(WEATHER_SRC, { type: "geojson", data: culledWeatherFC, cluster: false });
 
       map.addLayer({
         id: WEATHER_DOT_LAYER,
@@ -3004,7 +3059,7 @@ export function TripMap(props: Props) {
       if (map.getLayer(WEATHER_DOT_LAYER)) map.setLayoutProperty(WEATHER_DOT_LAYER, "visibility", v);
       if (map.getLayer(WEATHER_LABEL_LAYER)) map.setLayoutProperty(WEATHER_LABEL_LAYER, "visibility", v);
     }
-  }, [props.weather, styleReady]);
+  }, [props.weather, styleReady, vpBounds]);
 
   /* ── Emergency services overlay ──────────────────────────────────────── */
   useEffect(() => {
@@ -3024,10 +3079,11 @@ export function TripMap(props: Props) {
         geometry: { type: "Point" as const, coordinates: [f.lng, f.lat] },
       })),
     };
+    const culledFC = vpBoundsRef.current ? cullFeatures(fc, vpBoundsRef.current) : fc;
     const beforeId = (() => { for (const id of [STOPS_SHADOW, STOPS_OUTER]) { if (map.getLayer(id)) return id; } return undefined; })();
     const existingSrc = map.getSource(EMERGENCY_SRC) as GeoJSONSource | undefined;
-    if (existingSrc) { existingSrc.setData(fc); } else {
-      map.addSource(EMERGENCY_SRC, { type: "geojson", data: fc, cluster: false });
+    if (existingSrc) { existingSrc.setData(culledFC); } else {
+      map.addSource(EMERGENCY_SRC, { type: "geojson", data: culledFC, cluster: false });
       map.addLayer({ id: EMERGENCY_ICON_LAYER, type: "circle", source: EMERGENCY_SRC, minzoom: 8,
         paint: { "circle-radius": 6, "circle-color": ["match", ["get", "facility_type"], "hospital", "#ef4444", "police", "#3b82f6", "fire", "#f97316", "ambulance", "#22c55e", "ses", "#eab308", "#9ca3af"], "circle-stroke-color": "#fff", "circle-stroke-width": 1.5, "circle-opacity": 0.9 },
       }, beforeId);
@@ -3039,7 +3095,7 @@ export function TripMap(props: Props) {
       if (map.getLayer(EMERGENCY_ICON_LAYER)) map.setLayoutProperty(EMERGENCY_ICON_LAYER, "visibility", v);
       if (map.getLayer(EMERGENCY_LABEL_LAYER)) map.setLayoutProperty(EMERGENCY_LABEL_LAYER, "visibility", v);
     }
-  }, [props.emergency, styleReady]);
+  }, [props.emergency, styleReady, vpBounds]);
 
   /* ── Heritage overlay ────────────────────────────────────────────────── */
   useEffect(() => {
@@ -3059,17 +3115,18 @@ export function TripMap(props: Props) {
         geometry: { type: "Point" as const, coordinates: [s.lng!, s.lat!] },
       })),
     };
+    const culledFC = vpBoundsRef.current ? cullFeatures(fc, vpBoundsRef.current) : fc;
     const beforeId = (() => { for (const id of [STOPS_SHADOW, STOPS_OUTER]) { if (map.getLayer(id)) return id; } return undefined; })();
     const existingSrc = map.getSource(HERITAGE_SRC) as GeoJSONSource | undefined;
-    if (existingSrc) { existingSrc.setData(fc); } else {
-      map.addSource(HERITAGE_SRC, { type: "geojson", data: fc, cluster: false });
+    if (existingSrc) { existingSrc.setData(culledFC); } else {
+      map.addSource(HERITAGE_SRC, { type: "geojson", data: culledFC, cluster: false });
       map.addLayer({ id: HERITAGE_ICON_LAYER, type: "circle", source: HERITAGE_SRC, minzoom: 8,
         paint: { "circle-radius": 6, "circle-color": "#a855f7", "circle-stroke-color": "#fff", "circle-stroke-width": 1.5, "circle-opacity": 0.85 },
       }, beforeId);
       const v = overlayVisRef.current.heritage ? "visible" : "none";
       if (map.getLayer(HERITAGE_ICON_LAYER)) map.setLayoutProperty(HERITAGE_ICON_LAYER, "visibility", v);
     }
-  }, [props.heritage, styleReady]);
+  }, [props.heritage, styleReady, vpBounds]);
 
   /* ── Air Quality overlay ─────────────────────────────────────────────── */
   useEffect(() => {
@@ -3092,10 +3149,11 @@ export function TripMap(props: Props) {
         };
       }),
     };
+    const culledFC = vpBoundsRef.current ? cullFeatures(fc, vpBoundsRef.current) : fc;
     const beforeId = (() => { for (const id of [STOPS_SHADOW, STOPS_OUTER]) { if (map.getLayer(id)) return id; } return undefined; })();
     const existingSrc = map.getSource(AQI_SRC) as GeoJSONSource | undefined;
-    if (existingSrc) { existingSrc.setData(fc); } else {
-      map.addSource(AQI_SRC, { type: "geojson", data: fc, cluster: false });
+    if (existingSrc) { existingSrc.setData(culledFC); } else {
+      map.addSource(AQI_SRC, { type: "geojson", data: culledFC, cluster: false });
       map.addLayer({ id: AQI_DOT_LAYER, type: "circle", source: AQI_SRC, minzoom: 7,
         paint: { "circle-radius": 7, "circle-color": ["get", "color"], "circle-stroke-color": "rgba(255,255,255,0.7)", "circle-stroke-width": 1.5, "circle-opacity": 0.85 },
       }, beforeId);
@@ -3107,7 +3165,7 @@ export function TripMap(props: Props) {
       if (map.getLayer(AQI_DOT_LAYER)) map.setLayoutProperty(AQI_DOT_LAYER, "visibility", v);
       if (map.getLayer(AQI_LABEL_LAYER)) map.setLayoutProperty(AQI_LABEL_LAYER, "visibility", v);
     }
-  }, [props.airQuality, styleReady]);
+  }, [props.airQuality, styleReady, vpBounds]);
 
   /* ── Bushfire overlay ────────────────────────────────────────────────── */
   useEffect(() => {
@@ -3137,17 +3195,19 @@ export function TripMap(props: Props) {
         geometry: { type: "Point" as const, coordinates: [h.lng, h.lat] },
       })),
     };
+    const culledIncidentFC = vpBoundsRef.current ? cullFeatures(incidentFC, vpBoundsRef.current) : incidentFC;
+    const culledHotspotFC = vpBoundsRef.current ? cullFeatures(hotspotFC, vpBoundsRef.current) : hotspotFC;
     const beforeId = (() => { for (const id of [STOPS_SHADOW, STOPS_OUTER]) { if (map.getLayer(id)) return id; } return undefined; })();
     const s1 = map.getSource(BUSHFIRE_SRC) as GeoJSONSource | undefined;
-    if (s1) { s1.setData(incidentFC); } else {
-      map.addSource(BUSHFIRE_SRC, { type: "geojson", data: incidentFC, cluster: false });
+    if (s1) { s1.setData(culledIncidentFC); } else {
+      map.addSource(BUSHFIRE_SRC, { type: "geojson", data: culledIncidentFC, cluster: false });
       map.addLayer({ id: BUSHFIRE_ICON_LAYER, type: "circle", source: BUSHFIRE_SRC, minzoom: 6,
         paint: { "circle-radius": 8, "circle-color": ["match", ["get", "alert_level"], "Emergency Warning", "#dc2626", "Watch and Act", "#f97316", "Advice", "#eab308", "#f97316"], "circle-stroke-color": "#fff", "circle-stroke-width": 1.5, "circle-opacity": 0.9 },
       }, beforeId);
     }
     const s2 = map.getSource(BUSHFIRE_HOTSPOT_SRC) as GeoJSONSource | undefined;
-    if (s2) { s2.setData(hotspotFC); } else {
-      map.addSource(BUSHFIRE_HOTSPOT_SRC, { type: "geojson", data: hotspotFC, cluster: false });
+    if (s2) { s2.setData(culledHotspotFC); } else {
+      map.addSource(BUSHFIRE_HOTSPOT_SRC, { type: "geojson", data: culledHotspotFC, cluster: false });
       map.addLayer({ id: BUSHFIRE_HOTSPOT_LAYER, type: "circle", source: BUSHFIRE_HOTSPOT_SRC, minzoom: 7,
         paint: { "circle-radius": 4, "circle-color": "#ef4444", "circle-stroke-color": "rgba(255,255,255,0.5)", "circle-stroke-width": 1, "circle-opacity": 0.7 },
       }, beforeId);
@@ -3155,7 +3215,7 @@ export function TripMap(props: Props) {
     const v = overlayVisRef.current.bushfire ? "visible" : "none";
     if (map.getLayer(BUSHFIRE_ICON_LAYER)) map.setLayoutProperty(BUSHFIRE_ICON_LAYER, "visibility", v);
     if (map.getLayer(BUSHFIRE_HOTSPOT_LAYER)) map.setLayoutProperty(BUSHFIRE_HOTSPOT_LAYER, "visibility", v);
-  }, [props.bushfire, styleReady]);
+  }, [props.bushfire, styleReady, vpBounds]);
 
   /* ── Speed Cameras + Black Spots overlay ──────────────────────────────── */
   useEffect(() => {
@@ -3185,17 +3245,19 @@ export function TripMap(props: Props) {
         geometry: { type: "Point" as const, coordinates: [b.lng, b.lat] },
       })),
     };
+    const culledCamerasFC = vpBoundsRef.current ? cullFeatures(camerasFC, vpBoundsRef.current) : camerasFC;
+    const culledBlackspotFC = vpBoundsRef.current ? cullFeatures(blackspotFC, vpBoundsRef.current) : blackspotFC;
     const beforeId = (() => { for (const id of [STOPS_SHADOW, STOPS_OUTER]) { if (map.getLayer(id)) return id; } return undefined; })();
     const s1 = map.getSource(CAMERAS_SRC) as GeoJSONSource | undefined;
-    if (s1) { s1.setData(camerasFC); } else {
-      map.addSource(CAMERAS_SRC, { type: "geojson", data: camerasFC, cluster: false });
+    if (s1) { s1.setData(culledCamerasFC); } else {
+      map.addSource(CAMERAS_SRC, { type: "geojson", data: culledCamerasFC, cluster: false });
       map.addLayer({ id: CAMERAS_ICON_LAYER, type: "circle", source: CAMERAS_SRC, minzoom: 9,
         paint: { "circle-radius": 5, "circle-color": "#6366f1", "circle-stroke-color": "#fff", "circle-stroke-width": 1.5, "circle-opacity": 0.9 },
       }, beforeId);
     }
     const s2 = map.getSource(BLACKSPOT_SRC) as GeoJSONSource | undefined;
-    if (s2) { s2.setData(blackspotFC); } else {
-      map.addSource(BLACKSPOT_SRC, { type: "geojson", data: blackspotFC, cluster: false });
+    if (s2) { s2.setData(culledBlackspotFC); } else {
+      map.addSource(BLACKSPOT_SRC, { type: "geojson", data: culledBlackspotFC, cluster: false });
       map.addLayer({ id: BLACKSPOT_LAYER, type: "circle", source: BLACKSPOT_SRC, minzoom: 9,
         paint: { "circle-radius": 5, "circle-color": "#dc2626", "circle-stroke-color": "#fff", "circle-stroke-width": 1, "circle-opacity": 0.8 },
       }, beforeId);
@@ -3203,7 +3265,7 @@ export function TripMap(props: Props) {
     const v = overlayVisRef.current.cameras ? "visible" : "none";
     if (map.getLayer(CAMERAS_ICON_LAYER)) map.setLayoutProperty(CAMERAS_ICON_LAYER, "visibility", v);
     if (map.getLayer(BLACKSPOT_LAYER)) map.setLayoutProperty(BLACKSPOT_LAYER, "visibility", v);
-  }, [props.speedCameras, styleReady]);
+  }, [props.speedCameras, styleReady, vpBounds]);
 
   /* ── Toilets overlay ─────────────────────────────────────────────────── */
   useEffect(() => {
@@ -3223,17 +3285,18 @@ export function TripMap(props: Props) {
         geometry: { type: "Point" as const, coordinates: [t.lng, t.lat] },
       })),
     };
+    const culledFC = vpBoundsRef.current ? cullFeatures(fc, vpBoundsRef.current) : fc;
     const beforeId = (() => { for (const id of [STOPS_SHADOW, STOPS_OUTER]) { if (map.getLayer(id)) return id; } return undefined; })();
     const existingSrc = map.getSource(TOILETS_SRC) as GeoJSONSource | undefined;
-    if (existingSrc) { existingSrc.setData(fc); } else {
-      map.addSource(TOILETS_SRC, { type: "geojson", data: fc, cluster: false });
+    if (existingSrc) { existingSrc.setData(culledFC); } else {
+      map.addSource(TOILETS_SRC, { type: "geojson", data: culledFC, cluster: false });
       map.addLayer({ id: TOILETS_ICON_LAYER, type: "circle", source: TOILETS_SRC, minzoom: 9,
         paint: { "circle-radius": 5, "circle-color": "#06b6d4", "circle-stroke-color": "#fff", "circle-stroke-width": 1.5, "circle-opacity": 0.85 },
       }, beforeId);
       const v = overlayVisRef.current.toilets ? "visible" : "none";
       if (map.getLayer(TOILETS_ICON_LAYER)) map.setLayoutProperty(TOILETS_ICON_LAYER, "visibility", v);
     }
-  }, [props.toilets, styleReady]);
+  }, [props.toilets, styleReady, vpBounds]);
 
   /* ── School Zones overlay ────────────────────────────────────────────── */
   useEffect(() => {
@@ -3253,17 +3316,18 @@ export function TripMap(props: Props) {
         geometry: { type: "Point" as const, coordinates: [z.lng, z.lat] },
       })),
     };
+    const culledFC = vpBoundsRef.current ? cullFeatures(fc, vpBoundsRef.current) : fc;
     const beforeId = (() => { for (const id of [STOPS_SHADOW, STOPS_OUTER]) { if (map.getLayer(id)) return id; } return undefined; })();
     const existingSrc = map.getSource(SCHOOL_ZONES_SRC) as GeoJSONSource | undefined;
-    if (existingSrc) { existingSrc.setData(fc); } else {
-      map.addSource(SCHOOL_ZONES_SRC, { type: "geojson", data: fc, cluster: false });
+    if (existingSrc) { existingSrc.setData(culledFC); } else {
+      map.addSource(SCHOOL_ZONES_SRC, { type: "geojson", data: culledFC, cluster: false });
       map.addLayer({ id: SCHOOL_ZONES_ICON_LAYER, type: "circle", source: SCHOOL_ZONES_SRC, minzoom: 9,
         paint: { "circle-radius": 6, "circle-color": ["case", ["get", "is_active"], "#ef4444", "#f59e0b"], "circle-stroke-color": "#fff", "circle-stroke-width": 1.5, "circle-opacity": 0.9 },
       }, beforeId);
       const v = overlayVisRef.current.school_zones ? "visible" : "none";
       if (map.getLayer(SCHOOL_ZONES_ICON_LAYER)) map.setLayoutProperty(SCHOOL_ZONES_ICON_LAYER, "visibility", v);
     }
-  }, [props.schoolZones, styleReady]);
+  }, [props.schoolZones, styleReady, vpBounds]);
 
   /* ── Roadkill hotspots overlay ───────────────────────────────────────── */
   useEffect(() => {
@@ -3283,17 +3347,18 @@ export function TripMap(props: Props) {
         geometry: { type: "Point" as const, coordinates: [h.lng, h.lat] },
       })),
     };
+    const culledFC = vpBoundsRef.current ? cullFeatures(fc, vpBoundsRef.current) : fc;
     const beforeId = (() => { for (const id of [STOPS_SHADOW, STOPS_OUTER]) { if (map.getLayer(id)) return id; } return undefined; })();
     const existingSrc = map.getSource(ROADKILL_SRC) as GeoJSONSource | undefined;
-    if (existingSrc) { existingSrc.setData(fc); } else {
-      map.addSource(ROADKILL_SRC, { type: "geojson", data: fc, cluster: false });
+    if (existingSrc) { existingSrc.setData(culledFC); } else {
+      map.addSource(ROADKILL_SRC, { type: "geojson", data: culledFC, cluster: false });
       map.addLayer({ id: ROADKILL_DOT_LAYER, type: "circle", source: ROADKILL_SRC, minzoom: 8,
         paint: { "circle-radius": 5, "circle-color": ["match", ["get", "risk_level"], "high", "#dc2626", "medium", "#f97316", "#eab308"], "circle-stroke-color": "#fff", "circle-stroke-width": 1, "circle-opacity": 0.8 },
       }, beforeId);
       const v = overlayVisRef.current.roadkill ? "visible" : "none";
       if (map.getLayer(ROADKILL_DOT_LAYER)) map.setLayoutProperty(ROADKILL_DOT_LAYER, "visibility", v);
     }
-  }, [props.roadkill, styleReady]);
+  }, [props.roadkill, styleReady, vpBounds]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -3414,9 +3479,13 @@ export function TripMap(props: Props) {
       try { map.addSource(SUG_FOCUS_SRC, { type: "geojson", data: focusFC }); } catch {}
     }
 
-    // 3. Animate the pulsing ping ring
+    // 3. Animate the pulsing ping ring (~30fps, pauses when tab hidden)
     let frame = 0;
-    const animate = () => {
+    let lastT = 0;
+    const animate = (now: number) => {
+      if (document.hidden) { sugFocusRaf.current = requestAnimationFrame(animate); return; }
+      if (now - lastT < 33) { sugFocusRaf.current = requestAnimationFrame(animate); return; } // ~30fps
+      lastT = now;
       frame++;
       const t = (frame % 60) / 60;
       const radius = 22 + t * 28;
@@ -3429,25 +3498,7 @@ export function TripMap(props: Props) {
     };
     sugFocusRaf.current = requestAnimationFrame(animate);
 
-    // 4. Show a popup after a short delay (let the camera settle)
-    const popupTimer = setTimeout(() => {
-      try {
-        popupRef.current?.remove();
-        const html = buildSuggestionPopupHtml(name, category, id);
-        popupRef.current = new maplibregl.Popup({
-          closeButton: true,
-          closeOnClick: true,
-          className: "trip-map-popup",
-          maxWidth: "280px",
-          offset: [0, -16],
-        })
-          .setLngLat(coord!)
-          .setHTML(html)
-          .addTo(map);
-      } catch {}
-    }, 350);
-
-    // 5. Notify parent
+    // 4. Notify parent (popup removed — PlaceDetailSheet handles display)
     onSugPressRef.current?.(id);
 
     return () => {
@@ -3455,9 +3506,8 @@ export function TripMap(props: Props) {
         cancelAnimationFrame(sugFocusRaf.current);
         sugFocusRaf.current = null;
       }
-      clearTimeout(popupTimer);
     };
-  }, [props.focusedSuggestionId, props.suggestions, props.focusFallbackCoord, props.focusFallbackName, props.navigationMode, buildSuggestionPopupHtml]);
+  }, [props.focusedSuggestionId, props.suggestions, props.focusFallbackCoord, props.focusFallbackName, props.navigationMode]);
 
   /* ── Highlighted alert → in-place pulse ring (no camera move) ────────── */
   useEffect(() => {
@@ -3523,7 +3573,11 @@ export function TripMap(props: Props) {
 
     let frame = 0;
     let raf: number;
-    const animate = () => {
+    let lastT = 0;
+    const animate = (now: number) => {
+      if (document.hidden) { raf = requestAnimationFrame(animate); return; }
+      if (now - lastT < 33) { raf = requestAnimationFrame(animate); return; } // ~30fps
+      lastT = now;
       frame++;
       const t = (frame % 60) / 60;
       const radius = 18 + t * 24;
@@ -3577,21 +3631,8 @@ export function TripMap(props: Props) {
             <button
               type="button"
               aria-label="Map layers"
+              className={`layer-toggle-btn${anyOff ? " layer-toggle-btn--filtered" : ""}`}
               onClick={() => setLayerMenuOpen((v) => !v)}
-              style={{
-                width: 46, height: 46, borderRadius: 16,
-                border: anyOff ? "1px solid rgba(45,110,64,0.35)" : "1px solid rgba(255,255,255,0.09)",
-                cursor: "pointer", display: "grid", placeItems: "center",
-                background: anyOff
-                  ? "linear-gradient(160deg, rgba(45,110,64,0.95) 0%, rgba(31,82,54,0.98) 100%)"
-                  : "linear-gradient(160deg, rgba(26,21,16,0.96) 0%, rgba(16,13,10,0.98) 100%)",
-                color: "var(--on-color)",
-                backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
-                boxShadow: anyOff
-                  ? "0 4px 16px rgba(45,110,64,0.30), 0 1px 4px rgba(0,0,0,0.2)"
-                  : "0 4px 16px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.15)",
-                transition: "transform 0.1s ease, background 0.2s ease, box-shadow 0.2s ease",
-              }}
               onPointerDown={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(0.90)"; }}
               onPointerUp={(e) => { (e.currentTarget as HTMLElement).style.transform = ""; }}
               onPointerLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = ""; }}
@@ -3606,19 +3647,7 @@ export function TripMap(props: Props) {
 
             {/* Expanded menu — left of button on desktop, below on mobile */}
             {layerMenuVisible && (
-              <div className="layer-menu-dropdown" style={{
-                background: "linear-gradient(160deg, rgba(26,21,16,0.97) 0%, rgba(16,13,10,0.99) 100%)",
-                backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
-                borderRadius: 18,
-                border: "1px solid rgba(255,255,255,0.07)",
-                boxShadow: "0 12px 40px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.05)",
-                minWidth: 150,
-                display: "flex", flexDirection: "column",
-                overflow: "hidden",
-                opacity: layerMenuMounted ? 1 : 0,
-                transform: layerMenuMounted ? "translateY(0) scale(1)" : "translateY(-8px) scale(0.96)",
-                transition: "opacity 280ms cubic-bezier(0.34,1.56,0.64,1), transform 280ms cubic-bezier(0.34,1.56,0.64,1)",
-              }}>
+              <div className={`layer-menu-dropdown${layerMenuMounted ? " layer-menu-dropdown--open" : ""}`}>
               <div style={{
                 overflowY: "auto",
                 flex: 1,
@@ -3628,27 +3657,16 @@ export function TripMap(props: Props) {
                 {/* Toggle All */}
                 <button
                   type="button"
+                  className="layer-menu-item layer-menu-item--all"
                   onClick={() => {
                     const next = allOn
                       ? Object.fromEntries(ALL_OVERLAY_KEYS.map((k) => [k, false])) as OverlayVisibility
                       : { ...DEFAULT_VIS };
                     setOverlayVis(next);
                   }}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 10,
-                    padding: "8px 12px", borderRadius: 10, border: "none",
-                    background: "transparent", color: "white", cursor: "pointer",
-                    fontSize: 13, fontWeight: 700, width: "100%", textAlign: "left",
-                    borderBottom: "1px solid rgba(255,255,255,0.08)",
-                  }}
                 >
-                  <span style={{
-                    width: 18, height: 18, borderRadius: 5,
-                    border: allOn ? "none" : "2px solid rgba(255,255,255,0.4)",
-                    background: allOn ? "white" : "transparent",
-                    display: "grid", placeItems: "center", flexShrink: 0,
-                  }}>
-                    {allOn && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#111" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>}
+                  <span className={`layer-menu-check${allOn ? " layer-menu-check--on" : ""}`}>
+                    {allOn && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--roam-bg, #0f0f0f)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>}
                   </span>
                   All layers
                 </button>
@@ -3676,21 +3694,13 @@ export function TripMap(props: Props) {
                   <button
                     key={key}
                     type="button"
+                    className="layer-menu-item"
                     onClick={() => setOverlayVis((prev) => ({ ...prev, [key]: !prev[key] }))}
-                    style={{
-                      display: "flex", alignItems: "center", gap: 10,
-                      padding: "8px 12px", borderRadius: 10, border: "none",
-                      background: "transparent", color: "white", cursor: "pointer",
-                      fontSize: 13, fontWeight: 500, width: "100%", textAlign: "left",
-                    }}
                   >
-                    <span style={{
-                      width: 18, height: 18, borderRadius: 5,
-                      border: overlayVis[key] ? "none" : "2px solid rgba(255,255,255,0.4)",
-                      background: overlayVis[key] ? color : "transparent",
-                      display: "grid", placeItems: "center", flexShrink: 0,
-                      transition: "background 0.15s ease",
-                    }}>
+                    <span
+                      className="layer-menu-check"
+                      style={overlayVis[key] ? { background: color, border: "none" } : undefined}
+                    >
                       {overlayVis[key] && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>}
                     </span>
                     <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -3708,23 +3718,16 @@ export function TripMap(props: Props) {
                 const styleId = props.styleId;
                 const mode: MapBaseMode = styleId === "roam-basemap-hybrid" ? "hybrid" : "vector";
                 const vectorTheme: VectorTheme = styleId === "roam-basemap-vector-dark" ? "dark" : "bright";
-                const btnBase = MAP_STYLE_BTN_BASE;
                 return (
-                  <div style={{
-                    padding: "8px 8px 6px",
-                    borderTop: "1px solid rgba(255,255,255,0.08)",
-                    display: "flex", flexDirection: "column", gap: 6,
-                  }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", letterSpacing: "0.08em", padding: "0 4px" }}>MAP STYLE</span>
+                  <div className="layer-menu-style-section">
+                    <span className="layer-menu-style-label">MAP STYLE</span>
                     {/* Map / Sat row */}
                     <div style={{ display: "flex", gap: 4 }}>
-                      <button type="button" onClick={() => { haptic.selection(); props.onStyleChange!({ mode: "vector", vectorTheme }); }}
-                        style={{ ...btnBase, background: mode === "vector" ? "rgba(255,255,255,0.18)" : "transparent", color: "white" }}>
+                      <button type="button" className={`layer-menu-style-btn${mode === "vector" ? " layer-menu-style-btn--active" : ""}`} onClick={() => { haptic.selection(); props.onStyleChange!({ mode: "vector", vectorTheme }); }}>
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z"/><path d="M9 3v15M15 6v15"/></svg>
                         Map
                       </button>
-                      <button type="button" onClick={() => { haptic.selection(); props.onStyleChange!({ mode: "hybrid", vectorTheme }); }}
-                        style={{ ...btnBase, background: mode === "hybrid" ? "rgba(255,255,255,0.18)" : "transparent", color: "white" }}>
+                      <button type="button" className={`layer-menu-style-btn${mode === "hybrid" ? " layer-menu-style-btn--active" : ""}`} onClick={() => { haptic.selection(); props.onStyleChange!({ mode: "hybrid", vectorTheme }); }}>
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m2 12 4-4 4 4 4-4 4 4"/><path d="m6 16 2-2 4 2 4-2 2 2"/></svg>
                         Sat
                       </button>
@@ -3732,13 +3735,11 @@ export function TripMap(props: Props) {
                     {/* Bright / Dark row — animates in when vector mode is active */}
                     <div className={mode === "vector" ? "style-theme-row style-theme-row--open" : "style-theme-row"}>
                       <div style={{ display: "flex", gap: 4 }}>
-                        <button type="button" onClick={() => { haptic.selection(); props.onStyleChange!({ mode: "vector", vectorTheme: "bright" }); }}
-                          style={{ ...btnBase, background: vectorTheme === "bright" ? "rgba(255,255,255,0.18)" : "transparent", color: "white" }}>
+                        <button type="button" className={`layer-menu-style-btn${vectorTheme === "bright" ? " layer-menu-style-btn--active" : ""}`} onClick={() => { haptic.selection(); props.onStyleChange!({ mode: "vector", vectorTheme: "bright" }); }}>
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
                           Bright
                         </button>
-                        <button type="button" onClick={() => { haptic.selection(); props.onStyleChange!({ mode: "vector", vectorTheme: "dark" }); }}
-                          style={{ ...btnBase, background: vectorTheme === "dark" ? "rgba(255,255,255,0.18)" : "transparent", color: "white" }}>
+                        <button type="button" className={`layer-menu-style-btn${vectorTheme === "dark" ? " layer-menu-style-btn--active" : ""}`} onClick={() => { haptic.selection(); props.onStyleChange!({ mode: "vector", vectorTheme: "dark" }); }}>
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
                           Dark
                         </button>
@@ -3755,31 +3756,127 @@ export function TripMap(props: Props) {
       })()}
 
       <style>{`
-        /* Layer menu — mobile: below button, capped height with scroll fade */
+        /* ── Layer toggle button ── */
+        .layer-toggle-btn {
+          width: 46px; height: 46px; border-radius: 16px;
+          border: 1px solid rgba(0,0,0,0.10);
+          cursor: pointer; display: grid; place-items: center;
+          background: linear-gradient(160deg, rgba(255,255,255,0.92) 0%, rgba(244,239,230,0.96) 100%);
+          color: var(--text-main, #1a1613);
+          backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+          box-shadow: 0 4px 16px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.06);
+          transition: transform 0.1s ease, background 0.2s ease, box-shadow 0.2s ease;
+        }
+        .layer-toggle-btn--filtered {
+          background: linear-gradient(160deg, rgba(45,110,64,0.95) 0%, rgba(31,82,54,0.98) 100%);
+          color: var(--on-color);
+          border: 1px solid rgba(45,110,64,0.35);
+          box-shadow: 0 4px 16px rgba(45,110,64,0.30), 0 1px 4px rgba(0,0,0,0.12);
+        }
+        @media (prefers-color-scheme: dark) {
+          .layer-toggle-btn {
+            background: linear-gradient(160deg, rgba(26,21,16,0.96) 0%, rgba(16,13,10,0.98) 100%);
+            color: var(--on-color);
+            border: 1px solid rgba(255,255,255,0.09);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.15);
+          }
+        }
+
+        /* ── Layer menu dropdown ── */
         .layer-menu-dropdown {
           position: absolute;
-          top: calc(100% + 6px);
-          right: 0;
+          top: 0;
+          right: calc(100% + 8px);
           transform-origin: top right;
-          max-height: 400px;
+          max-height: min(420px, calc(100dvh - env(safe-area-inset-top, 0px) - 56px - 180px - var(--bottom-nav-height, 80px)));
+          background: linear-gradient(160deg, rgba(255,255,255,0.97) 0%, rgba(244,239,230,0.99) 100%);
+          backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+          border-radius: 18px;
+          border: 1px solid rgba(0,0,0,0.08);
+          box-shadow: 0 12px 40px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.6);
+          min-width: 150px;
+          display: flex; flex-direction: column;
+          overflow: hidden;
+          opacity: 0;
+          transform: translateY(-8px) scale(0.96);
+          transition: opacity 280ms cubic-bezier(0.34,1.56,0.64,1), transform 280ms cubic-bezier(0.34,1.56,0.64,1);
+        }
+        .layer-menu-dropdown--open {
+          opacity: 1;
+          transform: translateY(0) scale(1);
         }
         .layer-menu-dropdown > div:first-child {
-          mask-image: linear-gradient(to bottom, black calc(100% - 40px), transparent 100%);
-          -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 40px), transparent 100%);
+          mask-image: linear-gradient(to bottom, black calc(100% - 32px), transparent 100%);
+          -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 32px), transparent 100%);
         }
-        /* Desktop (≥ 768px): open to the left, aligned to top of button */
-        @media (min-width: 768px) {
+        @media (prefers-color-scheme: dark) {
           .layer-menu-dropdown {
-            top: 0;
-            right: calc(100% + 8px);
-            transform-origin: top right;
-            max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 12px - 220px - var(--bottom-nav-height, 80px) - 8px);
-          }
-          .layer-menu-dropdown > div:first-child {
-            mask-image: none;
-            -webkit-mask-image: none;
+            background: linear-gradient(160deg, rgba(26,21,16,0.97) 0%, rgba(16,13,10,0.99) 100%);
+            border: 1px solid rgba(255,255,255,0.07);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.05);
           }
         }
+
+        /* ── Layer menu items ── */
+        .layer-menu-item {
+          display: flex; align-items: center; gap: 10px;
+          padding: 8px 12px; border-radius: 10px; border: none;
+          background: transparent; color: var(--text-main, #1a1613); cursor: pointer;
+          font-size: 13px; font-weight: 500; width: 100%; text-align: left;
+        }
+        .layer-menu-item--all {
+          font-weight: 700;
+          border-bottom: 1px solid rgba(0,0,0,0.06);
+        }
+        @media (prefers-color-scheme: dark) {
+          .layer-menu-item { color: white; }
+          .layer-menu-item--all { border-bottom-color: rgba(255,255,255,0.08); }
+        }
+
+        /* ── Layer menu checkboxes ── */
+        .layer-menu-check {
+          width: 18px; height: 18px; border-radius: 5px;
+          border: 2px solid rgba(0,0,0,0.25);
+          background: transparent;
+          display: grid; place-items: center; flex-shrink: 0;
+          transition: background 0.15s ease;
+        }
+        .layer-menu-check--on {
+          background: var(--text-main, #1a1613);
+          border: none;
+        }
+        @media (prefers-color-scheme: dark) {
+          .layer-menu-check { border-color: rgba(255,255,255,0.4); }
+          .layer-menu-check--on { background: white; }
+        }
+
+        /* ── Map style section ── */
+        .layer-menu-style-section {
+          padding: 8px 8px 6px;
+          border-top: 1px solid rgba(0,0,0,0.06);
+          display: flex; flex-direction: column; gap: 6px;
+        }
+        .layer-menu-style-label {
+          font-size: 10px; font-weight: 700; color: var(--text-muted, #7a7067);
+          letter-spacing: 0.08em; padding: 0 4px;
+        }
+        .layer-menu-style-btn {
+          flex: 1; height: 34px; border-radius: 9px; border: none;
+          cursor: pointer; font-size: 12px; font-weight: 700;
+          display: flex; align-items: center; justify-content: center; gap: 5px;
+          background: transparent; color: var(--text-main, #1a1613);
+          transition: background 0.15s ease;
+        }
+        .layer-menu-style-btn--active {
+          background: rgba(0,0,0,0.08);
+        }
+        @media (prefers-color-scheme: dark) {
+          .layer-menu-style-section { border-top-color: rgba(255,255,255,0.08); }
+          .layer-menu-style-label { color: rgba(255,255,255,0.4); }
+          .layer-menu-style-btn { color: white; }
+          .layer-menu-style-btn--active { background: rgba(255,255,255,0.18); }
+        }
+
         .style-theme-row {
           max-height: 0;
           opacity: 0;
@@ -3835,4 +3932,4 @@ export function TripMap(props: Props) {
       `}</style>
     </div>
   );
-}
+});

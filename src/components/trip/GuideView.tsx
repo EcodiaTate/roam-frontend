@@ -1397,7 +1397,7 @@ export function GuideView({
               // input bar (50px) + gaps (36px) + bottom nav + safe-area notch
               maxHeight: "calc(100dvh - 270px - var(--bottom-nav-height, 80px) - env(safe-area-inset-bottom, 0px) - var(--roam-keyboard-h, 0px))",
               overflowY: "auto", paddingRight: 2,
-              WebkitOverflowScrolling: "touch", overscrollBehavior: "contain",
+              WebkitOverflowScrolling: "touch", overscrollBehaviorX: "contain",
             }}>
               {thread.slice(-20).map((m, idx) => {
                 const mine = m.role === "user";

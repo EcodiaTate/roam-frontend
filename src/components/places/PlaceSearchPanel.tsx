@@ -17,7 +17,6 @@ import type { PlaceCategory, PlaceItem, PlacesPack } from "@/lib/types/places";
 import type { TripProgress } from "@/lib/types/guide";
 import {
   searchPlaces,
-  countByCategoryFiltered,
   type PlaceFilter,
   type SearchResult,
   type UserPosition,
@@ -250,73 +249,104 @@ function savePersistedState(s: PersistedState) {
 }
 
 // ──────────────────────────────────────────────────────────────
-// Progressively-rendered list — renders in batches to avoid
-// blocking the main thread when switching to the Places tab.
-// First INITIAL_BATCH items render immediately; the rest load
-// in BATCH_SIZE chunks via rAF so scrolling stays smooth.
-// Each row uses content-visibility:auto for browser-level skip.
+// Windowed list — only renders rows visible in the scroll
+// viewport + a small overscan buffer. Keeps DOM node count
+// constant (~20-30 nodes) regardless of total list size.
+// No external dependency — uses a single scroll listener.
 // ──────────────────────────────────────────────────────────────
 
-const INITIAL_BATCH = 20;
-const BATCH_SIZE = 40;
-const ROW_HEIGHT_ESTIMATE = 60; // px — used for content-visibility containment
+const ROW_HEIGHT = 60; // px — fixed estimate per row
+const OVERSCAN = 5;    // extra rows rendered above/below viewport
 
 type VirtualListProps = {
   items: SearchResult[];
   savedIds: Set<string>;
   onSelect?: (p: PlaceItem) => void;
+  onShowOnMap?: (p: PlaceItem) => void;
   onToggleSave: (p: PlaceItem) => void;
+  height: string | number;
 };
 
 const VirtualList = memo(function VirtualList({
   items,
   savedIds,
   onSelect,
+  onShowOnMap,
   onToggleSave,
+  height,
 }: VirtualListProps) {
-  const [rendered, setRendered] = useState(INITIAL_BATCH);
-  const rafRef = useRef(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(0);
 
-  // Reset rendered count when items change (new search/filter)
+  // Measure container and listen for scroll
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const measure = () => setContainerHeight(el.clientHeight);
+    measure();
+
+    const onScroll = () => setScrollTop(el.scrollTop);
+    el.addEventListener("scroll", onScroll, { passive: true });
+
+    // ResizeObserver for dynamic container sizing
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver(measure);
+      ro.observe(el);
+    }
+
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      ro?.disconnect();
+    };
+  }, []);
+
+  // Reset scroll position when items change (new search/filter)
   useLayoutEffect(() => {
-    setRendered(INITIAL_BATCH);
-    cancelAnimationFrame(rafRef.current);
+    containerRef.current?.scrollTo(0, 0);
+    setScrollTop(0);
   }, [items]);
 
-  // Progressively render more rows via rAF batches
-  useEffect(() => {
-    if (rendered >= items.length) return;
+  const totalHeight = items.length * ROW_HEIGHT;
+  const startIdx = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
+  const endIdx = Math.min(
+    items.length,
+    Math.ceil((scrollTop + containerHeight) / ROW_HEIGHT) + OVERSCAN,
+  );
 
-    rafRef.current = requestAnimationFrame(() => {
-      setRendered((prev) => Math.min(prev + BATCH_SIZE, items.length));
-    });
-
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [rendered, items.length]);
-
-  const visible = items.length <= INITIAL_BATCH ? items : items.slice(0, rendered);
+  const visibleItems = items.slice(startIdx, endIdx);
 
   return (
-    <>
-      {visible.map(({ place, distKm, ahead }) => (
-        <div
-          key={place.id}
-          style={{
-            contentVisibility: "auto",
-            containIntrinsicHeight: ROW_HEIGHT_ESTIMATE,
-          } as React.CSSProperties}
-        >
-          <PlaceRow
-            place={place}
-            distKm={distKm}
-            ahead={ahead}
-            onSelect={onSelect}
-            isSaved={savedIds.has(place.id)}
-            onToggleSave={onToggleSave}
-          />
+    <div
+      ref={containerRef}
+      style={{
+        height,
+        overflowY: "auto",
+        WebkitOverflowScrolling: "touch",
+        position: "relative",
+      }}
+    >
+      {/* Spacer to create correct scrollbar height */}
+      <div style={{ height: totalHeight, position: "relative" }}>
+        {/* Positioned window of visible rows */}
+        <div style={{ position: "absolute", top: startIdx * ROW_HEIGHT, left: 0, right: 0 }}>
+          {visibleItems.map(({ place, distKm, ahead }) => (
+            <PlaceRow
+              key={place.id}
+              place={place}
+              distKm={distKm}
+              ahead={ahead}
+              onSelect={onSelect}
+              onShowOnMap={onShowOnMap}
+              isSaved={savedIds.has(place.id)}
+              onToggleSave={onToggleSave}
+            />
+          ))}
         </div>
-      ))}
-    </>
+      </div>
+    </div>
   );
 });
 
@@ -335,8 +365,10 @@ export type PlaceSearchPanelProps = {
   onAddSavedToTrip?: (place: SavedPlace) => void;
   /** Called when filters change — used to highlight map markers */
   onFilteredIdsChange?: (ids: Set<string> | null) => void;
-  /** Called when user taps "Show on map" */
+  /** Called when user taps the global "Show on map" button */
   onShowOnMap?: () => void;
+  /** Called per-place when user taps the map icon on a row */
+  onShowPlaceOnMap?: (place: PlaceItem) => void;
   maxHeight?: string | number;
 };
 
@@ -348,15 +380,17 @@ export function PlaceSearchPanel({
   onAddSavedToTrip: _onAddSavedToTrip,
   onFilteredIdsChange,
   onShowOnMap,
+  onShowPlaceOnMap,
   maxHeight = "calc(100vh - 200px)",
 }: PlaceSearchPanelProps) {
-  const { savedIds, toggleSave } = useSavedPlaces();
-  const packItems = useMemo(() => places?.items ?? [], [places]);
+  const { savedIds, toggleSave, places: savedPlaces } = useSavedPlaces();
+  const packItems = useMemo(
+    () => Array.isArray(places?.items) ? places.items : [],
+    [places],
+  );
 
   // Merge saved places into the searchable pool — convert SavedPlace → PlaceItem
   // and deduplicate (pack items take priority since they have richer extra data).
-  // NOTE: savedIds is a Set<string> — we use it for the merge check too.
-  const { places: savedPlaces } = useSavedPlaces();
   const items = useMemo(() => {
     if (savedPlaces.length === 0) return packItems;
     const existingIds = new Set(packItems.map((p) => p.id));
@@ -439,8 +473,8 @@ export function PlaceSearchPanel({
     };
   }, [deferredQuery, categories, maxDistanceKm, aheadOnly, openNow, free, accessible, subFilters]);
 
-  // ── Run search ────────────────────────────────────────────────
-  const results = useMemo(
+  // ── Run search (returns results + category counts in one pass) ──
+  const { results, categoryCounts: catCounts } = useMemo(
     () => searchPlaces(items, filter, userPosition),
     [items, filter, userPosition],
   );
@@ -454,17 +488,6 @@ export function PlaceSearchPanel({
     }
     return results; // already sorted by distance from searchPlaces
   }, [results, sortMode]);
-
-  // ── Category counts (for badges) ─────────────────────────────
-  const catCounts = useMemo(
-    () =>
-      countByCategoryFiltered(items, {
-        query: deferredQuery,
-        free: (free || subFilters["free"]) || undefined,
-        openNow: openNow || undefined,
-      }),
-    [items, deferredQuery, free, subFilters, openNow],
-  );
 
   // ── Notify parent of filtered IDs ─────────────────────────────
   // Memoize the ID set so we only call the parent when the actual set of IDs
@@ -549,12 +572,6 @@ export function PlaceSearchPanel({
     return CAT_SUBFILTERS[categories[0] as PlaceCategory] ?? [];
   }, [categories]);
 
-  const listRef = useRef<HTMLDivElement>(null);
-
-  // Scroll to top when filter changes
-  useEffect(() => {
-    listRef.current?.scrollTo(0, 0);
-  }, [filter, sortMode]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0, height: "100%" }}>
@@ -858,41 +875,33 @@ export function PlaceSearchPanel({
       </div>
 
       {/* ── Results list ─────────────────────────────────────────── */}
-      <div
-        ref={listRef}
-        style={{
-          flex: 1,
-          overflowY: "auto",
-          WebkitOverflowScrolling: "touch",
-          maxHeight,
-        }}
-      >
-        {sorted.length === 0 ? (
-          <div
-            style={{
-              padding: "32px 24px",
-              textAlign: "center",
-              color: "var(--roam-text-muted)",
-              fontSize: 14,
-              fontWeight: 600,
-            }}
-          >
-            No places found
-            {hasActiveFilters && (
-              <div style={{ fontSize: 12, marginTop: 6, fontWeight: 500 }}>
-                Try adjusting your filters
-              </div>
-            )}
-          </div>
-        ) : (
-          <VirtualList
-            items={sorted}
-            savedIds={savedIds}
-            onSelect={onSelectPlace}
-            onToggleSave={toggleSave}
-          />
-        )}
-      </div>
+      {sorted.length === 0 ? (
+        <div
+          style={{
+            padding: "32px 24px",
+            textAlign: "center",
+            color: "var(--roam-text-muted)",
+            fontSize: 14,
+            fontWeight: 600,
+          }}
+        >
+          No places found
+          {hasActiveFilters && (
+            <div style={{ fontSize: 12, marginTop: 6, fontWeight: 500 }}>
+              Try adjusting your filters
+            </div>
+          )}
+        </div>
+      ) : (
+        <VirtualList
+          items={sorted}
+          savedIds={savedIds}
+          onSelect={onSelectPlace}
+          onShowOnMap={onShowPlaceOnMap}
+          onToggleSave={toggleSave}
+          height={maxHeight}
+        />
+      )}
     </div>
   );
 }
@@ -901,38 +910,40 @@ export function PlaceSearchPanel({
 // Style helpers
 // ──────────────────────────────────────────────────────────────
 
+// Pre-computed style objects — avoids allocations on every render.
+// 4 variants: active/inactive × normal/small for chips, active/inactive for badges.
+
+const CHIP_BASE: React.CSSProperties = {
+  flex: "0 0 auto",
+  borderRadius: 999,
+  border: "none",
+  display: "flex",
+  gap: 5,
+  alignItems: "center",
+  cursor: "pointer",
+  whiteSpace: "nowrap",
+  outline: "none",
+  transition: "background 100ms ease, color 100ms ease, box-shadow 100ms ease, transform 80ms ease",
+};
+
+const CHIP_STYLES = {
+  active:       { ...CHIP_BASE, padding: "7px 11px", fontSize: 13, fontWeight: 800, background: "var(--roam-surface-hover)", color: "var(--roam-text)", boxShadow: "var(--shadow-button)" } as React.CSSProperties,
+  inactive:     { ...CHIP_BASE, padding: "7px 11px", fontSize: 13, fontWeight: 800, background: "var(--roam-surface)", color: "var(--roam-text-muted)", boxShadow: "var(--shadow-soft)" } as React.CSSProperties,
+  activeSmall:  { ...CHIP_BASE, padding: "6px 10px", fontSize: 12, fontWeight: 800, background: "var(--roam-surface-hover)", color: "var(--roam-text)", boxShadow: "var(--shadow-button)" } as React.CSSProperties,
+  inactiveSmall:{ ...CHIP_BASE, padding: "6px 10px", fontSize: 12, fontWeight: 800, background: "var(--roam-surface)", color: "var(--roam-text-muted)", boxShadow: "var(--shadow-soft)" } as React.CSSProperties,
+};
+
+const BADGE_STYLES = {
+  active:   { fontSize: 10, fontWeight: 800, background: "var(--roam-accent)", color: "var(--on-color)", borderRadius: 999, padding: "1px 5px", minWidth: 16, textAlign: "center", transition: "background 100ms ease, color 100ms ease" } as React.CSSProperties,
+  inactive: { fontSize: 10, fontWeight: 800, background: "rgba(0,0,0,0.07)", color: "var(--roam-text-muted)", borderRadius: 999, padding: "1px 5px", minWidth: 16, textAlign: "center", transition: "background 100ms ease, color 100ms ease" } as React.CSSProperties,
+};
+
 function chipStyle(active: boolean, small = false): React.CSSProperties {
-  return {
-    flex: "0 0 auto",
-    borderRadius: 999,
-    border: "none",
-    padding: small ? "6px 10px" : "7px 11px",
-    fontSize: small ? 12 : 13,
-    fontWeight: 800,
-    background: active ? "var(--roam-surface-hover)" : "var(--roam-surface)",
-    color: active ? "var(--roam-text)" : "var(--roam-text-muted)",
-    boxShadow: active ? "var(--shadow-button)" : "var(--shadow-soft)",
-    display: "flex",
-    gap: 5,
-    alignItems: "center",
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-    outline: "none",
-    transition: "background 100ms ease, color 100ms ease, box-shadow 100ms ease, transform 80ms ease",
-  };
+  if (small) return active ? CHIP_STYLES.activeSmall : CHIP_STYLES.inactiveSmall;
+  return active ? CHIP_STYLES.active : CHIP_STYLES.inactive;
 }
 
 function badgeStyle(active: boolean): React.CSSProperties {
-  return {
-    fontSize: 10,
-    fontWeight: 800,
-    background: active ? "var(--roam-accent)" : "rgba(0,0,0,0.07)",
-    color: active ? "var(--on-color)" : "var(--roam-text-muted)",
-    borderRadius: 999,
-    padding: "1px 5px",
-    minWidth: 16,
-    textAlign: "center",
-    transition: "background 100ms ease, color 100ms ease",
-  };
+  return active ? BADGE_STYLES.active : BADGE_STYLES.inactive;
 }
 

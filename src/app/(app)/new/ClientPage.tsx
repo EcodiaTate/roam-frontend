@@ -61,6 +61,7 @@ export default function NewTripClientPage() {
   const [isLastFreeTrip, setIsLastFreeTrip] = useState(false);
   const [_gateChecked, setGateChecked] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
+  const [paywallVariant, setPaywallVariant] = useState<"gate" | "upgrade">("gate");
   const [unlocked, setUnlocked] = useState<boolean | null>(null);
 
   // ── Discover clone seed (still via sessionStorage — comes from /discover) ──
@@ -348,7 +349,7 @@ export default function NewTripClientPage() {
         savingOffline={bundle.building}
         savedOffline={bundle.isReady}
         unlocked={unlocked}
-        onUpgrade={() => { setPaywallOpen(true); }}
+        onUpgrade={() => { setPaywallVariant("upgrade"); setPaywallOpen(true); }}
       />
 
       {/* Planning overlay — only for full offline bundle builds */}
@@ -394,7 +395,7 @@ export default function NewTripClientPage() {
       {/* ── Paywall modal (shown when user has used all free trips) ── */}
       <PaywallModal
         open={paywallOpen}
-        variant="gate"
+        variant={paywallVariant}
         onClose={() => setPaywallOpen(false)}
         onUnlocked={() => { setPaywallOpen(false); setUnlocked(true); }}
       />

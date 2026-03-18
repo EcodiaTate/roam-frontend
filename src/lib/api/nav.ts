@@ -35,6 +35,7 @@ export type CorridorEnsureRequest = {
   profile?: string; // default "drive"
   buffer_m?: number | null;
   max_edges?: number | null;
+  stop_coords?: number[][] | null; // [[lat, lng], ...]
 };
 
 export type OverlayPollRequest = {
@@ -55,12 +56,14 @@ export const navApi = {
   route: (req: NavRequest) => api.post<NavPack>("/nav/route", req),
 
   // POST /nav/corridor/ensure -> CorridorGraphMeta
+  // The corridor query can take a while for long routes with many stops
   corridorEnsure: (req: CorridorEnsureRequest) =>
-    api.post<CorridorGraphMeta>("/nav/corridor/ensure", req),
+    api.post<CorridorGraphMeta>("/nav/corridor/ensure", req, { timeoutMs: 300_000 }),
 
   // GET /nav/corridor/{corridor_key} -> CorridorGraphPack
+  // Large corridors can be 50-100MB — allow 5 min download
   corridorGet: (corridor_key: string) =>
-    api.get<CorridorGraphPack>(`/nav/corridor/${encodeURIComponent(corridor_key)}`),
+    api.get<CorridorGraphPack>(`/nav/corridor/${encodeURIComponent(corridor_key)}`, { timeoutMs: 300_000 }),
 
   // POST /nav/elevation -> ElevationResponse
   elevation: (req: ElevationRequest) =>

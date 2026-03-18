@@ -80,9 +80,7 @@ export function NativeBootstrap() {
       // Handle notification taps → route to relevant screen
       onNotificationTap((extra) => {
         const type = extra?.type;
-        if (type === "bundle_ready" || type === "sync") {
-          router.push("/plans");
-        } else if (type === "hazard") {
+        if (type === "bundle_ready" || type === "sync" || type === "hazard") {
           router.push("/trip");
         }
       });

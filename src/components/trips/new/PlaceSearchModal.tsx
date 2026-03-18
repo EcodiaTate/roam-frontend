@@ -111,7 +111,7 @@ export function PlaceSearchModal(props: {
         {loading && <div style={{ height: 3, background: "var(--roam-accent)", borderRadius: 2, animation: "roam-pulse 1s ease-in-out infinite", marginTop: 4 }} />}
         {err && <div className="trip-err-box" style={{ marginTop: 8 }}>{err}</div>}
 
-        <div style={{ flex: 1, overflowY: "auto", marginTop: 12 }}>
+        <div style={{ flex: 1, overflowY: "auto", marginTop: 12, WebkitOverflowScrolling: "touch" as React.CSSProperties["WebkitOverflowScrolling"], overscrollBehaviorX: "contain" }}>
           {!loading && !hasSearched && q.length < MIN_QUERY_LEN && (
             <div className="trip-muted" style={{ textAlign: "center", marginTop: 60 }}>Type at least {MIN_QUERY_LEN} characters to search.</div>
           )}

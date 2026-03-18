@@ -432,7 +432,12 @@ input, textarea, [contenteditable] {
   opacity: 0;
   transition: transform var(--dur-normal) ease, opacity var(--dur-fast) ease;
 }
-.keyboard-open .roam-main { padding-bottom: 0 !important; }
+.keyboard-open .roam-main {
+  padding-bottom: 0 !important;
+  /* Collapse tab-bar offset so pages using bottom: var(--bottom-nav-height)
+     reclaim the space when the keyboard hides the tab bar. */
+  --bottom-nav-height: 0px;
+}
 
 
 /* ==========================================================================
@@ -556,6 +561,88 @@ input, textarea, [contenteditable] {
   opacity: 0.7;
   transform: scale(0.95);
   transition: transform 0.08s ease, opacity 0.08s ease;
+}
+
+/* ── Plan card action bar (mobile-first grid) ────────────── */
+.plan-card-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 0;
+}
+
+.plan-card-action-btn {
+  /* Reset */
+  all: unset;
+  box-sizing: border-box;
+
+  /* Layout — column stack: icon over label */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+
+  /* Touch-first sizing — 48px min meets Google/Apple HIG */
+  min-height: 48px;
+  padding: 8px 4px;
+  cursor: pointer;
+
+  /* Visuals */
+  font-weight: 700;
+  position: relative;
+  user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s ease, transform 80ms ease, opacity 80ms ease;
+}
+
+/* Separator between cells — right border except last child */
+.plan-card-action-btn:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 20%;
+  height: 60%;
+  width: 1px;
+  background: var(--roam-border);
+  pointer-events: none;
+}
+
+/* Labels */
+.plan-card-action-label {
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  opacity: 0.85;
+}
+
+/* ── States ── */
+.plan-card-action-btn:not(:disabled):active {
+  background: var(--roam-surface-hover);
+  transform: scale(0.92);
+  opacity: 0.8;
+}
+
+@media (hover: hover) {
+  .plan-card-action-btn:not(:disabled):hover {
+    background: var(--roam-surface-hover);
+  }
+}
+
+.plan-card-action-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+  pointer-events: none;
+}
+
+/* Danger variant — red tint on press */
+.plan-card-action-danger {
+  color: var(--roam-danger);
+}
+
+.plan-card-action-danger:not(:disabled):active {
+  background: rgba(181, 69, 46, 0.10);
 }
 
 /* ── Primary button (chunky, tactile) ─────────────────────── */
@@ -764,6 +851,31 @@ input, textarea, [contenteditable] {
   color: var(--roam-info);
 }
 
+/* ── Map overlay FAB (exchange, report, layer toggle) ─────── */
+.map-fab-btn {
+  position: relative;
+  width: 46px; height: 46px;
+  border-radius: 16px;
+  background: linear-gradient(160deg, rgba(255,255,255,0.92) 0%, rgba(244,239,230,0.96) 100%);
+  color: var(--text-main, #1a1613);
+  border: 1px solid rgba(0,0,0,0.10);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.06);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+@media (prefers-color-scheme: dark) {
+  .map-fab-btn {
+    background: linear-gradient(160deg, rgba(26,21,16,0.96) 0%, rgba(16,13,10,0.98) 100%);
+    color: var(--on-color);
+    border: 1px solid rgba(255,255,255,0.09);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.15);
+  }
+}
+
 /* ── Map blue dot pulse ───────────────────────────────────── */
 @keyframes roam-blue-dot-pulse {
   0%  { box-shadow: 0 0 0 0 var(--info-pulse-active); }
@@ -944,7 +1056,7 @@ input, textarea, [contenteditable] {
   animation: roam-slideUp var(--dur-slow) var(--spring) forwards;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
+  overscroll-behavior-x: contain;
   /* Allow native vertical pan in the scrollable modal content */
   touch-action: pan-y;
 }
@@ -1064,6 +1176,11 @@ input, textarea, [contenteditable] {
 @keyframes roam-fuel-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.85; transform: scale(1.03); }
+}
+
+@keyframes roam-bounce-hint {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(4px); }
 }
 
 @keyframes hud-pulse {
@@ -1478,7 +1595,7 @@ input, textarea, [contenteditable] {
 /* Native-feel scroll container */
 .roam-scroll {
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
+  overscroll-behavior-x: contain;
   /* Allow vertical pan so iOS/WKWebView scrolls natively rather than bubbling */
   touch-action: pan-y;
 }

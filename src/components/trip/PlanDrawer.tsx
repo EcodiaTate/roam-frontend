@@ -144,7 +144,7 @@ function InlineRename({
           {currentLabel?.trim() || fallback}
         </span>
         <Pencil
-          size={12}
+          size={14}
           style={{
             flexShrink: 0,
             color: "var(--roam-text-muted)",
@@ -193,15 +193,17 @@ function InlineRename({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          width: 28,
-          height: 28,
-          borderRadius: 6,
+          width: 36,
+          height: 36,
+          borderRadius: 8,
           background: "var(--roam-accent)",
           color: "var(--on-color)",
           flexShrink: 0,
+          touchAction: "manipulation",
+          WebkitTapHighlightColor: "transparent",
         }}
       >
-        <Check size={14} />
+        <Check size={16} />
       </button>
       <button
         type="button"
@@ -212,16 +214,18 @@ function InlineRename({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          width: 28,
-          height: 28,
-          borderRadius: 6,
+          width: 36,
+          height: 36,
+          borderRadius: 8,
           background: "var(--roam-surface)",
           border: "1px solid var(--roam-border)",
           color: "var(--roam-text-muted)",
           flexShrink: 0,
+          touchAction: "manipulation",
+          WebkitTapHighlightColor: "transparent",
         }}
       >
-        <X size={14} />
+        <X size={16} />
       </button>
     </div>
   );
@@ -426,121 +430,72 @@ function PlanCard({
       </div>
 
       {/* ── Actions bar ──────────────────────────────── */}
-      <div style={{ display: "flex", borderTop: "1px solid var(--roam-border)" }} className="trip-interactive">
+      <div
+        className="plan-card-actions"
+        style={{ borderTop: "1px solid var(--roam-border)" }}
+      >
         {!isCurrent && (
           <button
             type="button"
+            className="plan-card-action-btn"
             disabled={busy}
             onClick={(e) => {
               e.stopPropagation();
               onSetActive();
             }}
-            style={{
-              all: "unset",
-              flex: 1,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 5,
-              padding: "12px 0",
-              fontSize: 12,
-              fontWeight: 700,
-              color: "var(--brand-sky)",
-              cursor: busy ? "default" : "pointer",
-              opacity: busy ? 0.4 : 1,
-              borderRight: "1px solid var(--roam-border)",
-              WebkitTapHighlightColor: "transparent",
-            }}
+            style={{ color: "var(--brand-sky)" }}
           >
-            <Star size={12} />
-            Active
+            <Star size={16} />
+            <span className="plan-card-action-label">Active</span>
           </button>
         )}
 
         <button
           type="button"
+          className="plan-card-action-btn"
           disabled={busy}
           onClick={(e) => {
             e.stopPropagation();
             onOpen();
           }}
-          style={{
-            all: "unset",
-            flex: 1,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 4,
-            padding: "12px 0",
-            fontSize: 12,
-            fontWeight: 700,
-            color: "var(--roam-text)",
-            cursor: busy ? "default" : "pointer",
-            opacity: busy ? 0.4 : 1,
-            borderRight: "1px solid var(--roam-border)",
-            WebkitTapHighlightColor: "transparent",
-          }}
+          style={{ color: "var(--roam-text)" }}
         >
-          <Navigation size={12} />
-          Open
+          <Navigation size={16} />
+          <span className="plan-card-action-label">Open</span>
         </button>
 
         <button
           type="button"
+          className="plan-card-action-btn"
           disabled={busy}
           onClick={(e) => {
             e.stopPropagation();
             onShare();
           }}
-          style={{
-            all: "unset",
-            flex: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 4,
-            padding: "12px 11px",
-            fontSize: 11,
-            fontWeight: 700,
-            color: "var(--brand-amber)",
-            cursor: busy ? "default" : "pointer",
-            opacity: busy ? 0.4 : 1,
-            borderRight: "1px solid var(--roam-border)",
-            WebkitTapHighlightColor: "transparent",
-          }}
+          style={{ color: "var(--brand-amber)" }}
         >
-          <ImageIcon size={12} />
+          <ImageIcon size={16} />
+          <span className="plan-card-action-label">Share</span>
         </button>
 
         <button
           type="button"
+          className="plan-card-action-btn"
           disabled={busy}
           onClick={(e) => {
             e.stopPropagation();
             onInvite();
           }}
-          style={{
-            all: "unset",
-            flex: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "12px 11px",
-            fontSize: 11,
-            fontWeight: 700,
-            color: "var(--brand-shared)",
-            cursor: busy ? "default" : "pointer",
-            opacity: busy ? 0.4 : 1,
-            borderRight: "1px solid var(--roam-border)",
-            WebkitTapHighlightColor: "transparent",
-          }}
+          style={{ color: "var(--brand-shared)" }}
         >
-          <Share2 size={12} />
+          <Share2 size={16} />
+          <span className="plan-card-action-label">Invite</span>
         </button>
 
         {/* Publish / unpublish toggle */}
         <button
           type="button"
+          className="plan-card-action-btn"
           disabled={busy || !plan.preview}
           title={isPublished ? "Published — tap to make private" : "Publish to Discover feed"}
           onClick={(e) => {
@@ -548,47 +503,24 @@ function PlanCard({
             onPublish();
           }}
           style={{
-            all: "unset",
-            flex: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "12px 11px",
-            fontSize: 11,
-            fontWeight: 700,
             color: isPublished ? "var(--roam-success, #16a34a)" : "var(--roam-text-muted)",
-            cursor: busy || !plan.preview ? "default" : "pointer",
-            opacity: busy || !plan.preview ? 0.35 : 1,
-            borderRight: "1px solid var(--roam-border)",
-            WebkitTapHighlightColor: "transparent",
           }}
         >
-          {isPublished ? <Globe size={12} /> : <Lock size={12} />}
+          {isPublished ? <Globe size={16} /> : <Lock size={16} />}
+          <span className="plan-card-action-label">{isPublished ? "Public" : "Private"}</span>
         </button>
 
         <button
           type="button"
+          className="plan-card-action-btn plan-card-action-danger"
           disabled={busy}
           onClick={(e) => {
             e.stopPropagation();
             onDelete();
           }}
-          style={{
-            all: "unset",
-            flex: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "12px 12px",
-            fontSize: 12,
-            fontWeight: 700,
-            color: "var(--roam-danger)",
-            cursor: busy ? "default" : "pointer",
-            opacity: busy ? 0.4 : 1,
-            WebkitTapHighlightColor: "transparent",
-          }}
         >
-          <Trash2 size={12} />
+          <Trash2 size={16} />
+          <span className="plan-card-action-label">Delete</span>
         </button>
       </div>
       </div>
@@ -930,18 +862,19 @@ export function PlanDrawer({
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: 5,
-                height: 42,
-                borderRadius: 10,
+                gap: 6,
+                height: 48,
+                borderRadius: 12,
                 background: "var(--roam-surface-hover)",
                 border: "1px solid var(--roam-border)",
                 color: "var(--roam-text)",
                 fontSize: 13,
                 fontWeight: 700,
+                touchAction: "manipulation",
                 WebkitTapHighlightColor: "transparent",
               }}
             >
-              <Link2 size={14} />
+              <Link2 size={16} />
               Join
             </button>
             {onAiTrip && (
@@ -955,18 +888,19 @@ export function PlanDrawer({
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  gap: 5,
-                  height: 42,
-                  borderRadius: 10,
+                  gap: 6,
+                  height: 48,
+                  borderRadius: 12,
                   background: "var(--roam-surface-hover)",
                   border: "1px solid var(--brand-sky, #38bdf8)",
                   color: "var(--brand-sky, #38bdf8)",
                   fontSize: 13,
                   fontWeight: 700,
+                  touchAction: "manipulation",
                   WebkitTapHighlightColor: "transparent",
                 }}
               >
-                <Sparkles size={14} />
+                <Sparkles size={16} />
                 AI
               </button>
             )}
@@ -984,14 +918,15 @@ export function PlanDrawer({
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: 5,
-                height: 42,
-                borderRadius: 10,
+                gap: 6,
+                height: 48,
+                borderRadius: 12,
                 background: "var(--roam-accent)",
                 color: "var(--on-color)",
                 fontSize: 13,
                 fontWeight: 700,
                 boxShadow: "var(--shadow-button)",
+                touchAction: "manipulation",
                 WebkitTapHighlightColor: "transparent",
               }}
             >

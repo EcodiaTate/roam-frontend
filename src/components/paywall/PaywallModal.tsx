@@ -17,6 +17,7 @@ import {
   Sparkles,
   Users,
   Fuel,
+  ChevronDown,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -59,6 +60,8 @@ export function PaywallModal({ open, onClose, onUnlocked, variant = "gate" }: Pr
   const isNative = isNativePlatform();
   const { session } = useAuth();
   const sheetRef = useRef<HTMLDivElement>(null);
+  const featureRef = useRef<HTMLDivElement>(null);
+  const [canScroll, setCanScroll] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -96,8 +99,22 @@ export function PaywallModal({ open, onClose, onUnlocked, variant = "gate" }: Pr
 
   // Reset on close
   useEffect(() => {
-    if (!open) { setError(null); setBuying(false); setRestoring(false); }
+    if (!open) { setError(null); setBuying(false); setRestoring(false); setCanScroll(false); }
   }, [open]);
+
+  // Detect whether the feature list is scrollable and update fade hint
+  useEffect(() => {
+    const el = featureRef.current;
+    if (!el || !open) return;
+    const check = () => {
+      const remaining = el.scrollHeight - el.scrollTop - el.clientHeight;
+      setCanScroll(remaining > 4);
+    };
+    // Initial check after layout settles
+    const raf = requestAnimationFrame(check);
+    el.addEventListener("scroll", check, { passive: true });
+    return () => { cancelAnimationFrame(raf); el.removeEventListener("scroll", check); };
+  }, [open, anim]);
 
   const handlePurchase = useCallback(async () => {
     haptic.medium();
@@ -173,7 +190,7 @@ export function PaywallModal({ open, onClose, onUnlocked, variant = "gate" }: Pr
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "flex-end",
-        opacity: isVisible ? 1 : isExiting ? 0 : 0,
+        opacity: isVisible || anim === "entering" ? 1 : 0,
         transition: "opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
       }}
       role="dialog"
@@ -186,13 +203,19 @@ export function PaywallModal({ open, onClose, onUnlocked, variant = "gate" }: Pr
         style={{
           width: "100%",
           maxWidth: 480,
+          /* maxHeight governs visible content; the 120px overshoot buffer lives
+             outside this via negative margin so it doesn't eat into content. */
           maxHeight: "calc(100dvh - 32px)",
           background: "var(--surface-card, #f4efe6)",
           borderRadius: "28px 28px 0 0",
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
-          paddingBottom: "var(--bottom-nav-height, calc(80px + env(safe-area-inset-bottom, 0px)))",
+          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)",
+          /* Overshoot buffer: extend 120px below to fill the gap during
+             spring bounce, then pull it back with negative margin so it
+             doesn't affect layout height or maxHeight accounting. */
+          boxShadow: "0 120px 0 0 var(--surface-card, #f4efe6)",
           transform: isVisible ? "translateY(0)" : "translateY(100%)",
           transition: isExiting
             ? "transform 0.34s cubic-bezier(0.4, 0, 1, 1)"
@@ -202,7 +225,7 @@ export function PaywallModal({ open, onClose, onUnlocked, variant = "gate" }: Pr
         {/* Hero band */}
         <div
           style={{
-            background: "linear-gradient(135deg, var(--brand-eucalypt-dark, #1f5236) 0%, var(--brand-eucalypt, #2d6e40) 60%, #3d8f54 100%)",
+            background: "linear-gradient(135deg, #5c1a0e 0%, var(--brand-ochre, #b5452e) 40%, #d4664a 70%, #e8956a 100%)",
             padding: "32px 28px 28px",
             position: "relative",
             overflow: "hidden",
@@ -276,35 +299,63 @@ export function PaywallModal({ open, onClose, onUnlocked, variant = "gate" }: Pr
         </div>
 
         {/* Feature list */}
-        <div style={{ padding: "20px 28px 8px", overflowY: "auto", flexShrink: 1, minHeight: 0 }}>
-          {FEATURES.map((f) => (
-            <div
-              key={f.label}
+        <div style={{ position: "relative", flex: 1, minHeight: 0 }}>
+          <div
+            ref={featureRef}
+            style={{ padding: "20px 28px 12px", overflowY: "auto", height: "100%", WebkitOverflowScrolling: "touch" as React.CSSProperties["WebkitOverflowScrolling"], overscrollBehaviorX: "contain" }}
+          >
+            {FEATURES.map((f) => (
+              <div
+                key={f.label}
+                style={{
+                  display: "flex", alignItems: "flex-start", gap: 14,
+                  padding: "10px 0",
+                  borderBottom: "1px solid var(--roam-border, rgba(26,22,19,0.08))",
+                }}
+              >
+                <div style={{
+                  width: 36, height: 36, flexShrink: 0,
+                  borderRadius: 10,
+                  background: "rgba(181, 69, 46, 0.08)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 16, color: "var(--brand-ochre, #b5452e)",
+                }}>
+                  <f.Icon size={18} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "var(--roam-text, #1a1613)", marginBottom: 2 }}>
+                    {f.label}
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--roam-text-muted, #7a7067)", lineHeight: 1.4 }}>
+                    {f.sub}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          {/* Scroll hint — gradient fade + bouncing chevron */}
+          <div
+            style={{
+              position: "absolute", bottom: 0, left: 0, right: 0,
+              height: 48,
+              background: "linear-gradient(to top, var(--surface-card, #f4efe6) 20%, transparent 100%)",
+              pointerEvents: "none",
+              display: "flex", alignItems: "flex-end", justifyContent: "center",
+              paddingBottom: 4,
+              opacity: canScroll ? 1 : 0,
+              transition: "opacity 0.3s",
+            }}
+          >
+            <ChevronDown
+              size={18}
+              strokeWidth={2.5}
               style={{
-                display: "flex", alignItems: "flex-start", gap: 14,
-                padding: "10px 0",
-                borderBottom: "1px solid var(--roam-border, rgba(26,22,19,0.08))",
+                color: "var(--brand-ochre, #b5452e)",
+                opacity: 0.55,
+                animation: "roam-bounce-hint 1.4s ease-in-out infinite",
               }}
-            >
-              <div style={{
-                width: 36, height: 36, flexShrink: 0,
-                borderRadius: 10,
-                background: "var(--accent-tint, rgba(51,120,74,0.10))",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 16, color: "var(--brand-eucalypt, #2d6e40)",
-              }}>
-                <f.Icon size={18} />
-              </div>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "var(--roam-text, #1a1613)", marginBottom: 2 }}>
-                  {f.label}
-                </div>
-                <div style={{ fontSize: 12, color: "var(--roam-text-muted, #7a7067)", lineHeight: 1.4 }}>
-                  {f.sub}
-                </div>
-              </div>
-            </div>
-          ))}
+            />
+          </div>
         </div>
 
         {/* Price + CTA */}
@@ -331,8 +382,8 @@ export function PaywallModal({ open, onClose, onUnlocked, variant = "gate" }: Pr
             style={{
               width: "100%",
               background: buying
-                ? "var(--brand-eucalypt-dark, #1f5236)"
-                : "linear-gradient(135deg, var(--brand-eucalypt-dark, #1f5236) 0%, var(--brand-eucalypt, #2d6e40) 100%)",
+                ? "#5c1a0e"
+                : "linear-gradient(135deg, #5c1a0e 0%, var(--brand-ochre, #b5452e) 100%)",
               color: "var(--on-color, #faf6ef)",
               border: "none",
               padding: "16px",
@@ -342,7 +393,7 @@ export function PaywallModal({ open, onClose, onUnlocked, variant = "gate" }: Pr
               cursor: busy ? "default" : "pointer",
               opacity: busy ? 0.7 : 1,
               letterSpacing: "0.01em",
-              boxShadow: busy ? "none" : "0 4px 16px rgba(31,82,54,0.35)",
+              boxShadow: busy ? "none" : "0 4px 16px rgba(181,69,46,0.35)",
               transition: "opacity 0.15s, box-shadow 0.15s",
             }}
           >

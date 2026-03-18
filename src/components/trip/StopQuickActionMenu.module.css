@@ -56,7 +56,9 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 10px;
+  padding: 12px 12px;
+  min-height: 44px;
+  box-sizing: border-box;
   border-radius: 10px;
   border: none;
   background: transparent;

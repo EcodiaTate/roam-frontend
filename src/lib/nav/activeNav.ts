@@ -69,10 +69,17 @@ export type ActiveNavState = {
   distToNextManeuver_m: number;
   distToStepEnd_m: number;
 
-  // Trip metrics
+  // Trip metrics (full journey)
   distRemaining_m: number;
   durationRemaining_s: number;
   etaTimestamp: number;       // unix ms
+
+  // Leg metrics (next stop only) — for leg-by-leg navigation
+  legDistRemaining_m: number;
+  legDurationRemaining_s: number;
+  legEtaTimestamp: number;           // unix ms — ETA to next stop
+  nextStopName: string | null;       // name of the next stop
+  totalLegs: number;                 // total number of legs in the trip
 
   // Off-route detection
   distFromRoute_m: number;
@@ -110,6 +117,11 @@ export function initialActiveNavState(): ActiveNavState {
     distRemaining_m: 0,
     durationRemaining_s: 0,
     etaTimestamp: 0,
+    legDistRemaining_m: 0,
+    legDurationRemaining_s: 0,
+    legEtaTimestamp: 0,
+    nextStopName: null,
+    totalLegs: 0,
     distFromRoute_m: 0,
     isOffRoute: false,
     offRouteCount: 0,
@@ -244,6 +256,46 @@ export function buildFlatSteps(navpack: NavPack): FlatStep[] {
   return flat;
 }
 
+/**
+ * Pre-compute cumulative leg boundaries: for each leg, the cumulative distance_m
+ * from route start to the end of that leg, plus the leg's own distance/duration.
+ * Memoised by the caller alongside buildFlatSteps.
+ */
+export type LegBoundary = {
+  legIdx: number;
+  startDist_m: number;  // cumulative distance from route start to leg start
+  endDist_m: number;    // cumulative distance from route start to leg end
+  distance_m: number;   // leg's own distance
+  duration_s: number;   // leg's own duration
+  toStopId: string | null;
+  toStopName: string | null;
+};
+
+export function buildLegBoundaries(navpack: NavPack): LegBoundary[] {
+  const boundaries: LegBoundary[] = [];
+  let cumDist = 0;
+  const stops = navpack.req.stops;
+
+  for (const leg of navpack.primary.legs) {
+    // Find the destination stop for this leg
+    const toIdx = leg.idx + 1;
+    const toStop = toIdx < stops.length ? stops[toIdx] : null;
+
+    boundaries.push({
+      legIdx: leg.idx,
+      startDist_m: cumDist,
+      endDist_m: cumDist + leg.distance_m,
+      distance_m: leg.distance_m,
+      duration_s: leg.duration_s,
+      toStopId: leg.to_stop_id ?? toStop?.id ?? null,
+      toStopName: toStop?.name ?? null,
+    });
+    cumDist += leg.distance_m;
+  }
+
+  return boundaries;
+}
+
 // ──────────────────────────────────────────────────────────────
 // Core update function
 // ──────────────────────────────────────────────────────────────
@@ -272,6 +324,7 @@ export function updateActiveNav(
   routePts: [number, number][],
   routeTotalM: number,
   config: ActiveNavConfig = DEFAULT_NAV_CONFIG,
+  legBoundaries?: LegBoundary[],
 ): ActiveNavState {
   const now = position.timestamp || Date.now();
 
@@ -350,6 +403,11 @@ export function updateActiveNav(
       distRemaining_m: 0,
       durationRemaining_s: 0,
       etaTimestamp: now,
+      legDistRemaining_m: 0,
+      legDurationRemaining_s: 0,
+      legEtaTimestamp: now,
+      nextStopName: null,
+      totalLegs: navpack.primary.legs.length,
       kmAlongRoute,
       kmAlongLeg,
       kmAlongStep,
@@ -405,6 +463,35 @@ export function updateActiveNav(
     etaTimestamp = now + durationRemaining_s * 1000;
   }
 
+  // 6. Leg-level metrics — distance/duration/ETA to the next stop only
+  const currentLegBoundary = legBoundaries?.find(b => b.legIdx === currentFlat.legIdx);
+  let legDistRemaining_m = distRemaining_m;
+  let legDurationRemaining_s = durationRemaining_s;
+  let legEtaTimestamp = etaTimestamp;
+  let nextStopName: string | null = null;
+
+  if (currentLegBoundary) {
+    legDistRemaining_m = Math.max(0, currentLegBoundary.endDist_m - snap.distAlongLine_m);
+    // Compute fraction of this leg remaining, then scale by leg's planned duration
+    const legFractionRemaining = currentLegBoundary.distance_m > 0
+      ? legDistRemaining_m / currentLegBoundary.distance_m
+      : 0;
+    const legPlannedRemaining_s = currentLegBoundary.duration_s * legFractionRemaining;
+    // Apply speed ratio correction (same approach as trip-level ETA)
+    const legAdjusted = speedRatio > 0.1 ? legPlannedRemaining_s / speedRatio : legPlannedRemaining_s;
+    legDurationRemaining_s = Math.max(0, Math.round(legAdjusted));
+
+    if (currentSpeed > 1) {
+      const legInstant_ms = (legDistRemaining_m / currentSpeed) * 1000;
+      const legLearned_ms = legDurationRemaining_s * 1000;
+      legEtaTimestamp = now + (legLearned_ms * 0.7 + legInstant_ms * 0.3);
+    } else {
+      legEtaTimestamp = now + legDurationRemaining_s * 1000;
+    }
+
+    nextStopName = currentLegBoundary.toStopName;
+  }
+
   return {
     ...prev,
     status: "navigating",
@@ -417,6 +504,11 @@ export function updateActiveNav(
     distRemaining_m,
     durationRemaining_s,
     etaTimestamp,
+    legDistRemaining_m,
+    legDurationRemaining_s,
+    legEtaTimestamp,
+    nextStopName,
+    totalLegs: navpack.primary.legs.length,
     kmAlongRoute,
     kmAlongLeg,
     kmAlongStep,
@@ -444,6 +536,8 @@ export function startNavigation(navpack: NavPack): ActiveNavState {
   const state = initialActiveNavState();
   const firstStep = navpack.primary.legs[0]?.steps?.[0] ?? null;
   const nextStep = navpack.primary.legs[0]?.steps?.[1] ?? null;
+  const firstLeg = navpack.primary.legs[0];
+  const firstLegToStop = navpack.req.stops[1] ?? null;
 
   return {
     ...state,
@@ -453,6 +547,11 @@ export function startNavigation(navpack: NavPack): ActiveNavState {
     distRemaining_m: navpack.primary.distance_m,
     durationRemaining_s: navpack.primary.duration_s,
     etaTimestamp: Date.now() + navpack.primary.duration_s * 1000,
+    legDistRemaining_m: firstLeg?.distance_m ?? navpack.primary.distance_m,
+    legDurationRemaining_s: firstLeg?.duration_s ?? navpack.primary.duration_s,
+    legEtaTimestamp: Date.now() + (firstLeg?.duration_s ?? navpack.primary.duration_s) * 1000,
+    nextStopName: firstLegToStop?.name ?? null,
+    totalLegs: navpack.primary.legs.length,
     fatigue: {
       ...state.fatigue,
       tripStartedAt: Date.now(),

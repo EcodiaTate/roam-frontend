@@ -137,20 +137,12 @@ export async function buildPlanBundle(args: BuildPlanBundleArgs): Promise<BuildP
   const geometry = pack.primary.geometry;
   const routeProfile = pack.primary.profile ?? profile;
 
-  // ─── 2. Corridor ensure ──────────────────────────────────────────────
-  // ensure() builds the corridor and caches it server-side. We no longer
-  // call corridorGet() separately — that caused WAL read-staleness
-  // "corridor_missing" errors because the GET arrived before SQLite WAL
-  // flushed the ensure() write. The bundle/build endpoint re-ensures
-  // internally and uses the in-memory result, so this is sufficient.
+  // ─── 2. Corridor ─────────────────────────────────────────────────────
+  // The corridor is built inside bundle/build which has access to the
+  // places pack (stop coordinates). Building it here without stops would
+  // cache a stopless corridor that bundle/build then returns from cache,
+  // missing all the stop-circle road coverage.
   emit("corridor_ensure");
-  await navApi.corridorEnsure({
-    route_key,
-    geometry,
-    profile: routeProfile,
-    buffer_m,
-    max_edges,
-  });
   emit("corridor_get");
 
   // ─── Places / traffic / hazards (bundled inside bundle/build) ────────

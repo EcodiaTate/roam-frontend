@@ -6,7 +6,7 @@ import type { ActiveNavState } from "@/lib/nav/activeNav";
 import type { FuelTrackingState } from "@/lib/types/fuel";
 import { formatDistance, formatDuration, formatETA } from "@/lib/nav/instructions";
 import { formatDriveSinceRest, fatigueColor } from "@/lib/nav/fatigue";
-import { Fuel, Clock, MapPin, Navigation } from "lucide-react";
+import { Fuel, Clock, MapPin, Navigation, Flag } from "lucide-react";
 
 type Props = {
   nav: ActiveNavState;
@@ -20,9 +20,27 @@ type Props = {
 export const NavigationBar = memo(function NavigationBar({ nav, fuelTracking, visible, onTap }: Props) {
   if (!visible) return null;
 
-  const eta = nav.etaTimestamp > 0 ? formatETA(nav.etaTimestamp) : "--:--";
-  const distRemaining = formatDistance(nav.distRemaining_m);
-  const timeRemaining = formatDuration(nav.durationRemaining_s);
+  const isMultiLeg = nav.totalLegs > 1;
+
+  // Primary: show leg-level metrics when multi-leg, trip-level when single-leg
+  const primaryEta = isMultiLeg
+    ? (nav.legEtaTimestamp > 0 ? formatETA(nav.legEtaTimestamp) : "--:--")
+    : (nav.etaTimestamp > 0 ? formatETA(nav.etaTimestamp) : "--:--");
+  const primaryDist = isMultiLeg
+    ? formatDistance(nav.legDistRemaining_m)
+    : formatDistance(nav.distRemaining_m);
+  const primaryTime = isMultiLeg
+    ? formatDuration(nav.legDurationRemaining_s)
+    : formatDuration(nav.durationRemaining_s);
+  const primaryLabel = isMultiLeg && nav.nextStopName
+    ? nav.nextStopName
+    : "ETA";
+
+  // Secondary: show trip total when multi-leg
+  const tripEta = nav.etaTimestamp > 0 ? formatETA(nav.etaTimestamp) : "--:--";
+  const tripDist = formatDistance(nav.distRemaining_m);
+  const tripTime = formatDuration(nav.durationRemaining_s);
+
   const fatigue = nav.fatigue;
   const fColor = fatigueColor(fatigue.warningLevel);
 
@@ -71,7 +89,7 @@ export const NavigationBar = memo(function NavigationBar({ nav, fuelTracking, vi
         />
 
         <div style={{ padding: "14px 18px 14px" }}>
-          {/* ── Main stats row ── */}
+          {/* ── Main stats row (next stop or destination) ── */}
           <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
 
             {/* ETA – left, most prominent */}
@@ -85,21 +103,25 @@ export const NavigationBar = memo(function NavigationBar({ nav, fuelTracking, vi
                   lineHeight: 1,
                   fontVariantNumeric: "tabular-nums",
                 }}
-                aria-label={`Estimated arrival ${eta}`}
+                aria-label={`Estimated arrival ${primaryEta}`}
               >
-                {eta}
+                {primaryEta}
               </div>
               <div
                 style={{
                   fontSize: 10,
                   fontWeight: 800,
-                  color: "var(--brand-amber)",
+                  color: isMultiLeg ? "var(--brand-eucalypt)" : "var(--brand-amber)",
                   textTransform: "uppercase",
                   letterSpacing: "0.8px",
                   marginTop: 3,
+                  maxWidth: 80,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
                 }}
               >
-                ETA
+                {primaryLabel}
               </div>
             </div>
 
@@ -108,7 +130,7 @@ export const NavigationBar = memo(function NavigationBar({ nav, fuelTracking, vi
 
             {/* Distance + Time — right of divider */}
             <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-              {/* Distance remaining */}
+              {/* Distance remaining (to next stop) */}
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <MapPin size={12} color="var(--brand-sky)" aria-hidden="true" />
                 <span
@@ -119,13 +141,13 @@ export const NavigationBar = memo(function NavigationBar({ nav, fuelTracking, vi
                     letterSpacing: "-0.3px",
                     fontVariantNumeric: "tabular-nums",
                   }}
-                  aria-label={`${distRemaining} remaining`}
+                  aria-label={`${primaryDist} remaining`}
                 >
-                  {distRemaining}
+                  {primaryDist}
                 </span>
               </div>
 
-              {/* Time remaining */}
+              {/* Time remaining (to next stop) */}
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <Clock size={12} color="rgba(250,246,239,0.4)" aria-hidden="true" />
                 <span
@@ -136,9 +158,9 @@ export const NavigationBar = memo(function NavigationBar({ nav, fuelTracking, vi
                     letterSpacing: "-0.2px",
                     fontVariantNumeric: "tabular-nums",
                   }}
-                  aria-label={`${timeRemaining} drive time remaining`}
+                  aria-label={`${primaryTime} drive time remaining`}
                 >
-                  {timeRemaining}
+                  {primaryTime}
                 </span>
               </div>
             </div>
@@ -176,6 +198,75 @@ export const NavigationBar = memo(function NavigationBar({ nav, fuelTracking, vi
               </div>
             )}
           </div>
+
+          {/* ── Trip total row (only shown for multi-leg trips) ── */}
+          {isMultiLeg && (
+            <div
+              style={{
+                marginTop: 10,
+                paddingTop: 8,
+                borderTop: "1px solid rgba(255,255,255,0.06)",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+              }}
+            >
+              <Flag size={10} color="rgba(250,246,239,0.35)" aria-hidden="true" />
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 800,
+                  color: "rgba(250,246,239,0.40)",
+                  letterSpacing: "-0.1px",
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                Total
+              </span>
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 800,
+                  color: "rgba(250,246,239,0.35)",
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                {tripDist}
+              </span>
+              <span style={{ color: "rgba(255,255,255,0.15)", fontSize: 10 }}>·</span>
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 800,
+                  color: "rgba(250,246,239,0.35)",
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                {tripTime}
+              </span>
+              <span style={{ color: "rgba(255,255,255,0.15)", fontSize: 10 }}>·</span>
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 800,
+                  color: "rgba(250,246,239,0.35)",
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                {tripEta}
+              </span>
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: "rgba(250,246,239,0.25)",
+                  marginLeft: "auto",
+                }}
+              >
+                Leg {nav.currentLegIdx + 1}/{nav.totalLegs}
+              </span>
+            </div>
+          )}
 
           {/* ── Indicator pills row (fuel + fatigue) ── */}
           {(fuelText || fatigue.warningLevel !== "none") && (

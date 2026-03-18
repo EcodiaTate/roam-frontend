@@ -42,7 +42,7 @@ export function GuideSkeleton() {
         flexDirection: "column",
         overflowY: "auto",
         WebkitOverflowScrolling: "touch",
-        overscrollBehavior: "contain",
+        overscrollBehaviorX: "contain",
       }}
     >
       {/* ── Sticky header skeleton ─────────────────────────────────── */}
