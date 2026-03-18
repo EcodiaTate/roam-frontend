@@ -74,7 +74,7 @@ function CategoryCell({ name, cat }: { name: string; cat: RouteScoreCategory }) 
   );
 }
 
-export function RouteScoreCard({ score }: { score: RouteIntelligenceScore | null }) {
+export function RouteScoreCard({ score, simple }: { score: RouteIntelligenceScore | null; simple?: boolean }) {
   if (!score) return null;
 
   const color = scoreColor(score.overall);
@@ -98,16 +98,18 @@ export function RouteScoreCard({ score }: { score: RouteIntelligenceScore | null
         </div>
       </div>
 
-      {/* Category grid */}
-      <div style={gridRow}>
-        <CategoryCell name="safety" cat={score.safety} />
-        <CategoryCell name="conditions" cat={score.conditions} />
-        <CategoryCell name="services" cat={score.services} />
-        <CategoryCell name="weather" cat={score.weather} />
-      </div>
+      {/* Category grid — hidden in simple mode */}
+      {!simple && (
+        <div style={gridRow}>
+          <CategoryCell name="safety" cat={score.safety} />
+          <CategoryCell name="conditions" cat={score.conditions} />
+          <CategoryCell name="services" cat={score.services} />
+          <CategoryCell name="weather" cat={score.weather} />
+        </div>
+      )}
 
-      {/* Factors from worst category */}
-      {(() => {
+      {/* Factors from worst category — hidden in simple mode */}
+      {!simple && (() => {
         const worst = [
           { name: "safety", cat: score.safety },
           { name: "conditions", cat: score.conditions },

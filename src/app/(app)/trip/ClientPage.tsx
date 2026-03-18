@@ -14,7 +14,6 @@ import { StopQuickActionMenu, type QuickActionMenuState } from "@/components/tri
 import type { AlertHighlightEvent } from "@/components/trip/TripAlertsPanel";
 import { InviteCodeModal } from "@/components/plans/InviteCodeModal";
 import { PlanDrawer } from "@/components/trip/PlanDrawer";
-import { BasemapDownloadCard } from "@/components/basemap/BasemapDownloadCard";
 import { FuelPressureIndicator } from "@/components/fuel/FuelPressureIndicator";
 import { FuelLastChanceToast } from "@/components/fuel/FuelLastChanceToast";
 import { VehicleFuelSettings } from "@/components/fuel/VehicleFuelSettings";
@@ -98,6 +97,7 @@ import { isUnlocked as checkIsUnlocked, checkTripGate } from "@/lib/paywall/trip
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { NativeShareRenderer } from "@/components/share/NativeShareRenderer";
 import { usePlaceDetail } from "@/lib/context/PlaceDetailContext";
+import { useUIMode } from "@/lib/hooks/useUIMode";
 import type { ShareCardData } from "@/components/share/TripShareCard";
 import { captureMapSnapshot } from "@/lib/share/captureMapSnapshot";
 
@@ -159,6 +159,9 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     () => props.initialPlanId ?? planIdFromUrl ?? null,
     [props.initialPlanId, planIdFromUrl],
   );
+
+  // UI mode (simple vs full)
+  const { isSimple } = useUIMode();
 
   // Native hooks
   const geo = useGeolocation({ autoStart: true, highAccuracy: true });
@@ -1795,8 +1798,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         />
       </div>
 
-      {/* ── Enrichment banner (progressive trip loading) ── */}
-      <EnrichmentBanner progress={enrichment.progress} />
+      {/* ── Enrichment banner (progressive trip loading) — hidden in simple mode ── */}
+      {!isSimple && <EnrichmentBanner progress={enrichment.progress} />}
 
       {/* ── Remote sync toast ── */}
       {remoteToastVisible && (
@@ -1863,8 +1866,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         onClose={() => setMapQuickMenu(null)}
       />
 
-      {/* ── FAB Stack (Report + Exchange) ── */}
-      {!activeNav.isActive && (
+      {/* ── FAB Stack (Report + Exchange) — hidden in simple mode ── */}
+      {!activeNav.isActive && !isSimple && (
         <div style={{
           position: "absolute",
           bottom: "calc(220px + var(--roam-safe-bottom, 0px) + 24px)",
@@ -1945,8 +1948,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         </div>
       )}
 
-      {/* ── Report Phase 1: Type Picker Overlay ── */}
-      {reportPhase === "picking" && (
+      {/* ── Report Phase 1: Type Picker Overlay — hidden in simple mode ── */}
+      {!isSimple && reportPhase === "picking" && (
         <ReportTypePicker
           onTypeSelected={(type) => {
             const opt = REPORT_OPTIONS.find((o) => o.type === type)!;
@@ -1956,8 +1959,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         />
       )}
 
-      {/* ── Report Phase 2: Placement Bar (map marker mode) ── */}
-      {isPlacing && typeof reportPhase === "object" && (
+      {/* ── Report Phase 2: Placement Bar (map marker mode) — hidden in simple mode ── */}
+      {!isSimple && isPlacing && typeof reportPhase === "object" && (
         <div style={{
           position: "absolute",
           bottom: "calc(220px + var(--roam-safe-bottom, 0px) + 16px)",
@@ -1975,17 +1978,17 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         </div>
       )}
 
-      {/* ── Exchange Panel (ultrasonic peer transfer) ── */}
-      <ExchangePanel open={exchangeOpen} onClose={() => setExchangeOpen(false)} nearbyRoamers={nearbyRoamers} />
+      {/* ── Exchange Panel (ultrasonic peer transfer) — hidden in simple mode ── */}
+      {!isSimple && <ExchangePanel open={exchangeOpen} onClose={() => setExchangeOpen(false)} nearbyRoamers={nearbyRoamers} />}
 
       {/* Navigation overlays are rendered at the end of the tree (after bottom sheet)
          so they paint above all other layers. See below. */}
 
-      {!activeNav.isActive && <FuelPressureIndicator tracking={fuelTracking} />}
+      {!activeNav.isActive && !isSimple && <FuelPressureIndicator tracking={fuelTracking} />}
       <FuelLastChanceToast tracking={fuelTracking} currentKm={currentKm} />
 
-      {/* Fuel price arbitrage toast */}
-      {fuelArbitrage && (
+      {/* Fuel price arbitrage toast — hidden in simple mode */}
+      {!isSimple && fuelArbitrage && (
         <div
           style={{
             position: "fixed",
@@ -2026,11 +2029,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         onSaved={handleFuelProfileSaved}
       />
 
-      {!activeNav.isActive && (
-        <div style={{ position: "absolute", top: 56, left: 12, right: 12, zIndex: 15, pointerEvents: "auto" }}>
-          <BasemapDownloadCard region="australia"/>
-        </div>
-      )}
+      {/* BasemapDownloadCard removed — not needed in either mode */}
 
       <PlanDrawer
         open={drawOpen}
@@ -2180,8 +2179,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           willChange: "transform",
         }}
       >
-        {/* ── Elevation profile strip (between map and sheet) ── */}
-        {elevation?.profile && (
+        {/* ── Elevation profile strip (between map and sheet) — hidden in simple mode ── */}
+        {!isSimple && elevation?.profile && (
           <div style={{
             position: "relative",
             zIndex: 1,
@@ -2262,83 +2261,64 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
                 )}
               </button>
 
-              <button
-                type="button"
-                className="trip-interactive trip-btn-icon"
-                aria-label="Invite"
-                onClick={() => { haptic.selection(); setInviteMode("create"); setInviteOpen(true); }}
-                style={{
-                  borderRadius: 10, width: 40, height: 40,
-                  display: "grid", placeItems: "center",
-                  background: "transparent", color: "var(--roam-text-muted)",
-                  border: "none",
-                }}
-              >
-                <UserPlus size={16} strokeWidth={1.8} />
-              </button>
-
-              <button
-                type="button"
-                className="trip-interactive trip-btn-icon"
-                aria-label="Share trip card"
-                onClick={() => {
-                  haptic.selection();
-                  const preview = plan?.preview;
-                  if (!preview) return;
-                  const cardData: ShareCardData = {
-                    stops: preview.stops,
-                    geometry: preview.geometry,
-                    distance_m: preview.distance_m,
-                    duration_s: preview.duration_s,
-                    label: plan?.label ?? null,
-                  };
-                  const label = plan?.label?.trim() || (() => {
-                    const s = preview.stops.find((x) => x.type === "start");
-                    const e = preview.stops.find((x) => x.type === "end");
-                    return `${s?.name || "Start"} → ${e?.name || "End"}`;
-                  })();
-                  // Capture map snapshot then invoke OS share sheet (native or Web Share API)
-                  captureMapSnapshot(preview.bbox).then((mapImageUrl) => {
-                    setNativeSharePayload({ data: cardData, mapImageUrl, label });
-                  });
-                }}
-                style={{
-                  borderRadius: 10, width: 40, height: 40,
-                  display: "grid", placeItems: "center",
-                  background: "transparent", color: "var(--roam-text-muted)",
-                  border: "none",
-                }}
-              >
-                <ImageIcon size={16} strokeWidth={1.8} />
-              </button>
-
-              {unlocked ? (
+              {/* Invite — hidden in simple mode */}
+              {!isSimple && (
                 <button
                   type="button"
-                  className="trip-interactive"
-                  onClick={() => { haptic.selection(); setPaywallVariant("upgrade"); setPaywallOpen(true); }}
+                  className="trip-interactive trip-btn-icon"
+                  aria-label="Invite"
+                  onClick={() => { haptic.selection(); setInviteMode("create"); setInviteOpen(true); }}
                   style={{
-                    position: "relative",
-                    display: "grid", placeItems: "center",
-                    background: "linear-gradient(135deg, #5c1a0e 0%, var(--brand-ochre, #b5452e) 40%, #d4664a 70%, #e8956a 100%)",
                     borderRadius: 10, width: 40, height: 40,
-                    border: "1px solid rgba(255,255,255,0.15)", cursor: "pointer",
-                    boxShadow: "0 2px 10px rgba(181,69,46,0.35), inset 0 1px 0 rgba(255,255,255,0.12)",
-                    overflow: "hidden",
-                    WebkitTapHighlightColor: "transparent",
+                    display: "grid", placeItems: "center",
+                    background: "transparent", color: "var(--roam-text-muted)",
+                    border: "none",
                   }}
-                  title="Roam Untethered"
                 >
-                  <div style={{
-                    position: "absolute", inset: 0,
-                    background: "linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.14) 50%, transparent 70%)",
-                    borderRadius: "inherit", pointerEvents: "none",
-                  }} />
-                  <svg width="13" height="13" viewBox="0 0 12 12" fill="none" style={{ position: "relative" }}>
-                    <path d="M6 1L7.5 4.5H11L8.25 6.75L9.25 10.5L6 8.5L2.75 10.5L3.75 6.75L1 4.5H4.5L6 1Z" fill="rgba(255,255,255,0.95)" />
-                  </svg>
+                  <UserPlus size={16} strokeWidth={1.8} />
                 </button>
-              ) : unlocked === false ? (
+              )}
+
+              {/* Share — hidden in simple mode */}
+              {!isSimple && (
+                <button
+                  type="button"
+                  className="trip-interactive trip-btn-icon"
+                  aria-label="Share trip card"
+                  onClick={() => {
+                    haptic.selection();
+                    const preview = plan?.preview;
+                    if (!preview) return;
+                    const cardData: ShareCardData = {
+                      stops: preview.stops,
+                      geometry: preview.geometry,
+                      distance_m: preview.distance_m,
+                      duration_s: preview.duration_s,
+                      label: plan?.label ?? null,
+                    };
+                    const label = plan?.label?.trim() || (() => {
+                      const s = preview.stops.find((x) => x.type === "start");
+                      const e = preview.stops.find((x) => x.type === "end");
+                      return `${s?.name || "Start"} → ${e?.name || "End"}`;
+                    })();
+                    // Capture map snapshot then invoke OS share sheet (native or Web Share API)
+                    captureMapSnapshot(preview.bbox).then((mapImageUrl) => {
+                      setNativeSharePayload({ data: cardData, mapImageUrl, label });
+                    });
+                  }}
+                  style={{
+                    borderRadius: 10, width: 40, height: 40,
+                    display: "grid", placeItems: "center",
+                    background: "transparent", color: "var(--roam-text-muted)",
+                    border: "none",
+                  }}
+                >
+                  <ImageIcon size={16} strokeWidth={1.8} />
+                </button>
+              )}
+
+              {/* Upgrade — show when NOT unlocked; hide Untethered badge when already unlocked */}
+              {unlocked ? null : unlocked === false ? (
                 <button
                   type="button"
                   className="trip-interactive"
@@ -2400,7 +2380,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
             {/* ── Route intelligence score ── */}
             {routeScore && !activeNav.isActive && (
               <div style={{ marginBottom: 16 }}>
-                <RouteScoreCard score={routeScore} />
+                <RouteScoreCard score={routeScore} simple={isSimple} />
               </div>
             )}
 
@@ -2459,6 +2439,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
               places={places}
               traffic={traffic}
               hazards={hazards}
+              simple={isSimple}
               focusedStopId={focusedStopId}
               onFocusStop={(id) => {
                 setFocusedStopId(id);
@@ -2496,8 +2477,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         </div>
       </div>{/* end trip-bottom-sheet */}
 
-      {/* ── Stop memory sheet (note + photos) ── */}
-      {memorySheetStop && plan && (
+      {/* ── Stop memory sheet (note + photos) — hidden in simple mode ── */}
+      {!isSimple && memorySheetStop && plan && (
         <StopMemorySheet
           open={memorySheetOpen}
           planId={plan.plan_id}
@@ -2522,6 +2503,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         <NavigationHUD
           nav={activeNav.nav}
           visible={activeNav.isActive && activeNav.nav.status !== "off_route"}
+          simple={isSimple}
         />
         <OffRouteBanner
           visible={activeNav.nav.status === "off_route"}
@@ -2537,7 +2519,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           onRecenter={mapNavMode.recenter}
           onEnd={activeNav.stop}
         />
-        {activeNav.isActive && (
+        {activeNav.isActive && !isSimple && (
           <div style={{
             position: "absolute",
             bottom: "calc(env(safe-area-inset-bottom, 0px) + var(--roam-tab-h, 64px) + 130px)",
@@ -2555,6 +2537,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           nav={activeNav.nav}
           fuelTracking={fuelTracking}
           visible={activeNav.isActive}
+          simple={isSimple}
           onTap={() => {
             setSheetSnap("expanded");
             setTimeout(() => setSheetSnap("peek"), 8000);

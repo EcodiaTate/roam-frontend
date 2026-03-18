@@ -12,12 +12,14 @@ type Props = {
   nav: ActiveNavState;
   fuelTracking?: FuelTrackingState | null;
   visible: boolean;
+  /** Simple mode — ETA + distance only, no speed/leg/fatigue detail */
+  simple?: boolean;
   onTap?: () => void;
 };
 
 /* ── Component ───────────────────────────────────────────────────────── */
 
-export const NavigationBar = memo(function NavigationBar({ nav, fuelTracking, visible, onTap }: Props) {
+export const NavigationBar = memo(function NavigationBar({ nav, fuelTracking, visible, simple, onTap }: Props) {
   if (!visible) return null;
 
   const isMultiLeg = nav.totalLegs > 1;
@@ -165,8 +167,8 @@ export const NavigationBar = memo(function NavigationBar({ nav, fuelTracking, vi
               </div>
             </div>
 
-            {/* Speed badge — far right */}
-            {nav.speed_mps != null && nav.speed_mps > 0.5 && (
+            {/* Speed badge — far right — hidden in simple mode */}
+            {!simple && nav.speed_mps != null && nav.speed_mps > 0.5 && (
               <div
                 className="nav-speed-enter"
                 style={{
@@ -199,8 +201,8 @@ export const NavigationBar = memo(function NavigationBar({ nav, fuelTracking, vi
             )}
           </div>
 
-          {/* ── Trip total row (only shown for multi-leg trips) ── */}
-          {isMultiLeg && (
+          {/* ── Trip total row (only shown for multi-leg trips) — hidden in simple mode ── */}
+          {!simple && isMultiLeg && (
             <div
               style={{
                 marginTop: 10,
@@ -269,93 +271,133 @@ export const NavigationBar = memo(function NavigationBar({ nav, fuelTracking, vi
           )}
 
           {/* ── Indicator pills row (fuel + fatigue) ── */}
-          {(fuelText || fatigue.warningLevel !== "none") && (
-            <div
-              style={{
-                marginTop: 12,
-                paddingTop: 10,
-                borderTop: "1px solid rgba(255,255,255,0.06)",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              {/* Fuel pill */}
-              {fuelText && (
+          {/* Simple mode: only show critical fuel warning as a single colour bar */}
+          {simple ? (
+            fuelUrgent && fuelText ? (
+              <div
+                style={{
+                  marginTop: 12,
+                  paddingTop: 10,
+                  borderTop: "1px solid rgba(255,255,255,0.06)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
                 <div
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 5,
-                    background: fuelUrgent ? "rgba(212,102,74,0.16)" : "rgba(184,135,42,0.12)",
-                    borderRadius: 999,
-                    padding: "4px 10px",
-                    border: `1px solid ${fuelUrgent ? "rgba(212,102,74,0.3)" : "rgba(184,135,42,0.2)"}`,
+                    gap: 6,
+                    flex: 1,
+                    background: "rgba(212,102,74,0.20)",
+                    borderRadius: 12,
+                    padding: "8px 14px",
+                    border: "1px solid rgba(212,102,74,0.35)",
                   }}
-                  aria-label={fuelUrgent ? `Fuel critical: ${fuelText} to next station` : `${fuelText} to next fuel`}
+                  aria-label={`Fuel critical: ${fuelText} to next station`}
                 >
                   <Fuel
-                    size={11}
-                    color={fuelUrgent ? "var(--brand-ochre)" : "var(--brand-amber)"}
-                    className={fuelUrgent ? "nav-fuel-blink" : undefined}
+                    size={14}
+                    color="var(--brand-ochre)"
+                    className="nav-fuel-blink"
                     aria-hidden="true"
                   />
-                  <span
+                  <span style={{ fontSize: 14, fontWeight: 900, color: "var(--brand-ochre)" }}>
+                    Low fuel — {fuelText}
+                  </span>
+                </div>
+              </div>
+            ) : null
+          ) : (
+            (fuelText || fatigue.warningLevel !== "none") && (
+              <div
+                style={{
+                  marginTop: 12,
+                  paddingTop: 10,
+                  borderTop: "1px solid rgba(255,255,255,0.06)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                {/* Fuel pill */}
+                {fuelText && (
+                  <div
                     style={{
-                      fontSize: 11,
-                      fontWeight: 850,
-                      color: fuelUrgent ? "var(--brand-ochre)" : "var(--brand-amber)",
-                      letterSpacing: "-0.1px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 5,
+                      background: fuelUrgent ? "rgba(212,102,74,0.16)" : "rgba(184,135,42,0.12)",
+                      borderRadius: 999,
+                      padding: "4px 10px",
+                      border: `1px solid ${fuelUrgent ? "rgba(212,102,74,0.3)" : "rgba(184,135,42,0.2)"}`,
                     }}
+                    aria-label={fuelUrgent ? `Fuel critical: ${fuelText} to next station` : `${fuelText} to next fuel`}
                   >
-                    {fuelUrgent ? "Fuel! " : ""}{fuelText}
-                  </span>
-                </div>
-              )}
+                    <Fuel
+                      size={11}
+                      color={fuelUrgent ? "var(--brand-ochre)" : "var(--brand-amber)"}
+                      className={fuelUrgent ? "nav-fuel-blink" : undefined}
+                      aria-hidden="true"
+                    />
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 850,
+                        color: fuelUrgent ? "var(--brand-ochre)" : "var(--brand-amber)",
+                        letterSpacing: "-0.1px",
+                      }}
+                    >
+                      {fuelUrgent ? "Fuel! " : ""}{fuelText}
+                    </span>
+                  </div>
+                )}
 
-              {/* Fatigue pill — only shown when warning */}
-              {fatigue.warningLevel !== "none" && (
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 5,
-                    background: fatigueUrgent ? "rgba(184,135,42,0.14)" : "rgba(255,255,255,0.06)",
-                    borderRadius: 999,
-                    padding: "4px 10px",
-                    border: `1px solid ${fatigueUrgent ? "rgba(184,135,42,0.25)" : "rgba(255,255,255,0.09)"}`,
-                  }}
-                  aria-label={`Drive time: ${formatDriveSinceRest(fatigue)}`}
-                >
-                  <Navigation
-                    size={11}
-                    color={fColor}
-                    aria-hidden="true"
-                  />
-                  <span style={{ fontSize: 11, fontWeight: 850, color: fColor, letterSpacing: "-0.1px" }}>
-                    {formatDriveSinceRest(fatigue)}
-                  </span>
-                </div>
-              )}
+                {/* Fatigue pill — only shown when warning */}
+                {fatigue.warningLevel !== "none" && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 5,
+                      background: fatigueUrgent ? "rgba(184,135,42,0.14)" : "rgba(255,255,255,0.06)",
+                      borderRadius: 999,
+                      padding: "4px 10px",
+                      border: `1px solid ${fatigueUrgent ? "rgba(184,135,42,0.25)" : "rgba(255,255,255,0.09)"}`,
+                    }}
+                    aria-label={`Drive time: ${formatDriveSinceRest(fatigue)}`}
+                  >
+                    <Navigation
+                      size={11}
+                      color={fColor}
+                      aria-hidden="true"
+                    />
+                    <span style={{ fontSize: 11, fontWeight: 850, color: fColor, letterSpacing: "-0.1px" }}>
+                      {formatDriveSinceRest(fatigue)}
+                    </span>
+                  </div>
+                )}
 
-              {/* Drive time — always shown (subtle) */}
-              {fatigue.warningLevel === "none" && (
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 5,
-                    padding: "4px 10px",
-                  }}
-                  aria-label={`Drive time: ${formatDriveSinceRest(fatigue)}`}
-                >
-                  <Navigation size={11} color="rgba(250,246,239,0.3)" aria-hidden="true" />
-                  <span style={{ fontSize: 11, fontWeight: 800, color: "rgba(250,246,239,0.35)", letterSpacing: "-0.1px" }}>
-                    {formatDriveSinceRest(fatigue)}
-                  </span>
-                </div>
-              )}
-            </div>
+                {/* Drive time — always shown (subtle) */}
+                {fatigue.warningLevel === "none" && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 5,
+                      padding: "4px 10px",
+                    }}
+                    aria-label={`Drive time: ${formatDriveSinceRest(fatigue)}`}
+                  >
+                    <Navigation size={11} color="rgba(250,246,239,0.3)" aria-hidden="true" />
+                    <span style={{ fontSize: 11, fontWeight: 800, color: "rgba(250,246,239,0.35)", letterSpacing: "-0.1px" }}>
+                      {formatDriveSinceRest(fatigue)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )
           )}
         </div>
       </div>

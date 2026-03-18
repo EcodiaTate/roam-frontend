@@ -42,6 +42,7 @@ import {
   setCurrentPlanId,
 } from "@/lib/offline/plansStore";
 import { useAuth } from "@/lib/supabase/auth";
+import { useUIMode } from "@/lib/hooks/useUIMode";
 import {
   publishTrip,
   unpublishTrip,
@@ -269,6 +270,7 @@ function PlanCard({
   onInvite,
   onPublish,
   onLabelChanged,
+  simple,
 }: {
   plan: OfflinePlanRecord;
   isCurrent: boolean;
@@ -281,6 +283,7 @@ function PlanCard({
   onInvite: () => void;
   onPublish: () => void;
   onLabelChanged: (label: string | null) => void;
+  simple?: boolean;
 }) {
   const stops = stopCount(plan);
   const label = routeLabel(plan);
@@ -464,51 +467,59 @@ function PlanCard({
           <span className="plan-card-action-label">Open</span>
         </button>
 
-        <button
-          type="button"
-          className="plan-card-action-btn"
-          disabled={busy}
-          onClick={(e) => {
-            e.stopPropagation();
-            onShare();
-          }}
-          style={{ color: "var(--brand-amber)" }}
-        >
-          <ImageIcon size={16} />
-          <span className="plan-card-action-label">Share</span>
-        </button>
+        {/* Share — hidden in simple mode */}
+        {!simple && (
+          <button
+            type="button"
+            className="plan-card-action-btn"
+            disabled={busy}
+            onClick={(e) => {
+              e.stopPropagation();
+              onShare();
+            }}
+            style={{ color: "var(--brand-amber)" }}
+          >
+            <ImageIcon size={16} />
+            <span className="plan-card-action-label">Share</span>
+          </button>
+        )}
 
-        <button
-          type="button"
-          className="plan-card-action-btn"
-          disabled={busy}
-          onClick={(e) => {
-            e.stopPropagation();
-            onInvite();
-          }}
-          style={{ color: "var(--brand-shared)" }}
-        >
-          <Share2 size={16} />
-          <span className="plan-card-action-label">Invite</span>
-        </button>
+        {/* Invite — hidden in simple mode */}
+        {!simple && (
+          <button
+            type="button"
+            className="plan-card-action-btn"
+            disabled={busy}
+            onClick={(e) => {
+              e.stopPropagation();
+              onInvite();
+            }}
+            style={{ color: "var(--brand-shared)" }}
+          >
+            <Share2 size={16} />
+            <span className="plan-card-action-label">Invite</span>
+          </button>
+        )}
 
-        {/* Publish / unpublish toggle */}
-        <button
-          type="button"
-          className="plan-card-action-btn"
-          disabled={busy || !plan.preview}
-          title={isPublished ? "Published — tap to make private" : "Publish to Discover feed"}
-          onClick={(e) => {
-            e.stopPropagation();
-            onPublish();
-          }}
-          style={{
-            color: isPublished ? "var(--roam-success, #16a34a)" : "var(--roam-text-muted)",
-          }}
-        >
-          {isPublished ? <Globe size={16} /> : <Lock size={16} />}
-          <span className="plan-card-action-label">{isPublished ? "Public" : "Private"}</span>
-        </button>
+        {/* Publish / unpublish toggle — hidden in simple mode */}
+        {!simple && (
+          <button
+            type="button"
+            className="plan-card-action-btn"
+            disabled={busy || !plan.preview}
+            title={isPublished ? "Published — tap to make private" : "Publish to Discover feed"}
+            onClick={(e) => {
+              e.stopPropagation();
+              onPublish();
+            }}
+            style={{
+              color: isPublished ? "var(--roam-success, #16a34a)" : "var(--roam-text-muted)",
+            }}
+          >
+            {isPublished ? <Globe size={16} /> : <Lock size={16} />}
+            <span className="plan-card-action-label">{isPublished ? "Public" : "Private"}</span>
+          </button>
+        )}
 
         <button
           type="button"
@@ -546,6 +557,7 @@ export function PlanDrawer({
 }) {
   const router = useRouter();
   const { user } = useAuth();
+  const { isSimple, toggle: toggleUIMode } = useUIMode();
   const [plans, setPlans] = useState<OfflinePlanRecord[]>([]);
   const [currentId, setCurrentIdLocal] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -852,7 +864,8 @@ export function PlanDrawer({
 
           {/* Join + AI + New buttons */}
           <div style={{ display: "flex", gap: 8 }}>
-            <button
+            {/* Join — hidden in simple mode */}
+            {!isSimple && <button
               type="button"
               onClick={handleJoin}
               style={{
@@ -876,7 +889,7 @@ export function PlanDrawer({
             >
               <Link2 size={16} />
               Join
-            </button>
+            </button>}
             {onAiTrip && (
               <button
                 type="button"
@@ -998,13 +1011,14 @@ export function PlanDrawer({
                     onInvite={() => handleInvite(p.plan_id)}
                     onPublish={() => handlePublish(p.plan_id)}
                     onLabelChanged={(label) => handleLabelChanged(p.plan_id, label)}
+                    simple={isSimple}
                   />
                 </div>
               ))
             )}
 
-            {/* ── Memory prompts toggle ── */}
-            <div
+            {/* ── Memory prompts toggle — hidden in simple mode ── */}
+            {!isSimple && <div
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -1056,6 +1070,68 @@ export function PlanDrawer({
                     position: "absolute",
                     top: 3,
                     left: memPromptsOn ? 21 : 3,
+                    width: 20,
+                    height: 20,
+                    borderRadius: "50%",
+                    background: "#fff",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                    transition: "left 0.2s cubic-bezier(0.4,0,0.2,1)",
+                  }}
+                />
+              </button>
+            </div>}
+
+            {/* ── Simple Mode toggle ── */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "10px 12px",
+                marginTop: 8,
+                borderRadius: 12,
+                background: "var(--roam-surface-raised, var(--roam-surface))",
+                border: "1px solid var(--roam-border)",
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--roam-text)", marginBottom: 1 }}>
+                  Simple View
+                </div>
+                <div style={{ fontSize: 11, fontWeight: 500, color: "var(--roam-text-muted)", lineHeight: 1.3 }}>
+                  Fewer buttons, just the essentials
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  haptic.selection();
+                  toggleUIMode();
+                }}
+                style={{
+                  all: "unset",
+                  cursor: "pointer",
+                  width: 44,
+                  height: 26,
+                  borderRadius: 13,
+                  background: isSimple
+                    ? "var(--brand-eucalypt, #2d6e40)"
+                    : "var(--roam-border)",
+                  position: "relative",
+                  flexShrink: 0,
+                  marginLeft: 12,
+                  transition: "background 0.2s",
+                  WebkitTapHighlightColor: "transparent",
+                }}
+                role="switch"
+                aria-checked={isSimple}
+                aria-label="Simple View"
+              >
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 3,
+                    left: isSimple ? 21 : 3,
                     width: 20,
                     height: 20,
                     borderRadius: "50%",

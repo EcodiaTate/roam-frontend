@@ -129,6 +129,7 @@ export function TripView({
   isOnline,
   onFilteredIdsChange,
   onStopQuickAction,
+  simple,
 }: {
   planId: string;
   navpack: NavPack | null;
@@ -151,6 +152,8 @@ export function TripView({
   isOnline?: boolean;
   onFilteredIdsChange?: (ids: Set<string> | null) => void;
   onStopQuickAction?: StopQuickActionHandler;
+  /** Simple mode — fewer controls, bigger tap targets */
+  simple?: boolean;
 }) {
   /* ── Context ──────────────────────────────────────────────────────────── */
   const { openPlace } = usePlaceDetail();
@@ -690,21 +693,22 @@ export function TripView({
         onOpenSettings={onOpenFuelSettings}
       />
 
+      {/* Alerts — simple mode: only show route blockers, no minor alerts */}
       <NextAlertBanner
-        next={nextAlert}
-        totalCount={totalCount}
-        highCount={highCount}
-        allAlerts={allAlerts}
+        next={simple ? null : nextAlert}
+        totalCount={simple ? routeBlockers.length : totalCount}
+        highCount={simple ? routeBlockers.length : highCount}
+        allAlerts={simple ? routeBlockers : allAlerts}
         routeBlockers={routeBlockers}
         highlighted={highlightedAlertId}
         onHighlight={onHighlightAlert}
-        onDismiss={dismissAlert}
+        onDismiss={simple ? undefined : dismissAlert}
         onRebuildRequested={canRebuild ? rebuild : undefined}
-        staleness={staleness}
-        hideBehind={hideBehind}
-        onToggleHideBehind={toggleHideBehind}
-        behindCount={behindCount}
-        dismissedCount={dismissedCount}
+        staleness={simple ? undefined : staleness}
+        hideBehind={simple ? undefined : hideBehind}
+        onToggleHideBehind={simple ? undefined : toggleHideBehind}
+        behindCount={simple ? undefined : behindCount}
+        dismissedCount={simple ? undefined : dismissedCount}
       />
       {/* ── Error ──────────────────────────────────────────────────────── */}
       {err && <div className={s.errorBox}>{err}</div>}
@@ -742,15 +746,15 @@ export function TripView({
               <span>{formatDuration(duration)}</span>
             </div>
 
-            {dirty && (
+            {!simple && dirty && (
               <span className={s.unsavedBadge}>
                 Unsaved changes
               </span>
             )}
           </div>
 
-          {/* Offline routing indicator */}
-          {offlineRouted && (
+          {/* Offline routing indicator — hidden in simple mode */}
+          {!simple && offlineRouted && (
             <div className={s.offlineBanner}>
               <WifiOff size={12} strokeWidth={2} />
               <span>Offline route</span>
@@ -794,14 +798,14 @@ export function TripView({
                   <div
                     className={cx(s.stopCard, isFocused && s.stopCardFocused)}
                     data-stop-type={type}
-                    onPointerDown={(e) => startLongPress(e, stop)}
+                    onPointerDown={simple ? undefined : (e) => startLongPress(e, stop)}
                     onClick={() => {
                       haptic.selection();
                       onFocusStop(stop.id ?? null);
                     }}
                   >
-                    {/* Drag handle (non-locked stops only) */}
-                    {!locked && (
+                    {/* Drag handle (non-locked stops only) — hidden in simple mode */}
+                    {!simple && !locked && (
                       <div
                         className={s.dragHandle}
                         onPointerDown={(e) => onDragHandlePointerDown(e, index)}
@@ -825,17 +829,19 @@ export function TripView({
                     {/* Name + type */}
                     <div className={s.stopContent}>
                       <div className={s.stopName}>{stopLabel(stop, index)}</div>
-                      <div className={s.stopMeta}>
-                        <span className={s.stopTypeBadge}>
-                          {type === "poi" ? "stop" : type}
-                        </span>
-                      </div>
+                      {!simple && (
+                        <div className={s.stopMeta}>
+                          <span className={s.stopTypeBadge}>
+                            {type === "poi" ? "stop" : type}
+                          </span>
+                        </div>
+                      )}
                     </div>
 
-                    {/* Edit controls */}
+                    {/* Edit controls — simple mode: delete only */}
                     {!locked && (
                       <div className={s.stopControls} onPointerDown={(e) => e.stopPropagation()}>
-                        {index > 1 && (
+                        {!simple && index > 1 && (
                           <button
                             type="button"
                             className={s.controlBtn}
@@ -848,7 +854,7 @@ export function TripView({
                             <ChevronUp size={14} strokeWidth={2} />
                           </button>
                         )}
-                        {index < stops.length - 2 && (
+                        {!simple && index < stops.length - 2 && (
                           <button
                             type="button"
                             className={s.controlBtn}
@@ -876,8 +882,8 @@ export function TripView({
                     )}
                   </div>
 
-                  {/* Inline leg alerts */}
-                  {legAlerts.length > 0 && (
+                  {/* Inline leg alerts — hidden in simple mode */}
+                  {!simple && legAlerts.length > 0 && (
                     <LegAlertStrip
                       alerts={legAlerts}
                       highlighted={highlightedAlertId}
@@ -945,8 +951,8 @@ export function TripView({
               Add stop
             </button>
 
-            {/* Optimize route button */}
-            {stops.filter((st) => !isLockedStop(st)).length >= 2 && (
+            {/* Optimize route button — hidden in simple mode */}
+            {!simple && stops.filter((st) => !isLockedStop(st)).length >= 2 && (
               optimizeToast ? (
                 <div className={s.optimizeToast}>
                   <CheckCheck size={13} strokeWidth={2.5} />

@@ -8,6 +8,8 @@ import { formatInstruction, formatShort, formatDistance, maneuverIcon } from "@/
 type Props = {
   nav: ActiveNavState;
   visible: boolean;
+  /** Simple mode — larger text, no "then" preview, no road ref */
+  simple?: boolean;
 };
 
 /* ── Maneuver arrow SVGs (clean, bold, white on transparent) ──────── */
@@ -57,7 +59,7 @@ function ManeuverArrow({ iconName, size = 44 }: { iconName: string; size?: numbe
 
 /* ── Component ───────────────────────────────────────────────────── */
 
-export const NavigationHUD = memo(function NavigationHUD({ nav, visible }: Props) {
+export const NavigationHUD = memo(function NavigationHUD({ nav, visible, simple }: Props) {
   const currentStep = nav.currentStep;
   const nextStep = nav.nextStep;
 
@@ -127,16 +129,16 @@ export const NavigationHUD = memo(function NavigationHUD({ nav, visible }: Props
             className={isImminent ? "hud-imminent" : undefined}
             style={{
               flexShrink: 0,
-              width: 58,
-              height: 58,
-              borderRadius: 16,
+              width: simple ? 72 : 58,
+              height: simple ? 72 : 58,
+              borderRadius: simple ? 20 : 16,
               background: iconBg,
               display: "grid",
               placeItems: "center",
               transition: "background 0.3s ease",
             }}
           >
-            <ManeuverArrow iconName={iconName} size={40} />
+            <ManeuverArrow iconName={iconName} size={simple ? 52 : 40} />
           </div>
 
           {/* ── Instruction text ── */}
@@ -144,7 +146,7 @@ export const NavigationHUD = memo(function NavigationHUD({ nav, visible }: Props
             {/* Action label: Turn left / Continue / etc. */}
             <div
               style={{
-                fontSize: 16,
+                fontSize: simple ? 20 : 16,
                 fontWeight: 950,
                 color: "var(--on-color)",
                 lineHeight: 1.15,
@@ -154,11 +156,11 @@ export const NavigationHUD = memo(function NavigationHUD({ nav, visible }: Props
               {formatShort(currentStep)}
             </div>
 
-            {/* Road name */}
+            {/* Road name — show name only in simple (no ref), full detail otherwise */}
             {currentStep.name && (
               <div
                 style={{
-                  fontSize: 12,
+                  fontSize: simple ? 14 : 12,
                   fontWeight: 700,
                   color: "rgba(250,246,239,0.65)",
                   marginTop: 3,
@@ -167,9 +169,11 @@ export const NavigationHUD = memo(function NavigationHUD({ nav, visible }: Props
                   whiteSpace: "nowrap",
                 }}
               >
-                {currentStep.ref
-                  ? `${currentStep.name} · ${currentStep.ref}`
-                  : currentStep.name}
+                {simple
+                  ? currentStep.name
+                  : currentStep.ref
+                    ? `${currentStep.name} · ${currentStep.ref}`
+                    : currentStep.name}
               </div>
             )}
           </div>
@@ -184,7 +188,7 @@ export const NavigationHUD = memo(function NavigationHUD({ nav, visible }: Props
           >
             <div
               style={{
-                fontSize: 26,
+                fontSize: simple ? 32 : 26,
                 fontWeight: 950,
                 color: distColor,
                 letterSpacing: "-0.8px",
@@ -198,8 +202,8 @@ export const NavigationHUD = memo(function NavigationHUD({ nav, visible }: Props
           </div>
         </div>
 
-        {/* ── "then" next step preview ── */}
-        {nextStep && (
+        {/* ── "then" next step preview — hidden in simple mode ── */}
+        {!simple && nextStep && (
           <div
             style={{
               marginTop: 10,

@@ -7,6 +7,7 @@ import { memo, useCallback } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { haptic } from "@/lib/native/haptics";
 import { cx } from "@/lib/utils/cx";
+import { useUIMode } from "@/lib/hooks/useUIMode";
 
 /* ── Types ────────────────────────────────────────────────────────────── */
 
@@ -278,9 +279,15 @@ const TABS: Tab[] = [
 
 /* ── Component ────────────────────────────────────────────────────────── */
 
+/** Tabs shown in simple mode — Guide, Trip (center), SOS */
+const SIMPLE_TAB_KEYS = new Set(["guide", "trip", "sos"]);
+
 export const BottomTabBar = memo(function BottomTabBar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { isSimple } = useUIMode();
+
+  const visibleTabs = isSimple ? TABS.filter((t) => SIMPLE_TAB_KEYS.has(t.key)) : TABS;
 
   const resolveActive = useCallback(
     (href: string) =>
@@ -310,7 +317,7 @@ export const BottomTabBar = memo(function BottomTabBar() {
         {/* Safe-area blur extension — replaces CSS ::after */}
         <span aria-hidden="true" style={SAFE_LEG_STYLE} />
 
-        {TABS.map((tab) => {
+        {visibleTabs.map((tab) => {
           const active = tab.key === activeKey;
 
           if (tab.isCenter) {
