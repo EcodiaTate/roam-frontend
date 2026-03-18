@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { haptic } from "@/lib/native/haptics";
 
 export function NotFoundClient() {
   const router = useRouter();
@@ -70,7 +71,7 @@ export function NotFoundClient() {
       {/* Client-side router action for going back */}
       <div style={{ width: "100%", maxWidth: 300, marginTop: 16 }}>
         <button 
-          onClick={() => router.back()}
+          onClick={() => { haptic.tap(); router.back(); }}
           className="trip-interactive trip-btn trip-btn-secondary"
           style={{ width: "100%" }}
         >

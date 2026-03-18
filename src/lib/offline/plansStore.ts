@@ -3,7 +3,7 @@
 
 import type { OfflineBundleManifest } from "@/lib/types/bundle";
 import type { NavPack } from "@/lib/types/navigation";
-import type { TripStop } from "@/lib/types/trip";
+import type { TripStop, TripPreferences } from "@/lib/types/trip";
 import type { BBox4 } from "@/lib/types/geo";
 import { idbDel, idbGet, idbGetAll, idbPut, idbStores, idbWithTx } from "./idb";
 import { emitPlanEvent } from "./planEvents";
@@ -51,6 +51,9 @@ export type OfflinePlanRecord = {
 
   // Offline preview (so /trip can render without unpacking zip)
   preview?: OfflinePlanPreview;
+
+  // Trip preferences (density + categories)
+  trip_prefs?: TripPreferences | null;
 
   // Sync metadata (set by planSync when cloud mirror exists)
   sync_version?: number;
@@ -159,8 +162,9 @@ export async function saveMinimalPlan(args: {
   navPack: NavPack;
   stops: TripStop[];
   profile: string;
+  tripPrefs?: TripPreferences | null;
 }): Promise<OfflinePlanRecord> {
-  const { plan_id, navPack, stops, profile } = args;
+  const { plan_id, navPack, stops, profile, tripPrefs = null } = args;
   const now = new Date().toISOString();
 
   const preview: OfflinePlanPreview = {
@@ -184,6 +188,7 @@ export async function saveMinimalPlan(args: {
     label: existing?.label ?? null,
     saved_at: now,
     preview,
+    trip_prefs: tripPrefs ?? existing?.trip_prefs ?? null,
   };
 
   await idbPut(idbStores.plans, rec);

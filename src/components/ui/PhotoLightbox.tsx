@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import { haptic } from "@/lib/native/haptics";
 
 import s from "./PhotoLightbox.module.css";
 
@@ -29,9 +30,9 @@ export function PhotoLightbox({
   const hasPrev = index > 0;
   const hasNext = index < urls.length - 1;
 
-  const goPrev = useCallback(() => setIndex((i) => Math.max(0, i - 1)), []);
+  const goPrev = useCallback(() => { haptic.selection(); setIndex((i) => Math.max(0, i - 1)); }, []);
   const goNext = useCallback(
-    () => setIndex((i) => Math.min(urls.length - 1, i + 1)),
+    () => { haptic.selection(); setIndex((i) => Math.min(urls.length - 1, i + 1)); },
     [urls.length],
   );
 
@@ -60,13 +61,13 @@ export function PhotoLightbox({
   const url = urls[index];
 
   return (
-    <div className={s.backdrop} onClick={onClose}>
+    <div className={s.backdrop} onClick={() => { haptic.light(); onClose(); }}>
       {/* Top bar */}
       <div className={s.topBar} onClick={(e) => e.stopPropagation()}>
         <span className={s.counter}>
           {urls.length > 1 ? `${index + 1} / ${urls.length}` : ""}
         </span>
-        <button type="button" className={s.closeBtn} onClick={onClose}>
+        <button type="button" className={s.closeBtn} onClick={() => { haptic.light(); onClose(); }}>
           <X size={18} strokeWidth={2} />
         </button>
       </div>

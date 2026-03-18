@@ -6,6 +6,8 @@ import type { NavPack } from "@/lib/types/navigation";
 import type { OfflineBundleManifest } from "@/lib/types/bundle";
 import { StopRow } from "./StopRow";
 import { StopSuggestions } from "./StopSuggestions";
+import type { TripPreferences } from "@/lib/types/trip";
+import { TripPrefsPanel } from "./TripPrefsPanel";
 import { haptic } from "@/lib/native/haptics";
 import { hideKeyboard } from "@/lib/native/keyboard";
 
@@ -415,6 +417,10 @@ export function StopsEditor(props: {
   /** Called when user taps "Add stop" on a suggestion card. */
   onAddSuggestion?: (item: StopSuggestionItem) => void;
 
+  /** Trip preferences — density slider & category toggles */
+  tripPrefs: TripPreferences;
+  onTripPrefsChange: (next: TripPreferences) => void;
+
   /** Whether user has Roam Untethered. null = still loading. */
   unlocked?: boolean | null;
   /** Called when user taps the upgrade button. */
@@ -426,6 +432,9 @@ export function StopsEditor(props: {
   const [isDraggingState, setIsDraggingState] = useState(false);
   const isDragging = useRef(false);
   const dragData = useRef({ startY: 0, lastY: 0, lastTime: 0, velocity: 0 });
+
+  // Trip prefs panel collapse state
+  const [prefsCollapsed, setPrefsCollapsed] = useState(true);
 
   // Track when build started for elapsed timer
   const [buildStartTime, setBuildStartTime] = useState<number>(0);
@@ -693,6 +702,14 @@ export function StopsEditor(props: {
                   />
                 ))}
               </div>
+
+              {/* ── Trip preferences (density + categories) ── */}
+              <TripPrefsPanel
+                prefs={props.tripPrefs}
+                onChange={props.onTripPrefsChange}
+                collapsed={prefsCollapsed}
+                onToggleCollapse={() => setPrefsCollapsed((p) => !p)}
+              />
 
               {/* ── Nearby suggestions ── */}
               {props.onAddSuggestion && (

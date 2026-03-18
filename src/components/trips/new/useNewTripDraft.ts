@@ -2,7 +2,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { TripStop, TripStopType } from "@/lib/types/trip";
+import type { TripStop, TripStopType, TripPreferences } from "@/lib/types/trip";
+import { DEFAULT_TRIP_PREFS } from "@/lib/types/trip";
 import { shortId } from "@/lib/utils/ids";
 import type { NavCoord } from "@/lib/types/geo";
 import { useGeolocation, getCurrentPosition } from "@/lib/native/geolocation";
@@ -34,6 +35,9 @@ export function useNewTripDraft() {
   const [prefs] = useState<Record<string, unknown>>({});
   const [avoid] = useState<string[]>([]);
   const [depart_at] = useState<string | null>(null);
+
+  // Trip preferences — stop density, category toggles
+  const [tripPrefs, setTripPrefs] = useState<TripPreferences>({ ...DEFAULT_TRIP_PREFS });
 
   const [mapCenter, setMapCenter] = useState<NavCoord | null>(null);
 
@@ -168,6 +172,9 @@ export function useNewTripDraft() {
     prefs,
     avoid,
     depart_at,
+
+    tripPrefs,
+    setTripPrefs,
 
     mapCenter,
     setMapCenter,

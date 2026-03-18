@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import type { TripStop } from "@/lib/types/trip";
 import type { PlaceItem } from "@/lib/types/places";
 import { placesApi } from "@/lib/api/places";
-import { Search, Crosshair, Loader2, ChevronUp, ChevronDown, X } from "lucide-react";
+import { Search, Crosshair, Loader2, ChevronUp, ChevronDown, X, Clock } from "lucide-react";
 
 import { haptic } from "@/lib/native/haptics";
 import { getCurrentPosition } from "@/lib/native/geolocation";
@@ -12,6 +12,19 @@ import { hideKeyboard } from "@/lib/native/keyboard";
 import { useDebounceSearch } from "@/lib/hooks/useDebounceSearch";
 
 const MIN_QUERY_LEN = 2;
+
+function formatScheduleSummary(arrive?: string | null, depart?: string | null): string {
+  const fmt = (iso: string) => {
+    try {
+      const d = new Date(iso);
+      return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+    } catch { return iso; }
+  };
+  if (arrive && depart) return `${fmt(arrive)} → ${fmt(depart)}`;
+  if (arrive) return `Arrive ${fmt(arrive)}`;
+  if (depart) return `Depart ${fmt(depart)}`;
+  return "Add times";
+}
 
 function badgeForType(type?: string) {
   switch (type) {
@@ -34,7 +47,7 @@ export function StopRow(props: {
   stop: TripStop;
   idx: number;
   count: number;
-  onEdit: (patch: Partial<Pick<TripStop, "name" | "lat" | "lng">>) => void;
+  onEdit: (patch: Partial<Pick<TripStop, "name" | "lat" | "lng" | "arrive_at" | "depart_at">>) => void;
   onSearch: () => void;
   onRemove: () => void;
   onMoveUp: () => void;
@@ -46,6 +59,7 @@ export function StopRow(props: {
   const [isFocused, setIsFocused] = useState(false);
   const [q, setQ] = useState(() => getDisplayValue(s.name, s.type));
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
 
   const searchFn = useCallback(
     async (query: string) => {
@@ -229,6 +243,96 @@ export function StopRow(props: {
             </button>
           )}
         </div>
+
+        {/* ── Schedule toggle + inputs ── */}
+        {s.name?.trim() && (
+          <div>
+            <button
+              type="button"
+              onClick={() => { haptic.selection(); setScheduleOpen(!scheduleOpen); }}
+              className="trip-interactive"
+              style={{
+                all: "unset",
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                fontSize: 11,
+                fontWeight: 600,
+                color: (s.arrive_at || s.depart_at) ? "#3b82f6" : "var(--roam-text-muted)",
+                padding: "2px 0",
+                WebkitTapHighlightColor: "transparent",
+              }}
+            >
+              <Clock size={11} />
+              {(s.arrive_at || s.depart_at)
+                ? formatScheduleSummary(s.arrive_at, s.depart_at)
+                : "Add times"
+              }
+            </button>
+
+            {scheduleOpen && (
+              <div
+                style={{
+                  display: "flex",
+                  gap: 8,
+                  marginTop: 6,
+                  flexWrap: "wrap",
+                }}
+              >
+                <label style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minWidth: 130 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: "var(--roam-text-muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                    {s.type === "start" ? "Depart" : "Arrive"}
+                  </span>
+                  <input
+                    type="datetime-local"
+                    value={s.type === "start" ? (s.depart_at ?? "") : (s.arrive_at ?? "")}
+                    onChange={(e) => {
+                      haptic.selection();
+                      if (s.type === "start") {
+                        props.onEdit({ depart_at: e.target.value || null });
+                      } else {
+                        props.onEdit({ arrive_at: e.target.value || null });
+                      }
+                    }}
+                    className="trip-input"
+                    style={{
+                      height: 36,
+                      fontSize: 13,
+                      borderRadius: 8,
+                      padding: "0 8px",
+                      colorScheme: "auto",
+                    }}
+                  />
+                </label>
+
+                {s.type !== "start" && s.type !== "end" && (
+                  <label style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minWidth: 130 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: "var(--roam-text-muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                      Depart
+                    </span>
+                    <input
+                      type="datetime-local"
+                      value={s.depart_at ?? ""}
+                      onChange={(e) => {
+                        haptic.selection();
+                        props.onEdit({ depart_at: e.target.value || null });
+                      }}
+                      className="trip-input"
+                      style={{
+                        height: 36,
+                        fontSize: 13,
+                        borderRadius: 8,
+                        padding: "0 8px",
+                        colorScheme: "auto",
+                      }}
+                    />
+                  </label>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Reorder / remove controls — horizontal row */}

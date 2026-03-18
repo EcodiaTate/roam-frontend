@@ -4,6 +4,7 @@
 import { memo, useMemo, useCallback, useRef, useState, useEffect } from "react";
 import type { ElevationProfile, GradeSegment, ElevationSample } from "@/lib/types/navigation";
 import { formatDistance } from "@/lib/nav/instructions";
+import { haptic } from "@/lib/native/haptics";
 import { ChevronDown, ChevronUp, Mountain } from "lucide-react";
 
 /* ── Types ────────────────────────────────────────────────────────── */
@@ -167,6 +168,7 @@ export const ElevationStrip = memo(function ElevationStrip({
     if (!onTapLocation || !samples || samples.length < 2) return;
     const km = kmFromPointerEvent(e);
     if (km == null) return;
+    haptic.selection();
     const loc = locAtKm(samples, km);
     onTapLocation({ lat: loc.lat, lng: loc.lng, km });
   }, [onTapLocation, samples, kmFromPointerEvent]);
@@ -211,7 +213,7 @@ export const ElevationStrip = memo(function ElevationStrip({
       {/* ── Header bar (always visible) ── */}
       <button
         type="button"
-        onClick={onToggleCollapse}
+        onClick={() => { haptic.tap(); onToggleCollapse?.(); }}
         style={{
           display: "flex",
           alignItems: "center",

@@ -941,11 +941,16 @@ input, textarea, [contenteditable] {
 }
 
 .trip-drag-handle {
-  width: 36px; height: 4px;
+  width: 36px; height: 5px;
   background: var(--roam-border-strong);
   border-radius: 10px;
   margin: 0 auto 8px auto;
-  opacity: 0.5;
+  opacity: 0.6;
+}
+/* Expand the grabbable zone around the thin visual handle so fingers
+   can reliably catch it — 44px meets Apple HIG minimum tap target. */
+.trip-sheet-header {
+  min-height: 44px;
 }
 
 

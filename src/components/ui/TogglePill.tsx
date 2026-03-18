@@ -3,6 +3,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { haptic } from "@/lib/native/haptics";
 
 export function TogglePill({
   active,
@@ -18,7 +19,7 @@ export function TogglePill({
   return (
     <button
       type="button"
-      onClick={onToggle}
+      onClick={() => { haptic.selection(); onToggle(); }}
       style={{
         display: "flex",
         alignItems: "center",
@@ -35,7 +36,7 @@ export function TogglePill({
         cursor: "pointer",
         whiteSpace: "nowrap",
         flexShrink: 0,
-        transition: "background 100ms ease, color 100ms ease, border-color 100ms ease",
+        transition: "background 100ms ease, color 100ms ease, border-color 100ms ease, transform 80ms ease",
       }}
     >
       {icon}

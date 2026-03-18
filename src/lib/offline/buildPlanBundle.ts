@@ -9,7 +9,7 @@
 
 import type { NavPack } from "@/lib/types/navigation";
 import type { OfflineBundleManifest } from "@/lib/types/bundle";
-import type { TripStop } from "@/lib/types/trip";
+import type { TripStop, TripPreferences } from "@/lib/types/trip";
 
 import { navApi } from "@/lib/api/nav";
 import { bundleApi } from "@/lib/api/bundle";
@@ -58,6 +58,8 @@ export type BuildPlanBundleArgs = {
   max_edges?: number;
   /** Progress callback - called on every phase change */
   onPhase?: (phase: BuildPhase) => void;
+  /** Trip preferences — stop density + category toggles */
+  tripPrefs?: TripPreferences | null;
 };
 
 export type BuildPlanBundleResult = {
@@ -113,6 +115,7 @@ export async function buildPlanBundle(args: BuildPlanBundleArgs): Promise<BuildP
     buffer_m = 15000,
     max_edges = 350000,
     onPhase,
+    tripPrefs = null,
   } = args;
 
   const emit = (phase: BuildPhase) => onPhase?.(phase);
@@ -178,6 +181,12 @@ export async function buildPlanBundle(args: BuildPlanBundleArgs): Promise<BuildP
   // Traffic + hazards are fetched concurrently inside bundle/build —
   // no need to poll them separately first.
   emit("bundle_build");
+
+  // Derive departure_iso from the first stop's depart_at if available
+  const departureIso = depart_at
+    ?? stops.find((s) => s.type === "start")?.depart_at
+    ?? null;
+
   const manifest = await bundleApi.build({
     plan_id,
     route_key,
@@ -186,6 +195,8 @@ export async function buildPlanBundle(args: BuildPlanBundleArgs): Promise<BuildP
     buffer_m,
     max_edges,
     styles: [styleId],
+    departure_iso: departureIso,
+    trip_prefs: tripPrefs,
   });
 
   // ─── 8. Download zip ─────────────────────────────────────────────────

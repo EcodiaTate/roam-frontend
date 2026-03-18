@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { NavPack } from "@/lib/types/navigation";
+import type { TripPreferences } from "@/lib/types/trip";
 import type { PackKind } from "@/lib/offline/packsStore";
 import {
   startEnrichment,
@@ -23,7 +24,7 @@ export function useEnrichment(onPack: (kind: PackKind, data: unknown) => void) {
   const isError = progress?.phase === "error";
 
   const start = useCallback(
-    (args: { planId: string; navPack: NavPack; departAt?: string | null }) => {
+    (args: { planId: string; navPack: NavPack; departAt?: string | null; tripPrefs?: TripPreferences | null }) => {
       // Cancel any running enrichment
       cancelRef.current?.();
 
@@ -37,6 +38,7 @@ export function useEnrichment(onPack: (kind: PackKind, data: unknown) => void) {
         planId: args.planId,
         navPack: args.navPack,
         departAt: args.departAt,
+        tripPrefs: args.tripPrefs,
         callbacks,
       });
 

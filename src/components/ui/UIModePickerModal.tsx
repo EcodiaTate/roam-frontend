@@ -52,6 +52,7 @@ export function UIModePickerModal({ open, onClose }: Props) {
         alignItems: "center",
         justifyContent: "center",
         padding: 20,
+        animation: "roam-fadeIn 200ms ease-out both",
       }}
       role="dialog"
       aria-modal="true"
@@ -64,6 +65,7 @@ export function UIModePickerModal({ open, onClose }: Props) {
           background: "var(--surface-card, #f4efe6)",
           borderRadius: 24,
           overflow: "hidden",
+          animation: "roam-pop 280ms cubic-bezier(0.34, 1.56, 0.64, 1) both",
         }}
       >
         {/* Header */}

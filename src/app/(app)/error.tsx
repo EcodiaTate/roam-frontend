@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { haptic } from "@/lib/native/haptics";
 
 export default function AppError({
   error,
@@ -24,7 +25,7 @@ export default function AppError({
           {error.message || "An unexpected error occurred."}
         </p>
         <button
-          onClick={reset}
+          onClick={() => { haptic.tap(); reset(); }}
           type="button"
           className="trip-btn trip-btn-primary"
         >

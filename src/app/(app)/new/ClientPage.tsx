@@ -123,6 +123,12 @@ export default function NewTripClientPage() {
 
   /* ── Route preview (quick, no bundle) ──────────────────────────────── */
 
+  // Derive departure time from the start stop's schedule
+  const effectiveDepartAt = useMemo(() => {
+    const start = draft.stops.find((s) => s.type === "start");
+    return start?.depart_at ?? draft.depart_at ?? null;
+  }, [draft.stops, draft.depart_at]);
+
   const requestRoute = useCallback(async () => {
     if (!canRoute) return;
     setRouteError(null);
@@ -133,7 +139,7 @@ export default function NewTripClientPage() {
         prefs: draft.prefs,
         avoid: draft.avoid,
         stops: draft.stops,
-        depart_at: draft.depart_at ?? null,
+        depart_at: effectiveDepartAt,
       });
       setNavPack(pack);
     } catch (e: unknown) {
@@ -142,7 +148,7 @@ export default function NewTripClientPage() {
     } finally {
       setRouting(false);
     }
-  }, [canRoute, draft]);
+  }, [canRoute, draft, effectiveDepartAt]);
 
   /* ── Auto-route: pre-fetch route as soon as stops are valid ────────── */
   // This populates navPack in the background so that when the user taps
@@ -220,7 +226,7 @@ export default function NewTripClientPage() {
         prefs: draft.prefs,
         avoid: draft.avoid,
         stops: draft.stops,
-        depart_at: draft.depart_at ?? null,
+        depart_at: effectiveDepartAt,
       });
 
       // Step 2: Navigate immediately — don't wait for IDB save
@@ -233,6 +239,7 @@ export default function NewTripClientPage() {
           navPack: pack,
           stops: draft.stops,
           profile: draft.profile,
+          tripPrefs: draft.tripPrefs,
         }),
         incrementTripsUsed(),
       ]).catch(() => {});
@@ -240,7 +247,7 @@ export default function NewTripClientPage() {
       setRouteError(toErrorMessage(e, "Failed to save trip"));
       setSavingAndGoing(false);
     }
-  }, [canRoute, savingAndGoing, draft, navPack, router]);
+  }, [canRoute, savingAndGoing, draft, navPack, router, effectiveDepartAt]);
 
   /* ── Go Now: online-only instant navigation (no bundle, no save) ──── */
 
@@ -261,7 +268,7 @@ export default function NewTripClientPage() {
         prefs: draft.prefs,
         avoid: draft.avoid,
         stops: draft.stops,
-        depart_at: draft.depart_at ?? null,
+        depart_at: effectiveDepartAt,
       });
       sessionStorage.setItem("roam_live_navpack", JSON.stringify(pack));
       router.replace("/live");
@@ -269,7 +276,7 @@ export default function NewTripClientPage() {
       setRouteError(toErrorMessage(e, "Failed to get route"));
       setGoingNow(false);
     }
-  }, [canRoute, navPack, draft, router]);
+  }, [canRoute, navPack, draft, router, effectiveDepartAt]);
 
   /* ── Render ────────────────────────────────────────────────────────── */
 
@@ -348,6 +355,11 @@ export default function NewTripClientPage() {
         canDownloadOffline={false}
         savingOffline={bundle.building}
         savedOffline={bundle.isReady}
+        tripPrefs={draft.tripPrefs}
+        onTripPrefsChange={(next) => {
+          draft.setTripPrefs(next);
+          clearRouteState();
+        }}
         unlocked={unlocked}
         onUpgrade={() => { setPaywallVariant("upgrade"); setPaywallOpen(true); }}
       />

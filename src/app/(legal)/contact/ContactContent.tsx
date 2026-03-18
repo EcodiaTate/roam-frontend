@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { haptic } from "@/lib/native/haptics";
 import s from "../legal.module.css";
 import LegalNav from "../LegalNav";
 
@@ -121,6 +122,7 @@ export default function ContactContent() {
       });
 
       if (res.ok) {
+        haptic.success();
         setStatus("success");
         setForm({
           name: "",
@@ -130,6 +132,7 @@ export default function ContactContent() {
           message: "",
         });
       } else {
+        haptic.error();
         const data = await res.json().catch(() => null);
         setErrorMsg(
           data?.message ||
@@ -138,6 +141,7 @@ export default function ContactContent() {
         setStatus("error");
       }
     } catch {
+      haptic.error();
       setErrorMsg(
         "Network error - you may be offline. Please email tate@ecodia.au directly.",
       );

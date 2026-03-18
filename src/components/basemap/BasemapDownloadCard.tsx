@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { useBasemapPack } from "@/lib/hooks/useBasemapPack";
+import { haptic } from "@/lib/native/haptics";
 import { Loader2, AlertTriangle } from "lucide-react";
 
 type Props = {
@@ -42,7 +43,7 @@ export function BasemapDownloadCard({ region = "australia", onReady, className }
       {/* 3. Downloading state */}
       {status.state === "downloading" && (
         <div style={styles.container}>
-          <button onClick={cancel} style={styles.pill} title="Tap to cancel">
+          <button onClick={() => { haptic.tap(); cancel(); }} style={styles.pill} title="Tap to cancel">
             <Loader2 size={16} className="roam-spin" style={{ opacity: 0.7 }} />
             <span>Saving offline map…</span>
           </button>
@@ -52,7 +53,7 @@ export function BasemapDownloadCard({ region = "australia", onReady, className }
       {/* 4. Error state */}
       {status.state === "error" && (
         <div style={styles.container}>
-          <button onClick={handleDownload} style={{ ...styles.pill, color: "var(--roam-danger, #ef4444)" }}>
+          <button onClick={() => { haptic.tap(); handleDownload(); }} style={{ ...styles.pill, color: "var(--roam-danger, #ef4444)" }}>
             <AlertTriangle size={16} />
             <span>Map download failed. Tap to retry.</span>
           </button>

@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Capacitor } from "@capacitor/core";
 import { useAuth } from "@/lib/supabase/auth";
 import { useNetworkStatus } from "@/lib/hooks/useNetworkStatus";
+import { haptic } from "@/lib/native/haptics";
 
 export default function LoginPage() {
   const {
@@ -37,21 +38,24 @@ export default function LoginPage() {
   }, [loading, session, router]);
 
   const handleGoogle = useCallback(async () => {
+    haptic.tap();
     setError(null);
     setBusy(true);
     const { error: err } = await signInWithGoogle();
-    if (err) setError(err.message);
+    if (err) { haptic.error(); setError(err.message); }
     setBusy(false);
   }, [signInWithGoogle]);
 
   const handleApple = useCallback(async () => {
+    haptic.tap();
     setError(null);
     setBusy(true);
     try {
       const { error: err } = await signInWithAppleNative();
-      if (err) setError(err.message);
+      if (err) { haptic.error(); setError(err.message); }
       // success -> session updates -> redirect effect fires
     } catch (e: unknown) {
+      haptic.error();
       setError(e instanceof Error ? e.message : "Apple Sign-In failed");
     } finally {
       setBusy(false);
@@ -74,15 +78,16 @@ export default function LoginPage() {
         return;
       }
 
+      haptic.tap();
       setBusy(true);
       try {
         if (mode === "login") {
           const { error: err } = await signInWithEmail(e1, password);
-          if (err) setError(err.message);
+          if (err) { haptic.error(); setError(err.message); }
         } else {
           const { error: err } = await signUpWithEmail(e1, password);
-          if (err) setError(err.message);
-          else setSignupSuccess(true);
+          if (err) { haptic.error(); setError(err.message); }
+          else { haptic.success(); setSignupSuccess(true); }
         }
       } finally {
         setBusy(false);
@@ -290,6 +295,7 @@ export default function LoginPage() {
         <button
           type="button"
           onClick={() => {
+            haptic.selection();
             setMode(mode === "login" ? "signup" : "login");
             setError(null);
             setSignupSuccess(false);

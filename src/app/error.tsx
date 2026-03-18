@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { haptic } from "@/lib/native/haptics";
 
 export default function GlobalError({
   error,
@@ -48,7 +49,7 @@ export default function GlobalError({
         persists.
       </p>
       <button
-        onClick={reset}
+        onClick={() => { haptic.tap(); reset(); }}
         type="button"
         style={{
           marginTop: 8,

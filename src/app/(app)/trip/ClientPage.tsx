@@ -630,6 +630,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       planId: plan.plan_id,
       navPack: navpack,
       departAt: navpack.req?.depart_at ?? null,
+      tripPrefs: plan.trip_prefs ?? null,
     });
 
     // NOTE: no cleanup cancellation. Enrichment runs to completion even if

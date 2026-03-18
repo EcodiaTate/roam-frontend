@@ -2,10 +2,12 @@
 "use client";
 
 import type { NavPack } from "@/lib/types/navigation";
+import type { TripPreferences } from "@/lib/types/trip";
 import type { PackKind } from "./packsStore";
 import { putPack } from "./packsStore";
 import { navApi } from "@/lib/api/nav";
 import { placesApi } from "@/lib/api/places";
+import { bundleApi } from "@/lib/api/bundle";
 
 /* ── Types ────────────────────────────────────────────────────────────── */
 
@@ -26,6 +28,31 @@ export type EnrichCallbacks = {
   /** Called when all enrichment is complete. */
   onDone: () => void;
 };
+
+/* ── Category group → PlaceCategory mapping (mirrors backend) ─────── */
+
+import type { PlaceCategory } from "@/lib/types/places";
+import type { CategoryGroup } from "@/lib/types/trip";
+
+const CATEGORY_GROUP_MAP: Record<CategoryGroup, PlaceCategory[]> = {
+  essentials:     ["fuel", "ev_charging", "rest_area", "toilet", "water", "mechanic", "hospital", "pharmacy"],
+  food:           ["bakery", "cafe", "restaurant", "fast_food", "pub", "bar"],
+  accommodation:  ["camp", "hotel", "motel", "hostel"],
+  nature:         ["viewpoint", "waterfall", "swimming_hole", "beach", "national_park", "hiking", "picnic", "hot_spring", "cave", "fishing", "surf"],
+  culture:        ["visitor_info", "museum", "gallery", "heritage", "winery", "brewery", "attraction", "market", "library", "showground"],
+  family:         ["playground", "pool", "zoo", "theme_park", "dog_park", "golf", "cinema"],
+  supplies:       ["grocery", "town", "atm", "laundromat", "dump_point"],
+};
+
+function resolveEnabledCategories(prefs: TripPreferences): PlaceCategory[] {
+  const cats: PlaceCategory[] = [];
+  for (const [group, groupCats] of Object.entries(CATEGORY_GROUP_MAP) as [CategoryGroup, PlaceCategory[]][]) {
+    if (prefs.categories[group] !== false) {
+      cats.push(...groupCats);
+    }
+  }
+  return cats;
+}
 
 /* ── Constants ────────────────────────────────────────────────────────── */
 
@@ -65,9 +92,10 @@ export function startEnrichment(args: {
   planId: string;
   navPack: NavPack;
   departAt?: string | null;
+  tripPrefs?: TripPreferences | null;
   callbacks: EnrichCallbacks;
 }): { cancel: () => void } {
-  const { planId, navPack, departAt, callbacks } = args;
+  const { planId, navPack, departAt, tripPrefs, callbacks } = args;
   const geometry = navPack.primary.geometry;
   const bbox = navPack.primary.bbox;
   const routeKey = navPack.primary.route_key;
@@ -144,17 +172,21 @@ export function startEnrichment(args: {
       overlay("wildlife", () => navApi.wildlifeAlongRoute({ polyline6: geometry })),
     ]);
 
+    // ── Resolve categories from trip preferences ───────────────────────
+    const resolvedCategories = tripPrefs ? resolveEnabledCategories(tripPrefs) : undefined;
+
     // ── Places + corridor run in parallel with overlays ───────────────
     // Places must finish before corridor (corridor needs stop coords),
     // but both run alongside the overlay batch above.
     const corridorWork = (async () => {
-      // 1. Fetch places
+      // 1. Fetch places (with category filtering from trip prefs)
       let placesData: { items?: { lat: number; lng: number }[] } | null = null;
       try {
         placesData = await safeFetch("places", () =>
           placesApi.corridor({
             corridor_key: routeKey,
             geometry,
+            categories: resolvedCategories,
           }),
         ) as { items?: { lat: number; lng: number }[] } | null;
         if (cancelled) return;

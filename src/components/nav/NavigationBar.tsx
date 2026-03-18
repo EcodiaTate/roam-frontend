@@ -6,6 +6,7 @@ import type { ActiveNavState } from "@/lib/nav/activeNav";
 import type { FuelTrackingState } from "@/lib/types/fuel";
 import { formatDistance, formatDuration, formatETA } from "@/lib/nav/instructions";
 import { formatDriveSinceRest, fatigueColor } from "@/lib/nav/fatigue";
+import { haptic } from "@/lib/native/haptics";
 import { Fuel, Clock, MapPin, Navigation, Flag } from "lucide-react";
 
 type Props = {
@@ -67,7 +68,7 @@ export const NavigationBar = memo(function NavigationBar({ nav, fuelTracking, vi
         zIndex: 30,
         pointerEvents: "auto",
       }}
-      onClick={onTap}
+      onClick={() => { haptic.light(); onTap?.(); }}
       role="status"
       aria-label="Navigation summary"
     >

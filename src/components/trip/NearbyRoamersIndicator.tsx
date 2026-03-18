@@ -12,6 +12,7 @@
 import { memo, useState } from "react";
 import type { NearbyRoamer } from "@/lib/types/peer";
 import { cardinalDir } from "@/lib/nav/geo";
+import { haptic } from "@/lib/native/haptics";
 
 type Props = {
   roamers: NearbyRoamer[];
@@ -32,7 +33,7 @@ export const NearbyRoamersIndicator = memo(function NearbyRoamersIndicator({ roa
     <div style={styles.wrapper}>
       <button
         type="button"
-        onClick={() => setExpanded(!expanded)}
+        onClick={() => { haptic.selection(); setExpanded(!expanded); }}
         style={styles.pill}
         aria-label={`${roamers.length} roamer${roamers.length > 1 ? "s" : ""} nearby`}
         onPointerDown={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(0.95)"; }}
@@ -128,6 +129,8 @@ const styles: Record<string, React.CSSProperties> = {
     padding: 8,
     minWidth: 220,
     marginTop: 4,
+    animation: "roam-fadeIn 200ms ease-out, roam-slideUp 220ms cubic-bezier(0.34, 1.56, 0.64, 1)",
+    transformOrigin: "top right",
   },
   roamerRow: {
     display: "flex",

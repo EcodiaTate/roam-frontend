@@ -2,6 +2,7 @@
 import { api } from "./client";
 import type { OfflineBundleManifest } from "@/lib/types/bundle";
 import type { RouteIntelligenceScore } from "@/lib/types/overlays";
+import type { TripPreferences } from "@/lib/types/trip";
 
 type BBox = { minLng: number; minLat: number; maxLng: number; maxLat: number };
 
@@ -18,6 +19,8 @@ export type BundleBuildRequest = {
   buffer_m?: number | null;
   max_edges?: number | null;
   styles?: string[]; // default []
+  departure_iso?: string | null;
+  trip_prefs?: TripPreferences | null;
 };
 
 export const bundleApi = {
