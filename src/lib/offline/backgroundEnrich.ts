@@ -189,9 +189,13 @@ export function startEnrichment(args: {
         if (cancelled) return;
 
         if (meta?.corridor_key) {
-          const corridorPack = await safeFetch("corridor_get", () =>
-            navApi.corridorGet(meta.corridor_key),
-          );
+          // Prefer inline pack (avoids separate GET that may hit a different instance)
+          let corridorPack = (meta as any).pack ?? null;
+          if (!corridorPack) {
+            corridorPack = await safeFetch("corridor_get", () =>
+              navApi.corridorGet(meta.corridor_key),
+            );
+          }
           if (cancelled) return;
 
           if (corridorPack) {

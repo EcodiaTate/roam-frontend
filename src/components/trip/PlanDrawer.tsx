@@ -345,43 +345,45 @@ function PlanCard({
               onDone={onLabelChanged}
             />
           </div>
-          <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
-            {plan.is_shared && (
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 2,
-                  padding: "2px 6px",
-                  borderRadius: 4,
-                  background: "var(--accent-tint)",
-                  color: "var(--brand-shared)",
-                  fontSize: 10,
-                  fontWeight: 800,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                <Users size={8} />
-              </span>
-            )}
-            {isCurrent && (
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 2,
-                  padding: "2px 6px",
-                  borderRadius: 4,
-                  background: "rgba(59,130,246,0.12)",
-                  color: "var(--brand-sky)",
-                  fontSize: 10,
-                  fontWeight: 800,
-                }}
-              >
-                <Star size={8} fill="currentColor" />
-              </span>
-            )}
-          </div>
+          {!simple && (
+            <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
+              {plan.is_shared && (
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 2,
+                    padding: "2px 6px",
+                    borderRadius: 4,
+                    background: "var(--accent-tint)",
+                    color: "var(--brand-shared)",
+                    fontSize: 10,
+                    fontWeight: 800,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  <Users size={8} />
+                </span>
+              )}
+              {isCurrent && (
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 2,
+                    padding: "2px 6px",
+                    borderRadius: 4,
+                    background: "rgba(59,130,246,0.12)",
+                    color: "var(--brand-sky)",
+                    fontSize: 10,
+                    fontWeight: 800,
+                  }}
+                >
+                  <Star size={8} fill="currentColor" />
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Stats row */}
@@ -389,47 +391,49 @@ function PlanCard({
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 10,
-            fontSize: 11,
+            gap: simple ? 14 : 10,
+            fontSize: simple ? 14 : 11,
             color: "var(--roam-text-muted)",
-            fontWeight: 600,
+            fontWeight: simple ? 700 : 600,
           }}
         >
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
-            <Route size={11} />
+          <span style={{ display: "inline-flex", alignItems: "center", gap: simple ? 5 : 3 }}>
+            <Route size={simple ? 14 : 11} />
             {formatDistanceOrDash(plan.preview?.distance_m)}
           </span>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
-            <Clock size={11} />
+          <span style={{ display: "inline-flex", alignItems: "center", gap: simple ? 5 : 3 }}>
+            <Clock size={simple ? 14 : 11} />
             {formatDurationOrDash(plan.preview?.duration_s)}
           </span>
           {stops > 0 && (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
-              <MapPin size={11} />
+            <span style={{ display: "inline-flex", alignItems: "center", gap: simple ? 5 : 3 }}>
+              <MapPin size={simple ? 14 : 11} />
               {stops}
             </span>
           )}
         </div>
 
-        {/* Bundle readiness row */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            marginTop: 8,
-            fontSize: 10,
-            color: "var(--roam-text-muted)",
-            fontWeight: 500,
-          }}
-        >
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
-            <StatusDot status={plan.corridor_status} /> Corridor
-          </span>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
-            <StatusDot status={plan.places_status} /> Places
-          </span>
-        </div>
+        {/* Bundle readiness row — hidden in simple mode */}
+        {!simple && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              marginTop: 8,
+              fontSize: 10,
+              color: "var(--roam-text-muted)",
+              fontWeight: 500,
+            }}
+          >
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
+              <StatusDot status={plan.corridor_status} /> Corridor
+            </span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
+              <StatusDot status={plan.places_status} /> Places
+            </span>
+          </div>
+        )}
       </div>
 
       {/* ── Actions bar ──────────────────────────────── */}
@@ -833,7 +837,7 @@ export function PlanDrawer({
           >
             <h2
               style={{
-                fontSize: 18,
+                fontSize: isSimple ? 22 : 18,
                 fontWeight: 900,
                 color: "var(--roam-text)",
                 margin: 0,
@@ -907,13 +911,13 @@ export function PlanDrawer({
                   background: "var(--roam-surface-hover)",
                   border: "1px solid var(--brand-sky, #38bdf8)",
                   color: "var(--brand-sky, #38bdf8)",
-                  fontSize: 13,
+                  fontSize: isSimple ? 15 : 13,
                   fontWeight: 700,
                   touchAction: "manipulation",
                   WebkitTapHighlightColor: "transparent",
                 }}
               >
-                <Sparkles size={16} />
+                <Sparkles size={isSimple ? 18 : 16} />
                 AI
               </button>
             )}
@@ -932,11 +936,11 @@ export function PlanDrawer({
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 6,
-                height: 48,
+                height: isSimple ? 54 : 48,
                 borderRadius: 12,
                 background: "var(--roam-accent)",
                 color: "var(--on-color)",
-                fontSize: 13,
+                fontSize: isSimple ? 15 : 13,
                 fontWeight: 700,
                 boxShadow: "var(--shadow-button)",
                 touchAction: "manipulation",
@@ -1095,10 +1099,10 @@ export function PlanDrawer({
               }}
             >
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--roam-text)", marginBottom: 1 }}>
+                <div style={{ fontSize: isSimple ? 16 : 13, fontWeight: 700, color: "var(--roam-text)", marginBottom: 1 }}>
                   Simple View
                 </div>
-                <div style={{ fontSize: 11, fontWeight: 500, color: "var(--roam-text-muted)", lineHeight: 1.3 }}>
+                <div style={{ fontSize: isSimple ? 13 : 11, fontWeight: 500, color: "var(--roam-text-muted)", lineHeight: 1.3 }}>
                   Fewer buttons, just the essentials
                 </div>
               </div>

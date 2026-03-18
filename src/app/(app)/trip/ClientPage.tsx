@@ -2219,7 +2219,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
             <div style={{ minWidth: 0, flex: 1 }}>
               <div
                 style={{
-                  fontSize: 18, fontWeight: 800, margin: 0,
+                  fontSize: isSimple ? 22 : 18, fontWeight: isSimple ? 900 : 800, margin: 0,
                   color: "var(--roam-text)", letterSpacing: "-0.3px",
                   overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                 }}

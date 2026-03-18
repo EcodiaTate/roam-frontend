@@ -98,7 +98,7 @@ export const NavigationBar = memo(function NavigationBar({ nav, fuelTracking, vi
             <div style={{ flex: "0 0 auto", marginRight: 20 }}>
               <div
                 style={{
-                  fontSize: 30,
+                  fontSize: simple ? 38 : 30,
                   fontWeight: 950,
                   color: "var(--on-color)",
                   letterSpacing: "-1px",
@@ -111,13 +111,13 @@ export const NavigationBar = memo(function NavigationBar({ nav, fuelTracking, vi
               </div>
               <div
                 style={{
-                  fontSize: 10,
+                  fontSize: simple ? 13 : 10,
                   fontWeight: 800,
                   color: isMultiLeg ? "var(--brand-eucalypt)" : "var(--brand-amber)",
                   textTransform: "uppercase",
                   letterSpacing: "0.8px",
                   marginTop: 3,
-                  maxWidth: 80,
+                  maxWidth: simple ? 120 : 80,
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
@@ -128,16 +128,16 @@ export const NavigationBar = memo(function NavigationBar({ nav, fuelTracking, vi
             </div>
 
             {/* Divider */}
-            <div style={{ width: 1, height: 36, background: "rgba(255,255,255,0.08)", marginRight: 20, flexShrink: 0 }} />
+            <div style={{ width: 1, height: simple ? 44 : 36, background: "rgba(255,255,255,0.08)", marginRight: 20, flexShrink: 0 }} />
 
             {/* Distance + Time — right of divider */}
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: simple ? 8 : 6 }}>
               {/* Distance remaining (to next stop) */}
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <MapPin size={12} color="var(--brand-sky)" aria-hidden="true" />
+                <MapPin size={simple ? 15 : 12} color="var(--brand-sky)" aria-hidden="true" />
                 <span
                   style={{
-                    fontSize: 15,
+                    fontSize: simple ? 20 : 15,
                     fontWeight: 900,
                     color: "rgba(250,246,239,0.88)",
                     letterSpacing: "-0.3px",
@@ -151,10 +151,10 @@ export const NavigationBar = memo(function NavigationBar({ nav, fuelTracking, vi
 
               {/* Time remaining (to next stop) */}
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <Clock size={12} color="rgba(250,246,239,0.4)" aria-hidden="true" />
+                <Clock size={simple ? 15 : 12} color="rgba(250,246,239,0.4)" aria-hidden="true" />
                 <span
                   style={{
-                    fontSize: 13,
+                    fontSize: simple ? 17 : 13,
                     fontWeight: 800,
                     color: "rgba(250,246,239,0.55)",
                     letterSpacing: "-0.2px",

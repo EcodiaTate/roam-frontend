@@ -662,3 +662,49 @@
   0%  { opacity: 0; transform: translateY(6px) scale(0.96); }
   100%{ opacity: 1; transform: translateY(0) scale(1); }
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   SIMPLE MODE — larger fonts, bigger tap targets
+   Triggered via data-simple="true" on .root
+   ══════════════════════════════════════════════════════════════════ */
+
+.root[data-simple="true"] .tab {
+  font-size: 15px;
+  padding: 10px 14px;
+}
+
+.root[data-simple="true"] .routeMeta {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.root[data-simple="true"] .stopName {
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.root[data-simple="true"] .stopCard {
+  padding: 14px 12px;
+  min-height: 56px;
+}
+
+.root[data-simple="true"] .indexBadge {
+  font-size: 10px;
+  min-width: 18px;
+  min-height: 18px;
+}
+
+.root[data-simple="true"] .legPill {
+  font-size: 12px;
+  padding: 3px 9px;
+}
+
+.root[data-simple="true"] .addStopBtn {
+  font-size: 15px;
+  padding: 14px 18px;
+}
+
+.root[data-simple="true"] .controlBtnDanger {
+  width: 36px;
+  height: 36px;
+}

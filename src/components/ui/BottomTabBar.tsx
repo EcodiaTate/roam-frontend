@@ -312,7 +312,7 @@ export const BottomTabBar = memo(function BottomTabBar() {
   );
 
   return (
-    <div className="roam-tabs-wrap" role="navigation" aria-label="Primary">
+    <div className="roam-tabs-wrap" role="navigation" aria-label="Primary" data-simple={isSimple ? "true" : undefined}>
       <nav className="roam-tabs" role="tablist" aria-label="Primary tabs" style={NAV_STYLE}>
         {/* Safe-area blur extension — replaces CSS ::after */}
         <span aria-hidden="true" style={SAFE_LEG_STYLE} />

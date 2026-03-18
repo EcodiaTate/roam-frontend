@@ -679,7 +679,7 @@ export function TripView({
       : 60;
 
   return (
-    <div className={s.root}>
+    <div className={s.root} data-simple={simple ? "true" : undefined}>
       {/* ── Quick action menu ─── */}
       <StopQuickActionMenu
         state={quickMenu}

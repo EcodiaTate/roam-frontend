@@ -424,6 +424,16 @@ input, textarea, [contenteditable] {
   padding: 2px;
 }
 
+/* ── Simple mode: bigger tab labels + icons ───────────────── */
+.roam-tabs-wrap[data-simple="true"] .roam-tab-label {
+  font-size: 12px;
+  font-weight: 800;
+}
+.roam-tabs-wrap[data-simple="true"] .roam-tab-icon {
+  width: 28px;
+  height: 28px;
+}
+
 /* ── Keyboard open: hide tab bar ──────────────────────────── */
 .keyboard-open .roam-tab-bar,
 .keyboard-open .roam-tabs-wrap {

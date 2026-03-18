@@ -83,16 +83,16 @@ export function RouteScoreCard({ score, simple }: { score: RouteIntelligenceScor
     <div style={cardBase}>
       {/* Header */}
       <div style={cardHeaderRow}>
-        <div style={{ ...iconBox40, background: scoreBg(score.overall) }}>
-          <span style={{ fontSize: 18, fontWeight: 900, color, lineHeight: 1 }}>
+        <div style={{ ...iconBox40, background: scoreBg(score.overall), ...(simple ? { width: 48, height: 48, borderRadius: 14 } : {}) }}>
+          <span style={{ fontSize: simple ? 22 : 18, fontWeight: 900, color, lineHeight: 1 }}>
             {score.overall.toFixed(0)}
           </span>
         </div>
         <div style={{ minWidth: 0 }}>
-          <div style={cardTitle}>
+          <div style={{ ...cardTitle, ...(simple ? { fontSize: 17 } : {}) }}>
             Route Score — {score.overall_label}
           </div>
-          <div style={cardSubtitle}>
+          <div style={{ ...cardSubtitle, ...(simple ? { fontSize: 14 } : {}) }}>
             {score.summary.length > 100 ? score.summary.slice(0, 100) + "…" : score.summary}
           </div>
         </div>
