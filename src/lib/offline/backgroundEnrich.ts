@@ -29,7 +29,7 @@ export type EnrichCallbacks = {
 
 /* ── Constants ────────────────────────────────────────────────────────── */
 
-/** Total overlay count: corridor + 17 overlays + route_score = 19 */
+/** Total overlay count: places + corridor + 16 overlays + route_score = 19 */
 const TOTAL_ENRICHMENT_ITEMS = 19;
 
 /* ── Helpers ──────────────────────────────────────────────────────────── */
@@ -109,40 +109,73 @@ export function startEnrichment(args: {
 
   async function run() {
     const runStart = performance.now();
-    // ── 1. Places FIRST — we need stop coordinates for the corridor ──
-    // The corridor graph must include road coverage around every
-    // suggested stop. Fetch places using routeKey (no corridor key
-    // needed), then pass their coords to corridorEnsure.
-    emit("corridor"); // UI phase — covers places + corridor together
+    emit("overlays");
 
-    let placesData: { items?: { lat: number; lng: number }[] } | null = null;
-    try {
-      placesData = await safeFetch("places", () =>
-        placesApi.corridor({
-          corridor_key: routeKey,
-          geometry,
-        }),
-      ) as { items?: { lat: number; lng: number }[] } | null;
-      if (cancelled) return;
-      if (placesData) await savePack(planId, "places", placesData, callbacks);
-    } catch (e) {
-      console.warn("[enrich] places error:", e);
-    }
-    completed++;
-    console.info(`[enrich] step ${completed}/${TOTAL_ENRICHMENT_ITEMS}: places`);
-    callbacks.onProgress({ phase: lastEmittedPhase, completed, total: TOTAL_ENRICHMENT_ITEMS, corridorReady });
+    // ── Fire ALL overlays immediately at T+0 ─────────────────────────
+    // None of these depend on places data — they only need geometry/bbox.
+    // Starting them immediately saves the full places latency (~10-40s).
+    const overlayWork = Promise.allSettled([
+      // Safety-critical
+      overlay("traffic", () => navApi.trafficPoll({ bbox })),
+      overlay("hazards", () => navApi.hazardsPoll({ bbox })),
+      overlay("bushfire", () => navApi.bushfireAlongRoute({ geometry })),
 
-    // Extract stop coordinates for corridor building
-    const stopCoords: number[][] = [];
-    if (placesData?.items) {
-      for (const item of placesData.items) {
-        if (item.lat && item.lng) stopCoords.push([item.lat, item.lng]);
-      }
-    }
-    console.info("[enrich] passing %d stop coords to corridor", stopCoords.length);
+      // Environmental
+      overlay("flood", () => navApi.floodPoll({ bbox })),
+      overlay("fuel", () => navApi.fuelAlongRoute({ polyline6: geometry })),
+      overlay("air_quality", () => navApi.airQualityAlongRoute({ geometry })),
+      departAt
+        ? overlay("weather", () => navApi.weatherForecast({ polyline6: geometry, departure_iso: departAt }))
+        : Promise.resolve().then(() => {
+            completed++;
+            console.info(`[enrich] step ${completed}/${TOTAL_ENRICHMENT_ITEMS}: weather (skipped, no departAt)`);
+            callbacks.onProgress({ phase: lastEmittedPhase, completed, total: TOTAL_ENRICHMENT_ITEMS, corridorReady });
+          }),
 
-    // ── 2. Corridor (with stop coordinates) ──────────────────────────
+      // Info/POI
+      overlay("rest_areas", () => navApi.restAreasAlongRoute({ geometry })),
+      overlay("emergency", () => navApi.emergencyAlongRoute({ geometry })),
+      overlay("heritage", () => navApi.heritageAlongRoute({ geometry })),
+      overlay("speed_cameras", () => navApi.speedCamerasAlongRoute({ geometry })),
+      overlay("toilets", () => navApi.toiletsAlongRoute({ geometry })),
+      overlay("school_zones", () => navApi.schoolZonesAlongRoute({ geometry })),
+      overlay("roadkill", () => navApi.roadkillAlongRoute({ geometry })),
+      overlay("coverage", () => navApi.coverageAlongRoute({ geometry })),
+      overlay("wildlife", () => navApi.wildlifeAlongRoute({ polyline6: geometry })),
+    ]);
+
+    // ── Places + corridor run in parallel with overlays ───────────────
+    // Places must finish before corridor (corridor needs stop coords),
+    // but both run alongside the overlay batch above.
     const corridorWork = (async () => {
+      // 1. Fetch places
+      let placesData: { items?: { lat: number; lng: number }[] } | null = null;
+      try {
+        placesData = await safeFetch("places", () =>
+          placesApi.corridor({
+            corridor_key: routeKey,
+            geometry,
+          }),
+        ) as { items?: { lat: number; lng: number }[] } | null;
+        if (cancelled) return;
+        if (placesData) await savePack(planId, "places", placesData, callbacks);
+      } catch (e) {
+        console.warn("[enrich] places error:", e);
+      }
+      completed++;
+      console.info(`[enrich] step ${completed}/${TOTAL_ENRICHMENT_ITEMS}: places`);
+      callbacks.onProgress({ phase: lastEmittedPhase, completed, total: TOTAL_ENRICHMENT_ITEMS, corridorReady });
+
+      // 2. Extract stop coordinates for corridor
+      const stopCoords: number[][] = [];
+      if (placesData?.items) {
+        for (const item of placesData.items) {
+          if (item.lat && item.lng) stopCoords.push([item.lat, item.lng]);
+        }
+      }
+      console.info("[enrich] passing %d stop coords to corridor", stopCoords.length);
+
+      // 3. Build corridor (needs stop coords from places)
       const t0 = performance.now();
       try {
         const meta = await safeFetch("corridor_ensure", () =>
@@ -177,47 +210,12 @@ export function startEnrichment(args: {
       callbacks.onProgress({ phase: lastEmittedPhase, completed, total: TOTAL_ENRICHMENT_ITEMS, corridorReady });
     })();
 
-    // ── 3. Fire ALL non-corridor-dependent overlays immediately ──────
-    // These only need geometry/bbox, so they run in parallel with the
-    // corridor fetch. The counter starts climbing right away.
-    emit("overlays");
-
-    const overlayWork = Promise.allSettled([
-      // Safety-critical (Phase 2)
-      overlay("traffic", () => navApi.trafficPoll({ bbox })),
-      overlay("hazards", () => navApi.hazardsPoll({ bbox })),
-      overlay("bushfire", () => navApi.bushfireAlongRoute({ geometry })),
-
-      // Environmental (Phase 4)
-      overlay("flood", () => navApi.floodPoll({ bbox })),
-      overlay("fuel", () => navApi.fuelAlongRoute({ polyline6: geometry })),
-      overlay("air_quality", () => navApi.airQualityAlongRoute({ geometry })),
-      departAt
-        ? overlay("weather", () => navApi.weatherForecast({ polyline6: geometry, departure_iso: departAt }))
-        : Promise.resolve().then(() => {
-            completed++;
-            console.info(`[enrich] step ${completed}/${TOTAL_ENRICHMENT_ITEMS}: weather (skipped, no departAt)`);
-            callbacks.onProgress({ phase: lastEmittedPhase, completed, total: TOTAL_ENRICHMENT_ITEMS, corridorReady });
-          }),
-
-      // Info/POI (Phase 5)
-      overlay("rest_areas", () => navApi.restAreasAlongRoute({ geometry })),
-      overlay("emergency", () => navApi.emergencyAlongRoute({ geometry })),
-      overlay("heritage", () => navApi.heritageAlongRoute({ geometry })),
-      overlay("speed_cameras", () => navApi.speedCamerasAlongRoute({ geometry })),
-      overlay("toilets", () => navApi.toiletsAlongRoute({ geometry })),
-      overlay("school_zones", () => navApi.schoolZonesAlongRoute({ geometry })),
-      overlay("roadkill", () => navApi.roadkillAlongRoute({ geometry })),
-      overlay("coverage", () => navApi.coverageAlongRoute({ geometry })),
-      overlay("wildlife", () => navApi.wildlifeAlongRoute({ polyline6: geometry })),
-    ]);
-
-    // Wait for corridor + overlays
+    // Wait for corridor + overlays (all running in parallel)
     await Promise.allSettled([corridorWork, overlayWork]);
     console.info(`[enrich] all overlays + corridor done in ${((performance.now() - runStart) / 1000).toFixed(1)}s`);
     if (cancelled) return;
 
-    // ── Route score (last — benefits from overlays being saved) ─────
+    // ── Route score (last — benefits from overlays being cached) ─────
     try {
       if (departAt) {
         const score = await safeFetch("route_score", () =>

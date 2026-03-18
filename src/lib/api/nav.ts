@@ -56,14 +56,14 @@ export const navApi = {
   route: (req: NavRequest) => api.post<NavPack>("/nav/route", req),
 
   // POST /nav/corridor/ensure -> CorridorGraphMeta
-  // The corridor query can take a while for long routes with many stops
+  // Corridor build: OSRM spine + tree routes to stops (~18s on GCR)
   corridorEnsure: (req: CorridorEnsureRequest) =>
-    api.post<CorridorGraphMeta>("/nav/corridor/ensure", req, { timeoutMs: 300_000 }),
+    api.post<CorridorGraphMeta>("/nav/corridor/ensure", req, { timeoutMs: 120_000 }),
 
   // GET /nav/corridor/{corridor_key} -> CorridorGraphPack
-  // Large corridors can be 50-100MB — allow 5 min download
+  // Graph download can be several MB
   corridorGet: (corridor_key: string) =>
-    api.get<CorridorGraphPack>(`/nav/corridor/${encodeURIComponent(corridor_key)}`, { timeoutMs: 300_000 }),
+    api.get<CorridorGraphPack>(`/nav/corridor/${encodeURIComponent(corridor_key)}`, { timeoutMs: 60_000 }),
 
   // POST /nav/elevation -> ElevationResponse
   elevation: (req: ElevationRequest) =>
