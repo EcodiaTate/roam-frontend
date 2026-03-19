@@ -47,6 +47,10 @@
 	<true/>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Roam uses your photo library to attach images to trip reports and road condition submissions.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Roam uses the camera to capture photos for trip reports and road condition submissions.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Roam uses your location to show your position on the map and navigate along your route.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
