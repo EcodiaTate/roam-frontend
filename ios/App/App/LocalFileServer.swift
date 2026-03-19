@@ -17,7 +17,7 @@ public class LocalFileServer {
     private let rootURL: URL
     private let requestedPort: UInt16
     private var listener: NWListener?
-    private let queue = DispatchQueue(label: "com.ecodia.roam.tileserver", qos: .userInitiated)
+    private let queue = DispatchQueue(label: "au.ecodia.roam.tileserver", qos: .userInitiated)
 
     public private(set) var isRunning = false
     public private(set) var actualPort: UInt16 = 0
