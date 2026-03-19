@@ -166,11 +166,14 @@ export function getPmtilesUrl(tileId: string = "australia"): string {
 
 /**
  * Build the glyphs URL template for MapLibre style.
- * Returns local server if running, CDN otherwise.
+ *
+ * Glyphs are bundled in the static export at /offline/glyphs/ and served
+ * directly by the Capacitor WebView — no tile server dependency needed.
+ * We only fall back to the CDN when running in a browser (dev/web preview).
  */
 export function getGlyphsUrl(): string {
-  if (_serverInfo.running && _serverInfo.url) {
-    return `${_serverInfo.url}/glyphs/{fontstack}/{range}.pbf`;
+  if (Capacitor.isNativePlatform()) {
+    return "/offline/glyphs/{fontstack}/{range}.pbf";
   }
   return "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf";
 }

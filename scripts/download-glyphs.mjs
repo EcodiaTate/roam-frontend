@@ -15,12 +15,14 @@ import { get } from "https";
 const OUT_DIR = join(process.cwd(), "public", "offline", "glyphs");
 
 // These must match the font names in your style JSON "text-font" arrays.
-// Your styles use: ["Open Sans Regular", "Arial Unicode MS Regular"]
+// Styles use: Regular, Bold, Semibold (towns), Italic (water labels)
 //
 // The OpenMapTiles CDN uses these exact names:
 const FONTS = [
   "Open Sans Regular",
   "Open Sans Bold",
+  "Open Sans Semibold",
+  "Open Sans Italic",
   "Arial Unicode MS Regular",
 ];
 

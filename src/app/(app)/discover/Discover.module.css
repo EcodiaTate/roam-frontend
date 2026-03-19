@@ -15,7 +15,7 @@
 /* ── Page header ─────────────────────────────────────────────── */
 .header {
   flex-shrink: 0;
-  padding: 20px 20px 0;
+  padding: calc(env(safe-area-inset-top, 0px) + 56px) 20px 0;
   background: color-mix(in srgb, var(--roam-bg) 90%, transparent);
   backdrop-filter: blur(24px) saturate(150%);
   -webkit-backdrop-filter: blur(24px) saturate(150%);

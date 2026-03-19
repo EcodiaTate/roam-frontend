@@ -1,6 +1,6 @@
 /* src/app/(app)/journal/MemoriesTimeline.module.css
    Touch-first, mobile-first journal page.
-   Safe-area-inset-top is handled by .roam-shell — do NOT double it here.
+   Safe-area-inset-top is applied to the header for notch/dynamic-island clearance.
    Bottom clearance uses --bottom-nav-height so content sits above the tab bar.
    GPU-composited animations for 60fps on low-end mobile. */
 
@@ -18,7 +18,7 @@
   position: sticky;
   top: 0;
   z-index: 10;
-  padding: 20px 20px 0;
+  padding: calc(env(safe-area-inset-top, 0px) + 20px) 20px 0;
   background: color-mix(in srgb, var(--roam-bg) 88%, transparent);
   backdrop-filter: blur(28px) saturate(160%);
   -webkit-backdrop-filter: blur(28px) saturate(160%);

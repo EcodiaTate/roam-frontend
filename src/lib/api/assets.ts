@@ -6,7 +6,7 @@
 // - Styles are shipped inside the app bundle (static export): /public/offline/styles/*
 // - PMTiles served from LOCAL tile server if basemap is installed (offline-first)
 // - PMTiles fall back to Supabase Storage (public bucket) when tile server is not running
-// - Glyphs: local tile server when running, CDN fallback
+// - Glyphs: bundled in app at /offline/glyphs/ (native), CDN fallback (web/dev)
 //
 // The local tile server (RoamTileServer native plugin) serves files from device
 // storage with proper Range/206 support for PMTiles streaming.
@@ -106,10 +106,10 @@ export const assetsApi = {
   },
 
   /**
-   * Glyphs URL template - local tile server when available, CDN fallback.
+   * Glyphs URL template - app bundle on native, CDN fallback on web.
    *
-   * When local:  http://127.0.0.1:8765/glyphs/{fontstack}/{range}.pbf
-   * When remote: https://fonts.openmaptiles.org/{fontstack}/{range}.pbf
+   * When native: /offline/glyphs/{fontstack}/{range}.pbf
+   * When web:    https://fonts.openmaptiles.org/{fontstack}/{range}.pbf
    */
   glyphsUrl(): string {
     return getGlyphsUrl();
