@@ -11,7 +11,7 @@ import { useNetworkStatus } from "@/lib/hooks/useNetworkStatus";
  *
  * While loading the initial session, shows a spinner.
  * If no session after load and device is offline, shows an offline screen
- * (can't redirect to login — sign-in requires network).
+ * (can't redirect to login - sign-in requires network).
  * If no session and online, redirects to /login.
  * Otherwise renders children.
  *

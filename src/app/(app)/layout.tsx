@@ -35,10 +35,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <PersistentTabs>{children}</PersistentTabs>
         </main>
         <BottomTabBar />
-        {/* Global place detail sheet — opened via usePlaceDetail().openPlace() from anywhere */}
+        {/* Global place detail sheet - opened via usePlaceDetail().openPlace() from anywhere */}
         <PlaceDetailSheet />
       </div>
-      {/* UI mode picker — shown once on first authenticated session */}
+      {/* UI mode picker - shown once on first authenticated session */}
       <UIModePickerModal open={modePickerOpen} onClose={() => setModePickerOpen(false)} />
     </PlaceDetailProvider>
   );

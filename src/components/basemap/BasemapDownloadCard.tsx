@@ -60,7 +60,7 @@ export function BasemapDownloadCard({ region = "australia", onReady, className }
         </div>
       )}
 
-      {/* 5. Not installed — auto-download kicks in, show preparing state */}
+      {/* 5. Not installed - auto-download kicks in, show preparing state */}
       {(status.state === "not_installed" || !status.state) && (
         <div style={styles.container}>
           <div style={styles.pill}>

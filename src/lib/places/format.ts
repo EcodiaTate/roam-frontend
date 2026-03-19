@@ -21,7 +21,7 @@ export function fmtCat(c: string): string {
   return c.replace(/_/g, " ");
 }
 
-/** Format an optional category — convenience wrapper for fmtCat. */
+/** Format an optional category - convenience wrapper for fmtCat. */
 export function fmtCategory(c?: string): string {
   return fmtCat(c ?? "");
 }

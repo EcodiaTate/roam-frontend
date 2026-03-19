@@ -1,5 +1,5 @@
 // src/app/(app)/new/NewTripSkeleton.tsx
-// Loading shell for /new — matches StopsEditor peek layout.
+// Loading shell for /new - matches StopsEditor peek layout.
 
 import type { CSSProperties } from "react";
 
@@ -54,7 +54,7 @@ export function NewTripSkeleton() {
         }}
       >
         <div className="trip-bottom-sheet">
-          {/* Drag handle + header — matches trip-sheet-header */}
+          {/* Drag handle + header - matches trip-sheet-header */}
           <div className="trip-sheet-header">
             <div className="trip-drag-handle" />
 
@@ -80,15 +80,21 @@ export function NewTripSkeleton() {
                 </div>
               </div>
 
-              {/* 2 round icon buttons (Library + Link) + optional upgrade */}
+              {/* 2 round icon buttons (Plans + AI Plan) */}
               <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                <Skel w={34} h={34} r={999} delay={0.1} />
-                <Skel w={34} h={34} r={999} delay={0.15} />
+                <Skel w={34} h={34} r={999} delay={0.1} style={{
+                  background: "var(--roam-text, #1a1613)",
+                  opacity: 0.25,
+                }} />
+                <Skel w={34} h={34} r={999} delay={0.15} style={{
+                  background: "rgba(56,189,248,0.12)",
+                  border: "1px solid rgba(56,189,248,0.2)",
+                }} />
               </div>
             </div>
           </div>
 
-          {/* Sheet content — stop input rows + action buttons */}
+          {/* Sheet content - stop input rows + action buttons */}
           <div className="trip-sheet-content" style={{ paddingBottom: "calc(var(--bottom-nav-height, 80px) + 120px)" }}>
             {/* Stop rows (start + end) */}
             <div className="trip-flex-col">
@@ -124,14 +130,20 @@ export function NewTripSkeleton() {
             </div>
 
             {/* Action buttons */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
-              {/* Start Roaming hero button */}
-              <Skel w="100%" h={52} r={16} delay={0.2} />
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
+              {/* Save & Go hero button - ochre gradient */}
+              <Skel w="100%" h={46} r={14} delay={0.2} style={{
+                background: "linear-gradient(135deg, #5c1a0e 0%, var(--brand-ochre, #b5452e) 40%, #d4664a 70%, #e8956a 100%)",
+                opacity: 0.35,
+              }} />
 
-              {/* Add Stop + Quick Trip row */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                <Skel w="100%" h={40} r={14} delay={0.25} />
-                <Skel w="100%" h={40} r={14} delay={0.3} />
+              {/* Add Stop + Go Now row */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                <Skel w="100%" h={38} r={12} delay={0.25} style={{
+                  background: "var(--brand-eucalypt, #2d6e40)",
+                  opacity: 0.3,
+                }} />
+                <Skel w="100%" h={38} r={12} delay={0.3} />
               </div>
             </div>
           </div>

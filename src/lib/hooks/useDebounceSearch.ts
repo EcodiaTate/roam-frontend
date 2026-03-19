@@ -23,7 +23,7 @@ type UseDebounceSearchReturn<T> = {
   loading: boolean;
   error: string | null;
   hasSearched: boolean;
-  /** Call on every keystroke — handles debounce + abort internally */
+  /** Call on every keystroke - handles debounce + abort internally */
   search: (query: string) => void;
   /** Immediately execute search (e.g. on Enter) */
   searchNow: (query: string) => void;

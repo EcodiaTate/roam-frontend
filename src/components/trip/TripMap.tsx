@@ -15,24 +15,24 @@ import type { ViewportBounds } from "@/lib/hooks/useViewportCull";
 import type { BBox4 } from "@/lib/types/geo";
 import type { TripStop } from "@/lib/types/trip";
 import type { PlaceItem } from "@/lib/types/places";
-import type { TrafficOverlay, HazardOverlay } from "@/lib/types/navigation";
+import type { TrafficOverlay, HazardOverlay, CorridorGraphPack } from "@/lib/types/navigation";
 import type { RoamPosition } from "@/lib/native/geolocation";
 import type { FuelStation, FuelTrackingState } from "@/lib/types/fuel";
 import type {
-  FloodOverlay,
-  CoverageOverlay,
-  WildlifeOverlay,
-  RestAreaOverlay,
-  FuelOverlay,
-  WeatherOverlay,
-  EmergencyServicesOverlay,
-  HeritageOverlay,
-  AirQualityOverlay,
-  BushfireOverlay,
-  SpeedCamerasOverlay,
-  ToiletsOverlay,
-  SchoolZonesOverlay,
-  RoadkillOverlay,
+    FloodOverlay,
+    CoverageOverlay,
+    WildlifeOverlay,
+    RestAreaOverlay,
+    FuelOverlay,
+    WeatherOverlay,
+    EmergencyServicesOverlay,
+    HeritageOverlay,
+    AirQualityOverlay,
+    BushfireOverlay,
+    SpeedCamerasOverlay,
+    ToiletsOverlay,
+    SchoolZonesOverlay,
+    RoadkillOverlay,
 } from "@/lib/types/overlays";
 
 import { assetsApi } from "@/lib/api/assets";
@@ -62,7 +62,7 @@ type Props = {
   focusFallbackName?: string | null;
   onSuggestionPress?: (placeId: string) => void;
 
-  /** Called when user taps a place marker (suggestion, fuel, EV, rest area) — opens PlaceDetailSheet */
+  /** Called when user taps a place marker (suggestion, fuel, EV, rest area) - opens PlaceDetailSheet */
   onOpenPlaceDetail?: (placeId: string, coords: { lat: number; lng: number; name?: string; category?: string; extra?: Record<string, unknown> }) => void;
 
   // Overlays
@@ -83,9 +83,9 @@ type Props = {
 
   // Add stop from map popup
   onAddStopFromMap?: (placeId: string, coords?: { lat: number; lng: number; name?: string }) => void;
-  /** IDs of stops already in the trip — used to show "Already added" in popup */
+  /** IDs of stops already in the trip - used to show "Already added" in popup */
   stopPlaceIds?: Set<string> | null;
-  /** Whether the device is online — controls popup button labels */
+  /** Whether the device is online - controls popup button labels */
   isOnline?: boolean;
 
   // Alert highlight - pulses the marker in-place without moving the camera
@@ -116,16 +116,20 @@ type Props = {
    /** Ref that TripMap populates with the MapLibre instance for external control */
    mapInstanceRef?: React.MutableRefObject<import("maplibre-gl").Map | null>;
 
-   /** Debug: corridor bbox outline on the map */
-   corridorDebug?: { bbox: { minLng: number; minLat: number; maxLng: number; maxLat: number } } | null;
+   /** Corridor graph - renders nodes + edges as a toggleable map layer */
+   corridorGraph?: CorridorGraphPack | null;
+
+   /** Nav mode: external layer menu control — hides the built-in toggle button */
+   navLayerMenuOpen?: boolean;
+   onNavLayerMenuToggle?: () => void;
+   /** Fires when any overlay is toggled off/on so parent can reflect filter state */
+   onLayerFilterChange?: (anyOff: boolean) => void;
  };
 
 /* ── Layer / source IDs ─────────────────────────────────────────────── */
 
-const CORRIDOR_DEBUG_SRC = "roam-corridor-debug-src";
-const CORRIDOR_DEBUG_LINE = "roam-corridor-debug-line";
-const CORRIDOR_BBOX_SRC = "roam-corridor-bbox-src";
-const CORRIDOR_BBOX_FILL = "roam-corridor-bbox-fill";
+const CORRIDOR_EDGE_SRC = "roam-corridor-edge-src";
+const CORRIDOR_EDGE_LINE = "roam-corridor-edge-line";
 
 const ROUTE_SRC = "roam-route-src";
 const ROUTE_GLOW = "roam-route-glow";
@@ -207,6 +211,8 @@ const FLOOD_CATCH_FILL = "roam-flood-catch-fill";
 const FLOOD_CATCH_LINE = "roam-flood-catch-line";
 
 const REST_AREAS_SRC = "roam-rest-areas-src";
+const REST_AREAS_CLUSTER_CIRCLE = "roam-rest-areas-cluster";
+const REST_AREAS_CLUSTER_COUNT = "roam-rest-areas-cluster-count";
 const REST_AREAS_ICON_LAYER = "roam-rest-areas-icon";
 const REST_AREAS_LABEL_LAYER = "roam-rest-areas-label";
 
@@ -254,7 +260,7 @@ const LAYER_GROUPS = {
   wildlife: [WILDLIFE_FILL_LAYER, WILDLIFE_LABEL_LAYER],
   coverage: [COVERAGE_LINE_LAYER],
   flood: [FLOOD_CATCH_FILL, FLOOD_CATCH_LINE, FLOOD_CIRCLE_LAYER, FLOOD_LABEL_LAYER],
-  rest_areas: [REST_AREAS_ICON_LAYER, REST_AREAS_LABEL_LAYER],
+  rest_areas: [REST_AREAS_CLUSTER_CIRCLE, REST_AREAS_CLUSTER_COUNT, REST_AREAS_ICON_LAYER, REST_AREAS_LABEL_LAYER],
   weather: [WEATHER_DOT_LAYER, WEATHER_LABEL_LAYER],
   emergency: [EMERGENCY_ICON_LAYER, EMERGENCY_LABEL_LAYER],
   heritage: [HERITAGE_ICON_LAYER],
@@ -264,20 +270,27 @@ const LAYER_GROUPS = {
   toilets: [TOILETS_ICON_LAYER],
   school_zones: [SCHOOL_ZONES_ICON_LAYER],
   roadkill: [ROADKILL_DOT_LAYER],
+  corridor: [CORRIDOR_EDGE_LINE],
 } as const;
 
 type OverlayKey = keyof typeof LAYER_GROUPS;
 const ALL_OVERLAY_KEYS: OverlayKey[] = [
   "stops", "places", "fuel", "traffic", "hazards", "wildlife", "coverage", "flood", "rest_areas", "weather",
-  "emergency", "heritage", "air_quality", "bushfire", "cameras", "toilets", "school_zones", "roadkill",
+  "emergency", "heritage", "air_quality", "bushfire", "cameras", "toilets", "school_zones", "roadkill", "corridor",
 ];
 type OverlayVisibility = Record<OverlayKey, boolean>;
 
 const DEFAULT_VIS: OverlayVisibility = {
+  // Core - always on
   stops: true, places: true, fuel: true, traffic: true, hazards: true,
-  wildlife: true, coverage: true, flood: true, rest_areas: true, weather: true,
-  emergency: true, heritage: true, air_quality: true, bushfire: true, cameras: true,
-  toilets: true, school_zones: true, roadkill: true,
+  // Useful but not essential - on by default
+  weather: true, rest_areas: true, emergency: true,
+  // Niche / visual clutter - off by default
+  wildlife: false, coverage: false, flood: false,
+  heritage: false, air_quality: false, bushfire: false, cameras: false,
+  toilets: false, school_zones: false, roadkill: false,
+  // Dev / diagnostic
+  corridor: false,
 };
 
 function applyAllOverlayVisibility(map: MLMap, vis: OverlayVisibility) {
@@ -322,8 +335,16 @@ function makeIconSVG(pathD: string, bgColor: string, sizePx: number, iconColor: 
   const iconScale = (sizePx * 0.38) / 24;
   const iconOff = (sizePx - 24 * iconScale) / 2;
   return `<svg width="${sizePx}" height="${sizePx}" viewBox="0 0 ${sizePx} ${sizePx}" xmlns="http://www.w3.org/2000/svg">
-    <defs><filter id="ds" x="-20%" y="-10%" width="140%" height="150%"><feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#000" flood-opacity="0.25"/></filter></defs>
-    <circle cx="${r}" cy="${r}" r="${r - 1.5}" fill="${bgColor}" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" filter="url(#ds)"/>
+    <defs>
+      <filter id="ds" x="-20%" y="-10%" width="140%" height="150%">
+        <feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="#000" flood-opacity="0.3"/>
+      </filter>
+      <filter id="gb" x="-10%" y="-10%" width="120%" height="120%">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="0.8"/>
+      </filter>
+    </defs>
+    <circle cx="${r}" cy="${r}" r="${r - 1.5}" fill="${bgColor}" opacity="0.72" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" filter="url(#ds)"/>
+    <circle cx="${r}" cy="${r}" r="${r - 2.5}" fill="rgba(255,255,255,0.1)" filter="url(#gb)"/>
     <g transform="translate(${iconOff},${iconOff}) scale(${iconScale.toFixed(3)})">
       <path d="${pathD}" fill="${iconColor}" fill-rule="evenodd"/>
     </g>
@@ -398,9 +419,9 @@ const ICON_PATHS = {
   thermometer: "M14 14.8A4 4 0 0 1 8 18a4 4 0 0 1 2-6.8V4a2 2 0 1 1 4 0v10.8ZM12 8H10",
   anchor: "M12 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3Zm0 6v14M5 12H2a10 10 0 0 0 20 0h-3",
 
-  // ── Stop type icons ──
-  flag_start: "M4 2v20M4 2l12 7-12 7",
-  flag_end: "M4 2v20M4 2h14l-4 5 4 5H4",
+  // ── Stop type icons (filled shapes, not stroke paths) ──
+  flag_start: "M3 1h2v22H3V1Zm2 1v12l12-6L5 2Z",
+  flag_end: "M3 1h2v22H3V1Zm2 1v12h12l-4-6 4-6H5Z",
   circle_dot: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 6a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z",
   diamond: "M12 2l8 10-8 10-8-10L12 2Z",
 };
@@ -652,7 +673,7 @@ function stopsGeoJSON(stops: TripStop[]): GeoJSON.FeatureCollection {
 }
 
 /**
- * Categories rendered by the dedicated fuel layer — exclude from suggestions
+ * Categories rendered by the dedicated fuel layer - exclude from suggestions
  * to avoid double pins.  Only suppress categories that the fuel analysis is
  * actually showing; e.g. when the user drives a petrol car, ev_charging
  * stations should still appear as suggestion POIs (they aren't in the fuel
@@ -1075,7 +1096,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
   const protocolRef = useRef<Protocol | null>(null);
   const accuracyAnimFrame = useRef<number | null>(null);
   const sugFocusRaf = useRef<number | null>(null);
-  /** Tracks the last place ID we flew the camera to — prevents re-fly on same ID */
+  /** Tracks the last place ID we flew the camera to - prevents re-fly on same ID */
   const lastFocusFlewToRef = useRef<string | null>(null);
 
   const [overlayVis, setOverlayVis] = useState<OverlayVisibility>(readStoredVis);
@@ -1084,6 +1105,10 @@ export const TripMap = React.memo(function TripMap(props: Props) {
   const [layerMenuOpen, setLayerMenuOpen] = useState(false);
   const [layerMenuVisible, setLayerMenuVisible] = useState(false);
   const [layerMenuMounted, setLayerMenuMounted] = useState(false);
+  const [showLayerHint, setShowLayerHint] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("roam:seen_layer_menu") !== "1";
+  });
   const layerMenuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (layerMenuTimerRef.current) clearTimeout(layerMenuTimerRef.current);
@@ -1097,6 +1122,21 @@ export const TripMap = React.memo(function TripMap(props: Props) {
   useEffect(() => {
     if (layerMenuVisible) requestAnimationFrame(() => setLayerMenuMounted(true));
   }, [layerMenuVisible]);
+  // Sync external layer menu toggle in nav mode
+  useEffect(() => {
+    if (props.navigationMode && props.navLayerMenuOpen !== undefined) {
+      setLayerMenuOpen(props.navLayerMenuOpen);
+    }
+  }, [props.navigationMode, props.navLayerMenuOpen]);
+
+  // Notify parent of overlay filter changes
+  useEffect(() => {
+    if (props.onLayerFilterChange) {
+      const anyOff = ALL_OVERLAY_KEYS.some((k) => !overlayVis[k]);
+      props.onLayerFilterChange(anyOff);
+    }
+  }, [overlayVis]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [styleReady, setStyleReady] = useState(false);
   useEffect(() => { writeStoredVis(overlayVis); }, [overlayVis]);
 
@@ -1127,7 +1167,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
   const vpBoundsRef = useRef<ViewportBounds | null>(null);
   vpBoundsRef.current = vpBounds;
 
-  // Decode polyline once — shared by routeFC, coverageFC, and routeCumKm
+  // Decode polyline once - shared by routeFC, coverageFC, and routeCumKm
   const routeCoords = useMemo<Array<[number, number]>>(() => {
     try { return decodePolyline6AsLngLat(props.geometry); } catch { return []; }
   }, [props.geometry]);
@@ -1137,23 +1177,25 @@ export const TripMap = React.memo(function TripMap(props: Props) {
   }), [routeCoords]);
   const stopsFC = useMemo(() => stopsGeoJSON(props.stops), [props.stops]);
 
-  // ── Corridor debug overlay (bbox outline only) ──
-  const corridorBboxFC = useMemo<GeoJSON.FeatureCollection>(() => {
-    const cd = props.corridorDebug;
-    if (!cd?.bbox) return { type: "FeatureCollection", features: [] };
-    const { minLng, minLat, maxLng, maxLat } = cd.bbox;
-    return {
-      type: "FeatureCollection",
-      features: [{
+  // ── Corridor graph overlay (edges + nodes + bbox) ──
+  const corridorEdgesFC = useMemo<GeoJSON.FeatureCollection>(() => {
+    const g = props.corridorGraph;
+    if (!g?.nodes?.length || !g?.edges?.length) return { type: "FeatureCollection", features: [] };
+    const nodeMap = new Map<number, { lat: number; lng: number }>();
+    for (const n of g.nodes) nodeMap.set(n.id, n);
+    const features: GeoJSON.Feature[] = [];
+    for (const e of g.edges) {
+      const a = nodeMap.get(e.a);
+      const b = nodeMap.get(e.b);
+      if (!a || !b) continue;
+      features.push({
         type: "Feature",
-        properties: {},
-        geometry: {
-          type: "Polygon",
-          coordinates: [[[minLng, minLat], [maxLng, minLat], [maxLng, maxLat], [minLng, maxLat], [minLng, minLat]]],
-        },
-      }],
-    };
-  }, [props.corridorDebug]);
+        properties: { distance_m: e.distance_m },
+        geometry: { type: "LineString", coordinates: [[a.lng, a.lat], [b.lng, b.lat]] },
+      });
+    }
+    return { type: "FeatureCollection", features };
+  }, [props.corridorGraph]);
 
   const activeFuelCats = useMemo(() => fuelLayerCats(props.fuelStations), [props.fuelStations]);
   const routeCumKm = useMemo<number[]>(() => {
@@ -1180,7 +1222,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
   const hazardPtFCFull = useMemo(() => hazardPointsGeoJSON(props.hazards ?? null), [props.hazards]);
   const hazardPolyFCFull = useMemo(() => hazardPolygonsGeoJSON(props.hazards ?? null), [props.hazards]);
 
-  // Viewport-culled versions — only features near the visible area
+  // Viewport-culled versions - only features near the visible area
   const trafficPtFC = useCulledFC(trafficPtFCFull, vpBounds);
   const trafficLineFC = useCulledFC(trafficLineFCFull, vpBounds);
   const trafficPolyFC = useCulledFC(trafficPolyFCFull, vpBounds);
@@ -1191,7 +1233,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
   const headingFC = useMemo(() => headingConeGeoJSON(props.userPosition), [props.userPosition]);
 
   const fuelFC = useMemo<GeoJSON.FeatureCollection>(() => {
-    // Build overlay lookup — per-station prices from government APIs
+    // Build overlay lookup - per-station prices from government APIs
     // IDs come from different sources (Overpass vs NSW FuelCheck etc.) so match by proximity.
     // Uses a grid spatial index for O(1) nearest-neighbour instead of O(n) linear scan.
     type OvStation = import("@/lib/types/overlays").FuelStationOverlay;
@@ -1285,7 +1327,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
       return false;
     }
 
-    // 2. Government-sourced overlay stations that had no OSM match — these carry
+    // 2. Government-sourced overlay stations that had no OSM match - these carry
     //    verified live pricing and must not be invisible just because OSM is sparse.
     for (const ov of overlayStations) {
       if (ov.id && matchedOverlayIds.has(ov.id)) continue;
@@ -1444,7 +1486,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
       map.on("mouseleave", layerId, () => (map.getCanvas().style.cursor = ""));
     };
 
-    // Long press — distinguishes stop-pin long press from blank-map long press.
+    // Long press - distinguishes stop-pin long press from blank-map long press.
     // Stop-pin long press fires onStopLongPress (for quick action menu).
     // Blank-map long press fires onMapLongPress (for placing a new stop).
     let longPressTimer: ReturnType<typeof setTimeout> | null = null;
@@ -1501,24 +1543,26 @@ export const TripMap = React.memo(function TripMap(props: Props) {
          8. Alert highlight (ring → ping animation)
          ════════════════════════════════════════════════════════════════ */
 
-      /* ── 0. Corridor debug overlay (when enabled) ─────────────────────── */
-      addOrUpdateGeoJsonSource(map, CORRIDOR_BBOX_SRC, corridorBboxFC);
-      if (!map.getLayer(CORRIDOR_BBOX_FILL)) {
+      /* ── 0. Corridor graph overlay (toggleable) ────────────────────────── */
+      addOrUpdateGeoJsonSource(map, CORRIDOR_EDGE_SRC, corridorEdgesFC);
+      if (!map.getLayer(CORRIDOR_EDGE_LINE)) {
         map.addLayer({
-          id: CORRIDOR_BBOX_FILL,
-          type: "fill",
-          source: CORRIDOR_BBOX_SRC,
+          id: CORRIDOR_EDGE_LINE,
+          type: "line",
+          source: CORRIDOR_EDGE_SRC,
           paint: {
-            "fill-color": "rgba(255,140,0,0.06)",
-            "fill-outline-color": "rgba(255,140,0,0.3)",
+            "line-color": "rgba(255,255,255,0.18)",
+            "line-width": ["interpolate", ["linear"], ["zoom"], 6, 1, 12, 2.5, 16, 4],
+            "line-blur": ["interpolate", ["linear"], ["zoom"], 6, 1, 12, 1.5, 16, 2],
           },
+          layout: { "line-cap": "round", "line-join": "round", visibility: "none" },
         });
       }
 
-      /* ── 1. Route layers — glassmorphic warm outback ─────────────────── */
+      /* ── 1. Route layers - glassmorphic warm outback ─────────────────── */
       addOrUpdateGeoJsonSource(map, ROUTE_SRC, routeFC);
 
-      // Outer glow — wide translucent line simulates blur cheaply on mobile GPUs.
+      // Outer glow - wide translucent line simulates blur cheaply on mobile GPUs.
       // Using line-blur is expensive (GPU fragment shader per pixel); a wider
       // low-opacity line gives a similar haze without the mobile perf hit.
       if (!map.getLayer(ROUTE_GLOW)) {
@@ -1535,7 +1579,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
         });
       }
 
-      // Frosted casing — translucent warm white for glass edge
+      // Frosted casing - translucent warm white for glass edge
       if (!map.getLayer(ROUTE_CASING)) {
         map.addLayer({
           id: ROUTE_CASING,
@@ -1550,7 +1594,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
         });
       }
 
-      // Main route line — vivid blue, high contrast for navigation
+      // Main route line - vivid blue, high contrast for navigation
       if (!map.getLayer(ROUTE_LINE)) {
         map.addLayer({
           id: ROUTE_LINE,
@@ -1629,7 +1673,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
           layout: { "line-cap": "round", "line-join": "round" },
           paint: {
             "line-color": ["match", ["get", "severity"], "major", "#ef4444", "moderate", "#f97316", "minor", "#facc15", "#94a3b8"],
-            // Match route line width exactly — traffic replaces rather than overlaps
+            // Match route line width exactly - traffic replaces rather than overlaps
             "line-width": ["interpolate", ["linear"], ["zoom"], 4, 2, 10, 4, 14, 6],
             "line-opacity": 1,
           },
@@ -1685,20 +1729,16 @@ export const TripMap = React.memo(function TripMap(props: Props) {
         });
       }
 
-      // Traffic click → popup
+      // Traffic click → modal
       map.on("click", TRAFFIC_POINT_LAYER, (e: MapLayerMouseEvent) => {
         const f = e?.features?.[0];
         if (!f) return;
         const p = f.properties;
-        const sevColor = TRAFFIC_SEV_COLORS[p?.severity ?? "unknown"] ?? "#64748b";
-        const html = buildOverlayPopupHtml(p?.headline ?? "Traffic Event", p?.severity ?? "unknown", sevColor);
-        try {
-          popupRef.current?.remove();
-          popupRef.current = new maplibregl.Popup({ closeButton: true, closeOnClick: true, className: "trip-map-popup" })
-            .setLngLat(e.lngLat)
-            .setHTML(html)
-            .addTo(map);
-        } catch {}
+        const evId = p?.id ? String(p.id) : `traffic_${e.lngLat.lat}_${e.lngLat.lng}`;
+        const extra: Record<string, unknown> = {};
+        if (p?.severity) extra.severity = String(p.severity);
+        if (p?.type) extra.event_type = String(p.type);
+        onOpenPlaceDetailRef.current?.(evId, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: p?.headline ?? "Traffic Event", category: "traffic", extra });
         onTrafficPressRef.current?.(p?.id);
       });
 
@@ -1786,71 +1826,55 @@ export const TripMap = React.memo(function TripMap(props: Props) {
         });
       }
 
-      // Hazard click → popup
+      // Hazard click → modal
       map.on("click", HAZARD_ICON_LAYER, (e: MapLayerMouseEvent) => {
         const f = e?.features?.[0];
         if (!f) return;
         const p = f.properties;
-        const sevColor = HAZARD_SEV_COLORS[p?.severity ?? "unknown"] ?? "#64748b";
-        const html = buildOverlayPopupHtml(p?.title ?? "Hazard", p?.severity ?? "unknown", sevColor);
-        try {
-          popupRef.current?.remove();
-          popupRef.current = new maplibregl.Popup({ closeButton: true, closeOnClick: true, className: "trip-map-popup" })
-            .setLngLat(e.lngLat)
-            .setHTML(html)
-            .addTo(map);
-        } catch {}
+        const hId = p?.id ? String(p.id) : `hazard_${e.lngLat.lat}_${e.lngLat.lng}`;
+        const extra: Record<string, unknown> = {};
+        if (p?.severity) extra.severity = String(p.severity);
+        if (p?.kind) extra.hazard_type = String(p.kind);
+        onOpenPlaceDetailRef.current?.(hId, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: p?.title ?? "Hazard", category: "hazard", extra });
         onHazardPressRef.current?.(p?.id);
       });
 
-      // Traffic line click → popup
+      // Traffic line click → modal
       map.on("click", TRAFFIC_LINE_LAYER, (e: MapLayerMouseEvent) => {
         const f = e?.features?.[0];
         if (!f) return;
         const p = f.properties;
-        const sevColor = TRAFFIC_SEV_COLORS[p?.severity ?? "unknown"] ?? "#64748b";
-        const html = buildOverlayPopupHtml(p?.headline ?? "Traffic Event", p?.severity ?? "unknown", sevColor);
-        try {
-          popupRef.current?.remove();
-          popupRef.current = new maplibregl.Popup({ closeButton: true, closeOnClick: true, className: "trip-map-popup" })
-            .setLngLat(e.lngLat)
-            .setHTML(html)
-            .addTo(map);
-        } catch {}
+        const evId = p?.id ? String(p.id) : `traffic_${e.lngLat.lat}_${e.lngLat.lng}`;
+        const extra: Record<string, unknown> = {};
+        if (p?.severity) extra.severity = String(p.severity);
+        if (p?.type) extra.event_type = String(p.type);
+        onOpenPlaceDetailRef.current?.(evId, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: p?.headline ?? "Traffic Event", category: "traffic", extra });
         onTrafficPressRef.current?.(p?.id);
       });
 
-      // Traffic polygon click → popup
+      // Traffic polygon click → modal
       map.on("click", TRAFFIC_POLY_LAYER, (e: MapLayerMouseEvent) => {
         const f = e?.features?.[0];
         if (!f) return;
         const p = f.properties;
-        const sevColor = TRAFFIC_SEV_COLORS[p?.severity ?? "unknown"] ?? "#64748b";
-        const html = buildOverlayPopupHtml(p?.headline ?? "Traffic Event", p?.severity ?? "unknown", sevColor);
-        try {
-          popupRef.current?.remove();
-          popupRef.current = new maplibregl.Popup({ closeButton: true, closeOnClick: true, className: "trip-map-popup" })
-            .setLngLat(e.lngLat)
-            .setHTML(html)
-            .addTo(map);
-        } catch {}
+        const evId = p?.id ? String(p.id) : `traffic_${e.lngLat.lat}_${e.lngLat.lng}`;
+        const extra: Record<string, unknown> = {};
+        if (p?.severity) extra.severity = String(p.severity);
+        if (p?.type) extra.event_type = String(p.type);
+        onOpenPlaceDetailRef.current?.(evId, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: p?.headline ?? "Traffic Event", category: "traffic", extra });
         onTrafficPressRef.current?.(p?.id);
       });
 
-      // Hazard polygon click → popup
+      // Hazard polygon click → modal
       map.on("click", HAZARD_POLY_LAYER, (e: MapLayerMouseEvent) => {
         const f = e?.features?.[0];
         if (!f) return;
         const p = f.properties;
-        const sevColor = HAZARD_SEV_COLORS[p?.severity ?? "unknown"] ?? "#64748b";
-        const html = buildOverlayPopupHtml(p?.title ?? "Hazard Zone", p?.severity ?? "unknown", sevColor, null);
-        try {
-          popupRef.current?.remove();
-          popupRef.current = new maplibregl.Popup({ closeButton: true, closeOnClick: true, className: "trip-map-popup" })
-            .setLngLat(e.lngLat)
-            .setHTML(html)
-            .addTo(map);
-        } catch {}
+        const hId = p?.id ? String(p.id) : `hazard_${e.lngLat.lat}_${e.lngLat.lng}`;
+        const extra: Record<string, unknown> = {};
+        if (p?.severity) extra.severity = String(p.severity);
+        if (p?.kind) extra.hazard_type = String(p.kind);
+        onOpenPlaceDetailRef.current?.(hId, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: p?.title ?? "Hazard Zone", category: "hazard", extra });
         onHazardPressRef.current?.(p?.id);
       });
 
@@ -1865,7 +1889,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
       map.on("mouseenter", HAZARD_POLY_LAYER, () => (map.getCanvas().style.cursor = "pointer"));
       map.on("mouseleave", HAZARD_POLY_LAYER, () => (map.getCanvas().style.cursor = ""));
       /* ── 4. Suggestions (clustered + icon layer) ───────────────────── */
-      addOrUpdateGeoJsonSource(map, SUG_SRC, sugFC, { cluster: true, clusterMaxZoom: 10, clusterRadius: 30 });
+      addOrUpdateGeoJsonSource(map, SUG_SRC, sugFC, { cluster: true, clusterMaxZoom: 10, clusterRadius: 65 });
 
       if (!map.getLayer(SUG_CLUSTER_CIRCLE)) {
         map.addLayer({
@@ -1874,11 +1898,12 @@ export const TripMap = React.memo(function TripMap(props: Props) {
           source: SUG_SRC,
           filter: ["has", "point_count"],
           paint: {
-            "circle-color": ["step", ["get", "point_count"], "rgba(45,110,64,0.75)", 10, "rgba(45,110,64,0.80)", 30, "rgba(31,82,54,0.85)", 80, "rgba(31,82,54,0.90)"],
+            "circle-color": ["step", ["get", "point_count"], "#22804a", 10, "#1e7342", 30, "#186338", 80, "#145530"],
             "circle-radius": ["step", ["get", "point_count"], 18, 10, 22, 30, 26, 80, 32],
-            "circle-stroke-color": "rgba(250,246,239,0.3)",
-            "circle-stroke-width": 2,
-            "circle-opacity": 0.92,
+            "circle-stroke-color": "rgba(255,255,255,0.55)",
+            "circle-stroke-width": 2.5,
+            "circle-opacity": 0.95,
+            "circle-blur": 0,
           },
         });
       }
@@ -1890,7 +1915,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
           filter: ["has", "point_count"],
           layout: {
             "text-field": ["get", "point_count_abbreviated"],
-            "text-font": ["Noto Sans Bold"],
+            "text-font": ["Open Sans Bold"],
             "text-size": ["step", ["get", "point_count"], 12, 10, 13, 30, 14.5, 80, 16],
             "text-allow-overlap": true,
           },
@@ -1910,16 +1935,17 @@ export const TripMap = React.memo(function TripMap(props: Props) {
               ["linear"],
               ["zoom"],
               8,
-              ["match", ["get", "sizeClass"], "lg", 6, "md", 4, 3],
+              ["match", ["get", "sizeClass"], "lg", 11, "md", 9, 8],
               12,
-              ["match", ["get", "sizeClass"], "lg", 9, "md", 7, 5],
+              ["match", ["get", "sizeClass"], "lg", 15, "md", 13, 11],
               16,
-              ["match", ["get", "sizeClass"], "lg", 12, "md", 10, 8],
+              ["match", ["get", "sizeClass"], "lg", 19, "md", 16, 14],
             ],
             "circle-color": ["get", "color"],
-            "circle-stroke-color": ["case", ["==", ["get", "id"], props.focusedSuggestionId ?? ""], "rgba(250,246,239,0.85)", "rgba(250,246,239,0.22)"],
-            "circle-stroke-width": ["case", ["==", ["get", "id"], props.focusedSuggestionId ?? ""], 2.5, 1.5],
-            "circle-opacity": 0.82,
+            "circle-stroke-color": ["case", ["==", ["get", "id"], props.focusedSuggestionId ?? ""], "#ffffff", "rgba(255,255,255,0.6)"],
+            "circle-stroke-width": ["case", ["==", ["get", "id"], props.focusedSuggestionId ?? ""], 3, 2.5],
+            "circle-opacity": 0.92,
+            "circle-blur": 0,
           },
         });
       }
@@ -1950,7 +1976,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
           minzoom: 13,
           layout: {
             "text-field": ["get", "name"],
-            "text-font": ["Noto Sans Regular"],
+            "text-font": ["Open Sans Regular"],
             "text-size": ["interpolate", ["linear"], ["zoom"], 13, 10, 16, 13],
             "text-offset": [0, 1.4],
             "text-anchor": "top",
@@ -2049,10 +2075,10 @@ export const TripMap = React.memo(function TripMap(props: Props) {
         });
       }
 
-      /* ── 5. Stop layers — glassmorphic frosted markers ────────────────── */
+      /* ── 5. Stop layers - glassmorphic frosted markers ────────────────── */
       addOrUpdateGeoJsonSource(map, STOPS_SRC, stopsFC);
 
-      // Drop shadow — warm diffused glow
+      // Drop shadow - warm diffused glow
       if (!map.getLayer(STOPS_SHADOW)) {
         map.addLayer({
           id: STOPS_SHADOW,
@@ -2068,7 +2094,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
         });
       }
 
-      // Outer ring — frosted glass border (translucent white with accent stroke)
+      // Outer ring - frosted glass border (translucent white with accent stroke)
       if (!map.getLayer(STOPS_OUTER)) {
         map.addLayer({
           id: STOPS_OUTER,
@@ -2085,7 +2111,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
         });
       }
 
-      // Inner filled circle — frosted accent with glass translucency
+      // Inner filled circle - frosted accent with glass translucency
       if (!map.getLayer(STOPS_INNER)) {
         map.addLayer({
           id: STOPS_INNER,
@@ -2102,7 +2128,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
         });
       }
 
-      // Pulse — frosted expanding ring on start/end at higher zooms
+      // Pulse - frosted expanding ring on start/end at higher zooms
       if (!map.getLayer(STOP_PULSE)) {
         map.addLayer({
           id: STOP_PULSE,
@@ -2137,7 +2163,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
         });
       }
 
-      // Labels — warm white on frosted dark halo
+      // Labels - warm white on frosted dark halo
       if (!map.getLayer(STOP_LABELS)) {
         map.addLayer({
           id: STOP_LABELS,
@@ -2146,7 +2172,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
           minzoom: 9,
           layout: {
             "text-field": ["get", "name"],
-            "text-font": ["Noto Sans Bold"],
+            "text-font": ["Open Sans Bold"],
             "text-size": ["interpolate", ["linear"], ["zoom"], 9, 10, 14, 13, 16, 15],
             "text-offset": [0, 1.6],
             "text-anchor": "top",
@@ -2158,7 +2184,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
         });
       }
 
-      // Focus ring — glassmorphic highlight with translucent warm white
+      // Focus ring - glassmorphic highlight with translucent warm white
       if (!map.getLayer(STOP_FOCUS_RING)) {
         map.addLayer({
           id: STOP_FOCUS_RING,
@@ -2232,7 +2258,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
       }
 
       // ── Fuel station layers (clustered) ──
-      addOrUpdateGeoJsonSource(map, FUEL_SRC, fuelFC, { cluster: true, clusterMaxZoom: 10, clusterRadius: 30 });
+      addOrUpdateGeoJsonSource(map, FUEL_SRC, fuelFC, { cluster: true, clusterMaxZoom: 10, clusterRadius: 65 });
 
       if (!map.getLayer(FUEL_CLUSTER_CIRCLE)) {
         map.addLayer({
@@ -2241,11 +2267,12 @@ export const TripMap = React.memo(function TripMap(props: Props) {
           source: FUEL_SRC,
           filter: ["has", "point_count"],
           paint: {
-            "circle-color": ["step", ["get", "point_count"], "rgba(184,135,42,0.75)", 10, "rgba(184,135,42,0.80)", 30, "rgba(160,112,28,0.85)", 80, "rgba(140,95,18,0.90)"],
+            "circle-color": ["step", ["get", "point_count"], "#b8872a", 10, "#a87824", 30, "#916520", 80, "#7a551a"],
             "circle-radius": ["step", ["get", "point_count"], 18, 10, 22, 30, 26, 80, 32],
-            "circle-stroke-color": "rgba(250,246,239,0.3)",
-            "circle-stroke-width": 2,
-            "circle-opacity": 0.92,
+            "circle-stroke-color": "rgba(255,255,255,0.55)",
+            "circle-stroke-width": 2.5,
+            "circle-opacity": 0.95,
+            "circle-blur": 0,
           },
         });
       }
@@ -2257,7 +2284,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
           filter: ["has", "point_count"],
           layout: {
             "text-field": ["get", "point_count_abbreviated"],
-            "text-font": ["Noto Sans Bold"],
+            "text-font": ["Open Sans Bold"],
             "text-size": ["step", ["get", "point_count"], 12, 10, 13, 30, 14.5, 80, 16],
             "text-allow-overlap": true,
           },
@@ -2272,9 +2299,11 @@ export const TripMap = React.memo(function TripMap(props: Props) {
           source: FUEL_SRC,
           filter: ["!", ["has", "point_count"]],
           paint: {
-            "circle-radius": 12,
-            "circle-color": "rgba(0,0,0,0.08)",
-            "circle-blur": 0.6,
+            "circle-radius": 14,
+            "circle-color": "rgba(184,135,42,0.18)",
+            "circle-stroke-color": "rgba(255,255,255,0.25)",
+            "circle-stroke-width": 1.5,
+            "circle-blur": 0.4,
           },
         });
       }
@@ -2375,7 +2404,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
       map.on("mouseleave", FUEL_ICON_LAYER, () => (map.getCanvas().style.cursor = ""));
 
       // ── EV charger layers (clustered, blue lightning icons) ──
-      addOrUpdateGeoJsonSource(map, EV_SRC, evChargerFC, { cluster: true, clusterMaxZoom: 10, clusterRadius: 30 });
+      addOrUpdateGeoJsonSource(map, EV_SRC, evChargerFC, { cluster: true, clusterMaxZoom: 10, clusterRadius: 65 });
 
       if (!map.getLayer(EV_CLUSTER_CIRCLE)) {
         map.addLayer({
@@ -2386,9 +2415,10 @@ export const TripMap = React.memo(function TripMap(props: Props) {
           paint: {
             "circle-color": "#2563eb",
             "circle-radius": ["step", ["get", "point_count"], 14, 10, 18, 50, 22],
-            "circle-opacity": 0.85,
-            "circle-stroke-color": "#fff",
-            "circle-stroke-width": 1.5,
+            "circle-opacity": 0.95,
+            "circle-stroke-color": "rgba(255,255,255,0.55)",
+            "circle-stroke-width": 2.5,
+            "circle-blur": 0,
           },
         });
         map.addLayer({
@@ -2398,7 +2428,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
           filter: ["has", "point_count"],
           layout: {
             "text-field": ["get", "point_count_abbreviated"],
-            "text-font": ["Noto Sans Bold"],
+            "text-font": ["Open Sans Bold"],
             "text-size": 11,
           },
           paint: { "text-color": "#fff" },
@@ -2423,7 +2453,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
           filter: ["!", ["has", "point_count"]],
           layout: {
             "text-field": ["get", "name"],
-            "text-font": ["Noto Sans Bold"],
+            "text-font": ["Open Sans Bold"],
             "text-size": 10,
             "text-offset": [0, 1.8],
             "text-anchor": "top",
@@ -2528,7 +2558,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
           source: WILDLIFE_SRC,
           layout: {
             "text-field": ["upcase", ["get", "risk_level"]],
-            "text-font": ["Noto Sans Bold"],
+            "text-font": ["Open Sans Bold"],
             "text-size": 9,
             "text-offset": [0, 2.2],
             "text-anchor": "top",
@@ -2547,22 +2577,13 @@ export const TripMap = React.memo(function TripMap(props: Props) {
         if (!f) return;
         const p = f.properties;
         const title = p?.species_guess ?? p?.message ?? `Wildlife risk: ${p?.risk_level ?? "unknown"}`;
-        const photoHtml = p?.photo
-          ? `<img src="${escapeHtml(String(p.photo))}" alt="${escapeHtml(title)}" style="width:100%;max-height:120px;object-fit:cover;border-radius:6px;margin-top:6px;display:block" loading="lazy" />`
-          : "";
-        const countLine = p?.occurrence_count > 0
-          ? `<div style="margin-top:4px;font-size:11px;color:var(--roam-text-muted)">${escapeHtml(String(p.occurrence_count))} observation${p.occurrence_count !== 1 ? "s" : ""} nearby</div>`
-          : "";
-        const attrLine = p?.attribution
-          ? `<div style="margin-top:4px;font-size:9px;color:var(--roam-text-muted);line-height:1.3">${escapeHtml(String(p.attribution))}</div>`
-          : "";
-        try {
-          popupRef.current?.remove();
-          popupRef.current = new maplibregl.Popup({ closeButton: true, closeOnClick: true, className: "trip-map-popup" })
-            .setLngLat(e.lngLat)
-            .setHTML(buildOverlayPopupHtml(title, p?.risk_level ?? "unknown", "#f59e0b") + photoHtml + countLine + attrLine)
-            .addTo(map);
-        } catch {}
+        const wId = p?.id ? String(p.id) : `wildlife_${e.lngLat.lat}_${e.lngLat.lng}`;
+        const extra: Record<string, unknown> = {};
+        if (p?.risk_level) extra.risk_level = String(p.risk_level);
+        if (p?.photo) extra.photo = String(p.photo);
+        if (p?.occurrence_count) extra.occurrence_count = p.occurrence_count;
+        if (p?.attribution) extra.attribution = String(p.attribution);
+        onOpenPlaceDetailRef.current?.(wId, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: title, category: "wildlife", extra });
       });
       map.on("mouseenter", WILDLIFE_FILL_LAYER, () => (map.getCanvas().style.cursor = "pointer"));
       map.on("mouseleave", WILDLIFE_FILL_LAYER, () => (map.getCanvas().style.cursor = ""));
@@ -2596,14 +2617,10 @@ export const TripMap = React.memo(function TripMap(props: Props) {
         const f = e?.features?.[0];
         if (!f) return;
         const p = f.properties;
-        const sevColor = p?.signal_class === "no_coverage" ? "#ef4444" : p?.signal_class === "weak" ? "#f97316" : "#eab308";
-        try {
-          popupRef.current?.remove();
-          popupRef.current = new maplibregl.Popup({ closeButton: true, closeOnClick: true, className: "trip-map-popup" })
-            .setLngLat(e.lngLat)
-            .setHTML(buildOverlayPopupHtml(p?.message ?? "Coverage gap", p?.signal_class ?? "unknown", sevColor))
-            .addTo(map);
-        } catch {}
+        const cId = `coverage_${e.lngLat.lat}_${e.lngLat.lng}`;
+        const extra: Record<string, unknown> = {};
+        if (p?.signal_class) extra.signal_class = String(p.signal_class);
+        onOpenPlaceDetailRef.current?.(cId, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: p?.message ?? "Coverage gap", category: "coverage", extra });
       });
       map.on("mouseenter", COVERAGE_LINE_LAYER, () => (map.getCanvas().style.cursor = "pointer"));
       map.on("mouseleave", COVERAGE_LINE_LAYER, () => (map.getCanvas().style.cursor = ""));
@@ -2649,18 +2666,10 @@ export const TripMap = React.memo(function TripMap(props: Props) {
         if (!f) return;
         const p = f.properties;
         const lev = p?.level ?? "watch";
-        const color = lev === "warning" ? "#ef4444" : "#f59e0b";
-        try {
-          popupRef.current?.remove();
-          popupRef.current = new maplibregl.Popup({ closeButton: true, closeOnClick: true, className: "trip-map-popup" })
-            .setLngLat(e.lngLat)
-            .setHTML(buildOverlayPopupHtml(
-              `Flood ${lev.charAt(0).toUpperCase() + lev.slice(1)}`,
-              p?.dist_name ?? "",
-              color,
-            ))
-            .addTo(map);
-        } catch {}
+        const fId = p?.id ? String(p.id) : `flood_catch_${e.lngLat.lat}_${e.lngLat.lng}`;
+        const extra: Record<string, unknown> = { level: lev };
+        if (p?.dist_name) extra.district = String(p.dist_name);
+        onOpenPlaceDetailRef.current?.(fId, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: `Flood ${lev.charAt(0).toUpperCase() + lev.slice(1)}`, category: "flood", extra });
       });
 
       /* ── Flood gauges (circle markers) ──────────────────────────────── */
@@ -2672,7 +2681,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
           type: "circle",
           source: FLOOD_SRC,
           paint: {
-            "circle-radius": ["interpolate", ["linear"], ["zoom"], 6, 7, 12, 11, 16, 14],
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 6, 8, 12, 12, 16, 15],
             "circle-color": [
               "match", ["get", "severity"],
               "major",    "#ef4444",
@@ -2680,9 +2689,10 @@ export const TripMap = React.memo(function TripMap(props: Props) {
               "minor",    "#eab308",
               "#3b82f6",
             ],
-            "circle-stroke-color": "rgba(255,255,255,0.7)",
-            "circle-stroke-width": 2,
-            "circle-opacity": 0.9,
+            "circle-stroke-color": "rgba(255,255,255,0.6)",
+            "circle-stroke-width": 2.5,
+            "circle-opacity": 0.92,
+            "circle-blur": 0,
           },
         });
       }
@@ -2694,7 +2704,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
           source: FLOOD_SRC,
           layout: {
             "text-field": ["get", "station_name"],
-            "text-font": ["Noto Sans Bold"],
+            "text-font": ["Open Sans Bold"],
             "text-size": 10,
             "text-offset": [0, 1.6],
             "text-anchor": "top",
@@ -2713,33 +2723,65 @@ export const TripMap = React.memo(function TripMap(props: Props) {
         const f = e?.features?.[0];
         if (!f) return;
         const p = f.properties;
-        const sevColor = p?.severity === "major" ? "#ef4444" : p?.severity === "moderate" ? "#f97316" : p?.severity === "minor" ? "#eab308" : "#3b82f6";
-        const heightStr = p?.latest_height_m != null ? ` — ${Number(p.latest_height_m).toFixed(2)}m` : "";
-        try {
-          popupRef.current?.remove();
-          popupRef.current = new maplibregl.Popup({ closeButton: true, closeOnClick: true, className: "trip-map-popup" })
-            .setLngLat(e.lngLat)
-            .setHTML(buildOverlayPopupHtml(`${p?.station_name ?? "Flood gauge"}${heightStr}`, `${p?.severity ?? "unknown"} (${p?.trend ?? "?"})`, sevColor))
-            .addTo(map);
-        } catch {}
+        const heightStr = p?.latest_height_m != null ? ` - ${Number(p.latest_height_m).toFixed(2)}m` : "";
+        const fId = p?.id ? String(p.id) : `flood_${e.lngLat.lat}_${e.lngLat.lng}`;
+        const extra: Record<string, unknown> = {};
+        if (p?.severity) extra.severity = String(p.severity);
+        if (p?.trend) extra.trend = String(p.trend);
+        if (p?.latest_height_m != null) extra.height_m = Number(p.latest_height_m);
+        onOpenPlaceDetailRef.current?.(fId, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: `${p?.station_name ?? "Flood gauge"}${heightStr}`, category: "flood", extra });
       });
       map.on("mouseenter", FLOOD_CIRCLE_LAYER, () => (map.getCanvas().style.cursor = "pointer"));
       map.on("mouseleave", FLOOD_CIRCLE_LAYER, () => (map.getCanvas().style.cursor = ""));
 
-      /* ── Rest area markers ───────────────────────────────────────────── */
-      addOrUpdateGeoJsonSource(map, REST_AREAS_SRC, restAreasFC);
+      /* ── Rest area markers (clustered + glassmorphic) ────────────────── */
+      addOrUpdateGeoJsonSource(map, REST_AREAS_SRC, restAreasFC, { cluster: true, clusterMaxZoom: 10, clusterRadius: 65 });
+
+      if (!map.getLayer(REST_AREAS_CLUSTER_CIRCLE)) {
+        map.addLayer({
+          id: REST_AREAS_CLUSTER_CIRCLE,
+          type: "circle",
+          source: REST_AREAS_SRC,
+          filter: ["has", "point_count"],
+          paint: {
+            "circle-color": ["step", ["get", "point_count"], "#6366f1", 10, "#5b5ce8", 30, "#4f46e5"],
+            "circle-radius": ["step", ["get", "point_count"], 16, 10, 20, 30, 24],
+            "circle-stroke-color": "rgba(255,255,255,0.55)",
+            "circle-stroke-width": 2.5,
+            "circle-opacity": 0.95,
+            "circle-blur": 0,
+          },
+        });
+      }
+      if (!map.getLayer(REST_AREAS_CLUSTER_COUNT)) {
+        map.addLayer({
+          id: REST_AREAS_CLUSTER_COUNT,
+          type: "symbol",
+          source: REST_AREAS_SRC,
+          filter: ["has", "point_count"],
+          layout: {
+            "text-field": ["get", "point_count_abbreviated"],
+            "text-font": ["Open Sans Bold"],
+            "text-size": 11,
+            "text-allow-overlap": true,
+          },
+          paint: { "text-color": "#ffffff" },
+        });
+      }
 
       if (!map.getLayer(REST_AREAS_ICON_LAYER)) {
         map.addLayer({
           id: REST_AREAS_ICON_LAYER,
           type: "circle",
           source: REST_AREAS_SRC,
+          filter: ["!", ["has", "point_count"]],
           paint: {
             "circle-radius": ["interpolate", ["linear"], ["zoom"], 6, 5, 12, 9, 16, 12],
             "circle-color": "#6366f1",
-            "circle-stroke-color": "rgba(255,255,255,0.7)",
-            "circle-stroke-width": 2,
-            "circle-opacity": 0.88,
+            "circle-stroke-color": "rgba(255,255,255,0.6)",
+            "circle-stroke-width": 2.5,
+            "circle-opacity": 0.92,
+            "circle-blur": 0,
           },
         });
       }
@@ -2749,6 +2791,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
           id: REST_AREAS_LABEL_LAYER,
           type: "symbol",
           source: REST_AREAS_SRC,
+          filter: ["!", ["has", "point_count"]],
           layout: {
             "text-field": ["get", "name"],
             "text-font": ["Open Sans Bold"],
@@ -2758,13 +2801,33 @@ export const TripMap = React.memo(function TripMap(props: Props) {
             "text-max-width": 8,
           },
           paint: {
-            "text-color": "#1a1a1a",
-            "text-halo-color": "rgba(255,255,255,0.9)",
-            "text-halo-width": 1.5,
+            "text-color": "rgba(250,246,239,0.92)",
+            "text-halo-color": "rgba(15,12,8,0.6)",
+            "text-halo-width": 1.4,
+            "text-halo-blur": 0.5,
           },
           minzoom: 10,
         });
       }
+
+      // Rest area cluster click → expand
+      map.on("click", REST_AREAS_CLUSTER_CIRCLE, (e: MapLayerMouseEvent) => {
+        const features = map.queryRenderedFeatures(e.point, { layers: [REST_AREAS_CLUSTER_CIRCLE] });
+        if (!features.length) return;
+        const clusterId = features[0].properties?.cluster_id as number | undefined;
+        if (clusterId == null) return;
+        const source = map.getSource(REST_AREAS_SRC) as GeoJSONSource | undefined;
+        if (!source?.getClusterExpansionZoom) return;
+        source.getClusterExpansionZoom(clusterId).then((zoom: number) => {
+          const geom = features[0].geometry;
+          if (geom.type === "Point") {
+            const coords = geom.coordinates as [number, number];
+            map.easeTo({ center: coords, zoom: Math.min(zoom, 16), duration: 350 });
+          }
+        }).catch(() => {});
+      });
+      map.on("mouseenter", REST_AREAS_CLUSTER_CIRCLE, () => (map.getCanvas().style.cursor = "pointer"));
+      map.on("mouseleave", REST_AREAS_CLUSTER_CIRCLE, () => (map.getCanvas().style.cursor = ""));
 
       map.on("click", REST_AREAS_ICON_LAYER, (e: MapLayerMouseEvent) => {
         const f = e?.features?.[0];
@@ -2827,7 +2890,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* ── Resize observer — keeps MapLibre canvas sized to its container ── */
+  /* ── Resize observer - keeps MapLibre canvas sized to its container ── */
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -2860,9 +2923,10 @@ export const TripMap = React.memo(function TripMap(props: Props) {
 
   /* ── Data updates ───────────────────────────────────────────────────── */
   useEffect(() => {
-    const s = mapRef.current?.getSource(CORRIDOR_BBOX_SRC) as GeoJSONSource | undefined;
-    s?.setData(corridorBboxFC);
-  }, [corridorBboxFC]);
+    const m = mapRef.current;
+    if (!m) return;
+    (m.getSource(CORRIDOR_EDGE_SRC) as GeoJSONSource | undefined)?.setData(corridorEdgesFC);
+  }, [corridorEdgesFC]);
   useEffect(() => {
     const s = mapRef.current?.getSource(ROUTE_SRC) as GeoJSONSource | undefined;
     s?.setData(routeFC);
@@ -3028,11 +3092,12 @@ export const TripMap = React.memo(function TripMap(props: Props) {
         source: WEATHER_SRC,
         minzoom: 7,
         paint: {
-          "circle-radius": 7,
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 7, 8, 12, 11, 16, 14],
           "circle-color": ["get", "color"],
-          "circle-stroke-color": "rgba(255,255,255,0.7)",
-          "circle-stroke-width": 1.5,
-          "circle-opacity": 0.85,
+          "circle-stroke-color": "rgba(255,255,255,0.6)",
+          "circle-stroke-width": 2.5,
+          "circle-opacity": 0.92,
+          "circle-blur": 0,
         },
       }, beforeId);
 
@@ -3053,6 +3118,20 @@ export const TripMap = React.memo(function TripMap(props: Props) {
           "text-halo-width": 1,
         },
       }, beforeId);
+
+      map.on("click", WEATHER_DOT_LAYER, (e: MapLayerMouseEvent) => {
+        const f = e?.features?.[0];
+        if (!f) return;
+        const p = f.properties;
+        const wId = `weather_${e.lngLat.lat}_${e.lngLat.lng}`;
+        const extra: Record<string, unknown> = {};
+        if (p?.temp != null) extra.temperature = Number(p.temp);
+        if (p?.precip_prob != null) extra.precipitation_probability = Number(p.precip_prob);
+        if (p?.wind != null) extra.wind_speed = Number(p.wind);
+        onOpenPlaceDetailRef.current?.(wId, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: `${Math.round(Number(p?.temp ?? 0))}° Weather`, category: "weather", extra });
+      });
+      map.on("mouseenter", WEATHER_DOT_LAYER, () => (map.getCanvas().style.cursor = "pointer"));
+      map.on("mouseleave", WEATHER_DOT_LAYER, () => (map.getCanvas().style.cursor = ""));
 
       // Apply current visibility
       const v = overlayVisRef.current.weather ? "visible" : "none";
@@ -3085,12 +3164,24 @@ export const TripMap = React.memo(function TripMap(props: Props) {
     if (existingSrc) { existingSrc.setData(culledFC); } else {
       map.addSource(EMERGENCY_SRC, { type: "geojson", data: culledFC, cluster: false });
       map.addLayer({ id: EMERGENCY_ICON_LAYER, type: "circle", source: EMERGENCY_SRC, minzoom: 8,
-        paint: { "circle-radius": 6, "circle-color": ["match", ["get", "facility_type"], "hospital", "#ef4444", "police", "#3b82f6", "fire", "#f97316", "ambulance", "#22c55e", "ses", "#eab308", "#9ca3af"], "circle-stroke-color": "#fff", "circle-stroke-width": 1.5, "circle-opacity": 0.9 },
+        paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 7, 12, 10, 16, 13], "circle-color": ["match", ["get", "facility_type"], "hospital", "#ef4444", "police", "#3b82f6", "fire", "#f97316", "ambulance", "#22c55e", "ses", "#eab308", "#9ca3af"], "circle-stroke-color": "rgba(255,255,255,0.6)", "circle-stroke-width": 2.5, "circle-opacity": 0.92, "circle-blur": 0 },
       }, beforeId);
       map.addLayer({ id: EMERGENCY_LABEL_LAYER, type: "symbol", source: EMERGENCY_SRC, minzoom: 10,
         layout: { "text-field": ["get", "name"], "text-size": 10, "text-offset": [0, 1.4], "text-anchor": "top", "text-max-width": 10 },
         paint: { "text-color": "#ffffff", "text-halo-color": "rgba(0,0,0,0.6)", "text-halo-width": 1 },
       }, beforeId);
+      map.on("click", EMERGENCY_ICON_LAYER, (e: MapLayerMouseEvent) => {
+        const f = e?.features?.[0];
+        if (!f) return;
+        const p = f.properties;
+        const eId = p?.id ? String(p.id) : `emergency_${e.lngLat.lat}_${e.lngLat.lng}`;
+        const extra: Record<string, unknown> = {};
+        if (p?.facility_type) extra.facility_type = String(p.facility_type);
+        if (p?.suburb) extra.suburb = String(p.suburb);
+        onOpenPlaceDetailRef.current?.(eId, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: p?.name ? String(p.name) : "Emergency Service", category: "emergency", extra });
+      });
+      map.on("mouseenter", EMERGENCY_ICON_LAYER, () => (map.getCanvas().style.cursor = "pointer"));
+      map.on("mouseleave", EMERGENCY_ICON_LAYER, () => (map.getCanvas().style.cursor = ""));
       const v = overlayVisRef.current.emergency ? "visible" : "none";
       if (map.getLayer(EMERGENCY_ICON_LAYER)) map.setLayoutProperty(EMERGENCY_ICON_LAYER, "visibility", v);
       if (map.getLayer(EMERGENCY_LABEL_LAYER)) map.setLayoutProperty(EMERGENCY_LABEL_LAYER, "visibility", v);
@@ -3121,8 +3212,19 @@ export const TripMap = React.memo(function TripMap(props: Props) {
     if (existingSrc) { existingSrc.setData(culledFC); } else {
       map.addSource(HERITAGE_SRC, { type: "geojson", data: culledFC, cluster: false });
       map.addLayer({ id: HERITAGE_ICON_LAYER, type: "circle", source: HERITAGE_SRC, minzoom: 8,
-        paint: { "circle-radius": 6, "circle-color": "#a855f7", "circle-stroke-color": "#fff", "circle-stroke-width": 1.5, "circle-opacity": 0.85 },
+        paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 7, 12, 10, 16, 13], "circle-color": "#a855f7", "circle-stroke-color": "rgba(255,255,255,0.6)", "circle-stroke-width": 2.5, "circle-opacity": 0.92, "circle-blur": 0 },
       }, beforeId);
+      map.on("click", HERITAGE_ICON_LAYER, (e: MapLayerMouseEvent) => {
+        const f = e?.features?.[0];
+        if (!f) return;
+        const p = f.properties;
+        const hId = p?.id ? String(p.id) : `heritage_${e.lngLat.lat}_${e.lngLat.lng}`;
+        const extra: Record<string, unknown> = {};
+        if (p?.site_type) extra.site_type = String(p.site_type);
+        onOpenPlaceDetailRef.current?.(hId, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: p?.name ? String(p.name) : "Heritage Site", category: "heritage", extra });
+      });
+      map.on("mouseenter", HERITAGE_ICON_LAYER, () => (map.getCanvas().style.cursor = "pointer"));
+      map.on("mouseleave", HERITAGE_ICON_LAYER, () => (map.getCanvas().style.cursor = ""));
       const v = overlayVisRef.current.heritage ? "visible" : "none";
       if (map.getLayer(HERITAGE_ICON_LAYER)) map.setLayoutProperty(HERITAGE_ICON_LAYER, "visibility", v);
     }
@@ -3155,12 +3257,24 @@ export const TripMap = React.memo(function TripMap(props: Props) {
     if (existingSrc) { existingSrc.setData(culledFC); } else {
       map.addSource(AQI_SRC, { type: "geojson", data: culledFC, cluster: false });
       map.addLayer({ id: AQI_DOT_LAYER, type: "circle", source: AQI_SRC, minzoom: 7,
-        paint: { "circle-radius": 7, "circle-color": ["get", "color"], "circle-stroke-color": "rgba(255,255,255,0.7)", "circle-stroke-width": 1.5, "circle-opacity": 0.85 },
+        paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 7, 8, 12, 11, 16, 14], "circle-color": ["get", "color"], "circle-stroke-color": "rgba(255,255,255,0.6)", "circle-stroke-width": 2.5, "circle-opacity": 0.92, "circle-blur": 0 },
       }, beforeId);
       map.addLayer({ id: AQI_LABEL_LAYER, type: "symbol", source: AQI_SRC, minzoom: 8,
         layout: { "text-field": ["get", "aqi_label"], "text-size": 9, "text-offset": [0, 1.4], "text-anchor": "top" },
         paint: { "text-color": "#ffffff", "text-halo-color": "rgba(0,0,0,0.6)", "text-halo-width": 1 },
       }, beforeId);
+      map.on("click", AQI_DOT_LAYER, (e: MapLayerMouseEvent) => {
+        const f = e?.features?.[0];
+        if (!f) return;
+        const p = f.properties;
+        const aId = `aqi_${e.lngLat.lat}_${e.lngLat.lng}`;
+        const extra: Record<string, unknown> = {};
+        if (p?.aqi != null) extra.aqi = p.aqi;
+        if (p?.aqi_label) extra.aqi_label = String(p.aqi_label);
+        onOpenPlaceDetailRef.current?.(aId, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: `Air Quality: ${p?.aqi_label ?? "Unknown"}`, category: "air_quality", extra });
+      });
+      map.on("mouseenter", AQI_DOT_LAYER, () => (map.getCanvas().style.cursor = "pointer"));
+      map.on("mouseleave", AQI_DOT_LAYER, () => (map.getCanvas().style.cursor = ""));
       const v = overlayVisRef.current.air_quality ? "visible" : "none";
       if (map.getLayer(AQI_DOT_LAYER)) map.setLayoutProperty(AQI_DOT_LAYER, "visibility", v);
       if (map.getLayer(AQI_LABEL_LAYER)) map.setLayoutProperty(AQI_LABEL_LAYER, "visibility", v);
@@ -3202,14 +3316,26 @@ export const TripMap = React.memo(function TripMap(props: Props) {
     if (s1) { s1.setData(culledIncidentFC); } else {
       map.addSource(BUSHFIRE_SRC, { type: "geojson", data: culledIncidentFC, cluster: false });
       map.addLayer({ id: BUSHFIRE_ICON_LAYER, type: "circle", source: BUSHFIRE_SRC, minzoom: 6,
-        paint: { "circle-radius": 8, "circle-color": ["match", ["get", "alert_level"], "Emergency Warning", "#dc2626", "Watch and Act", "#f97316", "Advice", "#eab308", "#f97316"], "circle-stroke-color": "#fff", "circle-stroke-width": 1.5, "circle-opacity": 0.9 },
+        paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 6, 8, 12, 12, 16, 15], "circle-color": ["match", ["get", "alert_level"], "Emergency Warning", "#dc2626", "Watch and Act", "#f97316", "Advice", "#eab308", "#f97316"], "circle-stroke-color": "rgba(255,255,255,0.6)", "circle-stroke-width": 2.5, "circle-opacity": 0.92, "circle-blur": 0 },
       }, beforeId);
+      map.on("click", BUSHFIRE_ICON_LAYER, (e: MapLayerMouseEvent) => {
+        const f = e?.features?.[0];
+        if (!f) return;
+        const p = f.properties;
+        const bId = p?.id ? String(p.id) : `bushfire_${e.lngLat.lat}_${e.lngLat.lng}`;
+        const extra: Record<string, unknown> = {};
+        if (p?.alert_level) extra.alert_level = String(p.alert_level);
+        if (p?.status) extra.status = String(p.status);
+        onOpenPlaceDetailRef.current?.(bId, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: p?.title || "Bushfire Incident", category: "bushfire", extra });
+      });
+      map.on("mouseenter", BUSHFIRE_ICON_LAYER, () => (map.getCanvas().style.cursor = "pointer"));
+      map.on("mouseleave", BUSHFIRE_ICON_LAYER, () => (map.getCanvas().style.cursor = ""));
     }
     const s2 = map.getSource(BUSHFIRE_HOTSPOT_SRC) as GeoJSONSource | undefined;
     if (s2) { s2.setData(culledHotspotFC); } else {
       map.addSource(BUSHFIRE_HOTSPOT_SRC, { type: "geojson", data: culledHotspotFC, cluster: false });
       map.addLayer({ id: BUSHFIRE_HOTSPOT_LAYER, type: "circle", source: BUSHFIRE_HOTSPOT_SRC, minzoom: 7,
-        paint: { "circle-radius": 4, "circle-color": "#ef4444", "circle-stroke-color": "rgba(255,255,255,0.5)", "circle-stroke-width": 1, "circle-opacity": 0.7 },
+        paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 7, 5, 12, 8, 16, 11], "circle-color": "#ef4444", "circle-stroke-color": "rgba(255,255,255,0.5)", "circle-stroke-width": 2, "circle-opacity": 0.88, "circle-blur": 0 },
       }, beforeId);
     }
     const v = overlayVisRef.current.bushfire ? "visible" : "none";
@@ -3252,15 +3378,38 @@ export const TripMap = React.memo(function TripMap(props: Props) {
     if (s1) { s1.setData(culledCamerasFC); } else {
       map.addSource(CAMERAS_SRC, { type: "geojson", data: culledCamerasFC, cluster: false });
       map.addLayer({ id: CAMERAS_ICON_LAYER, type: "circle", source: CAMERAS_SRC, minzoom: 9,
-        paint: { "circle-radius": 5, "circle-color": "#6366f1", "circle-stroke-color": "#fff", "circle-stroke-width": 1.5, "circle-opacity": 0.9 },
+        paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 7, 12, 10, 16, 13], "circle-color": "#6366f1", "circle-stroke-color": "rgba(255,255,255,0.6)", "circle-stroke-width": 2.5, "circle-opacity": 0.92, "circle-blur": 0 },
       }, beforeId);
+      map.on("click", CAMERAS_ICON_LAYER, (e: MapLayerMouseEvent) => {
+        const f = e?.features?.[0];
+        if (!f) return;
+        const p = f.properties;
+        const cId = p?.id ? String(p.id) : `camera_${e.lngLat.lat}_${e.lngLat.lng}`;
+        const extra: Record<string, unknown> = {};
+        if (p?.camera_type) extra.camera_type = String(p.camera_type);
+        if (p?.is_school_zone) extra.is_school_zone = !!p.is_school_zone;
+        onOpenPlaceDetailRef.current?.(cId, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: p?.road || "Speed Camera", category: "camera", extra });
+      });
+      map.on("mouseenter", CAMERAS_ICON_LAYER, () => (map.getCanvas().style.cursor = "pointer"));
+      map.on("mouseleave", CAMERAS_ICON_LAYER, () => (map.getCanvas().style.cursor = ""));
     }
     const s2 = map.getSource(BLACKSPOT_SRC) as GeoJSONSource | undefined;
     if (s2) { s2.setData(culledBlackspotFC); } else {
       map.addSource(BLACKSPOT_SRC, { type: "geojson", data: culledBlackspotFC, cluster: false });
       map.addLayer({ id: BLACKSPOT_LAYER, type: "circle", source: BLACKSPOT_SRC, minzoom: 9,
-        paint: { "circle-radius": 5, "circle-color": "#dc2626", "circle-stroke-color": "#fff", "circle-stroke-width": 1, "circle-opacity": 0.8 },
+        paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 7, 12, 10, 16, 13], "circle-color": "#dc2626", "circle-stroke-color": "rgba(255,255,255,0.6)", "circle-stroke-width": 2.5, "circle-opacity": 0.92, "circle-blur": 0 },
       }, beforeId);
+      map.on("click", BLACKSPOT_LAYER, (e: MapLayerMouseEvent) => {
+        const f = e?.features?.[0];
+        if (!f) return;
+        const p = f.properties;
+        const bId = p?.id ? String(p.id) : `blackspot_${e.lngLat.lat}_${e.lngLat.lng}`;
+        const extra: Record<string, unknown> = {};
+        if (p?.crash_count) extra.crash_count = p.crash_count;
+        onOpenPlaceDetailRef.current?.(bId, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: p?.road || "Crash Black Spot", category: "blackspot", extra });
+      });
+      map.on("mouseenter", BLACKSPOT_LAYER, () => (map.getCanvas().style.cursor = "pointer"));
+      map.on("mouseleave", BLACKSPOT_LAYER, () => (map.getCanvas().style.cursor = ""));
     }
     const v = overlayVisRef.current.cameras ? "visible" : "none";
     if (map.getLayer(CAMERAS_ICON_LAYER)) map.setLayoutProperty(CAMERAS_ICON_LAYER, "visibility", v);
@@ -3291,8 +3440,20 @@ export const TripMap = React.memo(function TripMap(props: Props) {
     if (existingSrc) { existingSrc.setData(culledFC); } else {
       map.addSource(TOILETS_SRC, { type: "geojson", data: culledFC, cluster: false });
       map.addLayer({ id: TOILETS_ICON_LAYER, type: "circle", source: TOILETS_SRC, minzoom: 9,
-        paint: { "circle-radius": 5, "circle-color": "#06b6d4", "circle-stroke-color": "#fff", "circle-stroke-width": 1.5, "circle-opacity": 0.85 },
+        paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 7, 12, 10, 16, 13], "circle-color": "#06b6d4", "circle-stroke-color": "rgba(255,255,255,0.6)", "circle-stroke-width": 2.5, "circle-opacity": 0.92, "circle-blur": 0 },
       }, beforeId);
+      map.on("click", TOILETS_ICON_LAYER, (e: MapLayerMouseEvent) => {
+        const f = e?.features?.[0];
+        if (!f) return;
+        const p = f.properties;
+        const tId = p?.id ? String(p.id) : `toilet_${e.lngLat.lat}_${e.lngLat.lng}`;
+        const extra: Record<string, unknown> = {};
+        if (p?.is_accessible != null) extra.is_accessible = !!p.is_accessible;
+        if (p?.is_dump_point != null) extra.is_dump_point = !!p.is_dump_point;
+        onOpenPlaceDetailRef.current?.(tId, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: p?.name || "Public Toilet", category: "toilet", extra });
+      });
+      map.on("mouseenter", TOILETS_ICON_LAYER, () => (map.getCanvas().style.cursor = "pointer"));
+      map.on("mouseleave", TOILETS_ICON_LAYER, () => (map.getCanvas().style.cursor = ""));
       const v = overlayVisRef.current.toilets ? "visible" : "none";
       if (map.getLayer(TOILETS_ICON_LAYER)) map.setLayoutProperty(TOILETS_ICON_LAYER, "visibility", v);
     }
@@ -3322,8 +3483,20 @@ export const TripMap = React.memo(function TripMap(props: Props) {
     if (existingSrc) { existingSrc.setData(culledFC); } else {
       map.addSource(SCHOOL_ZONES_SRC, { type: "geojson", data: culledFC, cluster: false });
       map.addLayer({ id: SCHOOL_ZONES_ICON_LAYER, type: "circle", source: SCHOOL_ZONES_SRC, minzoom: 9,
-        paint: { "circle-radius": 6, "circle-color": ["case", ["get", "is_active"], "#ef4444", "#f59e0b"], "circle-stroke-color": "#fff", "circle-stroke-width": 1.5, "circle-opacity": 0.9 },
+        paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 7, 12, 10, 16, 13], "circle-color": ["case", ["get", "is_active"], "#ef4444", "#f59e0b"], "circle-stroke-color": "rgba(255,255,255,0.6)", "circle-stroke-width": 2.5, "circle-opacity": 0.92, "circle-blur": 0 },
       }, beforeId);
+      map.on("click", SCHOOL_ZONES_ICON_LAYER, (e: MapLayerMouseEvent) => {
+        const f = e?.features?.[0];
+        if (!f) return;
+        const p = f.properties;
+        const szId = p?.id ? String(p.id) : `school_${e.lngLat.lat}_${e.lngLat.lng}`;
+        const extra: Record<string, unknown> = {};
+        if (p?.speed_limit) extra.speed_limit = p.speed_limit;
+        if (p?.is_active != null) extra.is_active = !!p.is_active;
+        onOpenPlaceDetailRef.current?.(szId, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: p?.school_name || "School Zone", category: "school_zone", extra });
+      });
+      map.on("mouseenter", SCHOOL_ZONES_ICON_LAYER, () => (map.getCanvas().style.cursor = "pointer"));
+      map.on("mouseleave", SCHOOL_ZONES_ICON_LAYER, () => (map.getCanvas().style.cursor = ""));
       const v = overlayVisRef.current.school_zones ? "visible" : "none";
       if (map.getLayer(SCHOOL_ZONES_ICON_LAYER)) map.setLayoutProperty(SCHOOL_ZONES_ICON_LAYER, "visibility", v);
     }
@@ -3353,12 +3526,113 @@ export const TripMap = React.memo(function TripMap(props: Props) {
     if (existingSrc) { existingSrc.setData(culledFC); } else {
       map.addSource(ROADKILL_SRC, { type: "geojson", data: culledFC, cluster: false });
       map.addLayer({ id: ROADKILL_DOT_LAYER, type: "circle", source: ROADKILL_SRC, minzoom: 8,
-        paint: { "circle-radius": 5, "circle-color": ["match", ["get", "risk_level"], "high", "#dc2626", "medium", "#f97316", "#eab308"], "circle-stroke-color": "#fff", "circle-stroke-width": 1, "circle-opacity": 0.8 },
+        paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 7, 12, 10, 16, 13], "circle-color": ["match", ["get", "risk_level"], "high", "#dc2626", "medium", "#f97316", "#eab308"], "circle-stroke-color": "rgba(255,255,255,0.6)", "circle-stroke-width": 2.5, "circle-opacity": 0.92, "circle-blur": 0 },
       }, beforeId);
+      map.on("click", ROADKILL_DOT_LAYER, (e: MapLayerMouseEvent) => {
+        const f = e?.features?.[0];
+        if (!f) return;
+        const p = f.properties;
+        const rId = p?.id ? String(p.id) : `roadkill_${e.lngLat.lat}_${e.lngLat.lng}`;
+        const extra: Record<string, unknown> = {};
+        if (p?.risk_level) extra.risk_level = String(p.risk_level);
+        if (p?.count) extra.observation_count = p.count;
+        if (p?.species) extra.species = String(p.species);
+        onOpenPlaceDetailRef.current?.(rId, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: `Roadkill Hotspot${p?.species ? `: ${String(p.species)}` : ""}`, category: "roadkill", extra });
+      });
+      map.on("mouseenter", ROADKILL_DOT_LAYER, () => (map.getCanvas().style.cursor = "pointer"));
+      map.on("mouseleave", ROADKILL_DOT_LAYER, () => (map.getCanvas().style.cursor = ""));
       const v = overlayVisRef.current.roadkill ? "visible" : "none";
       if (map.getLayer(ROADKILL_DOT_LAYER)) map.setLayoutProperty(ROADKILL_DOT_LAYER, "visibility", v);
     }
   }, [props.roadkill, styleReady, vpBounds]);
+
+  /* ── Register click handlers for utility overlay layers (modal, not popup) ── */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !styleReady) return;
+
+    const handlers: Array<[string, (e: MapLayerMouseEvent) => void]> = [];
+    const addHandler = (layerId: string, handler: (e: MapLayerMouseEvent) => void) => {
+      if (!map.getLayer(layerId)) return;
+      map.on("click", layerId, handler);
+      map.on("mouseenter", layerId, () => (map.getCanvas().style.cursor = "pointer"));
+      map.on("mouseleave", layerId, () => (map.getCanvas().style.cursor = ""));
+      handlers.push([layerId, handler]);
+    };
+
+    addHandler(AQI_DOT_LAYER, (e) => {
+      const p = e?.features?.[0]?.properties; if (!p) return;
+      const extra: Record<string, unknown> = {};
+      if (p?.aqi != null) extra.aqi = Number(p.aqi);
+      if (p?.aqi_label) extra.aqi_label = String(p.aqi_label);
+      onOpenPlaceDetailRef.current?.(`aqi_${e.lngLat.lat}_${e.lngLat.lng}`, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: `Air Quality: ${p?.aqi_label ?? "Unknown"}`, category: "air_quality", extra });
+    });
+
+    addHandler(BUSHFIRE_ICON_LAYER, (e) => {
+      const p = e?.features?.[0]?.properties; if (!p) return;
+      const extra: Record<string, unknown> = {};
+      if (p?.alert_level) extra.alert_level = String(p.alert_level);
+      if (p?.status) extra.status = String(p.status);
+      onOpenPlaceDetailRef.current?.(p?.id ? String(p.id) : `bushfire_${e.lngLat.lat}_${e.lngLat.lng}`, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: p?.title ? String(p.title) : "Bushfire", category: "bushfire", extra });
+    });
+
+    addHandler(CAMERAS_ICON_LAYER, (e) => {
+      const p = e?.features?.[0]?.properties; if (!p) return;
+      const extra: Record<string, unknown> = {};
+      if (p?.camera_type) extra.camera_type = String(p.camera_type);
+      if (p?.road) extra.road = String(p.road);
+      onOpenPlaceDetailRef.current?.(p?.id ? String(p.id) : `camera_${e.lngLat.lat}_${e.lngLat.lng}`, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: p?.road ? `Speed Camera - ${String(p.road)}` : "Speed Camera", category: "speed_camera", extra });
+    });
+
+    addHandler(BLACKSPOT_LAYER, (e) => {
+      const p = e?.features?.[0]?.properties; if (!p) return;
+      const extra: Record<string, unknown> = {};
+      if (p?.road) extra.road = String(p.road);
+      if (p?.crash_count) extra.crash_count = Number(p.crash_count);
+      onOpenPlaceDetailRef.current?.(p?.id ? String(p.id) : `blackspot_${e.lngLat.lat}_${e.lngLat.lng}`, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: p?.road ? `Black Spot - ${String(p.road)}` : "Crash Black Spot", category: "black_spot", extra });
+    });
+
+    addHandler(TOILETS_ICON_LAYER, (e) => {
+      const p = e?.features?.[0]?.properties; if (!p) return;
+      const extra: Record<string, unknown> = {};
+      if (p?.is_accessible != null) extra.is_accessible = !!p.is_accessible;
+      if (p?.is_dump_point != null) extra.is_dump_point = !!p.is_dump_point;
+      onOpenPlaceDetailRef.current?.(p?.id ? String(p.id) : `toilet_${e.lngLat.lat}_${e.lngLat.lng}`, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: p?.name ? String(p.name) : "Public Toilet", category: "toilet", extra });
+    });
+
+    addHandler(SCHOOL_ZONES_ICON_LAYER, (e) => {
+      const p = e?.features?.[0]?.properties; if (!p) return;
+      const extra: Record<string, unknown> = {};
+      if (p?.speed_limit) extra.speed_limit = Number(p.speed_limit);
+      if (p?.is_active != null) extra.is_active = !!p.is_active;
+      onOpenPlaceDetailRef.current?.(p?.id ? String(p.id) : `school_${e.lngLat.lat}_${e.lngLat.lng}`, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: p?.school_name ? String(p.school_name) : "School Zone", category: "school_zone", extra });
+    });
+
+    addHandler(ROADKILL_DOT_LAYER, (e) => {
+      const p = e?.features?.[0]?.properties; if (!p) return;
+      const extra: Record<string, unknown> = {};
+      if (p?.risk_level) extra.risk_level = String(p.risk_level);
+      if (p?.count) extra.observation_count = Number(p.count);
+      if (p?.species) extra.species = String(p.species);
+      onOpenPlaceDetailRef.current?.(p?.id ? String(p.id) : `roadkill_${e.lngLat.lat}_${e.lngLat.lng}`, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: p?.species ? `Wildlife Risk: ${String(p.species)}` : "Roadkill Hotspot", category: "roadkill", extra });
+    });
+
+    addHandler(WEATHER_DOT_LAYER, (e) => {
+      const p = e?.features?.[0]?.properties; if (!p) return;
+      const extra: Record<string, unknown> = {};
+      if (p?.temp != null) extra.temperature = Number(p.temp);
+      if (p?.precip_prob != null) extra.precipitation_probability = Number(p.precip_prob);
+      if (p?.wind != null) extra.wind_speed = Number(p.wind);
+      onOpenPlaceDetailRef.current?.(`weather_${e.lngLat.lat}_${e.lngLat.lng}`, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: `${Math.round(Number(p?.temp ?? 0))}° Weather`, category: "weather", extra });
+    });
+
+    return () => {
+      for (const [layerId, handler] of handlers) {
+        try { map.off("click", layerId, handler); } catch {}
+      }
+    };
+  }, [styleReady]);
+
 
   useEffect(() => {
     const map = mapRef.current;
@@ -3454,7 +3728,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
       return;
     }
 
-    // 1. Zoom close — only fly the camera if this is a newly focused place.
+    // 1. Zoom close - only fly the camera if this is a newly focused place.
     //    If the user has panned away and the effect re-runs (e.g. places reloaded),
     //    we must NOT re-yank the camera back to the same place.
     if (lastFocusFlewToRef.current !== id) {
@@ -3498,7 +3772,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
     };
     sugFocusRaf.current = requestAnimationFrame(animate);
 
-    // 4. Notify parent (popup removed — PlaceDetailSheet handles display)
+    // 4. Notify parent (popup removed - PlaceDetailSheet handles display)
     onSugPressRef.current?.(id);
 
     return () => {
@@ -3605,7 +3879,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
          map.fitBounds(bboxToBounds(props.bbox), { padding: 60, duration: 250 });
        } catch {}
      }, [props.bbox.minLat, props.bbox.minLng, props.bbox.maxLat, props.bbox.maxLng, props.bbox, props.navigationMode, props.focusedSuggestionId, props.mapInstanceRef]);
-  
+
   return (
     <div className="trip-map-fullscreen">
       <div ref={containerRef} className="trip-map-inner" />
@@ -3614,40 +3888,58 @@ export const TripMap = React.memo(function TripMap(props: Props) {
       {(() => {
         const allOn = ALL_OVERLAY_KEYS.every((k) => overlayVis[k]);
         const anyOff = ALL_OVERLAY_KEYS.some((k) => !overlayVis[k]);
+        const isNav = !!props.navigationMode;
         return (
           <div style={{
             position: "absolute",
-            top: "calc(env(safe-area-inset-top, 0px) + 56px)",
+            top: props.navigationMode
+              ? "calc(env(safe-area-inset-top, 0px) + 12px)"
+              : "calc(env(safe-area-inset-top, 0px) + 56px)",
             right: 12,
-            zIndex: 25,
+            zIndex: props.navigationMode ? 50 : 25,
             display: "flex",
             flexDirection: "column",
             alignItems: "flex-end",
             gap: 8,
           }}>
-            {/* Nearby roamers indicator merged into Exchange FAB + panel */}
-            {/* Layer button + dropdown wrapper (position: relative for dropdown anchoring) */}
+            {/* Layer button + dropdown wrapper */}
             <div style={{ position: "relative" }}>
-            <button
-              type="button"
-              aria-label="Map layers"
-              className={`layer-toggle-btn${anyOff ? " layer-toggle-btn--filtered" : ""}`}
-              onClick={() => setLayerMenuOpen((v) => !v)}
-              onPointerDown={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(0.90)"; }}
-              onPointerUp={(e) => { (e.currentTarget as HTMLElement).style.transform = ""; }}
-              onPointerLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = ""; }}
-            >
-              {/* Layers icon */}
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" />
-                <path d="m2 12 8.58 3.91a2 2 0 0 0 1.66 0L20.74 12" opacity=".6" />
-                <path d="m2 17 8.58 3.91a2 2 0 0 0 1.66 0L20.74 17" opacity=".35" />
-              </svg>
-            </button>
+            {/* In nav mode the toggle lives in NavigationControls — hide button here */}
+            {!isNav && (
+              <>
+              <button
+                type="button"
+                aria-label="Map layers"
+                className={`layer-toggle-btn${anyOff ? " layer-toggle-btn--filtered" : ""}${showLayerHint ? " layer-toggle-btn--hint" : ""}`}
+                onClick={() => {
+                  if (showLayerHint) {
+                    setShowLayerHint(false);
+                    try { localStorage.setItem("roam:seen_layer_menu", "1"); } catch {}
+                  }
+                  setLayerMenuOpen((v) => !v);
+                }}
+                onPointerDown={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(0.90)"; }}
+                onPointerUp={(e) => { (e.currentTarget as HTMLElement).style.transform = ""; }}
+                onPointerLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = ""; }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" />
+                  <path d="m2 12 8.58 3.91a2 2 0 0 0 1.66 0L20.74 12" opacity=".6" />
+                  <path d="m2 17 8.58 3.91a2 2 0 0 0 1.66 0L20.74 17" opacity=".35" />
+                </svg>
+              </button>
+              {showLayerHint && (
+                <div className="layer-hint-tooltip">
+                  <span>Toggle map layers</span>
+                  <div className="layer-hint-arrow" />
+                </div>
+              )}
+              </>
+            )}
 
-            {/* Expanded menu — left of button on desktop, below on mobile */}
+            {/* Expanded menu - left of button on desktop, below on mobile */}
             {layerMenuVisible && (
-              <div className={`layer-menu-dropdown${layerMenuMounted ? " layer-menu-dropdown--open" : ""}`}>
+              <div className={`layer-menu-dropdown${layerMenuMounted ? " layer-menu-dropdown--open" : ""}${props.navigationMode ? " layer-menu-dropdown--nav" : ""}`}>
               <div style={{
                 overflowY: "auto",
                 flex: 1,
@@ -3661,7 +3953,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
                   onClick={() => {
                     const next = allOn
                       ? Object.fromEntries(ALL_OVERLAY_KEYS.map((k) => [k, false])) as OverlayVisibility
-                      : { ...DEFAULT_VIS };
+                      : Object.fromEntries(ALL_OVERLAY_KEYS.map((k) => [k, true])) as OverlayVisibility;
                     setOverlayVis(next);
                   }}
                 >
@@ -3677,12 +3969,12 @@ export const TripMap = React.memo(function TripMap(props: Props) {
                   ["fuel",         "Fuel",         "#e2a12f"],
                   ["traffic",      "Traffic",      "#f57c24"],
                   ["hazards",      "Hazards",      "#d42e5b"],
+                  ["weather",      "Weather",      "#0ea5e9"],
+                  ["rest_areas",   "Rest Areas",   "#14b8a6"],
+                  ["emergency",    "Emergency",    "#ef4444"],
                   ["wildlife",     "Wildlife",     "#a87b32"],
                   ["coverage",     "Coverage",     "#8b5cf6"],
                   ["flood",        "Flood",        "#3b82f6"],
-                  ["rest_areas",   "Rest Areas",   "#14b8a6"],
-                  ["weather",      "Weather",      "#0ea5e9"],
-                  ["emergency",    "Emergency",    "#ef4444"],
                   ["heritage",     "Heritage",     "#a855f7"],
                   ["air_quality",  "Air Quality",  "#10b981"],
                   ["bushfire",     "Bushfire",     "#f97316"],
@@ -3690,6 +3982,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
                   ["toilets",      "Toilets",      "#06b6d4"],
                   ["school_zones", "School Zones", "#f59e0b"],
                   ["roadkill",     "Roadkill",     "#b45309"],
+                  ["corridor",     "Saved Roads",   "#94a3b8"],
                 ] as const).map(([key, label, color]) => (
                   <button
                     key={key}
@@ -3732,7 +4025,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
                         Sat
                       </button>
                     </div>
-                    {/* Bright / Dark row — animates in when vector mode is active */}
+                    {/* Bright / Dark row - animates in when vector mode is active */}
                     <div className={mode === "vector" ? "style-theme-row style-theme-row--open" : "style-theme-row"}>
                       <div style={{ display: "flex", gap: 4 }}>
                         <button type="button" className={`layer-menu-style-btn${vectorTheme === "bright" ? " layer-menu-style-btn--active" : ""}`} onClick={() => { haptic.selection(); props.onStyleChange!({ mode: "vector", vectorTheme: "bright" }); }}>
@@ -3782,6 +4075,59 @@ export const TripMap = React.memo(function TripMap(props: Props) {
           }
         }
 
+        /* ── First-time layer hint glow + tooltip ── */
+        .layer-toggle-btn--hint {
+          animation: layer-hint-pulse 2s ease-in-out infinite;
+          border-color: rgba(45,110,64,0.5);
+        }
+        @keyframes layer-hint-pulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(45,110,64,0.5), 0 4px 16px rgba(0,0,0,0.08); }
+          50% { box-shadow: 0 0 0 8px rgba(45,110,64,0), 0 4px 20px rgba(45,110,64,0.25); }
+        }
+        @media (prefers-color-scheme: dark) {
+          .layer-toggle-btn--hint {
+            animation: layer-hint-pulse-dark 2s ease-in-out infinite;
+            border-color: rgba(74,222,128,0.4);
+          }
+        }
+        @keyframes layer-hint-pulse-dark {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0.45), 0 4px 16px rgba(0,0,0,0.3); }
+          50% { box-shadow: 0 0 0 8px rgba(74,222,128,0), 0 4px 20px rgba(74,222,128,0.2); }
+        }
+        .layer-hint-tooltip {
+          position: absolute;
+          top: 50%;
+          right: calc(100% + 10px);
+          transform: translateY(-50%);
+          background: rgba(26,22,18,0.92);
+          color: rgba(250,246,239,0.95);
+          font-size: 12px;
+          font-weight: 700;
+          letter-spacing: -0.1px;
+          padding: 7px 12px;
+          border-radius: 10px;
+          white-space: nowrap;
+          pointer-events: none;
+          backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+          border: 1px solid rgba(255,255,255,0.08);
+          box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+          animation: layer-hint-fade-in 0.4s ease-out;
+        }
+        .layer-hint-arrow {
+          position: absolute;
+          top: 50%;
+          right: -5px;
+          transform: translateY(-50%) rotate(45deg);
+          width: 8px; height: 8px;
+          background: rgba(26,22,18,0.92);
+          border-right: 1px solid rgba(255,255,255,0.08);
+          border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        @keyframes layer-hint-fade-in {
+          from { opacity: 0; transform: translateY(-50%) translateX(6px); }
+          to { opacity: 1; transform: translateY(-50%) translateX(0); }
+        }
+
         /* ── Layer menu dropdown ── */
         .layer-menu-dropdown {
           position: absolute;
@@ -3804,6 +4150,15 @@ export const TripMap = React.memo(function TripMap(props: Props) {
         .layer-menu-dropdown--open {
           opacity: 1;
           transform: translateY(0) scale(1);
+        }
+        /* Nav mode: dropdown opens below the button instead of to the left */
+        .layer-menu-dropdown--nav {
+          top: calc(100% + 8px);
+          right: 0;
+          transform-origin: top right;
+        }
+        .layer-menu-dropdown--nav:not(.layer-menu-dropdown--open) {
+          transform: translateY(-8px) scale(0.96);
         }
         .layer-menu-dropdown > div:first-child {
           mask-image: linear-gradient(to bottom, black calc(100% - 32px), transparent 100%);

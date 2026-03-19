@@ -19,9 +19,9 @@ import { NewTripMap } from "@/components/trips/new/NewTripMap";
 import { StopsEditor } from "@/components/trips/new/StopsEditor";
 import { PlaceSearchModal } from "@/components/trips/new/PlaceSearchModal";
 import {
-  MapStyleSwitcher,
-  type MapBaseMode,
-  type VectorTheme,
+    MapStyleSwitcher,
+    type MapBaseMode,
+    type VectorTheme,
 } from "@/components/trips/new/MapStyleSwitcher";
 import { PlanningOverlay } from "@/components/trips/new/PlanningOverlay";
 import { AiTripModal, type AiTripSeed } from "@/components/trip/AiTripModal";
@@ -64,7 +64,7 @@ export default function NewTripClientPage() {
   const [paywallVariant, setPaywallVariant] = useState<"gate" | "upgrade">("gate");
   const [unlocked, setUnlocked] = useState<boolean | null>(null);
 
-  // ── Discover clone seed (still via sessionStorage — comes from /discover) ──
+  // ── Discover clone seed (still via sessionStorage - comes from /discover) ──
   useEffect(() => {
     try {
       const cloneRaw = sessionStorage.getItem(CLONE_TRIP_SEED_KEY);
@@ -76,7 +76,7 @@ export default function NewTripClientPage() {
         }
       }
     } catch {
-      // malformed or unavailable — ignore
+      // malformed or unavailable - ignore
     }
     // Run once on mount only
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -87,7 +87,7 @@ export default function NewTripClientPage() {
       setUnlocked(gate.unlocked);
       if (gate.allowed) {
         // Trip 2 (tripsUsed === 1): show "last free trip" warning
-        // But skip this for unlocked (Untethered) users — they have unlimited trips.
+        // But skip this for unlocked (Untethered) users - they have unlimited trips.
         if (gate.tripsUsed === 1 && !gate.unlocked) {
           setIsLastFreeTrip(true);
           setWelcomeOpen(true);
@@ -99,7 +99,7 @@ export default function NewTripClientPage() {
         setPaywallOpen(true);
         setGateChecked(true);
       } else {
-        // "welcome" — first ever launch
+        // "welcome" - first ever launch
         setWelcomeOpen(true);
         setGateChecked(true);
       }
@@ -152,7 +152,7 @@ export default function NewTripClientPage() {
 
   /* ── Auto-route: pre-fetch route as soon as stops are valid ────────── */
   // This populates navPack in the background so that when the user taps
-  // "Start Roaming", the route is already cached — making navigation instant.
+  // "Start Roaming", the route is already cached - making navigation instant.
   useEffect(() => {
     if (!canRoute || navPack || routing) return;
     requestRoute();
@@ -186,7 +186,7 @@ export default function NewTripClientPage() {
   }, [bundle]);
 
   /* ── AI trip confirm handler ────────────────────────────────────────── */
-  // Called directly by AiTripModal — no sessionStorage relay needed.
+  // Called directly by AiTripModal - no sessionStorage relay needed.
 
   const handleAiConfirm = useCallback((seed: AiTripSeed) => {
     if (Array.isArray(seed.stops) && seed.stops.length >= 2) {
@@ -229,10 +229,10 @@ export default function NewTripClientPage() {
         depart_at: effectiveDepartAt,
       });
 
-      // Step 2: Navigate immediately — don't wait for IDB save
+      // Step 2: Navigate immediately - don't wait for IDB save
       router.replace(`/trip?plan_id=${encodeURIComponent(plan_id)}`);
 
-      // Step 3: Save in background — /trip page will pick it up
+      // Step 3: Save in background - /trip page will pick it up
       Promise.all([
         saveMinimalPlan({
           plan_id,
@@ -364,7 +364,7 @@ export default function NewTripClientPage() {
         onUpgrade={() => { setPaywallVariant("upgrade"); setPaywallOpen(true); }}
       />
 
-      {/* Planning overlay — only for full offline bundle builds */}
+      {/* Planning overlay - only for full offline bundle builds */}
       <PlanningOverlay
         phase={bundle.phase}
         error={bundle.error}
@@ -390,7 +390,7 @@ export default function NewTripClientPage() {
         onAiTrip={() => { setDrawOpen(false); setAiOpen(true); }}
       />
 
-      {/* ── AI Trip Planner (inline — no navigation needed) ───────────── */}
+      {/* ── AI Trip Planner (inline - no navigation needed) ───────────── */}
       <AiTripModal
         open={aiOpen}
         onClose={() => setAiOpen(false)}

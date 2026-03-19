@@ -7,9 +7,9 @@ import type { PlaceItem } from "@/lib/types/places";
 import type { MouseEvent, SyntheticEvent } from "react";
 
 import type {
-  GuidePack,
-  DiscoveredPlace,
-  TripProgress, GuideMsg
+    GuidePack,
+    DiscoveredPlace,
+    TripProgress, GuideMsg
 } from "@/lib/types/guide";
 import { haptic } from "@/lib/native/haptics";
 import { usePlaceDetail } from "@/lib/context/PlaceDetailContext";
@@ -19,43 +19,43 @@ import { fmtDist, fmtCategory, normalizeUrl, safeOpen, cleanPhone } from "@/lib/
 
 import type { LucideIcon } from "lucide-react";
 import {
-  Search,
-  Sparkles,
-  MapPin,
-  Fuel,
-  Tent,
-  Bath,
-  Droplets,
-  Coffee,
-  Utensils,
-  Eye,
-  Waves,
-  Bed,
-  Phone,
-  Link2,
-  ParkingMeter,
-  Target,
-  Camera,
-  Zap,
-  Beer,
-  Baby,
-  Trash2,
-  Shirt,
-  Star,
-  Globe,
-  Compass,
-  Dog,
-  ExternalLink,
-  Plus,
-  Send,
-  ChevronRight,
-  Bookmark,
-  Check,
-  ShowerHead,
-  Flame,
-  Wifi,
-  Signal,
-  UtensilsCrossed,
+    Search,
+    Sparkles,
+    MapPin,
+    Fuel,
+    Tent,
+    Bath,
+    Droplets,
+    Coffee,
+    Utensils,
+    Eye,
+    Waves,
+    Bed,
+    Phone,
+    Link2,
+    ParkingMeter,
+    Target,
+    Camera,
+    Zap,
+    Beer,
+    Baby,
+    Trash2,
+    Shirt,
+    Star,
+    Globe,
+    Compass,
+    Dog,
+    ExternalLink,
+    Plus,
+    Send,
+    ChevronRight,
+    Bookmark,
+    Check,
+    ShowerHead,
+    Flame,
+    Wifi,
+    Signal,
+    UtensilsCrossed,
 } from "lucide-react";
 
 const catColor = getCategoryColor;
@@ -867,7 +867,7 @@ function PlaceCard({
           </div>
         </div>
 
-        {/* AI description — prose listing from the guide */}
+        {/* AI description - prose listing from the guide */}
         {guideDesc ? (
           <div style={{
             fontSize: 13, fontWeight: 500, lineHeight: 1.5,
@@ -1000,7 +1000,7 @@ export function GuideView({
   initialTab?: "chat" | "discoveries";
   /** If set and online, auto-send this message once guide is ready */
   autoAskMessage?: string | null;
-  /** If provided, GuideView won't render its own tab bar — caller renders it externally */
+  /** If provided, GuideView won't render its own tab bar - caller renders it externally */
   renderTabBar?: (props: GuideTabBarProps) => void;
 }) {
   const { openPlace } = usePlaceDetail();
@@ -1061,7 +1061,7 @@ export function GuideView({
         guideSwipe.current.locked = true;
       }
 
-      // Horizontal swipe locked — block vertical scrolling
+      // Horizontal swipe locked - block vertical scrolling
       e.preventDefault();
 
       const currentIndex = GUIDE_TABS.indexOf(activeTab);
@@ -1194,13 +1194,13 @@ export function GuideView({
       } else if (hour >= 9 && hour < 11) {
         suggestions.push({ label: "Coffee stop", desc: "Good cafes ahead", query: "Where's the best coffee ahead? Real cafe, not servo coffee.", Icon: Coffee, color: "#b45309" });
       } else if (hour >= 11 && hour < 14) {
-        suggestions.push({ label: "Lunch spot", desc: "Pub meal or bakery", query: "Where should I stop for lunch? I want a proper feed — pub counter meal, bakery, or good cafe.", Icon: Utensils, color: "#f97316" });
+        suggestions.push({ label: "Lunch spot", desc: "Pub meal or bakery", query: "Where should I stop for lunch? I want a proper feed - pub counter meal, bakery, or good cafe.", Icon: Utensils, color: "#f97316" });
       } else if (hour >= 14 && hour < 17) {
         suggestions.push({ label: "Arvo break", desc: "Stretch & explore", query: "Good spot for an afternoon break? Lookout, swimming hole, or a cold beer somewhere?", Icon: Eye, color: "#10b981" });
       } else if (hour >= 17 && hour < 20) {
-        suggestions.push({ label: "Stay tonight", desc: "Camps, pubs & motels", query: "Where should I stay tonight? Show me the best options — camps, motels, or a pub with rooms.", Icon: Bed, color: "#8b5cf6" });
+        suggestions.push({ label: "Stay tonight", desc: "Camps, pubs & motels", query: "Where should I stay tonight? Show me the best options - camps, motels, or a pub with rooms.", Icon: Bed, color: "#8b5cf6" });
       } else {
-        suggestions.push({ label: "Stop now", desc: "Closest safe option", query: "I need to stop for the night right now. What's the closest safe option — rest area, camp, or motel?", Icon: Tent, color: "#8b5cf6" });
+        suggestions.push({ label: "Stop now", desc: "Closest safe option", query: "I need to stop for the night right now. What's the closest safe option - rest area, camp, or motel?", Icon: Tent, color: "#8b5cf6" });
       }
 
       // Phase-specific discovery
@@ -1212,19 +1212,19 @@ export function GuideView({
 
       // Fatigue awareness
       if (kmDone > 150) {
-        suggestions.push({ label: "Need a break", desc: "Stretch the legs", query: "Where's a good spot to stop and stretch? Scenic rest area, waterfall, or swimming hole — anything to break up the drive.", Icon: ParkingMeter, color: "#f59e0b" });
+        suggestions.push({ label: "Need a break", desc: "Stretch the legs", query: "Where's a good spot to stop and stretch? Scenic rest area, waterfall, or swimming hole - anything to break up the drive.", Icon: ParkingMeter, color: "#f59e0b" });
       }
 
       // Arriving
       if (kmRemaining < 80 && kmRemaining > 5) {
-        suggestions.push({ label: "Arriving soon", desc: "What's at the destination", query: "I'm nearly there — what should I know about the destination? Where to eat tonight, any tips?", Icon: Target, color: "#10b981" });
+        suggestions.push({ label: "Arriving soon", desc: "What's at the destination", query: "I'm nearly there - what should I know about the destination? Where to eat tonight, any tips?", Icon: Target, color: "#10b981" });
       }
 
       // Nature / scenic always welcome
       suggestions.push({ label: "Swim spots", desc: "Gorges, falls & beaches", query: "Any swimming holes, waterfalls, or beaches ahead? Looking for somewhere to cool off.", Icon: Waves, color: "#0891b2" });
 
     } else {
-      // Planning phase — no active trip progress
+      // Planning phase - no active trip progress
       suggestions.push({ label: "Route highlights", desc: "Best stops along the way", query: "What are the absolute must-see highlights along this route? Don't let me drive past anything amazing.", Icon: Camera, color: "#6366f1" });
       suggestions.push({ label: "Fuel planning", desc: "Where are the long gaps?", query: "Where are the fuel stops along this route? Are there any long gaps I should plan for?", Icon: Fuel, color: "#f59e0b" });
       suggestions.push({ label: "Best bakeries", desc: "Pies, slices & coffee", query: "Where are the best country bakeries along this route? I want legendary pies.", Icon: Star, color: "#ea580c" });
@@ -1305,7 +1305,7 @@ export function GuideView({
       )}
 
       {/* ════════════════════════════════════════════════════════
-          SLIDING TRACK — all tab panels always mounted
+          SLIDING TRACK - all tab panels always mounted
           ════════════════════════════════════════════════════════ */}
       <div style={{ overflow: "hidden" }}>
       <div
@@ -1452,7 +1452,7 @@ export function GuideView({
                       </div>
                     </div>
 
-                    {/* Discovery CTA — for tool-resolved messages without save actions */}
+                    {/* Discovery CTA - for tool-resolved messages without save actions */}
                     {m.resolved_tool_id && discoveredPlaces.length > 0 && !(m.actions ?? []).some((a) => a.type === "save") ? (
                       <button
                         type="button"
@@ -1521,7 +1521,7 @@ export function GuideView({
             zIndex: 10,
             background: "var(--roam-bg)",
             paddingTop: 4,
-            paddingBottom: "env(safe-area-inset-bottom, 0px)",
+            paddingBottom: "var(--bottom-nav-height, calc(80px + env(safe-area-inset-bottom, 0px)))",
             display: "flex",
             flexDirection: "column",
             gap: 8,
@@ -1549,7 +1549,7 @@ export function GuideView({
                   type="submit"
                   disabled={!guideReady || chatBusy || !chatInput.trim()}
                   style={{
-                    width: 36, height: 36, borderRadius: 10, border: "none",
+                    width: 44, height: 44, borderRadius: 12, border: "none",
                     background: chatInput.trim() ? "var(--brand-sky)" : "transparent",
                     color: chatInput.trim() ? "white" : "var(--roam-text-muted)",
                     cursor: chatInput.trim() ? "pointer" : "default",

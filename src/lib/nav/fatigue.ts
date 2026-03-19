@@ -61,7 +61,7 @@ const REST_DETECTION_DELAY_S = 120; // 2 minutes
 /** Seconds of rest to qualify as a "proper break" (resets fatigue timer) */
 const QUALIFIED_REST_DURATION_S = 900; // 15 minutes
 
-/** Warning thresholds (seconds since last qualified rest) — BASE values */
+/** Warning thresholds (seconds since last qualified rest) - BASE values */
 const SUGGESTED_THRESHOLD_S = 90 * 60;    // 1.5 hours
 const RECOMMENDED_THRESHOLD_S = 120 * 60;  // 2 hours
 const URGENT_THRESHOLD_S = 150 * 60;       // 2.5 hours
@@ -180,7 +180,7 @@ export function updateFatigue(
     }
   }
 
-  // ── Warning level — weather-adjusted thresholds ──
+  // ── Warning level - weather-adjusted thresholds ──
   // Conditions like night, heat, rain tighten thresholds multiplicatively.
   const mult = conditionMultiplier(conditions);
   const suggestedThresh = SUGGESTED_THRESHOLD_S * mult;

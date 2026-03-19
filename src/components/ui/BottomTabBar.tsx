@@ -34,7 +34,7 @@ const NAV_STYLE: CSSProperties = {
   boxShadow: "0 -1px 0 color-mix(in srgb, var(--roam-text) 5%, transparent)",
 };
 
-// Safe-area leg below the nav — extends the blur into the home indicator zone
+// Safe-area leg below the nav - extends the blur into the home indicator zone
 const SAFE_LEG_STYLE: CSSProperties = {
   position: "absolute",
   top: "100%",
@@ -279,7 +279,7 @@ const TABS: Tab[] = [
 
 /* ── Component ────────────────────────────────────────────────────────── */
 
-/** Tabs shown in simple mode — Guide, Trip (center), SOS */
+/** Tabs shown in simple mode - Guide, Trip (center), SOS */
 const SIMPLE_TAB_KEYS = new Set(["guide", "trip", "sos"]);
 
 export const BottomTabBar = memo(function BottomTabBar() {
@@ -300,7 +300,7 @@ export const BottomTabBar = memo(function BottomTabBar() {
     TABS.find((t) => resolveActive(t.href))?.key ??
     (pathname === "/" ? "trip" : null);
 
-  /** For the Trip tab: navigate instantly to /trip — the trip page handles
+  /** For the Trip tab: navigate instantly to /trip - the trip page handles
    *  the empty-state redirect itself, so we don't block on async IDB checks. */
   const handleTripPress = useCallback(
     (e: React.MouseEvent | React.PointerEvent) => {
@@ -314,7 +314,7 @@ export const BottomTabBar = memo(function BottomTabBar() {
   return (
     <div className="roam-tabs-wrap" role="navigation" aria-label="Primary" data-simple={isSimple ? "true" : undefined}>
       <nav className="roam-tabs" role="tablist" aria-label="Primary tabs" style={NAV_STYLE}>
-        {/* Safe-area blur extension — replaces CSS ::after */}
+        {/* Safe-area blur extension - replaces CSS ::after */}
         <span aria-hidden="true" style={SAFE_LEG_STYLE} />
 
         {visibleTabs.map((tab) => {

@@ -68,7 +68,7 @@ export type RefreshItem = {
  * Given a bundle manifest created_at timestamp, compute which overlays
  * should be refreshed and in what order.
  *
- * Returns a prioritized list — caller should refresh in order,
+ * Returns a prioritized list - caller should refresh in order,
  * stopping when bandwidth or time runs out.
  *
  * @param bundleCreatedAt  ISO timestamp of when the bundle was built

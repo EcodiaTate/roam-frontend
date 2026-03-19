@@ -90,7 +90,7 @@ export function RouteScoreCard({ score, simple }: { score: RouteIntelligenceScor
         </div>
         <div style={{ minWidth: 0 }}>
           <div style={{ ...cardTitle, ...(simple ? { fontSize: 17 } : {}) }}>
-            Route Score — {score.overall_label}
+            Route Score - {score.overall_label}
           </div>
           <div style={{ ...cardSubtitle, ...(simple ? { fontSize: 14 } : {}) }}>
             {score.summary.length > 100 ? score.summary.slice(0, 100) + "…" : score.summary}
@@ -98,7 +98,7 @@ export function RouteScoreCard({ score, simple }: { score: RouteIntelligenceScor
         </div>
       </div>
 
-      {/* Category grid — hidden in simple mode */}
+      {/* Category grid - hidden in simple mode */}
       {!simple && (
         <div style={gridRow}>
           <CategoryCell name="safety" cat={score.safety} />
@@ -108,7 +108,7 @@ export function RouteScoreCard({ score, simple }: { score: RouteIntelligenceScor
         </div>
       )}
 
-      {/* Factors from worst category — hidden in simple mode */}
+      {/* Factors from worst category - hidden in simple mode */}
       {!simple && (() => {
         const worst = [
           { name: "safety", cat: score.safety },

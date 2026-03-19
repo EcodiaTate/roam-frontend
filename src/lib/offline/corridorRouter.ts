@@ -20,7 +20,7 @@ export type GraphIndex = {
   nodes: CorridorNode[];
   nodeById: Map<number, CorridorNode>;
   adj: Map<number, { to: number; distance_m: number; duration_s: number }[]>;
-  /** Largest connected component — only these nodes are mutually reachable */
+  /** Largest connected component - only these nodes are mutually reachable */
   mainComponent: Set<number> | null;
 };
 
@@ -125,7 +125,7 @@ function haversineMeters(a: { lat: number; lng: number }, b: { lat: number; lng:
 
 /**
  * Snap a stop to the nearest corridor node.
- * When `reachable` is provided, only considers nodes in that set —
+ * When `reachable` is provided, only considers nodes in that set -
  * this ensures the snapped node is on the main connected component.
  */
 export function snapStopToNearestNode(
@@ -446,7 +446,7 @@ export function synthesizeStepsFromPath(
       if (delta < -180) delta += 360;
 
       if (Math.abs(delta) >= 20) {
-        // Significant turn — flush the accumulated step
+        // Significant turn - flush the accumulated step
         flushStep();
         isFirstStep = false;
 
@@ -466,7 +466,7 @@ export function synthesizeStepsFromPath(
         stepCoords.push([edge.to.lng, edge.to.lat]);
       }
     } else {
-      // Last edge — flush everything as an arrive step
+      // Last edge - flush everything as an arrive step
       const arriveManeuver: NavManeuver = {
         type: "arrive",
         location: [edge.to.lng, edge.to.lat],

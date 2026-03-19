@@ -3,7 +3,7 @@
 // Landing page after Stripe Checkout completes.
 // Strategy:
 //   1. On first poll, call /stripe/confirm (session_id from URL) to grant the
-//      entitlement immediately — this handles webhook latency / dev tunnels.
+//      entitlement immediately - this handles webhook latency / dev tunnels.
 //   2. Continue polling user_entitlements until it appears (max 12 × 2.5s).
 //   3. Timeout screen if still not visible after 30 s.
 
@@ -184,7 +184,7 @@ function PurchaseSuccessInner() {
       const { data: { session } } = await supabase.auth.refreshSession().catch(() => ({ data: { session: null } }));
       const { data: { user } } = await supabase.auth.getUser().catch(() => ({ data: { user: null } }));
 
-      // 2. Always attempt confirm — even without a session, the backend logs will
+      // 2. Always attempt confirm - even without a session, the backend logs will
       //    tell us what's wrong (401 = auth lost after Stripe redirect)
       await tryConfirm(session?.access_token ?? undefined);
 
@@ -213,7 +213,7 @@ function PurchaseSuccessInner() {
           return;
         }
       } catch {
-        // Supabase query failed — keep polling
+        // Supabase query failed - keep polling
       }
 
       if (attempts >= MAX_POLLS) { setStatus("timeout"); haptic.warning(); return; }
@@ -265,7 +265,7 @@ function PurchaseSuccessInner() {
         }}
       />
 
-      {/* Topo contour lines — white on ochre, always */}
+      {/* Topo contour lines - white on ochre, always */}
       <div
         style={{
           position: "absolute",
@@ -292,7 +292,7 @@ function PurchaseSuccessInner() {
         </svg>
       </div>
 
-      {/* Warm radial glow — top center */}
+      {/* Warm radial glow - top center */}
       <div
         style={{
           position: "absolute",
@@ -389,7 +389,7 @@ function PurchaseSuccessInner() {
             </p>
           </div>
 
-          {/* Shimmer bar — ochre tones */}
+          {/* Shimmer bar - ochre tones */}
           <div style={{
             width: 200, height: 4, borderRadius: 99,
             background: "rgba(255,255,255,0.10)", overflow: "hidden",
@@ -555,7 +555,7 @@ function PurchaseSuccessInner() {
               margin: 0, fontSize: 14, fontWeight: 500,
               color: "rgba(255,255,255,0.65)", lineHeight: 1.5, maxWidth: 300,
             }}>
-              Your payment went through. It can take a moment to activate — close this page and reopen the app.
+              Your payment went through. It can take a moment to activate - close this page and reopen the app.
             </p>
           </div>
 
@@ -633,7 +633,7 @@ function PurchaseSuccessInner() {
             animation-iteration-count: 1 !important;
             transition-duration: 0.01ms !important;
           }
-          /* Keep essential state visible — skip to final frame */
+          /* Keep essential state visible - skip to final frame */
           @keyframes fade-up {
             from { opacity: 1; transform: none; }
             to   { opacity: 1; transform: none; }

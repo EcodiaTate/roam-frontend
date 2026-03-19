@@ -1,6 +1,6 @@
 // src/lib/types/overlays.ts
 // Frontend type mirrors of backend contracts.py overlay models.
-// Shapes match the backend exactly — do not add fields not in contracts.py.
+// Shapes match the backend exactly - do not add fields not in contracts.py.
 
 // ──────────────────────────────────────────────────────────────
 // Weather overlay
@@ -211,7 +211,7 @@ export type WildlifeOverlay = {
 };
 
 // ──────────────────────────────────────────────────────────────
-// Fuel overlay (new bundle format — distinct from FuelAnalysis)
+// Fuel overlay (new bundle format - distinct from FuelAnalysis)
 // ──────────────────────────────────────────────────────────────
 
 export type FuelPrice = {
@@ -518,6 +518,7 @@ export type SchoolZone = {
   lng: number;
   suburb?: string | null;
   state?: string | null;
+  road?: string | null;
   speed_limit_active_kmh: number;
   is_currently_active: boolean;
   active_session?: string | null; // "morning" | "afternoon"
@@ -547,6 +548,9 @@ export type RoadkillHotspot = {
   observation_count: number;
   risk_level: string; // "low" | "medium" | "high"
   species: string[];
+  road?: string | null;
+  locality?: string | null;
+  latest_sighting?: string | null;
   distance_from_route_km?: number | null;
 };
 
@@ -556,7 +560,8 @@ export type RoadkillOverlay = {
   algo_version: string;
   created_at: string;
   hotspots: RoadkillHotspot[];
+  total_observations: number;
+  coverage_note: string;
   attribution: string;
   warnings: string[];
 };
-

@@ -287,7 +287,7 @@ api.setAuthProvider(async (): Promise<Record<string, string>> => {
       return { Authorization: `Bearer ${session.access_token}` };
     }
   } catch {
-    // Supabase not initialised yet (SSR, tests, etc.) — proceed without auth
+    // Supabase not initialised yet (SSR, tests, etc.) - proceed without auth
   }
   return {};
 });

@@ -8,9 +8,8 @@
 import { supabase } from "@/lib/supabase/client";
 import { listSavedPlaces } from "./savedPlacesStore";
 import {
-  cloudListSavedPlaces,
-  cloudUpsertSavedPlace,
-  cloudDeleteSavedPlace,
+    cloudListSavedPlaces,
+    cloudUpsertSavedPlace
 } from "@/lib/supabase/savedPlacesCloud";
 import { mergeSavedPlacesFromCloud } from "./savedPlacesStore";
 
@@ -19,7 +18,7 @@ import { mergeSavedPlacesFromCloud } from "./savedPlacesStore";
  *   1. Pull remote → merge into local (adds cloud-only places locally)
  *   2. Push local → upsert to cloud (adds local-only places to cloud)
  *
- * Safe to call frequently — idempotent and best-effort.
+ * Safe to call frequently - idempotent and best-effort.
  * Returns the number of places pushed to cloud.
  */
 export async function syncSavedPlacesToCloud(): Promise<number> {
@@ -42,7 +41,7 @@ export async function syncSavedPlacesToCloud(): Promise<number> {
           await cloudUpsertSavedPlace(place);
           pushed++;
         } catch {
-          // Best-effort per place — continue with others
+          // Best-effort per place - continue with others
         }
       }
     }

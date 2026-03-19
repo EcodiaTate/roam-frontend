@@ -16,29 +16,30 @@ import { formatDistance, formatDuration } from "@/lib/utils/format";
 import { cx } from "@/lib/utils/cx";
 
 import {
-  Flag,
-  MapPin,
-  Diamond,
-  ChevronUp,
-  ChevronDown,
-  X,
-  Plus,
-  RotateCcw,
-  Save,
-  Loader2,
-  Route,
-  Map as MapIcon,
-  WifiOff,
-  GripVertical,
-  Shuffle,
-  CheckCheck,
+    Flag,
+    MapPin,
+    Diamond,
+    ChevronUp,
+    ChevronDown,
+    X,
+    Plus,
+    RotateCcw,
+    Save,
+    Loader2,
+    Route,
+    Map as MapIcon,
+    WifiOff,
+    GripVertical,
+    Shuffle,
+    CheckCheck,
+    Clock,
 } from "lucide-react";
 
 import {
-  useAlerts,
-  NextAlertBanner,
-  LegAlertStrip,
-  type AlertHighlightEvent,
+    useAlerts,
+    NextAlertBanner,
+    LegAlertStrip,
+    type AlertHighlightEvent,
 } from "@/components/trip/TripAlertsPanel";
 import { PlaceSearchPanel } from "@/components/places/PlaceSearchPanel";
 import { usePlaceDetail } from "@/lib/context/PlaceDetailContext";
@@ -46,9 +47,9 @@ import { FuelSummaryCard } from "@/components/fuel/FuelSummaryCard";
 import { alertsToAvoidZones, buildAvoidanceStops } from "@/lib/nav/routeAvoidance";
 import { decodePolyline6AsLngLat } from "@/lib/nav/polyline6";
 import {
-  StopQuickActionMenu,
-  type QuickActionMenuState,
-  type StopQuickAction,
+    StopQuickActionMenu,
+    type QuickActionMenuState,
+    type StopQuickAction,
 } from "@/components/trip/StopQuickActionMenu";
 
 import s from "./Tripview.module.css";
@@ -81,6 +82,27 @@ function stopLabel(st: TripStop, idx: number) {
 
 function resolveType(st: TripStop): string {
   return st.type ?? "poi";
+}
+
+/** Compact schedule label for stop cards (dd/mm HH:MM format). */
+function stopSchedule(st: TripStop): string | null {
+  const fmt = (iso: string) => {
+    try {
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return null;
+      const dd = String(d.getDate()).padStart(2, "0");
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const h = String(d.getHours()).padStart(2, "0");
+      const m = String(d.getMinutes()).padStart(2, "0");
+      return `${dd}/${mm} ${h}:${m}`;
+    } catch { return null; }
+  };
+  const a = st.arrive_at ? fmt(st.arrive_at) : null;
+  const dep = st.depart_at ? fmt(st.depart_at) : null;
+  if (a && dep) return `${a} → ${dep}`;
+  if (a) return `Arrive ${a}`;
+  if (dep) return `Depart ${dep}`;
+  return null;
 }
 
 function StopIcon({ type, size = 14 }: { type?: string; size?: number }) {
@@ -152,7 +174,7 @@ export function TripView({
   isOnline?: boolean;
   onFilteredIdsChange?: (ids: Set<string> | null) => void;
   onStopQuickAction?: StopQuickActionHandler;
-  /** Simple mode — fewer controls, bigger tap targets */
+  /** Simple mode - fewer controls, bigger tap targets */
   simple?: boolean;
 }) {
   /* ── Context ──────────────────────────────────────────────────────────── */
@@ -263,6 +285,7 @@ export function TripView({
     (fromIdx: number, dir: -1 | 1) => {
       haptic.selection();
       capturePositions();
+      let moved: TripStop[] | null = null;
       setStops((prev) => {
         const toIdx = fromIdx + dir;
         if (toIdx < 0 || toIdx >= prev.length) return prev;
@@ -271,11 +294,12 @@ export function TripView({
         if (!from || !to || isLockedStop(from) || isLockedStop(to)) return prev;
         setMovedId(from.id ?? null);
         const out = [...prev];
-        const [moved] = out.splice(fromIdx, 1);
-        out.splice(toIdx, 0, moved);
-        autoRebuild(out);
+        const [m] = out.splice(fromIdx, 1);
+        out.splice(toIdx, 0, m);
+        moved = out;
         return out;
       });
+      if (moved) autoRebuild(moved);
     },
     [autoRebuild, capturePositions, setMovedId],
   );
@@ -287,13 +311,15 @@ export function TripView({
       const el = getEl(id);
       const doRemove = () => {
         capturePositions();
+        let removed: TripStop[] | null = null;
         setStops((prev) => {
           const found = prev.find((x) => x.id === id);
           if (!found || isLockedStop(found)) return prev;
           const out = prev.filter((x) => x.id !== id);
-          autoRebuild(out);
+          removed = out;
           return out;
         });
+        if (removed) autoRebuild(removed);
         if (focusedStopId === id) onFocusStop(null);
       };
       if (el) {
@@ -345,6 +371,7 @@ export function TripView({
   const [optimizeToast, setOptimizeToast] = useState(false);
 
   const optimizeRoute = useCallback(() => {
+    let optimized: TripStop[] | null = null;
     setStops((prev) => {
       if (prev.length < 3) return prev;
 
@@ -395,9 +422,10 @@ export function TripView({
       if (!changed) return prev;
 
       capturePositions();
-      autoRebuild(out);
+      optimized = out;
       return out;
     });
+    if (optimized) autoRebuild(optimized);
 
     haptic.success();
     setOptimizeToast(true);
@@ -532,6 +560,7 @@ export function TripView({
 
     if (fromIdx !== toIdx) {
       capturePositions();
+      let reordered: TripStop[] | null = null;
       setStops((prev) => {
         const stop = prev[fromIdx];
         if (!stop || isLockedStop(stop)) return prev;
@@ -541,9 +570,10 @@ export function TripView({
         const out = [...prev];
         const [moved] = out.splice(fromIdx, 1);
         out.splice(toIdx, 0, moved);
-        autoRebuild(out);
+        reordered = out;
         return out;
       });
+      if (reordered) autoRebuild(reordered);
       haptic.medium();
     }
   }, [autoRebuild, capturePositions, setMovedId]);
@@ -606,6 +636,7 @@ export function TripView({
       if (action === "move-to-start" || action === "move-to-end") {
         haptic.medium();
         capturePositions();
+        let reordered: TripStop[] | null = null;
         setStops((prev) => {
           const idx = prev.findIndex((x) => x.id === stopId);
           if (idx < 0) return prev;
@@ -621,13 +652,15 @@ export function TripView({
           const out = [...prev];
           const [moved] = out.splice(idx, 1);
           out.splice(targetIdx, 0, moved);
-          autoRebuild(out);
+          reordered = out;
           return out;
         });
+        if (reordered) autoRebuild(reordered);
         return;
       }
       if (action === "set-waypoint") {
         haptic.tap();
+        let updated: TripStop[] | null = null;
         setStops((prev) => {
           const idx = prev.findIndex((x) => x.id === stopId);
           if (idx < 0) return prev;
@@ -636,9 +669,10 @@ export function TripView({
           const newType = (stop.type ?? "poi") === "via" ? "poi" : "via";
           const out = [...prev];
           out[idx] = { ...stop, type: newType };
-          autoRebuild(out);
+          updated = out;
           return out;
         });
+        if (updated) autoRebuild(updated);
         return;
       }
       // Delegate add-note and other actions to parent
@@ -693,7 +727,7 @@ export function TripView({
         onOpenSettings={onOpenFuelSettings}
       />
 
-      {/* Alerts — simple mode: only show route blockers, no minor alerts */}
+      {/* Alerts - simple mode: only show route blockers, no minor alerts */}
       <NextAlertBanner
         next={simple ? null : nextAlert}
         totalCount={simple ? routeBlockers.length : totalCount}
@@ -753,7 +787,7 @@ export function TripView({
             )}
           </div>
 
-          {/* Offline routing indicator — hidden in simple mode */}
+          {/* Offline routing indicator - hidden in simple mode */}
           {!simple && offlineRouted && (
             <div className={s.offlineBanner}>
               <WifiOff size={12} strokeWidth={2} />
@@ -804,7 +838,7 @@ export function TripView({
                       onFocusStop(stop.id ?? null);
                     }}
                   >
-                    {/* Drag handle (non-locked stops only) — hidden in simple mode */}
+                    {/* Drag handle (non-locked stops only) - hidden in simple mode */}
                     {!simple && !locked && (
                       <div
                         className={s.dragHandle}
@@ -826,7 +860,7 @@ export function TripView({
                       </div>
                     </div>
 
-                    {/* Name + type */}
+                    {/* Name + type + schedule */}
                     <div className={s.stopContent}>
                       <div className={s.stopName}>{stopLabel(stop, index)}</div>
                       {!simple && (
@@ -836,9 +870,15 @@ export function TripView({
                           </span>
                         </div>
                       )}
+                      {stopSchedule(stop) && (
+                        <div className={s.stopSchedule}>
+                          <Clock size={10} style={{ flexShrink: 0, opacity: 0.7 }} />
+                          {stopSchedule(stop)}
+                        </div>
+                      )}
                     </div>
 
-                    {/* Edit controls — simple mode: delete only */}
+                    {/* Edit controls - simple mode: delete only */}
                     {!locked && (
                       <div className={s.stopControls} onPointerDown={(e) => e.stopPropagation()}>
                         {!simple && index > 1 && (
@@ -882,7 +922,7 @@ export function TripView({
                     )}
                   </div>
 
-                  {/* Inline leg alerts — hidden in simple mode */}
+                  {/* Inline leg alerts - hidden in simple mode */}
                   {!simple && legAlerts.length > 0 && (
                     <LegAlertStrip
                       alerts={legAlerts}
@@ -911,7 +951,7 @@ export function TripView({
               );
             })}
 
-            {/* Drag ghost — floating card that follows the pointer */}
+            {/* Drag ghost - floating card that follows the pointer */}
             {ghostStop && dragFromIdx !== null && (
               <div
                 className={s.dragGhost}
@@ -933,6 +973,12 @@ export function TripView({
                         {resolveType(ghostStop) === "poi" ? "stop" : resolveType(ghostStop)}
                       </span>
                     </div>
+                    {stopSchedule(ghostStop) && (
+                      <div className={s.stopSchedule}>
+                        <Clock size={10} style={{ flexShrink: 0, opacity: 0.7 }} />
+                        {stopSchedule(ghostStop)}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -951,7 +997,7 @@ export function TripView({
               Add stop
             </button>
 
-            {/* Optimize route button — hidden in simple mode */}
+            {/* Optimize route button - hidden in simple mode */}
             {!simple && stops.filter((st) => !isLockedStop(st)).length >= 2 && (
               optimizeToast ? (
                 <div className={s.optimizeToast}>
@@ -1007,7 +1053,7 @@ export function TripView({
         </>
       )}
 
-      {/* ══ Places section — lazy-mounted on first tab open, hidden via CSS after ══ */}
+      {/* ══ Places section - lazy-mounted on first tab open, hidden via CSS after ══ */}
       {activeSection === "places" || placesEverOpened ? (
         <div
           className={s.placesSection}

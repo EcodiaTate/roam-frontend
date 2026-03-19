@@ -447,7 +447,7 @@ export default function EmergencyClientPage() {
     setEditingId(null);
     haptic.success();
 
-    // Persist in background — revert on failure
+    // Persist in background - revert on failure
     try {
       await saveEmergencyContactLocalFirst({ user, isOnline, contact });
       runAutoSync();
@@ -473,7 +473,7 @@ export default function EmergencyClientPage() {
       if (editingId === id) setEditingId(null);
       haptic.success();
 
-      // Persist in background — revert on failure
+      // Persist in background - revert on failure
       try {
         await deleteEmergencyContactLocalFirst({ user, isOnline, id });
         runAutoSync();

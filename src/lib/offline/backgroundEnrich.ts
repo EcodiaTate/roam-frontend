@@ -7,7 +7,6 @@ import type { PackKind } from "./packsStore";
 import { putPack } from "./packsStore";
 import { navApi } from "@/lib/api/nav";
 import { placesApi } from "@/lib/api/places";
-import { bundleApi } from "@/lib/api/bundle";
 
 /* ── Types ────────────────────────────────────────────────────────────── */
 
@@ -56,8 +55,8 @@ function resolveEnabledCategories(prefs: TripPreferences): PlaceCategory[] {
 
 /* ── Constants ────────────────────────────────────────────────────────── */
 
-/** Total overlay count: places + corridor + 16 overlays + route_score = 19 */
-const TOTAL_ENRICHMENT_ITEMS = 19;
+/** Total overlay count: places + corridor + 16 overlays + elevation + route_score = 20 */
+const TOTAL_ENRICHMENT_ITEMS = 20;
 
 /* ── Helpers ──────────────────────────────────────────────────────────── */
 
@@ -140,7 +139,7 @@ export function startEnrichment(args: {
     emit("overlays");
 
     // ── Fire ALL overlays immediately at T+0 ─────────────────────────
-    // None of these depend on places data — they only need geometry/bbox.
+    // None of these depend on places data - they only need geometry/bbox.
     // Starting them immediately saves the full places latency (~10-40s).
     const overlayWork = Promise.allSettled([
       // Safety-critical
@@ -170,6 +169,9 @@ export function startEnrichment(args: {
       overlay("roadkill", () => navApi.roadkillAlongRoute({ geometry })),
       overlay("coverage", () => navApi.coverageAlongRoute({ geometry })),
       overlay("wildlife", () => navApi.wildlifeAlongRoute({ polyline6: geometry })),
+
+      // Elevation profile
+      overlay("elevation", () => navApi.elevation({ geometry, route_key: routeKey })),
     ]);
 
     // ── Resolve categories from trip preferences ───────────────────────
@@ -187,6 +189,7 @@ export function startEnrichment(args: {
             corridor_key: routeKey,
             geometry,
             categories: resolvedCategories,
+            stop_density: tripPrefs?.stop_density ?? 3,
           }),
         ) as { items?: { lat: number; lng: number }[] } | null;
         if (cancelled) return;
@@ -251,7 +254,7 @@ export function startEnrichment(args: {
     console.info(`[enrich] all overlays + corridor done in ${((performance.now() - runStart) / 1000).toFixed(1)}s`);
     if (cancelled) return;
 
-    // ── Route score (last — benefits from overlays being cached) ─────
+    // ── Route score (last - benefits from overlays being cached) ─────
     try {
       if (departAt) {
         const score = await safeFetch("route_score", () =>

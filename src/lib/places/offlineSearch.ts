@@ -35,7 +35,7 @@ export type UserPosition = {
 };
 
 // ──────────────────────────────────────────────────────────────
-// Geo helpers (inline — no import needed)
+// Geo helpers (inline - no import needed)
 // ──────────────────────────────────────────────────────────────
 
 // haversineKm imported from @/lib/nav/snapToRoute
@@ -59,7 +59,7 @@ function angleDiff(a: number, b: number): number {
 }
 
 // ──────────────────────────────────────────────────────────────
-// Opening hours parser — offline, no deps
+// Opening hours parser - offline, no deps
 // Handles the common OSM "Mo-Fr 09:00-17:00; Sa 09:00-12:00" format.
 // Returns true if open, false if closed, null if unparseable.
 // ──────────────────────────────────────────────────────────────
@@ -139,7 +139,7 @@ export function isOpenNow(openingHours: string | null | undefined, now?: Date): 
 }
 
 // ──────────────────────────────────────────────────────────────
-// Text search helper — searches name, brand, operator, description
+// Text search helper - searches name, brand, operator, description
 // ──────────────────────────────────────────────────────────────
 
 function matchesQuery(place: PlaceItem, queryLower: string): boolean {
@@ -180,7 +180,7 @@ function matchesAttributes(place: PlaceItem, attrs: Record<string, unknown>): bo
 
 /**
  * Filter and rank places offline.
- * All operations are synchronous array filters — no indexing overhead.
+ * All operations are synchronous array filters - no indexing overhead.
  * Filtering 8,000 places typically takes <20ms.
  */
 export type SearchPlacesResult = {
@@ -191,7 +191,7 @@ export type SearchPlacesResult = {
 
 /**
  * Filter and rank places offline.
- * All operations are synchronous array filters — no indexing overhead.
+ * All operations are synchronous array filters - no indexing overhead.
  * Filtering 8,000 places typically takes <20ms.
  *
  * Returns both the filtered results AND per-category counts in a single pass,
@@ -201,7 +201,7 @@ export function searchPlaces(
   places: PlaceItem[],
   filter: PlaceFilter,
   userPosition: UserPosition | null,
-  /** polyline6 route — reserved for future ahead-on-route calculation */
+  /** polyline6 route - reserved for future ahead-on-route calculation */
   _routeGeometry?: string,
 ): SearchPlacesResult {
   const queryLower = (filter.query ?? "").trim().toLowerCase();

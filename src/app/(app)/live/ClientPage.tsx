@@ -1,5 +1,5 @@
 // src/app/live/ClientPage.tsx
-// Online-only "Go Now" trip — instant navigation without offline bundles.
+// Online-only "Go Now" trip - instant navigation without offline bundles.
 // No IDB storage, no corridor, no bundle build. Just route + navigate.
 "use client";
 
@@ -114,7 +114,7 @@ export default function LiveTripClientPage() {
   }
 
   // ── Boot: load NavPack from sessionStorage ──────────────────────
-  // We intentionally do NOT clear sessionStorage here — React StrictMode
+  // We intentionally do NOT clear sessionStorage here - React StrictMode
   // double-fires effects, and clearing on the first mount would leave
   // the second mount with nothing. sessionStorage auto-clears on tab close.
   useEffect(() => {

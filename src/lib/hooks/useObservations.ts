@@ -20,9 +20,9 @@ import { observationsApi } from "@/lib/api/observations";
 import { networkMonitor } from "@/lib/offline/networkMonitor";
 import { idbGet, idbPut } from "@/lib/offline/idb";
 import type {
-  AggregatedObservation,
-  ObservationType,
-  ObservationSubmitRequest,
+    AggregatedObservation,
+    ObservationType,
+    ObservationSubmitRequest,
 } from "@/lib/types/peer";
 
 const IDB_OBS_CACHE_KEY = "peer:observations_cache";
@@ -110,7 +110,7 @@ export function useObservations(opts?: {
           idbGet<number>("meta", IDB_OBS_TS_KEY),
         ]);
         if (cached && ts && Date.now() - ts < STALE_MS) {
-          // Serve cache immediately — no loading spinner
+          // Serve cache immediately - no loading spinner
           setState({ observations: cached, loading: false, submitting: false, error: null });
           // Silent background refresh
           if (networkMonitor.online) {
@@ -143,7 +143,7 @@ export function useObservations(opts?: {
 
         setState({ observations, loading: false, submitting: false, error: null });
       } else {
-        // Offline — load from cache
+        // Offline - load from cache
         const cached = await idbGet<AggregatedObservation[]>("meta", IDB_OBS_CACHE_KEY);
         setState({ observations: cached ?? [], loading: false, submitting: false, error: null });
       }

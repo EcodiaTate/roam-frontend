@@ -1,5 +1,5 @@
 // src/app/(app)/discover/DiscoverSkeleton.tsx
-// Loading shell for /discover — matches DiscoverClientPage header + feed grid layout.
+// Loading shell for /discover - matches DiscoverClientPage header + feed grid layout.
 
 import type { CSSProperties } from "react";
 
@@ -47,6 +47,9 @@ export function DiscoverSkeleton() {
         style={{
           flexShrink: 0,
           padding: "20px 20px 0",
+          background: "color-mix(in srgb, var(--roam-bg) 90%, transparent)",
+          backdropFilter: "blur(24px) saturate(150%)",
+          WebkitBackdropFilter: "blur(24px) saturate(150%)",
         }}
       >
         {/* Title row: title group + filter button */}
@@ -58,9 +61,9 @@ export function DiscoverSkeleton() {
             marginBottom: 12,
           }}
         >
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <Skel w={130} h={24} r={8} />
-            <Skel w={180} h={13} r={6} delay={0.08} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <Skel w={120} h={28} r={8} />
+            <Skel w={190} h={13} r={6} delay={0.08} />
           </div>
           {/* Filter pill */}
           <Skel w={80} h={32} r={999} delay={0.12} />

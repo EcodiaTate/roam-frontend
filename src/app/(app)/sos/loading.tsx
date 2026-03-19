@@ -124,16 +124,22 @@ export default function SosLoading() {
             </div>
           </div>
 
-          {/* Action row */}
+          {/* Action grid (2×2: Call, Text, Edit, Delete) */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            {[0, 1].map((j) => (
+            {[
+              { bg: "var(--roam-accent)", delay: 0.3 },
+              { bg: "var(--roam-info)", delay: 0.34 },
+              { bg: "var(--roam-surface-hover)", delay: 0.38 },
+              { bg: "var(--roam-surface-hover)", delay: 0.42 },
+            ].map((btn, j) => (
               <div
                 key={j}
                 style={{
                   height: 52,
                   borderRadius: "var(--r-btn)",
-                  background: "var(--roam-surface-hover)",
-                  animation: `sos-skel-pulse 1.6s ease-in-out infinite ${0.3 + (i + j) * 0.08}s`,
+                  background: btn.bg,
+                  opacity: 0.35,
+                  animation: `sos-skel-pulse 1.6s ease-in-out infinite ${btn.delay + i * 0.08}s`,
                 }}
               />
             ))}

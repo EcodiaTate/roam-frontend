@@ -5,18 +5,18 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
 import { networkMonitor } from "./networkMonitor";
 import {
-  enqueueSync,
-  getPendingOps,
-  removeOp,
-  markOpFailed,
-  hasQueuedUpsert,
-  type SyncOp,
+    enqueueSync,
+    getPendingOps,
+    removeOp,
+    markOpFailed,
+    hasQueuedUpsert,
+    type SyncOp,
 } from "./syncQueue";
 import {
-  getOfflinePlan,
-  _putPlanRecordRaw,
-  type OfflinePlanRecord,
-  type OfflinePlanPreview,
+    getOfflinePlan,
+    _putPlanRecordRaw,
+    type OfflinePlanRecord,
+    type OfflinePlanPreview,
 } from "./plansStore";
 import { onPlanEvent, emitPlanEvent, type PlanEventType, type PlanEventPayload } from "./planEvents";
 
@@ -433,7 +433,7 @@ class PlanSyncManager {
 
     // 4. Pull the plan definition to local IDB
     // Unlike the general pullRemote (which swallows errors for resilience),
-    // we need to know if the pull failed here — the caller depends on the
+    // we need to know if the pull failed here - the caller depends on the
     // plan stub being present in IDB before it can route.
     await this._pullSinglePlan(invite.plan_id);
 

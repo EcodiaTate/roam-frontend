@@ -20,7 +20,7 @@ export function StartNavigationButton({ onStart, disabled }: Props) {
     haptic.heavy();
     try {
       await onStart();
-      // Keep loading=true — the caller navigates away on success
+      // Keep loading=true - the caller navigates away on success
     } catch (e) {
       console.error("[StartNav] failed:", e);
       setLoading(false);
@@ -39,6 +39,7 @@ export function StartNavigationButton({ onStart, disabled }: Props) {
         justifyContent: "center",
         gap: 8,
         padding: "15px 24px",
+        minHeight: 52,
         border: loading || disabled ? "1px solid transparent" : "1px solid rgba(45,110,64,0.4)",
         borderRadius: 16,
         cursor: loading || disabled ? "default" : "pointer",

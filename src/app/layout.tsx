@@ -18,7 +18,7 @@ const outbackFont = Plus_Jakarta_Sans({
 
 export const metadata: Metadata = {
   title: {
-    default: "Roam - Outback Navigation That Works Offline",
+    default: "Roam • Nav For Way Out There.",
     template: "%s | Roam",
   },
   description:
@@ -35,9 +35,9 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_AU",
-    url: "https://roamapp.com.au",
+    url: "https://roam.ecodia.au",
     siteName: "Roam",
-    title: "Roam - Outback Navigation That Works Offline",
+    title: "Roam • Nav For Way Out There.",
     description:
       "Turn-by-turn navigation, fuel intelligence, and live hazard alerts for Australian road trips. Works without reception.",
   },

@@ -10,7 +10,7 @@ import type { EnrichProgress } from "@/lib/hooks/useEnrichment";
  * we animate a display value that:
  *   1. Immediately jumps UP to the real completed count when it advances
  *   2. Between real ticks, slowly creeps toward the *next* integer
- *      (never reaching it — caps at +0.85) so the bar always appears active
+ *      (never reaching it - caps at +0.85) so the bar always appears active
  *   3. When done, snaps to total
  */
 function useSmoothedProgress(progress: EnrichProgress | null) {
@@ -35,7 +35,7 @@ function useSmoothedProgress(progress: EnrichProgress | null) {
     const real = progress.completed;
     const total = progress.total;
 
-    // Real count jumped — snap up and restart creep
+    // Real count jumped - snap up and restart creep
     if (real > baseRef.current) {
       baseRef.current = real;
       startTimeRef.current = performance.now();
@@ -78,7 +78,7 @@ export function EnrichmentBanner({ progress }: { progress: EnrichProgress | null
   const prevDoneRef = useRef(false);
   const smoothed = useSmoothedProgress(progress);
 
-  // Auto-dismiss 3s after transitioning to done — triggers exit animation
+  // Auto-dismiss 3s after transitioning to done - triggers exit animation
   useEffect(() => {
     if (!isDone) {
       prevDoneRef.current = false;
@@ -149,7 +149,7 @@ export function EnrichmentBanner({ progress }: { progress: EnrichProgress | null
             {displayInt}/{total}
           </span>
         </div>
-        {/* Progress bar — smooth continuous animation */}
+        {/* Progress bar - smooth continuous animation */}
         <div className="h-0.5 bg-zinc-800">
           <div
             className="h-full bg-blue-500"

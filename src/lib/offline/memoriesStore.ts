@@ -81,7 +81,7 @@ export async function detachMemoriesForPlan(
     const hasContent = !!mem.note || mem.photos.length > 0;
 
     if (!hasContent) {
-      // No content — delete to save space
+      // No content - delete to save space
       await idbDel(idbStores.memories, mem.id);
       continue;
     }
@@ -91,7 +91,7 @@ export async function detachMemoriesForPlan(
       path: p.path,
       url: p.url,
       localUrl: p.localUrl,
-      // blob intentionally omitted — reclaims the large binary data
+      // blob intentionally omitted - reclaims the large binary data
     }));
 
     const detached: StopMemory = {
@@ -164,7 +164,7 @@ export async function purgeDetachedMemories(planId: string): Promise<number> {
 }
 
 /**
- * Record arrival at a stop — creates or updates the memory with arrived_at.
+ * Record arrival at a stop - creates or updates the memory with arrived_at.
  */
 export async function recordArrival(args: {
   planId: string;

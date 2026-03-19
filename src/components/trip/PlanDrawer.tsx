@@ -5,23 +5,23 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFLIP } from "@/lib/hooks/useFLIP";
 import { useRouter } from "next/navigation";
 import {
-  Check,
-  Clock,
-  Globe,
-  Image as ImageIcon,
-  Link2,
-  Lock,
-  MapPin,
-  Navigation,
-  Pencil,
-  Plus,
-  Route,
-  Share2,
-  Sparkles,
-  Star,
-  Trash2,
-  Users,
-  X,
+    Check,
+    Clock,
+    Globe,
+    Image as ImageIcon,
+    Link2,
+    Lock,
+    MapPin,
+    Navigation,
+    Pencil,
+    Plus,
+    Route,
+    Share2,
+    Sparkles,
+    Star,
+    Trash2,
+    Users,
+    X,
 } from "lucide-react";
 
 import { InviteCodeModal } from "@/components/plans/InviteCodeModal";
@@ -35,18 +35,18 @@ import { toErrorMessage } from "@/lib/utils/errors";
 import { formatDistanceOrDash, formatDurationOrDash } from "@/lib/utils/format";
 import type { OfflinePlanRecord } from "@/lib/offline/plansStore";
 import {
-  deleteOfflinePlan,
-  getCurrentPlanId,
-  listOfflinePlans,
-  renameOfflinePlan,
-  setCurrentPlanId,
+    deleteOfflinePlan,
+    getCurrentPlanId,
+    listOfflinePlans,
+    renameOfflinePlan,
+    setCurrentPlanId,
 } from "@/lib/offline/plansStore";
 import { useAuth } from "@/lib/supabase/auth";
 import { useUIMode } from "@/lib/hooks/useUIMode";
 import {
-  publishTrip,
-  unpublishTrip,
-  buildPublishPayload,
+    publishTrip,
+    unpublishTrip,
+    buildPublishPayload,
 } from "@/lib/supabase/publicTrips";
 
 function routeLabel(p: OfflinePlanRecord): string {
@@ -99,7 +99,7 @@ function InlineRename({
     onDone(trimmed || null);
     setEditing(false);
 
-    // Persist in background — revert on failure
+    // Persist in background - revert on failure
     try {
       await renameOfflinePlan(planId, trimmed);
     } catch {
@@ -413,7 +413,7 @@ function PlanCard({
           )}
         </div>
 
-        {/* Bundle readiness row — hidden in simple mode */}
+        {/* Bundle readiness row - hidden in simple mode */}
         {!simple && (
           <div
             style={{
@@ -471,7 +471,7 @@ function PlanCard({
           <span className="plan-card-action-label">Open</span>
         </button>
 
-        {/* Share — hidden in simple mode */}
+        {/* Share - hidden in simple mode */}
         {!simple && (
           <button
             type="button"
@@ -488,7 +488,7 @@ function PlanCard({
           </button>
         )}
 
-        {/* Invite — hidden in simple mode */}
+        {/* Invite - hidden in simple mode */}
         {!simple && (
           <button
             type="button"
@@ -505,13 +505,13 @@ function PlanCard({
           </button>
         )}
 
-        {/* Publish / unpublish toggle — hidden in simple mode */}
+        {/* Publish / unpublish toggle - hidden in simple mode */}
         {!simple && (
           <button
             type="button"
             className="plan-card-action-btn"
             disabled={busy || !plan.preview}
-            title={isPublished ? "Published — tap to make private" : "Publish to Discover feed"}
+            title={isPublished ? "Published - tap to make private" : "Publish to Discover feed"}
             onClick={(e) => {
               e.stopPropagation();
               onPublish();
@@ -627,7 +627,7 @@ export function PlanDrawer({
     capturePlanPositions();
     setCurrentIdLocal(planId);
 
-    // Persist in background — revert on failure
+    // Persist in background - revert on failure
     try {
       await setCurrentPlanId(planId);
     } catch (e) {
@@ -665,7 +665,7 @@ export function PlanDrawer({
       if (currentId === planId) setCurrentIdLocal(null);
       haptic.success();
 
-      // Persist in background — revert on failure
+      // Persist in background - revert on failure
       try {
         await deleteOfflinePlan(planId);
       } catch (e) {
@@ -868,7 +868,7 @@ export function PlanDrawer({
 
           {/* Join + AI + New buttons */}
           <div style={{ display: "flex", gap: 8 }}>
-            {/* Join — hidden in simple mode */}
+            {/* Join - hidden in simple mode */}
             {!isSimple && <button
               type="button"
               onClick={handleJoin}
@@ -1021,7 +1021,7 @@ export function PlanDrawer({
               ))
             )}
 
-            {/* ── Memory prompts toggle — hidden in simple mode ── */}
+            {/* ── Memory prompts toggle - hidden in simple mode ── */}
             {!isSimple && <div
               style={{
                 display: "flex",
@@ -1166,7 +1166,7 @@ export function PlanDrawer({
         }}
       />
 
-      {/* Web share modal — only shown on non-native */}
+      {/* Web share modal - only shown on non-native */}
       {!isNative && (
         <TripShareModal
           open={shareCardData !== null}
@@ -1175,7 +1175,7 @@ export function PlanDrawer({
         />
       )}
 
-      {/* Native share — renders card off-screen, invokes iOS/Android share sheet */}
+      {/* Native share - renders card off-screen, invokes iOS/Android share sheet */}
       {nativeSharePayload && (
         <NativeShareRenderer
           data={nativeSharePayload.data}

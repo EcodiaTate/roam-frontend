@@ -5,26 +5,24 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import {
-  Check,
-  Clock,
-  Compass,
-  Globe,
-  Loader,
-  MapPin,
-  Navigation,
-  Plus,
-  Route,
-  Sliders,
-  Users,
-  X,
+    Check,
+    Clock,
+    Compass,
+    Globe, MapPin,
+    Navigation,
+    Plus,
+    Route,
+    Sliders,
+    Users,
+    X
 } from "lucide-react";
 
 import { useAuth } from "@/lib/supabase/auth";
 import { useGeolocation } from "@/lib/native/geolocation";
 import {
-  fetchDiscoverFeed,
-  clonePublicTrip,
-  hasClonedTrip,
+    fetchDiscoverFeed,
+    clonePublicTrip,
+    hasClonedTrip,
 } from "@/lib/supabase/publicTrips";
 import type { PublicTripRow } from "@/lib/types/discover";
 import { formatDistanceOrDash, formatDurationOrDash } from "@/lib/utils/format";
@@ -531,7 +529,7 @@ export default function DiscoverClientPage() {
     try {
       sessionStorage.setItem(CLONE_TRIP_SEED_KEY, JSON.stringify(seed));
     } catch {
-      // sessionStorage unavailable — /new will start empty
+      // sessionStorage unavailable - /new will start empty
     }
 
     router.push("/new");

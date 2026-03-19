@@ -104,7 +104,7 @@ function parseRules(ohStr: string): DayRule[] | "24/7" | "off" {
       }
       rules.push({ days, ranges, isOff: false });
     } else {
-      // No day prefix — applies to all days (e.g. "08:00-17:00")
+      // No day prefix - applies to all days (e.g. "08:00-17:00")
       const ranges: TimeRange[] = [];
       for (const rangeStr of seg.split(",")) {
         const [fromStr, toStr] = rangeStr.trim().split("-");

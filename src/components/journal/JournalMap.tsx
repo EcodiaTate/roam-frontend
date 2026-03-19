@@ -4,7 +4,7 @@
 // Plots memory stop pins with satellite style (online) or vector fallback (offline).
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import maplibregl, { type Map as MLMap } from "maplibre-gl";
 import type { StyleSpecification, SourceSpecification } from "@maplibre/maplibre-gl-style-spec";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -12,8 +12,8 @@ import { Protocol } from "pmtiles";
 
 import { assetsApi } from "@/lib/api/assets";
 import {
-  rewriteStyleForLocalServer,
-  isFullyOfflineCapable,
+    rewriteStyleForLocalServer,
+    isFullyOfflineCapable,
 } from "@/lib/offline/basemapManager";
 import type { MapBaseMode, VectorTheme } from "@/components/trips/new/MapStyleSwitcher";
 
@@ -255,7 +255,7 @@ export function JournalMap({ pins, onPinPress, mode, vectorTheme }: Props) {
     const onStyleData = () => {
       if (!map.isStyleLoaded()) return;
 
-      // Sources/layers are wiped on setStyle — re-add them
+      // Sources/layers are wiped on setStyle - re-add them
       if (!map.getSource(MEM_SOURCE)) {
         map.addSource(MEM_SOURCE, {
           type: "geojson",

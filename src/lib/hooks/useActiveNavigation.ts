@@ -3,37 +3,37 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  type ActiveNavState,
-  type ActiveNavConfig,
-  DEFAULT_NAV_CONFIG,
-  initialActiveNavState,
-  startNavigation,
-  stopNavigation,
-  resetAfterReroute,
-  updateActiveNav,
-  buildFlatSteps,
-  buildLegBoundaries,
+    type ActiveNavState,
+    type ActiveNavConfig,
+    DEFAULT_NAV_CONFIG,
+    initialActiveNavState,
+    startNavigation,
+    stopNavigation,
+    resetAfterReroute,
+    updateActiveNav,
+    buildFlatSteps,
+    buildLegBoundaries,
 } from "@/lib/nav/activeNav";
 import {
-  type VoiceState,
-  initialVoiceState,
-  shouldSpeak,
-  applyAnnouncement,
-  speak,
-  cancelSpeech,
-  speakFatigueWarning,
-  initVoice,
+    type VoiceState,
+    initialVoiceState,
+    shouldSpeak,
+    applyAnnouncement,
+    speak,
+    cancelSpeech,
+    speakFatigueWarning,
+    initVoice,
 } from "@/lib/nav/voice";
 import {
-  updateFatigue,
-  fatigueEscalated,
-  type FatigueConditions,
+    updateFatigue,
+    fatigueEscalated,
+    type FatigueConditions,
 } from "@/lib/nav/fatigue";
 import type { WeatherOverlay } from "@/lib/types/overlays";
 import {
-  startBackgroundTracking,
-  stopBackgroundTracking,
-  isBackgroundTracking,
+    startBackgroundTracking,
+    stopBackgroundTracking,
+    isBackgroundTracking,
 } from "@/lib/native/backgroundLocation";
 import { haptic } from "@/lib/native/haptics";
 import { decodePolyline6 } from "@/lib/nav/polyline6";
@@ -140,7 +140,7 @@ export function useActiveNavigation(
   // We use a stable no-op initially; ClientPage sets the real callback.
   const interpolatorRef = useRef<GpsInterpolator | null>(null);
   if (!interpolatorRef.current) {
-    // Create with a no-op — the real onFrame is set by the consumer
+    // Create with a no-op - the real onFrame is set by the consumer
     interpolatorRef.current = new GpsInterpolator(() => {});
   }
   const interpolator = interpolatorRef.current;
@@ -214,7 +214,7 @@ export function useActiveNavigation(
       legBoundariesRef.current,
     );
 
-    // 2. Update fatigue — with weather-aware conditions
+    // 2. Update fatigue - with weather-aware conditions
     const prevFatigue = currentNav.fatigue;
     const fatigueConditions = buildFatigueConditions(weatherRef.current, newNav.kmAlongRoute);
     const newFatigue = updateFatigue(prevFatigue, smoothed.speed, dt_s, fatigueConditions);

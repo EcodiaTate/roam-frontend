@@ -109,7 +109,7 @@ export async function buildCardBlob(
     drawCover(ctx, mapImg, cw, ch);
   }
 
-  // 2. SVG overlay — inject embedded font so it renders in the blob URL context
+  // 2. SVG overlay - inject embedded font so it renders in the blob URL context
   const embeddedFont = await getFontFaceCSS();
   const svgClone = svgEl.cloneNode(true) as SVGSVGElement;
   const styleEl = svgClone.querySelector("style");

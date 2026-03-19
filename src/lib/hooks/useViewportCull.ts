@@ -7,10 +7,10 @@
  * much smaller FeatureCollection that MapLibre can tile/render cheaply.
  *
  * Design goals:
- *  • Zero visual difference — the user sees every marker they'd see otherwise.
- *  • No pop-in — a generous pad (1.5× viewport) pre-loads features just offscreen.
- *  • Smooth panning — updates are debounced (150 ms idle after move/zoom).
- *  • Cheap — a tight lng/lat bbox check per feature; no spatial index needed
+ *  • Zero visual difference - the user sees every marker they'd see otherwise.
+ *  • No pop-in - a generous pad (1.5× viewport) pre-loads features just offscreen.
+ *  • Smooth panning - updates are debounced (150 ms idle after move/zoom).
+ *  • Cheap - a tight lng/lat bbox check per feature; no spatial index needed
  *    because we only run it on move-end, not every frame.
  */
 
@@ -48,7 +48,7 @@ function pointInBounds(lng: number, lat: number, b: ViewportBounds): boolean {
 /**
  * Check whether *any* coordinate of a geometry intersects the padded bounds.
  * For Points this is trivial; for LineStrings/Polygons we walk coordinates
- * and bail early on first hit.  This is intentionally approximate — a polygon
+ * and bail early on first hit.  This is intentionally approximate - a polygon
  * whose edges cross the viewport but whose vertices are all outside will be
  * missed, but for the overlay sizes we deal with (flood catchments, wildlife
  * zones) this is acceptable and vastly cheaper than proper intersection.
@@ -83,7 +83,7 @@ function geometryIntersectsBounds(geom: GeoJSON.Geometry, b: ViewportBounds): bo
       return geom.geometries.some((g) => geometryIntersectsBounds(g, b));
 
     default:
-      return true; // unknown type — keep it
+      return true; // unknown type - keep it
   }
 }
 
@@ -124,7 +124,7 @@ export function useMapViewport(
   /** Debounce delay in ms after moveend before bounds are updated. */
   debounceMs = 150,
   /**
-   * Optional "ready" signal — the effect re-runs when this changes.
+   * Optional "ready" signal - the effect re-runs when this changes.
    * Pass a state that flips after the map is created (e.g. `styleReady`)
    * so the hook picks up the map instance created in a separate effect.
    */
@@ -184,7 +184,7 @@ export function useCulledFC(
   pad = 1.5,
 ): GeoJSON.FeatureCollection {
   return useMemo(() => {
-    if (!bounds) return fc; // map not ready yet — show everything
+    if (!bounds) return fc; // map not ready yet - show everything
     return cullFeatures(fc, bounds, pad);
   }, [fc, bounds, pad]);
 }

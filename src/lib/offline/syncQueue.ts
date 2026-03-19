@@ -67,7 +67,7 @@ export async function removeOp(id: number): Promise<void> {
  * Uses idbGet to fetch a single record instead of reading the entire store.
  */
 export async function markOpFailed(id: number, error: string): Promise<void> {
-  // Fetch all and find — IDB doesn't have a single-key get that returns typed ops
+  // Fetch all and find - IDB doesn't have a single-key get that returns typed ops
   // but we can at least avoid getPendingOps which filters + sorts
   const all = await idbGetAll<SyncOp>(STORE);
   const op = all.find((o) => o.id === id);

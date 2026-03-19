@@ -58,7 +58,7 @@ export type BuildPlanBundleArgs = {
   max_edges?: number;
   /** Progress callback - called on every phase change */
   onPhase?: (phase: BuildPhase) => void;
-  /** Trip preferences — stop density + category toggles */
+  /** Trip preferences - stop density + category toggles */
   tripPrefs?: TripPreferences | null;
 };
 
@@ -156,7 +156,7 @@ export async function buildPlanBundle(args: BuildPlanBundleArgs): Promise<BuildP
   emit("hazards_poll");
 
   // ─── 4. Fuel analysis (client-side, no network) ─────────────────────
-  // Places are fetched inside bundle/build — run fuel analysis optimistically
+  // Places are fetched inside bundle/build - run fuel analysis optimistically
   // with no places so it doesn't block. Fuel stops in the bundle will be
   // used by the trip page once the bundle is loaded offline.
   emit("fuel_analysis");
@@ -178,7 +178,7 @@ export async function buildPlanBundle(args: BuildPlanBundleArgs): Promise<BuildP
   }
 
   // ─── 5. Bundle build ─────────────────────────────────────────────────
-  // Traffic + hazards are fetched concurrently inside bundle/build —
+  // Traffic + hazards are fetched concurrently inside bundle/build -
   // no need to poll them separately first.
   emit("bundle_build");
 

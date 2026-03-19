@@ -211,7 +211,7 @@ export function TripShareModal({ open, data, onClose, mapImageUrl }: Props) {
                   animation: "roam-spin 0.75s linear infinite" }} />
               </div>
             )}
-            {/* SVG overlay (no <image> tag — route + stats + branding only) */}
+            {/* SVG overlay (no <image> tag - route + stats + branding only) */}
             <div style={{ position: "absolute", inset: 0 }}>
               <TripShareCard data={activeData} mode="card" svgRef={cardSvgRef} hasMap={!!mapImageUrl} iconDataUrl={iconDataUrl} theme={theme} />
             </div>
@@ -288,7 +288,7 @@ export function TripShareModal({ open, data, onClose, mapImageUrl }: Props) {
       <p style={{ marginTop: 10, fontSize: 11, color: "rgba(255,255,255,0.25)",
         textAlign: "center", padding: "0 24px", lineHeight: 1.5, flexShrink: 0 }}>
         {mode === "card"
-          ? (mapImageUrl ? "Exports at 3× — ready for Instagram Stories" : "Loading map…")
+          ? (mapImageUrl ? "Exports at 3× - ready for Instagram Stories" : "Loading map…")
           : photo ? "Route overlaid on your photo" : "Pick a photo to overlay your route"}
       </p>
       </div>{/* /content pop wrapper */}

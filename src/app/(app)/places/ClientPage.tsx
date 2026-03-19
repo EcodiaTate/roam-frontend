@@ -242,9 +242,9 @@ function SelectedPlaceCard({
         style={{
           background: "var(--roam-surface-hover)",
           border: "none",
-          borderRadius: 8,
-          width: 28,
-          height: 28,
+          borderRadius: 10,
+          width: 40,
+          height: 40,
           display: "grid",
           placeItems: "center",
           cursor: "pointer",

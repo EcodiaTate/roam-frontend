@@ -39,7 +39,7 @@ export function usePlanSync() {
       if (event === "pull_complete") refreshCount();
     });
 
-    // Only poll IDB when online — offline, the count can only change from local writes
+    // Only poll IDB when online - offline, the count can only change from local writes
     // which already trigger sync events above.
     const interval = online ? setInterval(refreshCount, 10_000) : null;
 

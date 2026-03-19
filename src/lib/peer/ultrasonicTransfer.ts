@@ -7,7 +7,7 @@
 // to most adults, works through phone speakers/mics.
 //
 // Protocol:
-//   1. PREAMBLE: 300ms of 18000 Hz (sync tone — "I'm about to send")
+//   1. PREAMBLE: 300ms of 18000 Hz (sync tone - "I'm about to send")
 //   2. DATA: FSK modulation, 4 bits per symbol (16-FSK)
 //     - 16 frequencies from 18200-19800 Hz (100 Hz spacing)
 //     - Each symbol = 25ms (40 symbols/sec = 20 bytes/sec)

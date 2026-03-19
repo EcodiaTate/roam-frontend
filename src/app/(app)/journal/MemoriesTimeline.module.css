@@ -213,7 +213,7 @@
   align-items: center;
   gap: 5px;
   padding: 7px 14px;
-  min-height: 34px;
+  min-height: 40px;
   border-radius: 999px;
   border: 1.5px solid var(--roam-border-strong);
   background: var(--roam-surface);
@@ -400,9 +400,9 @@
 }
 
 .editBtn {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
   border: 1.5px solid var(--roam-border-strong);
   background: transparent;
   color: var(--roam-text-muted);

@@ -42,7 +42,7 @@ export type PlacesRequest = {
 };
 
 /** Typed subset of known extra fields on PlaceItem.  The `extra` bag may
- *  contain additional fields beyond these — use `Record<string, unknown>` for
+ *  contain additional fields beyond these - use `Record<string, unknown>` for
  *  forward compat. */
 export type PlaceExtra = {
   osm_type?: string;
@@ -122,7 +122,7 @@ export type PlaceExtra = {
   /** Wikipedia article reference (e.g. "en:Uluru") */
   wikipedia?: string;
   /** Thumbnail URL resolved from Wikimedia Commons / OSM image tag.
-   *  ~400px wide — small enough for bundles, renders well in cards. */
+   *  ~400px wide - small enough for bundles, renders well in cards. */
   thumbnail_url?: string;
 
   // ── Dump point specifics ──────────────────────────────────
@@ -180,6 +180,8 @@ export type CorridorPlacesRequest = {
   geometry?: string;
   /** Corridor buffer radius in km (default 35) */
   buffer_km?: number;
+  /** Stop density 1-5 (1=bare minimum, 5=everything, default 3) */
+  stop_density?: number;
 };
 
 // /places/suggest
@@ -189,6 +191,8 @@ export type PlacesSuggestRequest = {
   radius_m?: number; // default 15000
   categories?: PlaceCategory[];
   limit_per_sample?: number; // default 150
+  /** Stop density 1-5 (1=bare minimum, 5=everything, default 3) */
+  stop_density?: number;
 };
 
 export type PlacesSuggestionCluster = {

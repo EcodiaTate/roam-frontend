@@ -3,26 +3,26 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  BookOpen,
-  Bookmark,
-  Camera,
-  ChevronRight,
-  Clock,
-  List,
-  Map as MapIcon,
-  MapPin,
-  Pencil,
-  Route,
-  Trash2,
+    BookOpen,
+    Bookmark,
+    Camera,
+    ChevronRight,
+    Clock,
+    List,
+    Map as MapIcon,
+    MapPin,
+    Pencil,
+    Route,
+    Trash2,
 } from "lucide-react";
 
 import type { StopMemory } from "@/lib/types/memories";
 import type { OfflinePlanRecord } from "@/lib/offline/plansStore";
 import {
-  getMemoriesForPlan,
-  resolvePhotoUrls,
-  getDetachedMemories,
-  purgeDetachedMemories,
+    getMemoriesForPlan,
+    resolvePhotoUrls,
+    getDetachedMemories,
+    purgeDetachedMemories,
 } from "@/lib/offline/memoriesStore";
 import { listOfflinePlans, getCurrentPlanId } from "@/lib/offline/plansStore";
 import { haptic } from "@/lib/native/haptics";
@@ -174,7 +174,7 @@ export default function MemoriesClientPage() {
   // Detached memories from deleted trips (preserved for journal)
   const [pastTrips, setPastTrips] = useState<DetachedGroup[]>([]);
 
-  // Map style state — default satellite when online, vector when offline-only
+  // Map style state - default satellite when online, vector when offline-only
   const [baseMode, setBaseMode] = useState<MapBaseMode>(() =>
     isFullyOfflineCapable() && typeof navigator !== "undefined" && !navigator.onLine
       ? "vector"
@@ -559,7 +559,7 @@ export default function MemoriesClientPage() {
             </div>
           )}
 
-          {/* Past trips — detached memories from deleted plans */}
+          {/* Past trips - detached memories from deleted plans */}
           {!loading && pastTrips.length > 0 && (
             <div className={s.pastTripsSection}>
               <div className={s.pastTripsHeader}>

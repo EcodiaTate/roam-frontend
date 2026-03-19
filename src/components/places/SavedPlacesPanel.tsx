@@ -17,7 +17,7 @@ import { haptic } from "@/lib/native/haptics";
 export type SavedPlacesPanelProps = {
   places: SavedPlace[];
   isLoading: boolean;
-  /** Called when user taps a row — should add as a trip stop */
+  /** Called when user taps a row - should add as a trip stop */
   onAddToTrip?: (place: SavedPlace) => void;
   onRemove?: (placeId: string) => void;
   onUpdateNote?: (placeId: string, note: string | null) => void;

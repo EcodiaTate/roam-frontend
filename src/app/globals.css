@@ -58,6 +58,7 @@
   --roam-bg: var(--bg-sand);
   --roam-surface: var(--surface-card);
   --roam-surface-hover: var(--surface-muted);
+  --nav-card-bg: #f0e9dc;              /* Warmer sandy card for nav HUD */
   --roam-surface-raised: var(--surface-raised);
 
   --roam-text: var(--text-main);
@@ -90,7 +91,7 @@
   /* ── Tab bar ───────────────────────────────────────────── */
   --tab-bar-bg: var(--surface-card);
   --tab-active-color: var(--brand-ochre);
-  --tab-inactive-color: #a89878;       /* Warm desert sand - outback aesthetic */
+  --tab-inactive-color: #7a6e5e;       /* Warm desert sand - darker for light mode readability */
   --tab-center-bg: var(--brand-ochre);
   --tab-center-icon: var(--on-color);
   --tab-center-glow: 0 6px 20px rgba(181, 69, 46, 0.40);
@@ -174,6 +175,7 @@
     /* ── Core surfaces ───────────────────────────────────── */
     --bg-sand: #0f0f0f;          /* Soft black - neutral, clean, easy on eyes */
     --surface-card: #1a1a1a;     /* Dark card - elevated surface, neutral */
+    --nav-card-bg: #1e1c1a;     /* Slightly warm dark for nav HUD */
     --surface-muted: #262626;    /* Neutral recess - inputs, wells */
     --surface-raised: #313131;   /* Neutral float - popovers, tooltips */
 
@@ -212,7 +214,7 @@
 
     /* ── Tab bar ─────────────────────────────────────────── */
     --tab-bar-bg: #1a1a1a;
-    --tab-inactive-color: #7a6f65;      /* Warm sand in dark mode */
+    --tab-inactive-color: #b0a599;      /* Warm sand in dark mode - lighter for readability */
     --tab-center-glow: 0 6px 20px rgba(212, 102, 74, 0.45);
 
 
@@ -1031,6 +1033,28 @@ input, textarea, [contenteditable] {
 .trip-badge-bad  { background: var(--roam-danger); color: var(--on-color); }
 .trip-badge-warn { background: var(--roam-warn); color: var(--on-color); }
 
+/* Range slider thumb */
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #2563eb;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+  cursor: pointer;
+  margin-top: -8px;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #2563eb;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+  cursor: pointer;
+}
 
 /* ==========================================================================
    12. MODALS & OVERLAYS
@@ -1210,25 +1234,37 @@ input, textarea, [contenteditable] {
 
 /* ── Nav mode entry animations ──────────────────────────────── */
 
-/* HUD card drops in from top with spring overshoot */
-@keyframes nav-hud-in {
-  0%   { opacity: 0; transform: translateY(-28px) scale(0.94); }
-  60%  { opacity: 1; transform: translateY(4px) scale(1.01); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
+/* Circle scales in smoothly — no bounce */
+@keyframes nav-circle-pop {
+  0%   { opacity: 0; transform: scale(0); }
+  100% { opacity: 1; transform: scale(1); }
 }
 
-/* Bottom bar rises from below with spring */
-@keyframes nav-bar-in {
-  0%   { opacity: 0; transform: translateY(32px) scale(0.95); }
-  60%  { opacity: 1; transform: translateY(-4px) scale(1.01); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
+/* HUD: circle pops in on the left, then pill extends right.
+   Uses --nav-circle-clip to set the circle-only clip width.
+   Phase 1 (0→35%): scale 0→1, clipped to circle only.
+   Phase 2 (35→100%): clip reveals full pill rightward. */
+@keyframes nav-hud-enter {
+  0%   { clip-path: inset(0 var(--nav-circle-clip, 80%) 0 0 round 999px); opacity: 0; transform: scale(0); transform-origin: left center; }
+  10%  { opacity: 1; }
+  35%  { clip-path: inset(0 var(--nav-circle-clip, 80%) 0 0 round 999px); transform: scale(1); }
+  100% { clip-path: inset(0 0 0 0 round 999px); transform: scale(1); opacity: 1; }
 }
 
-/* Controls pop in from right, staggered per button */
+/* Bar: circle pops in on the right, then pill extends left.
+   Phase 1 (0→35%): scale 0→1, clipped to circle only.
+   Phase 2 (35→100%): clip reveals full pill leftward. */
+@keyframes nav-bar-enter {
+  0%   { clip-path: inset(0 0 0 var(--nav-circle-clip, 80%) round 999px); opacity: 0; transform: scale(0); transform-origin: right center; }
+  10%  { opacity: 1; }
+  35%  { clip-path: inset(0 0 0 var(--nav-circle-clip, 80%) round 999px); transform: scale(1); }
+  100% { clip-path: inset(0 0 0 0 round 999px); transform: scale(1); opacity: 1; }
+}
+
+/* Controls scale in smoothly — no bounce */
 @keyframes nav-ctrl-in {
-  0%   { opacity: 0; transform: translateX(24px) scale(0.88); }
-  65%  { opacity: 1; transform: translateX(-3px) scale(1.04); }
-  100% { opacity: 1; transform: translateX(0) scale(1); }
+  0%   { opacity: 0; transform: scale(0); }
+  100% { opacity: 1; transform: scale(1); }
 }
 
 /* Speed badge pops from centre */
@@ -1244,16 +1280,24 @@ input, textarea, [contenteditable] {
   100% { opacity: 1; transform: translateY(0); }
 }
 
-/* ── Animation utility classes (prefer over inline style) ─── */
+/* ── Animation utility classes ─── */
 .hud-imminent { animation: hud-pulse 0.8s ease-in-out infinite; }
 .nav-fuel-blink { animation: fuel-blink 1s ease-in-out infinite; }
 
-.nav-hud-enter    { animation: nav-hud-in  0.48s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
-.nav-bar-enter    { animation: nav-bar-in  0.44s cubic-bezier(0.34, 1.56, 0.64, 1) 0.06s both; }
-.nav-ctrl-enter-1 { animation: nav-ctrl-in 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) 0.08s both; }
-.nav-ctrl-enter-2 { animation: nav-ctrl-in 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) 0.14s both; }
-.nav-ctrl-enter-3 { animation: nav-ctrl-in 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) 0.20s both; }
-.nav-ctrl-enter-4 { animation: nav-ctrl-in 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) 0.26s both; }
+/* HUD: long pause, circle pops then pill extends */
+.nav-hud-unroll { animation: nav-hud-enter 1.6s cubic-bezier(0.16, 1, 0.3, 1) 2.5s both; }
+
+/* Bar: just after HUD, circle pops then pill extends */
+.nav-bar-unroll { animation: nav-bar-enter 1.6s cubic-bezier(0.16, 1, 0.3, 1) 2.8s both; }
+
+/* Controls: staggered, after cards are fully in */
+.nav-ctrl-enter-1 { animation: nav-ctrl-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) 4.5s both; }
+.nav-ctrl-enter-2 { animation: nav-ctrl-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) 4.6s both; }
+.nav-ctrl-enter-3 { animation: nav-ctrl-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) 4.7s both; }
+.nav-ctrl-enter-4 { animation: nav-ctrl-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) 4.8s both; }
+.nav-ctrl-enter-5 { animation: nav-ctrl-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) 4.9s both; }
+.nav-ctrl-enter-6 { animation: nav-ctrl-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) 5.0s both; }
+.nav-ctrl-enter-7 { animation: nav-ctrl-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) 5.1s both; }
 .nav-speed-enter  { animation: nav-speed-in 0.36s cubic-bezier(0.34, 1.56, 0.64, 1) 0.18s both; }
 .nav-strip-enter  { animation: nav-strip-in 0.32s var(--ease-out) 0.22s both; }
 

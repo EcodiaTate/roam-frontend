@@ -62,11 +62,11 @@
   justify-content: center;
   gap: 6px;
   padding: 0 14px;
-  height: 40px;
+  height: 44px;
   border-radius: 12px;
   background: var(--roam-surface);
   color: var(--roam-text);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   border: 1.5px solid var(--roam-border-strong);
   box-shadow: var(--shadow-soft);
@@ -282,7 +282,7 @@
   flex-direction: column;
   background: var(--roam-surface-raised);
   border-radius: 20px;
-  border: 1.5px solid var(--roam-border);
+  border: 1.5px solid var(--roam-border-strong);
   overflow: hidden;
   cursor: pointer;
   text-align: left;
@@ -290,7 +290,7 @@
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
-  box-shadow: var(--shadow-soft);
+  box-shadow: var(--shadow-soft), 0 0 0 0.5px var(--roam-border);
   transition:
     box-shadow 200ms var(--ease-out),
     transform 200ms var(--spring, cubic-bezier(0.34, 1.56, 0.64, 1));

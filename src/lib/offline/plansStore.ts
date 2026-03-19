@@ -391,7 +391,7 @@ export async function updateOfflinePlanAtomic(
   planId: string,
   patch: Partial<OfflinePlanRecord>,
 ): Promise<OfflinePlanRecord> {
-  // Read before opening the write transaction — IDB auto-commits transactions
+  // Read before opening the write transaction - IDB auto-commits transactions
   // when there are no pending requests, so a cross-transaction read inside
   // idbWithTx can silently close the write transaction before the put executes.
   const cur = await getOfflinePlan(planId);

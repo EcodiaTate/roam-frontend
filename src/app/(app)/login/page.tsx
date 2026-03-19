@@ -128,7 +128,7 @@ export default function LoginPage() {
               lineHeight: 1.4,
             }}
           >
-            You&apos;re offline — sign-in requires a connection.
+            You&apos;re offline - sign-in requires a connection.
             Once signed in, Roam works without any signal.
           </div>
         )}
@@ -321,7 +321,7 @@ export default function LoginPage() {
 
       </div>
 
-      {/* Legal links — always accessible, sit below the card */}
+      {/* Legal links - always accessible, sit below the card */}
       <div style={{
         display: "flex", flexWrap: "wrap", justifyContent: "center",
         gap: "4px 16px", marginTop: 12,

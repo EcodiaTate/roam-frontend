@@ -109,7 +109,7 @@ function toPath(pts: { x: number; y: number }[]): string {
 /**
  * Pick the most visually significant intermediate stops to label.
  * Significance = perpendicular distance from the start→end line in projected
- * SVG space — the stops that represent the biggest "detours" get labels.
+ * SVG space - the stops that represent the biggest "detours" get labels.
  */
 function pickIntermediateLabels(
   stops: TripStop[],
@@ -332,7 +332,7 @@ export function TripShareCard({ data, mode = "card", svgRef, hasMap = false, ico
           );
         })}
 
-        {/* Overlay stats — single pill */}
+        {/* Overlay stats - single pill */}
         {isOverlay && (() => {
           const pillW = 300;
           const pillH = 56;

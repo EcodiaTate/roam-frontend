@@ -131,7 +131,7 @@ function SuggestionCard({
 
 export type StopSuggestionsProps = {
   navPack: NavPack | null;
-  /** Existing stops — used to hint at category diversity. */
+  /** Existing stops - used to hint at category diversity. */
   stops: TripStop[];
   /** Called when user taps "Add stop" on a suggestion card. */
   onAddSuggestion: (item: StopSuggestionItem) => void;
@@ -164,7 +164,7 @@ export function StopSuggestions({ navPack, stops: _stops, onAddSuggestion }: Sto
       });
       setSuggestions(res.suggestions);
     } catch {
-      // Silently fail — suggestions are non-critical
+      // Silently fail - suggestions are non-critical
       setSuggestions([]);
     } finally {
       setLoading(false);

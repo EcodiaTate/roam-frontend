@@ -3,14 +3,14 @@
 
 import { useMemo, useState, useCallback } from "react";
 import type {
-  TrafficOverlay,
-  HazardOverlay,
-  TrafficSeverity,
-  TrafficType,
-  HazardSeverity,
-  HazardKind,
-  CapUrgency,
-  CapCertainty,
+    TrafficOverlay,
+    HazardOverlay,
+    TrafficSeverity,
+    TrafficType,
+    HazardSeverity,
+    HazardKind,
+    CapUrgency,
+    CapCertainty,
 } from "@/lib/types/navigation";
 import type { RoamPosition } from "@/lib/native/geolocation";
 import { haptic } from "@/lib/native/haptics";
@@ -18,44 +18,41 @@ import { formatDistanceKm } from "@/lib/utils/format";
 import { decodePolyline6AsLngLat } from "@/lib/nav/polyline6";
 import { haversineKm } from "@/lib/nav/snapToRoute";
 import {
-  type UnifiedAlert,
-  type AlertBatch,
-  baseUrgency,
-  batchAlerts,
-  deduplicateAlerts as deduplicateUnifiedAlerts,
-  prioritizeAlerts,
-  adjustForStaleness,
+    type UnifiedAlert,
+    type AlertBatch,
+    baseUrgency,
+    batchAlerts, prioritizeAlerts
 } from "@/lib/nav/alertPriority";
 import { isOverlayStale } from "@/lib/offline/refreshPriority";
 
 import {
-  CircleX,
-  Droplets,
-  Car,
-  Construction,
-  TriangleAlert,
-  Siren,
-  CircleHelp,
-  CloudRain,
-  Tornado,
-  CloudLightning,
-  Flame,
-  Wind,
-  Thermometer,
-  Waves,
-  Zap,
-  ChevronDown,
-  Eye,
-  EyeOff,
-  Clock,
-  XCircle,
-  RefreshCw,
-  Route,
-  Ban,
-  ShieldAlert,
-  Timer,
-  Navigation,
-  CircleCheck,
+    CircleX,
+    Droplets,
+    Car,
+    Construction,
+    TriangleAlert,
+    Siren,
+    CircleHelp,
+    CloudRain,
+    Tornado,
+    CloudLightning,
+    Flame,
+    Wind,
+    Thermometer,
+    Waves,
+    Zap,
+    ChevronDown,
+    Eye,
+    EyeOff,
+    Clock,
+    XCircle,
+    RefreshCw,
+    Route,
+    Ban,
+    ShieldAlert,
+    Timer,
+    Navigation,
+    CircleCheck,
 } from "lucide-react";
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -504,7 +501,7 @@ function synthesizeDelay(
     return "Expected to have cleared";
   }
 
-  // No end time — estimate based on type + severity
+  // No end time - estimate based on type + severity
   if (alertKind === "traffic" && (impact === "blocks_route" || impact === "affects_route")) {
     if (type === "closure") return "Expect significant delays";
     if (type === "roadworks") return severity === "major" ? "30+ min delays likely" : "Minor delays possible";
@@ -528,7 +525,7 @@ function synthesizeRecommendation(
   if (impact === "informational") return null;
 
   if (alertKind === "hazard") {
-    if (urgency === "immediate") return "Avoid area — take alternate route";
+    if (urgency === "immediate") return "Avoid area - take alternate route";
     if (urgency === "expected") return "Plan alternate route";
     if (severity === "high") return "Consider rerouting";
     if (impact === "affects_route") return "Proceed with caution";
@@ -537,10 +534,10 @@ function synthesizeRecommendation(
 
   if (alertKind === "traffic") {
     if (type === "closure" && impact === "affects_route") return "Reroute recommended";
-    if (type === "flooding") return "Do not attempt — reroute";
+    if (type === "flooding") return "Do not attempt - reroute";
     if (severity === "major" && impact === "affects_route") return "Consider rerouting";
     if (impact === "affects_route") return "Proceed with caution";
-    if (distFromRouteKm != null && distFromRouteKm < 2) return "Be aware — near route";
+    if (distFromRouteKm != null && distFromRouteKm < 2) return "Be aware - near route";
   }
 
   return null;
@@ -556,9 +553,9 @@ function synthesizeSafetyWarning(
     if (type === "flood") return "Never drive through floodwater";
     if (type === "fire" && (severity === "high" || urgency === "immediate")) return "Leave area immediately if directed";
     if (type === "fire") return "Monitor fire agency alerts";
-    if (type === "cyclone") return "Seek shelter — avoid travel";
+    if (type === "cyclone") return "Seek shelter - avoid travel";
     if (type === "storm" && severity === "high") return "Pull over if conditions deteriorate";
-    if (type === "heat") return "Carry extra water — check vehicle cooling";
+    if (type === "heat") return "Carry extra water - check vehicle cooling";
     if (type === "wind" && severity === "high") return "Caution with high-profile vehicles";
   }
   if (alertKind === "traffic") {
@@ -734,13 +731,13 @@ export function useAlerts(
     setHideBehind((v) => !v);
   }, []);
 
-  // Stage 1: Route-based enrichment — expensive spatial pipeline, only rerun when overlays change
+  // Stage 1: Route-based enrichment - expensive spatial pipeline, only rerun when overlays change
   const baseAlerts = useMemo(
     () => enrichAlerts(traffic ?? null, hazards ?? null, routeGeometry, null),
     [traffic, hazards, routeGeometry],
   );
 
-  // Stage 2: Cheap position annotation — runs at GPS frequency but only does arithmetic
+  // Stage 2: Cheap position annotation - runs at GPS frequency but only does arithmetic
   const rawAlerts = useMemo(() => {
     if (!userPosition || baseAlerts.length === 0) return baseAlerts;
     let userKm: number | null = null;
@@ -1119,7 +1116,7 @@ export function AlertCard({
           {isBlocker ? <Ban size={compact ? 14 : 16} color="var(--roam-danger)" strokeWidth={2.5} /> : <AlertIcon iconKey={alert.iconKey} size={compact ? 14 : 16} />}
         </div>
 
-        {/* Content — uses a 2-column grid for non-compact cards with insights */}
+        {/* Content - uses a 2-column grid for non-compact cards with insights */}
         <div style={{ flex: 1, minWidth: 0 }}>
           {alert.contextLabel && (
             <div style={{

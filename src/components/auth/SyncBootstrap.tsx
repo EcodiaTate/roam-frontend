@@ -8,6 +8,7 @@ import { planSync } from "@/lib/offline/planSync";
 import { presenceBeacon } from "@/lib/offline/presenceBeacon";
 import { syncMemoriesToCloud } from "@/lib/offline/memoriesStore";
 import { syncSavedPlacesToCloud } from "@/lib/offline/savedPlacesSync";
+import { emergencySyncOnce } from "@/lib/offline/emergencySync";
 
 /**
  * Invisible component mounted at the root layout level.
@@ -18,7 +19,8 @@ import { syncSavedPlacesToCloud } from "@/lib/offline/savedPlacesSync";
  *   3. Start PresenceBeacon when user is authenticated (dead-reckoning pings).
  *   4. Sync dirty memories to cloud on auth + reconnect.
  *   5. Sync saved places to cloud on auth + reconnect.
- *   6. Stop PlanSync + PresenceBeacon on sign-out.
+ *   6. Sync emergency contacts to cloud on auth + reconnect.
+ *   7. Stop PlanSync + PresenceBeacon on sign-out.
  *
  * Renders nothing.
  */
@@ -41,15 +43,17 @@ export function SyncBootstrap() {
       planSync.start(user.id);
       presenceBeacon.start();
 
-      // Initial sync of dirty memories + saved places
+      // Initial sync of dirty memories + saved places + emergency contacts
       syncMemoriesToCloud().catch(() => {});
       syncSavedPlacesToCloud().catch(() => {});
+      emergencySyncOnce(user).catch(() => {});
 
       // Re-sync whenever network comes back
       networkUnsubRef.current = networkMonitor.subscribe((isOnline) => {
         if (isOnline) {
           syncMemoriesToCloud().catch(() => {});
           syncSavedPlacesToCloud().catch(() => {});
+          emergencySyncOnce(user).catch(() => {});
         }
       });
     } else {

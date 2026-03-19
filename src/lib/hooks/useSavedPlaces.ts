@@ -1,24 +1,24 @@
 // src/lib/hooks/useSavedPlaces.ts
 //
-// React hook for saved places — reads from IndexedDB, syncs with Supabase
+// React hook for saved places - reads from IndexedDB, syncs with Supabase
 // when the user is authenticated.
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import type { PlaceCategory, PlaceItem } from "@/lib/types/places";
+import type { PlaceItem } from "@/lib/types/places";
 import {
-  listSavedPlaces,
-  savePlace,
-  unsavePlace,
-  updateSavedPlaceNote,
-  mergeSavedPlacesFromCloud,
-  type SavedPlace,
+    listSavedPlaces,
+    savePlace,
+    unsavePlace,
+    updateSavedPlaceNote,
+    mergeSavedPlacesFromCloud,
+    type SavedPlace,
 } from "@/lib/offline/savedPlacesStore";
 import { supabase } from "@/lib/supabase/client";
 import {
-  cloudListSavedPlaces,
-  cloudUpsertSavedPlace,
-  cloudDeleteSavedPlace,
+    cloudListSavedPlaces,
+    cloudUpsertSavedPlace,
+    cloudDeleteSavedPlace,
 } from "@/lib/supabase/savedPlacesCloud";
 
 // ── Hook ──────────────────────────────────────────────────────────────────
@@ -81,7 +81,7 @@ export function useSavedPlaces(): UseSavedPlacesResult {
   const toggleSave = useCallback(
     async (place: PlaceItem) => {
       if (savedIds.has(place.id)) {
-        // Unsave — optimistic removal first
+        // Unsave - optimistic removal first
         const snapshot = places;
         setPlaces((prev) => prev.filter((p) => p.place_id !== place.id));
 
@@ -95,7 +95,7 @@ export function useSavedPlaces(): UseSavedPlacesResult {
           setPlaces(snapshot);
         }
       } else {
-        // Save — optimistic insertion first with a provisional entry
+        // Save - optimistic insertion first with a provisional entry
         const now = new Date().toISOString();
         const provisional: SavedPlace = {
           id: crypto.randomUUID(),

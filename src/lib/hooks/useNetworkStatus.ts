@@ -4,7 +4,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { networkMonitor } from "@/lib/offline/networkMonitor";
 
-// Stable selector functions — defined outside the component so they never
+// Stable selector functions - defined outside the component so they never
 // change identity, preventing useSyncExternalStore from re-subscribing.
 const subscribe = (cb: () => void) => networkMonitor.subscribe(cb);
 const getOnline = () => networkMonitor.online;

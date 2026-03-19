@@ -4,7 +4,7 @@
 export type StopPhoto = {
   /** Storage path in Supabase (e.g. "userId/planId/stopId/1.jpg") */
   path: string;
-  /** Signed or public URL — populated at read time, not persisted */
+  /** Signed or public URL - populated at read time, not persisted */
   url?: string;
   /** Local blob URL for offline/unsaved photos */
   localUrl?: string;
@@ -40,7 +40,7 @@ export type StopMemory = {
   /** True if this memory has local changes not yet synced to cloud */
   dirty?: boolean;
 
-  /** Set when the parent plan is deleted — memory is preserved for journal */
+  /** Set when the parent plan is deleted - memory is preserved for journal */
   plan_deleted?: boolean;
 
   /** Snapshot of the plan label at time of deletion (so journal can still show trip name) */

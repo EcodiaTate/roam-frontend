@@ -1,6 +1,6 @@
 // src/lib/paywall/tripGate.ts
 //
-// Trip usage gate — tracks how many trips the user has created and whether
+// Trip usage gate - tracks how many trips the user has created and whether
 // they have purchased Roam Untethered.
 //
 // SOURCE OF TRUTH (anti-cheat):
@@ -44,7 +44,7 @@ export function isNativePlatform(): boolean {
 }
 
 /* ── Local cache helpers (localStorage) ─────────────────────────── */
-// Used only as offline fallback — never the primary source of truth.
+// Used only as offline fallback - never the primary source of truth.
 
 function localGet(key: string): string | null {
   if (typeof window === "undefined") return null;
@@ -62,7 +62,7 @@ function localSet(key: string, value: string): void {
 async function fetchUnlockFromSupabase(): Promise<boolean | null> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null; // not logged in — can't check
+    if (!user) return null; // not logged in - can't check
 
     const { data, error } = await supabase
       .from("user_entitlements")
@@ -149,7 +149,7 @@ async function markEntitlementInSupabase(source: "revenuecat" | "stripe" | "manu
 
 export async function purchaseUnlimited(): Promise<{ success: boolean; error?: string }> {
   if (!isNativePlatform()) {
-    // Web: caller should redirect to Stripe instead — this path should not be called
+    // Web: caller should redirect to Stripe instead - this path should not be called
     return { success: false, error: "Use Stripe on web." };
   }
   try {
@@ -211,7 +211,7 @@ export async function redirectToStripeCheckout(): Promise<{ error: string }> {
 /* ── Trip counter ────────────────────────────────────────────────── */
 
 async function getTripsUsed(): Promise<number> {
-  // Server is authoritative — local is fallback when offline / unauthenticated
+  // Server is authoritative - local is fallback when offline / unauthenticated
   const serverCount = await fetchTripCountFromSupabase();
   if (serverCount !== null) {
     localSet(KEY_TRIPS_USED, String(serverCount));
@@ -226,7 +226,7 @@ async function getTripsUsed(): Promise<number> {
 export async function incrementTripsUsed(): Promise<number> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) {
-    // Auth is required on /new — this should not be reachable.
+    // Auth is required on /new - this should not be reachable.
     // If it somehow is, refuse to count locally to prevent cheating.
     throw new Error("Cannot increment trips: not authenticated");
   }
@@ -238,7 +238,7 @@ export async function incrementTripsUsed(): Promise<number> {
     localSet(KEY_TRIPS_USED, String(trips_used));
     return trips_used;
   } catch {
-    // Offline — fall back to local increment so the paywall still triggers
+    // Offline - fall back to local increment so the paywall still triggers
   }
   const current = parseInt(localGet(KEY_TRIPS_USED) ?? "0", 10);
   const next = (isNaN(current) ? 0 : current) + 1;
@@ -259,7 +259,7 @@ export async function isUnlocked(): Promise<boolean> {
  */
 export async function mergeLocalTripsToServer(): Promise<void> {
   try {
-    // Skip merge entirely for entitled users — trip count is irrelevant
+    // Skip merge entirely for entitled users - trip count is irrelevant
     const unlocked = await isUnlocked();
     if (unlocked) return;
 
@@ -277,11 +277,11 @@ export async function mergeLocalTripsToServer(): Promise<void> {
     // Sync local cache to the authoritative merged value
     localSet(KEY_TRIPS_USED, String(trips_used));
   } catch {
-    // Non-fatal — server count is still authoritative
+    // Non-fatal - server count is still authoritative
   }
 }
 
-/* ── Gate check — call before creating a new trip ────────────────── */
+/* ── Gate check - call before creating a new trip ────────────────── */
 
 export type GateResult =
   | { allowed: true;  tripsUsed: number; unlocked: boolean }
@@ -300,7 +300,7 @@ export async function checkTripGate(): Promise<GateResult> {
     await syncUnlockFromRC();
   }
 
-  // Check unlock first — skip trip count query entirely for entitled users
+  // Check unlock first - skip trip count query entirely for entitled users
   const unlocked = await isUnlocked();
   if (unlocked) return { allowed: true, tripsUsed: 0, unlocked: true };
 

@@ -184,14 +184,14 @@ export function VehicleFuelSettings({
     onSaved?.(savedProfile);
     onClose();
 
-    // Persist in background — revert on failure
+    // Persist in background - revert on failure
     try {
       await setVehicleFuelProfile(savedProfile);
       haptic.success();
     } catch (e) {
       console.error("[FuelSettings] save failed:", e);
       haptic.error();
-      // The profile wasn't actually saved — the parent still has the
+      // The profile wasn't actually saved - the parent still has the
       // optimistic value. On next open, useEffect will reload the
       // real profile from IDB, effectively reverting the UI.
     }

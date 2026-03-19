@@ -4,22 +4,22 @@
 "use client";
 
 import {
-  memo,
-  useCallback,
-  useDeferredValue,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
+    memo,
+    useCallback,
+    useDeferredValue,
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
 } from "react";
 import type { PlaceCategory, PlaceItem, PlacesPack } from "@/lib/types/places";
 import type { TripProgress } from "@/lib/types/guide";
 import {
-  searchPlaces,
-  type PlaceFilter,
-  type SearchResult,
-  type UserPosition,
+    searchPlaces,
+    type PlaceFilter,
+    type SearchResult,
+    type UserPosition,
 } from "@/lib/places/offlineSearch";
 import { haptic } from "@/lib/native/haptics";
 
@@ -31,56 +31,56 @@ import type { SavedPlace } from "@/lib/offline/savedPlacesStore";
 
 import type { LucideIcon } from "lucide-react";
 import {
-  Search,
-  X,
-  SlidersHorizontal,
-  ChevronDown,
-  ChevronUp,
-  ArrowUpDown,
-  MapPin,
-  Layers,
-  Fuel,
-  Zap,
-  ParkingMeter,
-  Bath,
-  Droplets,
-  Trash2,
-  Wrench,
-  Hospital,
-  Pill,
-  ShoppingCart,
-  Building2,
-  Banknote,
-  Shirt,
-  Star,
-  Coffee,
-  Utensils,
-  Beer,
-  Wine,
-  Tent,
-  Bed,
-  Eye,
-  Waves,
-  Mountain,
-  TreePine,
-  Thermometer,
-  Baby,
-  Compass,
-  Info,
-  Landmark,
-  Camera,
-  Store,
-  Dog,
-  Film,
-  Fish,
-  BookOpen,
-  Flag,
-  ArrowUp,
-  Clock,
+    Search,
+    X,
+    SlidersHorizontal,
+    ChevronDown,
+    ChevronUp,
+    ArrowUpDown,
+    MapPin,
+    Layers,
+    Fuel,
+    Zap,
+    ParkingMeter,
+    Bath,
+    Droplets,
+    Trash2,
+    Wrench,
+    Hospital,
+    Pill,
+    ShoppingCart,
+    Building2,
+    Banknote,
+    Shirt,
+    Star,
+    Coffee,
+    Utensils,
+    Beer,
+    Wine,
+    Tent,
+    Bed,
+    Eye,
+    Waves,
+    Mountain,
+    TreePine,
+    Thermometer,
+    Baby,
+    Compass,
+    Info,
+    Landmark,
+    Camera,
+    Store,
+    Dog,
+    Film,
+    Fish,
+    BookOpen,
+    Flag,
+    ArrowUp,
+    Clock,
 } from "lucide-react";
 
 // ──────────────────────────────────────────────────────────────
-// Category chip definitions — grouped by theme
+// Category chip definitions - grouped by theme
 // ──────────────────────────────────────────────────────────────
 
 type ChipDef = { key: PlaceCategory; label: string; Icon: LucideIcon };
@@ -244,18 +244,18 @@ function savePersistedState(s: PersistedState) {
   try {
     localStorage.setItem(LS_KEY, JSON.stringify(s));
   } catch {
-    // Storage quota or SSR — ignore
+    // Storage quota or SSR - ignore
   }
 }
 
 // ──────────────────────────────────────────────────────────────
-// Windowed list — only renders rows visible in the scroll
+// Windowed list - only renders rows visible in the scroll
 // viewport + a small overscan buffer. Keeps DOM node count
 // constant (~20-30 nodes) regardless of total list size.
-// No external dependency — uses a single scroll listener.
+// No external dependency - uses a single scroll listener.
 // ──────────────────────────────────────────────────────────────
 
-const ROW_HEIGHT = 60; // px — fixed estimate per row
+const ROW_HEIGHT = 60; // px - fixed estimate per row
 const OVERSCAN = 5;    // extra rows rendered above/below viewport
 
 type VirtualListProps = {
@@ -357,13 +357,13 @@ const VirtualList = memo(function VirtualList({
 export type PlaceSearchPanelProps = {
   places: PlacesPack | null;
   tripProgress?: TripProgress | null;
-  /** Alternative to tripProgress — for components that have raw position but not a full TripProgress */
+  /** Alternative to tripProgress - for components that have raw position but not a full TripProgress */
   userPosition?: UserPosition | null;
   /** Called when user taps a result row */
   onSelectPlace?: (place: PlaceItem) => void;
   /** Called when user taps "Add" on a saved place (adds to trip) */
   onAddSavedToTrip?: (place: SavedPlace) => void;
-  /** Called when filters change — used to highlight map markers */
+  /** Called when filters change - used to highlight map markers */
   onFilteredIdsChange?: (ids: Set<string> | null) => void;
   /** Called when user taps the global "Show on map" button */
   onShowOnMap?: () => void;
@@ -389,7 +389,7 @@ export function PlaceSearchPanel({
     [places],
   );
 
-  // Merge saved places into the searchable pool — convert SavedPlace → PlaceItem
+  // Merge saved places into the searchable pool - convert SavedPlace → PlaceItem
   // and deduplicate (pack items take priority since they have richer extra data).
   const items = useMemo(() => {
     if (savedPlaces.length === 0) return packItems;
@@ -910,7 +910,7 @@ export function PlaceSearchPanel({
 // Style helpers
 // ──────────────────────────────────────────────────────────────
 
-// Pre-computed style objects — avoids allocations on every render.
+// Pre-computed style objects - avoids allocations on every render.
 // 4 variants: active/inactive × normal/small for chips, active/inactive for badges.
 
 const CHIP_BASE: React.CSSProperties = {
@@ -946,4 +946,3 @@ function chipStyle(active: boolean, small = false): React.CSSProperties {
 function badgeStyle(active: boolean): React.CSSProperties {
   return active ? BADGE_STYLES.active : BADGE_STYLES.inactive;
 }
-

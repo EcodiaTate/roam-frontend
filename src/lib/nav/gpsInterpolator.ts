@@ -237,7 +237,7 @@ export class GpsInterpolator {
       lng = this.blendStartPos.lng + (predicted.lng - this.blendStartPos.lng) * ease;
       heading = lerpHeading(this.blendStartPos.heading, targetHeading, ease);
     } else {
-      // No blend, or blend finished — clear blend state
+      // No blend, or blend finished - clear blend state
       this.blendStartPos = null;
 
       // Step heading smoothly toward target (no abrupt rotation)

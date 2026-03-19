@@ -4,22 +4,22 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Capacitor } from "@capacitor/core";
 import {
-  Infinity,
-  Download,
-  Sparkles,
-  Users,
-  Fuel,
-  ArrowLeft,
-  CheckCircle2,
-  Mail,
+    Infinity,
+    Download,
+    Sparkles,
+    Users,
+    Fuel,
+    ArrowLeft,
+    CheckCircle2,
+    Mail,
 } from "lucide-react";
 import { haptic } from "@/lib/native/haptics";
 import {
-  isNativePlatform,
-  purchaseUnlimited,
-  restorePurchases,
-  redirectToStripeCheckout,
-  isUnlocked,
+    isNativePlatform,
+    purchaseUnlimited,
+    restorePurchases,
+    redirectToStripeCheckout,
+    isUnlocked,
 } from "@/lib/paywall/tripGate";
 import { useAuth } from "@/lib/supabase/auth";
 
@@ -51,7 +51,7 @@ const FEATURES: { Icon: LucideIcon; title: string; body: string }[] = [
   {
     Icon: Fuel,
     title: "Fuel range alerts",
-    body: "Know exactly where the last servo is — before you pass it.",
+    body: "Know exactly where the last servo is - before you pass it.",
   },
 ];
 
@@ -659,7 +659,7 @@ function PurchasePage({
             }}
           >
             One payment. Yours forever. Full offline maps, unlimited trips, and
-            an AI co-pilot — even when you&apos;re 500km from the nearest tower.
+            an AI co-pilot - even when you&apos;re 500km from the nearest tower.
           </p>
         </div>
 
@@ -985,7 +985,7 @@ export default function UntetheredPage() {
     );
   }
 
-  // Loading state — show nothing until we know
+  // Loading state - show nothing until we know
   if (unlocked === null) {
     return (
       <div

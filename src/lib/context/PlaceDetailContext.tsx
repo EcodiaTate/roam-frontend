@@ -37,13 +37,13 @@ type PlaceDetailContextValue = {
   /** Registered globally so the sheet can toggle bookmarks from anywhere */
   saveHandler: SaveHandler | null;
   registerSaveHandler: (handler: SaveHandler | null) => void;
-  /** Registered by trip page — zooms map to place and closes sheet */
+  /** Registered by trip page - zooms map to place and closes sheet */
   showOnMapHandler: ShowOnMapHandler | null;
   registerShowOnMapHandler: (handler: ShowOnMapHandler | null) => void;
-  /** Set of saved place_ids — kept in sync by the global provider */
+  /** Set of saved place_ids - kept in sync by the global provider */
   savedIds: Set<string>;
   setSavedIds: (ids: Set<string>) => void;
-  /** IDs of places already in the trip — used to show "Already in Trip" */
+  /** IDs of places already in the trip - used to show "Already in Trip" */
   stopPlaceIds: Set<string>;
   setStopPlaceIds: (ids: Set<string>) => void;
 };

@@ -144,7 +144,7 @@ function routePointAndBearing(
 }
 
 /**
- * For a cluster of hazard zones, compute 2 detour waypoints — one on each side
+ * For a cluster of hazard zones, compute 2 detour waypoints - one on each side
  * of the route, perpendicular to the route direction. The route planner (OSRM)
  * will pick the side that produces a shorter path.
  *
@@ -168,7 +168,7 @@ function computeDetourWaypoint(
   const perpLeft = (rp.bearingDeg + 270) % 360;
   const perpRight = (rp.bearingDeg + 90) % 360;
 
-  // Determine which side the hazard is on — push away from it
+  // Determine which side the hazard is on - push away from it
   const leftPt = destinationPoint(rp.lat, rp.lng, perpLeft, 1);
   const rightPt = destinationPoint(rp.lat, rp.lng, perpRight, 1);
   const dLeft = haversineKm(centLat, centLng, leftPt.lat, leftPt.lng);
@@ -181,7 +181,7 @@ function computeDetourWaypoint(
   // Minimum 5km for blockers (road closures, floods), 3km for major hazards
   const minOffset = hasBLockers ? 5 : 3;
   const offset = Math.max(minOffset, maxRadius * 1.5 + 2);
-  // Cap at 30km — beyond that the detour is too extreme
+  // Cap at 30km - beyond that the detour is too extreme
   const clampedOffset = Math.min(30, offset);
 
   const wp = destinationPoint(rp.lat, rp.lng, escapeBearing, clampedOffset);

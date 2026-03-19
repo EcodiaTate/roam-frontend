@@ -56,13 +56,14 @@ import { onPlanEvent } from "@/lib/offline/planEvents";
 import { getVehicleFuelProfile } from "@/lib/offline/fuelProfileStore";
 import { rebuildNavpackOfflineWithFuel } from "@/lib/offline/rebuildNavpack";
 import { overlaysToHazardZones, overlaysToAvoidZoneRequests } from "@/lib/nav/routeAvoidance";
+import { speakFuelWarning, speakHazardWarning } from "@/lib/nav/voice";
 
 import { navApi } from "@/lib/api/nav";
 import { bundleApi } from "@/lib/api/bundle";
 import { useEnrichment } from "@/lib/hooks/useEnrichment";
 
 import { analyzeFuel, computeFuelTracking, windRangeFactor, checkFuelArbitrage, fuelOverlayToPlaceItems, type FuelArbitrageAlert } from "@/lib/nav/fuelAnalysis";
-import { computeRefreshPriority, isOverlayStale, formatAge } from "@/lib/offline/refreshPriority";
+import { computeRefreshPriority, formatAge } from "@/lib/offline/refreshPriority";
 import { decodePolyline6 } from "@/lib/nav/polyline6";
 import { cumulativeKm, buildPolylineIndex, snapToPolylineIndexed, haversineM } from "@/lib/nav/snapToRoute";
 import { shortId } from "@/lib/utils/ids";
@@ -72,21 +73,21 @@ import type { PlacesPack } from "@/lib/types/places";
 import type { TripStop } from "@/lib/types/trip";
 import type { FuelAnalysis, VehicleFuelProfile } from "@/lib/types/fuel";
 import type {
-  WeatherOverlay,
-  FloodOverlay,
-  CoverageOverlay,
-  WildlifeOverlay,
-  RestAreaOverlay,
-  RouteIntelligenceScore,
-  FuelOverlay,
-  EmergencyServicesOverlay,
-  HeritageOverlay,
-  AirQualityOverlay,
-  BushfireOverlay,
-  SpeedCamerasOverlay,
-  ToiletsOverlay,
-  SchoolZonesOverlay,
-  RoadkillOverlay,
+    WeatherOverlay,
+    FloodOverlay,
+    CoverageOverlay,
+    WildlifeOverlay,
+    RestAreaOverlay,
+    RouteIntelligenceScore,
+    FuelOverlay,
+    EmergencyServicesOverlay,
+    HeritageOverlay,
+    AirQualityOverlay,
+    BushfireOverlay,
+    SpeedCamerasOverlay,
+    ToiletsOverlay,
+    SchoolZonesOverlay,
+    RoadkillOverlay,
 } from "@/lib/types/overlays";
 
 // Updated icons here
@@ -200,7 +201,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   // Fuel state
   const [fuelAnalysis, setFuelAnalysis] = useState<FuelAnalysis | null>(null);
   const [fuelOverlay, setFuelOverlay] = useState<FuelOverlay | null>(null);
-  // fuelTracking is derived from props, not stored in state — see computedFuelTracking below
+  // fuelTracking is derived from props, not stored in state - see computedFuelTracking below
   const [fuelSettingsOpen, setFuelSettingsOpen] = useState(false);
   const [fuelArbitrage, setFuelArbitrage] = useState<FuelArbitrageAlert | null>(null);
 
@@ -209,7 +210,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   const [elevCollapsed, setElevCollapsed] = useState(false);
   const [viewportKmRange, setViewportKmRange] = useState<[number, number] | null>(null);
 
-  // Offline routing indicator — true when last rebuild used corridor A* instead of OSRM
+  // Offline routing indicator - true when last rebuild used corridor A* instead of OSRM
   const [offlineRouted, setOfflineRouted] = useState(false);
 
   // UI State
@@ -240,7 +241,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   // Offline modal
   const [offlineModalOpen, setOfflineModalOpen] = useState(false);
 
-  // Report panel state — two-phase flow:
+  // Report panel state - two-phase flow:
   //   "picking" = type picker overlay visible
   //   { type, severity } = marker placement mode (picker dismissed, map zoomed in)
   //   null = closed
@@ -248,7 +249,12 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   const [exchangeOpen, setExchangeOpen] = useState(false);
   const [reportMarker, setReportMarker] = useState<{ lat: number; lng: number } | null>(null);
 
-  // Share state — OS share sheet (native or Web Share API)
+  // Nav-mode layer menu + quick report state (managed here, passed to NavigationControls + TripMap)
+  const [navLayerMenuOpen, setNavLayerMenuOpen] = useState(false);
+  const [navLayerFiltered, setNavLayerFiltered] = useState(false);
+  const [navReportOpen, setNavReportOpen] = useState(false);
+
+  // Share state - OS share sheet (native or Web Share API)
   const [nativeSharePayload, setNativeSharePayload] = useState<{ data: ShareCardData; mapImageUrl: string | null; label: string } | null>(null);
 
   // Map style
@@ -262,7 +268,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   // Stop-added toast
   const [stopAddedToast, setStopAddedToast] = useState<string | null>(null);
 
-  // Memory sheet state — opened by proximity notification or stop quick action
+  // Memory sheet state - opened by proximity notification or stop quick action
   const [memorySheetOpen, setMemorySheetOpen] = useState(false);
   const [memorySheetStop, setMemorySheetStop] = useState<{
     stopId: string;
@@ -324,7 +330,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   });
 
   // ── Wire the 60 fps interpolator to map camera + user puck ──
-  // This runs OUTSIDE React state — directly mutates MapLibre sources and camera
+  // This runs OUTSIDE React state - directly mutates MapLibre sources and camera
   // each animation frame for zero-latency, Google Maps-quality smoothness.
   const mapNavModeRef = useRef(mapNavMode);
   mapNavModeRef.current = mapNavMode;
@@ -421,7 +427,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         }
 
         if (!rec) {
-          // Preferred plan wasn't usable — scan all plans for one that is
+          // Preferred plan wasn't usable - scan all plans for one that is
           const all = await listOfflinePlans();
           for (const candidate of all) {
             const hasPacks = await hasCorePacks(candidate.plan_id);
@@ -445,7 +451,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
             return;
           }
           // Only redirect when the user is actually viewing the /trip tab.
-          // PersistentTabs pre-mounts this page on other tabs — don't hijack navigation.
+          // PersistentTabs pre-mounts this page on other tabs - don't hijack navigation.
           if (pathnameRef.current === "/trip" || pathnameRef.current === "/trip/") {
             router.replace("/new");
           } else {
@@ -460,14 +466,14 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         }
 
         // Set plan early so the preview (geometry/bbox/stops) is available
-        // for rendering during hydration — avoids showing the skeleton
+        // for rendering during hydration - avoids showing the skeleton
         // for minimal plans that have preview data from saveMinimalPlan.
         setPlan(rec);
         setPhase("hydrating");
 
         const has = await hasCorePacks(rec.plan_id);
         if (!has && rec.zip_blob) await unpackAndStoreBundle(rec);
-        // else: minimal plan (navpack-only) — packs load from IDB, rest enriched in background
+        // else: minimal plan (navpack-only) - packs load from IDB, rest enriched in background
 
         const packs = await getAllPacks(rec.plan_id);
         if (cancelled) return;
@@ -604,6 +610,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       case "toilets": setToilets(data as ToiletsOverlay); break;
       case "school_zones": setSchoolZones(data as SchoolZonesOverlay); break;
       case "roadkill": setRoadkill(data as RoadkillOverlay); break;
+      case "elevation": setElevation(data as ElevationResponse); break;
     }
   }, []);
 
@@ -612,17 +619,17 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   enrichmentRef.current = enrichment;
 
   // Track which plan enrichment has been kicked off for. Once enrichment
-  // starts for a plan it runs to completion — we never cancel/restart it
+  // starts for a plan it runs to completion - we never cancel/restart it
   // just because an overlay pack arrived and changed React state.
   const enrichStartedForRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (phase !== "ready" || !plan || !navpack || !isOnline) return;
-    // Already kicked off (or finished) for this plan — don't restart
+    // Already kicked off (or finished) for this plan - don't restart
     if (enrichStartedForRef.current === plan.plan_id) return;
     const e = enrichmentRef.current;
     if (e.isEnriching || e.isDone) return;
-    // Full-bundle plans already have a corridor — no enrichment needed
+    // Full-bundle plans already have a corridor - no enrichment needed
     if (corridor) return;
 
     enrichStartedForRef.current = plan.plan_id;
@@ -639,7 +646,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, plan, navpack, isOnline]);
 
-  // Focus place from URL — expand sheet to show detail
+  // Focus place from URL - expand sheet to show detail
   const [prevFocusUrl, setPrevFocusUrl] = useState<string | null>(null);
   if (focusPlaceFromUrl && prevFocusUrl !== focusPlaceFromUrl) {
     setPrevFocusUrl(focusPlaceFromUrl);
@@ -665,7 +672,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     presenceBeacon.setSharedTrip(isSharedTrip);
   }, [isSharedTrip]);
 
-  // Only broadcast presence while actively navigating —
+  // Only broadcast presence while actively navigating -
   // no point tracking someone parked at home
   useEffect(() => {
     presenceBeacon.setNavigating(activeNav.isActive);
@@ -742,7 +749,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       };
     }
 
-    // Placement closed — restore camera
+    // Placement closed - restore camera
     if (!isPlacing && prevCameraRef.current) {
       map.easeTo({
         center: prevCameraRef.current.center,
@@ -769,10 +776,10 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     } satisfies import("@/lib/native/geolocation").RoamPosition;
   }, [reportMarker, effectivePosition]);
 
-  // Cache decoded polyline + cumulative km — only recompute when the route changes,
+  // Cache decoded polyline + cumulative km - only recompute when the route changes,
   // NOT on every GPS tick. For long routes (e.g. 1700km SC→Cairns) decoding +
   // cumulativeKm can produce 20-50k points with haversine per segment.
-  // Build a spatial index over the route — O(n) once, then snap is O(1).
+  // Build a spatial index over the route - O(n) once, then snap is O(1).
   const routeIndex = useMemo(() => {
     const geom = navpack?.primary?.geometry;
     if (!geom) return null;
@@ -835,7 +842,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     map.flyTo({ center: [loc.lng, loc.lat], zoom: Math.max(map.getZoom(), 12), duration: 800 });
   }, []);
 
-  // Throttled fuel tracking — debounce GPS ticks to once per 2s.
+  // Throttled fuel tracking - debounce GPS ticks to once per 2s.
   const [fuelTracking, setFuelTracking] = useState<ReturnType<typeof computeFuelTracking> | null>(null);
   const fuelSnapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -875,6 +882,49 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       if (fuelSnapTimerRef.current) clearTimeout(fuelSnapTimerRef.current);
     };
   }, [fuelAnalysis, effectivePosition, routeIndex, fuelOverlay]);
+
+  // ── Voice: fuel last-chance warning ──────────────────────────────
+  // Announce when a last-chance fuel station appears during active nav.
+  const lastFuelVoiceKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!activeNav.isActive || activeNav.isMuted) return;
+    const w = fuelTracking?.active_warning;
+    if (!w || w.type !== "last_chance" || !w.station) return;
+    const key = w.station.place_id ?? `km-${Math.round(w.at_km)}`;
+    if (key === lastFuelVoiceKeyRef.current) return;
+    lastFuelVoiceKeyRef.current = key;
+    // Compute driver's current km from tracking state
+    const driverKm = fuelTracking.km_since_last_fuel + (fuelTracking.last_passed_station?.km_along_route ?? 0);
+    const distKm = w.station.km_along_route - driverKm;
+    if (distKm > 0 && distKm < 10) {
+      speakFuelWarning(w.station.name, distKm);
+    }
+  }, [fuelTracking, activeNav.isActive, activeNav.isMuted]);
+
+  // ── Voice: hazard proximity warning ─────────────────────────────
+  // Announce high-severity hazards within 5km during active nav.
+  const lastHazardVoiceKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!activeNav.isActive || activeNav.isMuted) return;
+    if (!hazards?.items?.length || !effectivePosition) return;
+    for (const h of hazards.items) {
+      if ((h.effective_priority ?? 0) < 0.6) continue; // skip low-priority
+      // Compute distance from driver to hazard bbox centroid
+      const hBbox = h.bbox;
+      if (!hBbox || hBbox.length < 4) continue;
+      const cLat = (hBbox[1] + hBbox[3]) / 2;
+      const cLng = (hBbox[0] + hBbox[2]) / 2;
+      const distKm = haversineM(effectivePosition.lat, effectivePosition.lng, cLat, cLng) / 1000;
+      if (distKm > 5 || distKm < 0.1) continue;
+      const key = h.id;
+      if (key === lastHazardVoiceKeyRef.current) continue;
+      if (h.severity === "high") {
+        lastHazardVoiceKeyRef.current = key;
+        speakHazardWarning(h.title, distKm);
+        break; // one announcement per tick
+      }
+    }
+  }, [hazards, effectivePosition, activeNav.isActive, activeNav.isMuted]);
 
   // ── Overlay polling ─────────────────────────────────────────────
   const pollOverlays = useCallback(async () => {
@@ -967,7 +1017,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
 
     if (prioritized.length > 0) {
       console.info(
-        "[Trip] Reconnected — refreshing %d stale overlays: %s",
+        "[Trip] Reconnected - refreshing %d stale overlays: %s",
         prioritized.length,
         prioritized.map((p) => `${p.overlay}(${formatAge(p.age_s)})`).join(", "),
       );
@@ -1030,7 +1080,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         }
       } catch (offlineErr) {
         console.error("[Trip] offline corridor A* rebuild failed:", offlineErr);
-        // Don't throw — keep the existing route intact. The user's current
+        // Don't throw - keep the existing route intact. The user's current
         // navpack is better than no navpack. The error is logged so we can
         // diagnose what's happening with the corridor graph.
       }
@@ -1042,7 +1092,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     // ── Online path: use OSRM via backend ───────────────────────────
     // Wrapped in try-catch so that if the network request fails (stale
     // isOnline, spotty connectivity, etc.) we fall back to offline
-    // corridor A* routing automatically — the user should never be
+    // corridor A* routing automatically - the user should never be
     // stuck without a route when the corridor graph is available.
     let result: NavPack | null = null;
     try {
@@ -1093,7 +1143,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         }
         return;
       }
-      // No corridor available — log and keep existing route
+      // No corridor available - log and keep existing route
       console.error("[Trip] rebuild failed: online unreachable, no corridor available for offline fallback", onlineErr);
       return;
     }
@@ -1208,10 +1258,10 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         if (routeChanged && freshPlan.preview?.stops && freshPlan.preview.stops.length >= 2) {
           if (enrichmentRef.current.isEnriching) {
             // Defer rebuild until enrichment finishes to avoid concurrent IDB writes
-            console.info("[Trip] deferring remote rebuild — enrichment in progress");
+            console.info("[Trip] deferring remote rebuild - enrichment in progress");
             pendingRemoteRebuildRef.current = { stops: freshPlan.preview.stops };
           } else {
-            // Route changed by collaborator — rebuild locally
+            // Route changed by collaborator - rebuild locally
             handleRebuild({ stops: freshPlan.preview.stops, mode: "auto" }).catch((e) => {
               console.warn("[Trip] remote sync rebuild failed:", e);
             });
@@ -1492,6 +1542,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     if (corridor) {
       try {
         const routeKey = `offline_reroute_${shortId(12)}`;
+        // Build hazard penalty zones from cached traffic/hazards so A* avoids them
+        const rerouteHazardZones = overlaysToHazardZones(traffic, hazards);
         const { navpack: offlineNavpack, fuelAnalysis: offlineFuel } = await rebuildNavpackOfflineWithFuel({
           planId: plan?.plan_id ?? "",
           prevNavpack: navpack,
@@ -1499,6 +1551,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           stops: remainingStops,
           route_key: routeKey,
           reason: "off_route_reroute",
+          hazardZones: rerouteHazardZones.length > 0 ? rerouteHazardZones : undefined,
         });
 
         setNavpack(offlineNavpack);
@@ -1519,9 +1572,11 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
 
         // ── 2. Background OSRM enrichment (better turn-by-turn steps) ──
         if (isOnline) {
+          const rerouteAvoidZones = overlaysToAvoidZoneRequests(traffic, hazards);
           navApi.route({
             profile: navpack.primary.profile,
             stops: remainingStops,
+            ...(rerouteAvoidZones.length > 0 ? { avoid_zones: rerouteAvoidZones } : {}),
           }).then((osrmResult) => {
             setNavpack(osrmResult);
             setOfflineRouted(false);
@@ -1533,7 +1588,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
               }).catch(() => {});
             }
           }).catch(() => {
-            // Non-fatal — we already have the offline route working
+            // Non-fatal - we already have the offline route working
           });
         }
         return;
@@ -1545,9 +1600,11 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     // ── 3. Fallback: OSRM reroute if no corridor graph available ──
     if (isOnline) {
       try {
+        const fallbackAvoidZones = overlaysToAvoidZoneRequests(traffic, hazards);
         const result = await navApi.route({
           profile: navpack.primary.profile,
           stops: remainingStops,
+          ...(fallbackAvoidZones.length > 0 ? { avoid_zones: fallbackAvoidZones } : {}),
         });
         setNavpack(result);
         setOfflineRouted(false);
@@ -1556,7 +1613,99 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         console.warn("[Trip] reroute failed (no corridor, OSRM failed):", e);
       }
     }
-  }, [activeNav, navpack, corridor, isOnline, plan]);
+  }, [activeNav, navpack, corridor, isOnline, plan, traffic, hazards]);
+
+  // ── Detour to nearest fuel station NOW ───────────────────────────
+  // Inserts the next fuel station as the immediate next stop (right after
+  // the current position) and reroutes so the driver heads there first.
+  const addFuelStopBusyRef = useRef(false);
+  const handleAddFuelStop = useCallback(async () => {
+    const station = fuelTracking?.next_station;
+    if (!station || !plan || !navpack || addFuelStopBusyRef.current) return;
+    addFuelStopBusyRef.current = true;
+    try {
+      const legIdx = activeNav.nav.currentLegIdx;
+      const baseStops = [...(navpack.req.stops ?? [])];
+
+      // Build the fuel stop entry
+      const fuelStop = {
+        id: `fuel_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+        type: "poi" as const,
+        name: station.name ?? "Fuel stop",
+        lat: station.lat,
+        lng: station.lng,
+      };
+
+      // Insert right after the current leg's origin stop
+      // legIdx 0 means we're between stop[0] and stop[1],
+      // so insert at index 1 to make the fuel stop the next destination.
+      const insertIdx = Math.min(legIdx + 1, baseStops.length);
+      baseStops.splice(insertIdx, 0, fuelStop);
+
+      // Rebuild route with fuel stop as the immediate next destination
+      if (corridor) {
+        try {
+          const routeKey = navpack.primary.route_key ?? plan.route_key;
+          const { navpack: rebuilt, fuelAnalysis: newFuel } = await rebuildNavpackOfflineWithFuel({
+            planId: plan.plan_id,
+            prevNavpack: navpack,
+            corridor,
+            stops: baseStops,
+            route_key: routeKey,
+            reason: "fuel_detour",
+          });
+          setNavpack(rebuilt);
+          if (newFuel) setFuelAnalysis(newFuel as FuelAnalysis);
+          activeNav.applyReroute(rebuilt);
+
+          // Persist
+          putPacksAtomic({
+            planId: plan.plan_id,
+            updates: {
+              navpack: rebuilt,
+              ...(newFuel ? { fuel_analysis: newFuel } : {}),
+            },
+          }).catch(() => {});
+
+          // Background OSRM upgrade if online
+          if (isOnline) {
+            navApi.route({
+              profile: navpack.primary.profile,
+              stops: baseStops,
+            }).then((osrmResult) => {
+              setNavpack(osrmResult);
+              activeNav.applyReroute(osrmResult);
+              putPacksAtomic({
+                planId: plan.plan_id,
+                updates: { navpack: osrmResult },
+              }).catch(() => {});
+            }).catch(() => {});
+          }
+          return;
+        } catch (e) {
+          console.warn("[Trip] offline fuel detour failed, trying online:", e);
+        }
+      }
+
+      // Fallback: online-only rebuild
+      if (isOnline) {
+        const result = await navApi.route({
+          profile: navpack.primary.profile,
+          stops: baseStops,
+        });
+        setNavpack(result);
+        activeNav.applyReroute(result);
+        putPacksAtomic({
+          planId: plan.plan_id,
+          updates: { navpack: result },
+        }).catch(() => {});
+      }
+    } catch (e) {
+      console.warn("[Trip] fuel detour failed:", e);
+    } finally {
+      addFuelStopBusyRef.current = false;
+    }
+  }, [fuelTracking, plan, navpack, corridor, isOnline, activeNav]);
 
   // ── Auto-reroute on navigation start from different position ─────
   // If the user's GPS position is > 500m from the route start, reroute
@@ -1571,7 +1720,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
 
     const distToStart = haversineM(userPos.lat, userPos.lng, routeStart.lat, routeStart.lng);
     if (distToStart > 500) {
-      // User is far from the planned start — reroute from current position
+      // User is far from the planned start - reroute from current position
       handleOffRouteReroute();
     }
   }, [activeNav, navpack, geo.position, handleOffRouteReroute]);
@@ -1652,7 +1801,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     }, []),
   });
 
-  // Set of place IDs already in the trip — passed to TripMap and PlaceDetailSheet context
+  // Set of place IDs already in the trip - passed to TripMap and PlaceDetailSheet context
   const stopPlaceIds = useMemo(() => new Set(effectiveStops.map((s) => s.id).filter((id): id is string => !!id)), [effectiveStops]);
 
   // Sync stop IDs into PlaceDetailContext so PlaceDetailSheet shows "Already in Trip"
@@ -1669,7 +1818,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     return places?.items?.find((x) => x.id === focusPlaceFromUrl)?.name ?? focusPlaceNameFromUrl ?? null;
   }, [focusPlaceFromUrl, places, focusPlaceNameFromUrl]);
 
-  // Stable user position reference — avoid ternary object swap on every render
+  // Stable user position reference - avoid ternary object swap on every render
   const mapUserPosition = useMemo(
     () => activeNav.isActive ? activeNav.lastPosition : geo.position,
     [activeNav.isActive, activeNav.lastPosition, geo.position],
@@ -1687,7 +1836,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   // ── Render gates ────────────────────────────────────────────────
   // For minimal plans (from /new → saveAndGo), the plan record has a preview
   // with geometry/bbox/stops. Skip the skeleton entirely if we already have
-  // enough to render the map — this makes the transition feel instant.
+  // enough to render the map - this makes the transition feel instant.
   const hasPreviewData = plan?.preview?.geometry && plan?.preview?.bbox;
   if (phase === "deferred" || (phase === "resolving" && !hasPreviewData)) {
     return <TripSkeleton />;
@@ -1739,7 +1888,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
 
   // If we're still resolving/hydrating but have preview data, render the trip
   // view with what we have. The map shows the route from the preview while
-  // packs load in the background — feels instant to the user.
+  // packs load in the background - feels instant to the user.
   // hasPreviewData guarantees plan is non-null (plan?.preview?.geometry is truthy).
   if (!plan) return <TripSkeleton />;
   const renderGeom = effectiveGeom ?? plan.preview!.geometry;
@@ -1795,11 +1944,14 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           roadkill={roadkill}
           navigationMode={activeNav.isActive}
           mapInstanceRef={mapInstanceRef}
-          corridorDebug={corridor ? { bbox: corridor.bbox } : null}
+          corridorGraph={corridor}
+          navLayerMenuOpen={navLayerMenuOpen}
+          onNavLayerMenuToggle={() => setNavLayerMenuOpen((v) => !v)}
+          onLayerFilterChange={setNavLayerFiltered}
         />
       </div>
 
-      {/* ── Enrichment banner (progressive trip loading) — hidden in simple mode ── */}
+      {/* ── Enrichment banner (progressive trip loading) - hidden in simple mode ── */}
       {!isSimple && <EnrichmentBanner progress={enrichment.progress} />}
 
       {/* ── Remote sync toast ── */}
@@ -1867,7 +2019,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         onClose={() => setMapQuickMenu(null)}
       />
 
-      {/* ── FAB Stack (Report + Exchange) — hidden in simple mode ── */}
+      {/* ── FAB Stack (Report + Exchange) - hidden in simple mode ── */}
       {!activeNav.isActive && !isSimple && (
         <div style={{
           position: "absolute",
@@ -1879,13 +2031,13 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           gap: 8,
           alignItems: "flex-end",
         }}>
-          {/* Exchange FAB — badge shows nearby roamer count */}
+          {/* Exchange FAB - badge shows nearby roamer count */}
           <button
             type="button"
             className="map-fab-btn"
             onClick={() => { haptic.selection(); setExchangeOpen(true); }}
             aria-label={nearbyRoamers.length > 0
-              ? `Exchange — ${nearbyRoamers.length} roamer${nearbyRoamers.length > 1 ? "s" : ""} nearby`
+              ? `Exchange - ${nearbyRoamers.length} roamer${nearbyRoamers.length > 1 ? "s" : ""} nearby`
               : "Exchange data with nearby roamer"}
             style={{
               position: "relative",
@@ -1949,7 +2101,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         </div>
       )}
 
-      {/* ── Report Phase 1: Type Picker Overlay — hidden in simple mode ── */}
+      {/* ── Report Phase 1: Type Picker Overlay - hidden in simple mode ── */}
       {!isSimple && reportPhase === "picking" && (
         <ReportTypePicker
           onTypeSelected={(type) => {
@@ -1960,7 +2112,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         />
       )}
 
-      {/* ── Report Phase 2: Placement Bar (map marker mode) — hidden in simple mode ── */}
+      {/* ── Report Phase 2: Placement Bar (map marker mode) - hidden in simple mode ── */}
       {!isSimple && isPlacing && typeof reportPhase === "object" && (
         <div style={{
           position: "absolute",
@@ -1979,7 +2131,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         </div>
       )}
 
-      {/* ── Exchange Panel (ultrasonic peer transfer) — hidden in simple mode ── */}
+      {/* ── Exchange Panel (ultrasonic peer transfer) - hidden in simple mode ── */}
       {!isSimple && <ExchangePanel open={exchangeOpen} onClose={() => setExchangeOpen(false)} nearbyRoamers={nearbyRoamers} />}
 
       {/* Navigation overlays are rendered at the end of the tree (after bottom sheet)
@@ -1988,7 +2140,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       {!activeNav.isActive && !isSimple && <FuelPressureIndicator tracking={fuelTracking} />}
       <FuelLastChanceToast tracking={fuelTracking} currentKm={currentKm} />
 
-      {/* Fuel price arbitrage toast — hidden in simple mode */}
+      {/* Fuel price arbitrage toast - hidden in simple mode */}
       {!isSimple && fuelArbitrage && (
         <div
           style={{
@@ -2010,7 +2162,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           <div style={{ fontSize: 22 }}>⛽</div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: "var(--roam-success)" }}>
-              Save {fuelArbitrage.savings_cents}¢/L — skip to {fuelArbitrage.cheaper_station}
+              Save {fuelArbitrage.savings_cents}¢/L - skip to {fuelArbitrage.cheaper_station}
             </div>
             <div style={{ fontSize: 11, color: "var(--roam-text-muted)", marginTop: 2 }}>
               {fuelArbitrage.distance_km}km further · {fuelArbitrage.cheaper_price_cents}¢/L vs {fuelArbitrage.current_price_cents}¢/L
@@ -2030,7 +2182,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         onSaved={handleFuelProfileSaved}
       />
 
-      {/* BasemapDownloadCard removed — not needed in either mode */}
+      {/* BasemapDownloadCard removed - not needed in either mode */}
 
       <PlanDrawer
         open={drawOpen}
@@ -2061,7 +2213,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         }}
       />
 
-      {/* Share — renders card off-screen, invokes OS share sheet (native or Web Share API) */}
+      {/* Share - renders card off-screen, invokes OS share sheet (native or Web Share API) */}
       {nativeSharePayload && (
         <NativeShareRenderer
           data={nativeSharePayload.data}
@@ -2079,7 +2231,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         onUnlocked={() => { setPaywallOpen(false); setUnlocked(true); }}
       />
 
-      {/* Offline modal — shown when user taps "New" while offline */}
+      {/* Offline modal - shown when user taps "New" while offline */}
       {offlineModalOpen && createPortal(
         <div
           role="dialog"
@@ -2165,7 +2317,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         document.body,
       )}
 
-      {/* Bottom Sheet — extra 300px below absorbs spring overshoot so
+      {/* Bottom Sheet - extra 300px below absorbs spring overshoot so
            the bottom edge never lifts above the tab bar */}
       <div
         ref={sheetRef}
@@ -2180,7 +2332,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           willChange: "transform",
         }}
       >
-        {/* ── Elevation profile strip (between map and sheet) — hidden in simple mode ── */}
+        {/* ── Elevation profile strip (between map and sheet) - hidden in simple mode ── */}
         {!isSimple && elevation?.profile && (
           <div style={{
             position: "relative",
@@ -2232,18 +2384,25 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
             <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
               <button
                 type="button"
-                className="trip-interactive trip-btn-icon"
+                className="trip-interactive"
                 aria-label="Plans"
                 onClick={() => { haptic.selection(); setPlansDot(false); setDrawOpen(true); }}
                 style={{
-                  borderRadius: 10, width: 40, height: 40,
-                  display: "grid", placeItems: "center",
-                  background: "transparent", color: "var(--roam-text-muted)",
+                  borderRadius: 10,
+                  height: 40,
+                  ...(isSimple
+                    ? { display: "flex", alignItems: "center", gap: 6, padding: "0 14px 0 12px" }
+                    : { width: 40, display: "grid", placeItems: "center" }),
+                  background: "var(--roam-text, #1a1613)",
+                  color: "var(--roam-surface, #f4efe6)",
                   border: "none",
                   position: "relative",
                 }}
               >
                 <Library size={16} strokeWidth={1.8} />
+                {isSimple && (
+                  <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.01em" }}>Plans</span>
+                )}
                 {plansDot && (
                   <span
                     aria-label="New plan available"
@@ -2255,24 +2414,24 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
                       height: 8,
                       borderRadius: "50%",
                       background: "var(--roam-accent, #b5452e)",
-                      border: "2px solid var(--roam-surface, #f4efe6)",
+                      border: "2px solid var(--roam-text, #1a1613)",
                       pointerEvents: "none",
                     }}
                   />
                 )}
               </button>
 
-              {/* Invite — hidden in simple mode */}
+              {/* Invite - hidden in simple mode */}
               {!isSimple && (
                 <button
                   type="button"
-                  className="trip-interactive trip-btn-icon"
+                  className="trip-interactive"
                   aria-label="Invite"
                   onClick={() => { haptic.selection(); setInviteMode("create"); setInviteOpen(true); }}
                   style={{
                     borderRadius: 10, width: 40, height: 40,
                     display: "grid", placeItems: "center",
-                    background: "transparent", color: "var(--roam-text-muted)",
+                    background: "var(--roam-text, #1a1613)", color: "var(--roam-surface, #f4efe6)",
                     border: "none",
                   }}
                 >
@@ -2280,11 +2439,11 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
                 </button>
               )}
 
-              {/* Share — hidden in simple mode */}
+              {/* Share - hidden in simple mode */}
               {!isSimple && (
                 <button
                   type="button"
-                  className="trip-interactive trip-btn-icon"
+                  className="trip-interactive"
                   aria-label="Share trip card"
                   onClick={() => {
                     haptic.selection();
@@ -2310,7 +2469,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
                   style={{
                     borderRadius: 10, width: 40, height: 40,
                     display: "grid", placeItems: "center",
-                    background: "transparent", color: "var(--roam-text-muted)",
+                    background: "var(--roam-text, #1a1613)", color: "var(--roam-surface, #f4efe6)",
                     border: "none",
                   }}
                 >
@@ -2318,7 +2477,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
                 </button>
               )}
 
-              {/* Upgrade — show when NOT unlocked; hide Untethered badge when already unlocked */}
+              {/* Upgrade - show when NOT unlocked; hide Untethered badge when already unlocked */}
               {unlocked ? null : unlocked === false ? (
                 <button
                   type="button"
@@ -2478,7 +2637,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         </div>
       </div>{/* end trip-bottom-sheet */}
 
-      {/* ── Stop memory sheet (note + photos) — hidden in simple mode ── */}
+      {/* ── Stop memory sheet (note + photos) - hidden in simple mode ── */}
       {!isSimple && memorySheetStop && plan && (
         <StopMemorySheet
           open={memorySheetOpen}
@@ -2519,21 +2678,22 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           onOverview={mapNavMode.showOverview}
           onRecenter={mapNavMode.recenter}
           onEnd={activeNav.stop}
-        />
-        {activeNav.isActive && !isSimple && (
-          <div style={{
-            position: "absolute",
-            bottom: "calc(env(safe-area-inset-bottom, 0px) + var(--roam-tab-h, 64px) + 130px)",
-            right: 12,
-            zIndex: 31,
-            pointerEvents: "auto",
-          }}>
+          simple={isSimple}
+          layerFilterActive={navLayerFiltered}
+          onLayerToggle={() => setNavLayerMenuOpen((v) => !v)}
+          onReport={() => setNavReportOpen((v) => !v)}
+          reportOpen={navReportOpen}
+          reportTray={navReportOpen ? (
             <QuickReportWheel
+              trayOnly
               position={effectivePosition}
-              onSubmit={observations.submit}
+              onSubmit={async (req) => {
+                await observations.submit(req);
+                setNavReportOpen(false);
+              }}
             />
-          </div>
-        )}
+          ) : undefined}
+        />
         <NavigationBar
           nav={activeNav.nav}
           fuelTracking={fuelTracking}
@@ -2543,6 +2703,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
             setSheetSnap("expanded");
             setTimeout(() => setSheetSnap("peek"), 8000);
           }}
+          onFuelStopTap={handleAddFuelStop}
         />
       </NavModeOverlay>
 

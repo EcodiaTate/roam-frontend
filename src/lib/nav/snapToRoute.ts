@@ -168,7 +168,7 @@ export type PolylineIndex = {
 /**
  * Build a spatial grid index over the polyline segments.
  * Each segment is placed into every grid cell its bounding box touches.
- * Cost: O(n) — do this once when the route loads.
+ * Cost: O(n) - do this once when the route loads.
  */
 export function buildPolylineIndex(
   decoded: Array<{ lat: number; lng: number }>,
@@ -207,7 +207,7 @@ export function buildPolylineIndex(
 
 /**
  * Snap a point using a pre-built spatial index.
- * Only checks segments in nearby grid cells — typically 5-50 segments
+ * Only checks segments in nearby grid cells - typically 5-50 segments
  * instead of 20,000-50,000 for a long route.
  */
 export function snapToPolylineIndexed(

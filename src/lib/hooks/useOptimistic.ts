@@ -13,7 +13,7 @@ import { haptic } from "@/lib/native/haptics";
 type SetState<T> = (updater: T | ((prev: T) => T)) => void;
 
 /**
- * Returns `applyOptimistic` — call it with the optimistic next-state (or
+ * Returns `applyOptimistic` - call it with the optimistic next-state (or
  * updater) and the async action to run.  The hook snapshots the current
  * value, applies the update, runs the action, and reverts + fires haptic
  * error on failure.

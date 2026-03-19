@@ -10,40 +10,40 @@ import { fmtCat } from "@/lib/places/format";
 
 import type { LucideIcon } from "lucide-react";
 import {
-  Search,
-  Layers,
-  Fuel,
-  Zap,
-  ParkingMeter,
-  Bath,
-  Droplets,
-  Trash2,
-  Wrench,
-  Hospital,
-  Pill,
-  ShoppingCart,
-  Building2,
-  Banknote,
-  Shirt,
-  Star,
-  Coffee,
-  Utensils,
-  Beer,
-  Wine,
-  Tent,
-  Bed,
-  Eye,
-  Waves,
-  Mountain,
-  TreePine,
-  Thermometer,
-  Baby,
-  Compass,
-  Info,
-  Landmark,
-  Camera,
-  Store,
-  MapPin,
+    Search,
+    Layers,
+    Fuel,
+    Zap,
+    ParkingMeter,
+    Bath,
+    Droplets,
+    Trash2,
+    Wrench,
+    Hospital,
+    Pill,
+    ShoppingCart,
+    Building2,
+    Banknote,
+    Shirt,
+    Star,
+    Coffee,
+    Utensils,
+    Beer,
+    Wine,
+    Tent,
+    Bed,
+    Eye,
+    Waves,
+    Mountain,
+    TreePine,
+    Thermometer,
+    Baby,
+    Compass,
+    Info,
+    Landmark,
+    Camera,
+    Store,
+    MapPin,
 } from "lucide-react";
 
 // ──────────────────────────────────────────────────────────────
@@ -273,7 +273,7 @@ export function TripSuggestionsPanel(props: {
   useEffect(() => {
     const id = props.focusedPlaceId ?? null;
     if (!id) return;
-    // Skip the initial render — don't auto-scroll to a stale focus
+    // Skip the initial render - don't auto-scroll to a stale focus
     if (id === initialFocusRef.current) {
       initialFocusRef.current = null; // consume it so subsequent focuses on the same id still work
       return;

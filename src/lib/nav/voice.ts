@@ -183,7 +183,7 @@ export function applyAnnouncement(voice: VoiceState, ann: Announcement): VoiceSt
 }
 
 // ──────────────────────────────────────────────────────────────
-// TTS wrapper — smart voice selection + Web Speech API
+// TTS wrapper - smart voice selection + Web Speech API
 // ──────────────────────────────────────────────────────────────
 
 /** Cached best voice (populated once voices load). */
@@ -332,12 +332,12 @@ function isSpeaking(): boolean {
  * not by the shouldSpeak decision engine.
  */
 
-function speakFuelWarning(stationName: string, distKm: number): void {
+export function speakFuelWarning(stationName: string, distKm: number): void {
   const dist = distKm < 1 ? `${Math.round(distKm * 1000)} metres` : `${distKm.toFixed(1)} kilometres`;
   speak(`Last fuel in ${dist} at ${stationName}`);
 }
 
-function speakHazardWarning(headline: string, distKm: number): void {
+export function speakHazardWarning(headline: string, distKm: number): void {
   const dist = distKm < 1 ? `${Math.round(distKm * 1000)} metres` : `${distKm.toFixed(0)} kilometres`;
   speak(`Caution. ${headline}, ${dist} ahead`);
 }

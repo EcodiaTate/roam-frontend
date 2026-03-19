@@ -67,7 +67,7 @@ function updateAxis(axis: KalmanAxis, z: number, t: number, r: number): KalmanAx
   const K0 = p00Pred / S;
   const K1 = p10Pred / S;
 
-  // Mutate in place — avoids GC pressure in this hot path (~1 Hz)
+  // Mutate in place - avoids GC pressure in this hot path (~1 Hz)
   axis.x = xPred + K0 * y;
   axis.v = vPred + K1 * y;
   axis.p00 = (1 - K0) * p00Pred;
@@ -103,7 +103,7 @@ export function createGpsSmoother(): GpsSmoother {
  * Returns a smoothed RoamPosition.
  *
  * The original position's metadata (accuracy, altitude, speed, timestamp)
- * are preserved — only lat/lng/heading are smoothed.
+ * are preserved - only lat/lng/heading are smoothed.
  */
 export function smoothPosition(smoother: GpsSmoother, pos: RoamPosition): {
   smoothed: RoamPosition;
@@ -129,7 +129,7 @@ export function smoothPosition(smoother: GpsSmoother, pos: RoamPosition): {
     smoother.lng.lastT = t;
   }
 
-  // updateAxis mutates in place — no allocation
+  // updateAxis mutates in place - no allocation
   updateAxis(smoother.lat, pos.lat, t, r);
   updateAxis(smoother.lng, pos.lng, t, r);
 

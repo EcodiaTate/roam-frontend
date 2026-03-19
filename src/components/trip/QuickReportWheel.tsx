@@ -19,30 +19,30 @@
  */
 
 import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type PointerEvent as ReactPointerEvent,
+    useCallback,
+    useEffect,
+    useRef,
+    useState,
+    type PointerEvent as ReactPointerEvent,
 } from "react";
 import {
-  Construction,
-  CircleSlash,
-  AlertTriangle,
-  Fuel,
-  Camera,
-  CloudRain,
-  Tent,
-  MessageCircle,
-  Megaphone,
-  Check,
-  X,
+    Construction,
+    CircleSlash,
+    AlertTriangle,
+    Fuel,
+    Camera,
+    CloudRain,
+    Tent,
+    MessageCircle,
+    Megaphone,
+    Check,
+    X,
 } from "lucide-react";
 import { haptic } from "@/lib/native/haptics";
 import type {
-  ObservationType,
-  ObservationSeverity,
-  ObservationSubmitRequest,
+    ObservationType,
+    ObservationSeverity,
+    ObservationSubmitRequest,
 } from "@/lib/types/peer";
 import type { RoamPosition } from "@/lib/native/geolocation";
 import type { LucideIcon } from "lucide-react";
@@ -50,6 +50,8 @@ import type { LucideIcon } from "lucide-react";
 type QuickReportWheelProps = {
   position: RoamPosition | null;
   onSubmit: (req: ObservationSubmitRequest) => Promise<unknown>;
+  /** When true, renders just the tray (no FAB), always open. Used inside NavigationControls. */
+  trayOnly?: boolean;
 };
 
 type Option = {
@@ -74,8 +76,8 @@ const OPTIONS: Option[] = [
 const LONG_PRESS_MS = 250;
 const AUTO_CLOSE_MS = 5000;
 
-export function QuickReportWheel({ position, onSubmit }: QuickReportWheelProps) {
-  const [open, setOpen] = useState(false);
+export function QuickReportWheel({ position, onSubmit, trayOnly }: QuickReportWheelProps) {
+  const [open, setOpen] = useState(!!trayOnly);
   const [hovered, setHovered] = useState<number | null>(null);
   const [submitted, setSubmitted] = useState<Option | null>(null);
 
@@ -191,7 +193,7 @@ export function QuickReportWheel({ position, onSubmit }: QuickReportWheelProps) 
       if (hovered !== null) {
         submitReport(hovered);
       } else {
-        // Released without selecting anything — close the tray
+        // Released without selecting anything - close the tray
         close();
       }
     } else if (!open) {
@@ -256,22 +258,24 @@ export function QuickReportWheel({ position, onSubmit }: QuickReportWheelProps) 
         </div>
       </div>
 
-      {/* ── FAB ── */}
-      <button
-        ref={fabRef}
-        type="button"
-        aria-label="Quick report"
-        className={`qr-fab${open ? " open" : ""}${submitted ? " done" : ""}`}
-        onPointerDown={onFabDown}
-        onPointerMove={onFabMove}
-        onPointerUp={onFabUp}
-        onPointerCancel={onFabUp}
-      >
-        {open
-          ? <X size={20} strokeWidth={2.5} />
-          : <Megaphone size={20} strokeWidth={2.5} />
-        }
-      </button>
+      {/* ── FAB — hidden in trayOnly mode ── */}
+      {!trayOnly && (
+        <button
+          ref={fabRef}
+          type="button"
+          aria-label="Quick report"
+          className={`qr-fab${open ? " open" : ""}${submitted ? " done" : ""}`}
+          onPointerDown={onFabDown}
+          onPointerMove={onFabMove}
+          onPointerUp={onFabUp}
+          onPointerCancel={onFabUp}
+        >
+          {open
+            ? <X size={20} strokeWidth={2.5} />
+            : <Megaphone size={20} strokeWidth={2.5} />
+          }
+        </button>
+      )}
 
       <style>{styles}</style>
     </div>

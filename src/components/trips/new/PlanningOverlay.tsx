@@ -285,7 +285,7 @@ export function PlanningOverlay({ phase, error, visible }: PlanningOverlayProps)
               lineHeight: 1.45,
             }}>
               {isReady
-                ? "Your trip is saved offline — works without signal, anywhere."
+                ? "Your trip is saved offline - works without signal, anywhere."
                 : error
                 ? error
                 : activeStep

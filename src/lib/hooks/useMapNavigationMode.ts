@@ -26,7 +26,7 @@ export type MapNavMode = {
   isTracking: boolean;
   /**
    * Called by the GpsInterpolator on every animation frame (~60 fps).
-   * Drives the camera and user puck directly — bypasses React state.
+   * Drives the camera and user puck directly - bypasses React state.
    */
   onInterpolatedFrame: (pos: InterpolatedPosition) => void;
 };

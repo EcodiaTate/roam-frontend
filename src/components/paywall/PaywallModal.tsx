@@ -5,19 +5,19 @@ import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { haptic } from "@/lib/native/haptics";
 import {
-  isNativePlatform,
-  purchaseUnlimited,
-  restorePurchases,
-  redirectToStripeCheckout,
+    isNativePlatform,
+    purchaseUnlimited,
+    restorePurchases,
+    redirectToStripeCheckout,
 } from "@/lib/paywall/tripGate";
 import { useAuth } from "@/lib/supabase/auth";
 import {
-  Infinity,
-  Download,
-  Sparkles,
-  Users,
-  Fuel,
-  ChevronDown,
+    Infinity,
+    Download,
+    Sparkles,
+    Users,
+    Fuel,
+    ChevronDown,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -34,7 +34,7 @@ const FEATURES: { Icon: LucideIcon; label: string; sub: string }[] = [
   { Icon: Download, label: "Permanent offline maps", sub: "Every trip saved forever, works without signal" },
   { Icon: Sparkles, label: "AI co-pilot", sub: "Smart fuel stops, hazards & local tips en-route" },
   { Icon: Users, label: "Trip sharing", sub: "Share with your co-pilot via a 6-character code" },
-  { Icon: Fuel, label: "Fuel range alerts", sub: "Never run dry — warnings before the last servo" },
+  { Icon: Fuel, label: "Fuel range alerts", sub: "Never run dry - warnings before the last servo" },
 ];
 
 const HERO_COPY = {
@@ -121,7 +121,7 @@ export function PaywallModal({ open, onClose, onUnlocked, variant = "gate" }: Pr
     setError(null);
 
     if (isNative) {
-      // iOS / Android — RevenueCat native sheet
+      // iOS / Android - RevenueCat native sheet
       setBuying(true);
       try {
         const result = await purchaseUnlimited();
@@ -137,13 +137,13 @@ export function PaywallModal({ open, onClose, onUnlocked, variant = "gate" }: Pr
       return;
     }
 
-    // Web — must be signed in so the payment can be linked to the account
+    // Web - must be signed in so the payment can be linked to the account
     if (!session) {
       router.push("/login?next=checkout");
       return;
     }
 
-    // Signed in — redirect to Stripe Checkout (does not return on success)
+    // Signed in - redirect to Stripe Checkout (does not return on success)
     setBuying(true);
     try {
       const result = await redirectToStripeCheckout();
@@ -255,7 +255,7 @@ export function PaywallModal({ open, onClose, onUnlocked, variant = "gate" }: Pr
               position: "absolute", top: 16, right: 16,
               border: "none", margin: 0, padding: 0,
               cursor: "pointer",
-              width: 32, height: 32, borderRadius: "50%",
+              width: 44, height: 44, borderRadius: "50%",
               background: "rgba(255,255,255,0.15)",
               display: "flex", alignItems: "center", justifyContent: "center",
               color: "rgba(255,255,255,0.8)",
@@ -333,7 +333,7 @@ export function PaywallModal({ open, onClose, onUnlocked, variant = "gate" }: Pr
               </div>
             ))}
           </div>
-          {/* Scroll hint — gradient fade + bouncing chevron */}
+          {/* Scroll hint - gradient fade + bouncing chevron */}
           <div
             style={{
               position: "absolute", bottom: 0, left: 0, right: 0,

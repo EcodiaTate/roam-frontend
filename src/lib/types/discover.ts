@@ -26,7 +26,7 @@ export type PublicTripRow = {
 
 /** Minimal shape sent when publishing a local plan */
 export type PublishTripPayload = {
-  /** UUID — passed in from the local plan or generated fresh */
+  /** UUID - passed in from the local plan or generated fresh */
   id?: string;
   title: string;
   stops: TripStop[];
@@ -42,7 +42,7 @@ export type PublishTripPayload = {
 
 /** Options for fetching the Discover feed */
 export type DiscoverFeedOptions = {
-  /** User location for proximity sort — optional */
+  /** User location for proximity sort - optional */
   userLat?: number;
   userLng?: number;
   /** Maximum radius in km for proximity filtering (default: none) */

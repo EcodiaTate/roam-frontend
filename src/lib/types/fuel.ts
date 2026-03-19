@@ -70,7 +70,7 @@ export interface FuelAnalysis {
   has_critical_gaps: boolean;        // any leg > tank_range_km
   computed_at: string;               // ISO timestamp
   route_key: string;                 // which route this analysis is for
-  places_key?: string;               // places pack key used — for cache invalidation
+  places_key?: string;               // places pack key used - for cache invalidation
 }
 
 /** Live tracking state during navigation */

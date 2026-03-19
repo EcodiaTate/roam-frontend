@@ -94,7 +94,7 @@ export async function captureMapSnapshot(
 
       map!.once("error", (e) => {
         clearTimeout(timer);
-        // Don't reject on tile errors — map may still render partially
+        // Don't reject on tile errors - map may still render partially
         console.warn("[snapshot] map error (continuing):", e);
         resolve();
       });

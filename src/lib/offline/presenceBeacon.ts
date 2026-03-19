@@ -49,7 +49,7 @@ class PresenceBeaconImpl {
       void this._ping();
     }, this._intervalMs);
 
-    // Listen for network changes — ping immediately on reconnect
+    // Listen for network changes - ping immediately on reconnect
     this._networkUnsub = networkMonitor.subscribe((online) => {
       if (online) void this._ping();
     });
@@ -113,7 +113,7 @@ class PresenceBeaconImpl {
           pos = await getCurrentPosition();
           this._lastPosition = pos;
         } catch {
-          // GPS unavailable — skip this ping
+          // GPS unavailable - skip this ping
           return;
         }
       }
@@ -128,7 +128,7 @@ class PresenceBeaconImpl {
         heading_deg: heading_deg < 0 ? heading_deg + 360 : heading_deg,
       });
     } catch (e) {
-      // Non-fatal — we'll try again next interval
+      // Non-fatal - we'll try again next interval
       console.debug("[PresenceBeacon] ping failed:", e);
     }
   }

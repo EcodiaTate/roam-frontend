@@ -10,23 +10,24 @@ import type { TripPreferences } from "@/lib/types/trip";
 import { TripPrefsPanel } from "./TripPrefsPanel";
 import { haptic } from "@/lib/native/haptics";
 import { hideKeyboard } from "@/lib/native/keyboard";
+import { useUIMode } from "@/lib/hooks/useUIMode";
 
 
 import {
-  Rocket,
-  Compass,
-  Route,
-  Map,
-  MapPin,
-  Cloud,
-  AlertTriangle,
-  Package,
-  Check,
-  Loader2,
-  X,
-  ArrowLeft,
-  Sparkles,
-  Library,
+    Rocket,
+    Compass,
+    Route,
+    Map,
+    MapPin,
+    Cloud,
+    AlertTriangle,
+    Package,
+    Check,
+    Loader2,
+    X,
+    ArrowLeft,
+    Sparkles,
+    Library,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -417,7 +418,7 @@ export function StopsEditor(props: {
   /** Called when user taps "Add stop" on a suggestion card. */
   onAddSuggestion?: (item: StopSuggestionItem) => void;
 
-  /** Trip preferences — density slider & category toggles */
+  /** Trip preferences - density slider & category toggles */
   tripPrefs: TripPreferences;
   onTripPrefsChange: (next: TripPreferences) => void;
 
@@ -426,6 +427,8 @@ export function StopsEditor(props: {
   /** Called when user taps the upgrade button. */
   onUpgrade?: () => void;
 }) {
+  const { isSimple } = useUIMode();
+
   // --- Smooth Drag Controller ---
   const [snapState, setSnapState] = useState<"peek" | "expanded">("peek");
   const [dragOffset, setDragOffset] = useState(0);
@@ -540,7 +543,7 @@ export function StopsEditor(props: {
             <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
               <button
                 type="button"
-                className="trip-interactive trip-btn-icon"
+                className="trip-interactive"
                 aria-label="Plans"
                 title="Plans"
                 onPointerDown={(e) => e.stopPropagation()}
@@ -550,22 +553,25 @@ export function StopsEditor(props: {
                 }}
                 style={{
                   borderRadius: 999,
-                  width: 34,
                   height: 34,
-                  display: "grid",
-                  placeItems: "center",
-                  background: "rgba(0, 0, 0, 0.08)",
-                  color: "var(--roam-text)",
+                  ...(isSimple
+                    ? { display: "flex", alignItems: "center", gap: 6, padding: "0 14px 0 10px" }
+                    : { width: 34, display: "grid", placeItems: "center" }),
+                  background: "var(--roam-text, #1a1613)",
+                  color: "var(--roam-surface, #f4efe6)",
                   border: "none",
                   WebkitTapHighlightColor: "transparent",
                 }}
               >
                 <Library size={15} />
+                {isSimple && (
+                  <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.01em" }}>Plans</span>
+                )}
               </button>
 
               <button
                 type="button"
-                className="trip-interactive trip-btn-icon"
+                className="trip-interactive"
                 aria-label="AI Trip Planner"
                 title="AI Trip Planner"
                 onPointerDown={(e) => e.stopPropagation()}
@@ -575,10 +581,10 @@ export function StopsEditor(props: {
                 }}
                 style={{
                   borderRadius: 999,
-                  width: 34,
                   height: 34,
-                  display: "grid",
-                  placeItems: "center",
+                  ...(isSimple
+                    ? { display: "flex", alignItems: "center", gap: 6, padding: "0 14px 0 10px" }
+                    : { width: 34, display: "grid", placeItems: "center" }),
                   background: "rgba(56,189,248,0.12)",
                   color: "var(--brand-sky, #38bdf8)",
                   border: "1px solid rgba(56,189,248,0.2)",
@@ -586,39 +592,12 @@ export function StopsEditor(props: {
                 }}
               >
                 <Sparkles size={15} />
+                {isSimple && (
+                  <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.01em" }}>AI Plan</span>
+                )}
               </button>
 
-              {props.unlocked ? (
-                <button
-                  type="button"
-                  className="trip-interactive"
-                  aria-label="Roam Untethered"
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={() => { haptic.selection(); props.onUpgrade?.(); }}
-                  style={{
-                    position: "relative",
-                    display: "grid", placeItems: "center",
-                    background: "linear-gradient(135deg, #5c1a0e 0%, var(--brand-ochre, #b5452e) 40%, #d4664a 70%, #e8956a 100%)",
-                    borderRadius: 999, width: 34, height: 34,
-                    border: "1px solid rgba(255,255,255,0.15)", cursor: "pointer",
-                    boxShadow: "0 2px 12px rgba(181,69,46,0.40), 0 1px 3px rgba(181,69,46,0.20), inset 0 1px 0 rgba(255,255,255,0.12)",
-                    overflow: "hidden",
-                    WebkitTapHighlightColor: "transparent",
-                  }}
-                  title="Roam Untethered"
-                >
-                  {/* Shimmer sweep */}
-                  <div style={{
-                    position: "absolute", inset: 0,
-                    background: "linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.14) 50%, transparent 70%)",
-                    borderRadius: "inherit",
-                    pointerEvents: "none",
-                  }} />
-                  <svg width="13" height="13" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0, position: "relative" }}>
-                    <path d="M6 1L7.5 4.5H11L8.25 6.75L9.25 10.5L6 8.5L2.75 10.5L3.75 6.75L1 4.5H4.5L6 1Z" fill="rgba(255,255,255,0.95)" />
-                  </svg>
-                </button>
-              ) : props.unlocked === false ? (
+              {props.unlocked === false ? (
                 <button
                   type="button"
                   className="trip-interactive"
@@ -748,7 +727,7 @@ export function StopsEditor(props: {
 
               {/* ── Actions ── */}
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {/* Save & Go — primary, offline-ready */}
+                {/* Save & Go - primary, offline-ready */}
                 <button
                   type="button"
                   onClick={() => {

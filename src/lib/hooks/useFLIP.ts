@@ -50,7 +50,7 @@ export function useFLIP<T>(items: T[], opts?: FLIPOpts) {
     addedIdRef.current = id;
   }, []);
 
-  /** Ref callback factory — use as ref={(el) => registerEl(id, el)} */
+  /** Ref callback factory - use as ref={(el) => registerEl(id, el)} */
   const registerEl = useCallback((id: string, el: HTMLDivElement | null) => {
     if (el) elsRef.current.set(id, el);
     else elsRef.current.delete(id);

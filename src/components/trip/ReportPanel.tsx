@@ -2,7 +2,7 @@
 "use client";
 
 /**
- * ReportPanel — Two-phase crowd-sourced road observation reporter.
+ * ReportPanel - Two-phase crowd-sourced road observation reporter.
  *
  * Phase 1 (type picker): Full overlay grid of observation types.
  *   User taps a type → fires onTypeSelected, panel disappears, map zooms
@@ -17,24 +17,24 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { hasPlugin, isNative } from "@/lib/native/platform";
 import {
-  Construction,
-  CircleSlash,
-  AlertTriangle,
-  Fuel,
-  Camera,
-  CloudRain,
-  Tent,
-  MessageCircle,
-  X,
-  Send,
-  CheckCircle,
-  MapPinOff,
-  MapPin,
+    Construction,
+    CircleSlash,
+    AlertTriangle,
+    Fuel,
+    Camera,
+    CloudRain,
+    Tent,
+    MessageCircle,
+    X,
+    Send,
+    CheckCircle,
+    MapPinOff,
+    MapPin,
 } from "lucide-react";
 import type {
-  ObservationType,
-  ObservationSeverity,
-  ObservationSubmitRequest,
+    ObservationType,
+    ObservationSeverity,
+    ObservationSubmitRequest,
 } from "@/lib/types/peer";
 import type { RoamPosition } from "@/lib/native/geolocation";
 import type { LucideIcon } from "lucide-react";
@@ -59,7 +59,7 @@ export const REPORT_OPTIONS: {
 ];
 
 /* ═══════════════════════════════════════════════════════════════
-   Phase 1 — Type Picker
+   Phase 1 - Type Picker
    ═══════════════════════════════════════════════════════════════ */
 
 type TypePickerProps = {
@@ -139,7 +139,7 @@ export function ReportTypePicker({ onTypeSelected, onClose }: TypePickerProps) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Phase 2 — Placement Bar (compact, floats at bottom of map)
+   Phase 2 - Placement Bar (compact, floats at bottom of map)
    ═══════════════════════════════════════════════════════════════ */
 
 type PlacementBarProps = {
@@ -173,7 +173,7 @@ export function ReportPlacementBar({ type, position, onSubmit, onCancel }: Place
     setSubmitted(true);
     setTimeout(onCancel, 1200);
 
-    // Fire-and-forget — submit in background
+    // Fire-and-forget - submit in background
     onSubmit({
       type,
       severity: option.severity,
@@ -183,7 +183,7 @@ export function ReportPlacementBar({ type, position, onSubmit, onCancel }: Place
       message: message.trim() || null,
       value: value.trim() || null,
     }).catch(() => {
-      // Silent — observation will be retried or lost. Better UX than blocking.
+      // Silent - observation will be retried or lost. Better UX than blocking.
     });
   }, [type, option.severity, position, message, value, onSubmit, onCancel]);
 
@@ -282,7 +282,7 @@ export function ReportPanel(props: {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Styles — Phase 1 (Type Picker)
+   Styles - Phase 1 (Type Picker)
    ═══════════════════════════════════════════════════════════════ */
 
 const pickerStyles = /* css */ `
@@ -442,7 +442,7 @@ const pickerStyles = /* css */ `
 `;
 
 /* ═══════════════════════════════════════════════════════════════
-   Styles — Phase 2 (Placement Bar)
+   Styles - Phase 2 (Placement Bar)
    ═══════════════════════════════════════════════════════════════ */
 
 const barStyles = /* css */ `

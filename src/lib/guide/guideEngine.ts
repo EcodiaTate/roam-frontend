@@ -4,29 +4,29 @@
 import type { TripStop } from "@/lib/types/trip";
 import type { NavPack, CorridorGraphPack, TrafficOverlay, HazardOverlay } from "@/lib/types/navigation";
 import type {
-  WeatherOverlay,
-  FloodOverlay,
-  CoverageOverlay,
-  WildlifeOverlay,
-  RestAreaOverlay,
-  RouteIntelligenceScore,
-  FuelOverlay,
+    WeatherOverlay,
+    FloodOverlay,
+    CoverageOverlay,
+    WildlifeOverlay,
+    RestAreaOverlay,
+    RouteIntelligenceScore,
+    FuelOverlay,
 } from "@/lib/types/overlays";
 import type { PlacesPack, PlacesSuggestResponse, PlaceItem, PlaceCategory } from "@/lib/types/places";
 import type { OfflineBundleManifest } from "@/lib/types/bundle";
 
 import type {
-  GuidePack,
-  GuideContext,
-  GuideMsg,
-  GuideTurnRequest,
-  GuideTurnResponse,
-  GuideToolCall,
-  GuideToolResult,
-  DiscoveredPlace,
-  TripProgress,
-  WirePlace,
-  GuideAction,
+    GuidePack,
+    GuideContext,
+    GuideMsg,
+    GuideTurnRequest,
+    GuideTurnResponse,
+    GuideToolCall,
+    GuideToolResult,
+    DiscoveredPlace,
+    TripProgress,
+    WirePlace,
+    GuideAction,
 } from "@/lib/types/guide";
 
 import { guideApi } from "@/lib/api/guide";
@@ -90,6 +90,7 @@ export type GuideBootstrap = {
     eta_iso?: string | null;
     night_arrival?: boolean;
   } | null;
+  tripPrefs?: { stop_density?: number } | null;
 };
 
 // ──────────────────────────────────────────────────────────────
@@ -259,6 +260,7 @@ function buildContext(args: GuideBootstrap): GuideContext {
     fuel_benchmarks: fuel?.city_averages ?? null,
     driver_state: args.driverState ?? null,
     next_challenge: buildNextChallenge(args),
+    stop_density: args.tripPrefs?.stop_density ?? null,
   };
 }
 
@@ -367,13 +369,13 @@ function pickPlaceExtras(item: PlaceItem | Record<string, unknown>): Record<stri
     out.socket_types = extra.socket_types;
   }
 
-  // Camping amenities — basic
+  // Camping amenities - basic
   if (extra.free === true) out.free = true;
   if (extra.has_water === true) out.has_water = true;
   if (extra.has_toilets === true) out.has_toilets = true;
   if (extra.powered_sites === true) out.powered_sites = true;
 
-  // Camping amenities — extended
+  // Camping amenities - extended
   if (extra.has_showers === true) out.has_showers = true;
   if (extra.has_dump_point === true) out.has_dump_point = true;
   if (extra.has_bbq === true) out.has_bbq = true;
@@ -459,7 +461,7 @@ function rankedToWire(places: RankedPlace[]): WirePlace[] {
       if (extra.camp_type) wire.camp_type = String(extra.camp_type);
       if (typeof extra.max_stay_days === "number") wire.max_stay_days = extra.max_stay_days;
       if (typeof extra.price_per_night_aud === "number") wire.price_per_night_aud = extra.price_per_night_aud;
-      // Overnight legality — use pre-computed RankedPlace field first, then fallback to extra
+      // Overnight legality - use pre-computed RankedPlace field first, then fallback to extra
       const overnightAllowed = p.overnight_allowed ?? extra.overnight_allowed;
       if (overnightAllowed !== undefined) wire.overnight_allowed = String(overnightAllowed);
       const overnightHours = p.overnight_max_hours ?? extra.overnight_max_hours;
@@ -685,7 +687,7 @@ function mergeDiscoveries(existing: DiscoveredPlace[], incoming: DiscoveredPlace
  * Extract places from "save" actions in the LLM response.
  * These are places the AI explicitly recommended with enriched descriptions.
  * They get added to discovered_places so the Found tab is always populated
- * when the guide recommends places — even without a tool call.
+ * when the guide recommends places - even without a tool call.
  */
 function extractSaveActionPlaces(
   actions: GuideAction[],
@@ -758,7 +760,7 @@ export async function createGuidePack(
     return { guideKey, pack: restored, context };
   }
 
-  // Fingerprint changed (e.g. stop added, route recalculated) — inherit thread
+  // Fingerprint changed (e.g. stop added, route recalculated) - inherit thread
   // from the most recent pack for this plan so conversation isn't wiped.
   const previousPacks = await listGuidePacks(args.planId ?? null);
   const inheritedThread = previousPacks.find((p) => p.pack.thread.length > 0)?.pack.thread ?? [];
@@ -812,6 +814,7 @@ async function execToolCall(call: GuideToolCall, context: GuideContext): Promise
         corridorReq.geometry = context.geometry;
         corridorReq.buffer_km = corridorReq.buffer_km ?? 15;
       }
+      corridorReq.stop_density = corridorReq.stop_density ?? context.stop_density ?? 3;
       const res = await placesApi.corridor(corridorReq);
       return { id: call.id, tool: call.tool, ok: true, result: res };
     }
@@ -820,6 +823,7 @@ async function execToolCall(call: GuideToolCall, context: GuideContext): Promise
       if (context.geometry && (!suggestReq.geometry || suggestReq.geometry === "auto")) {
         suggestReq.geometry = context.geometry;
       }
+      suggestReq.stop_density = suggestReq.stop_density ?? context.stop_density ?? 3;
       const res = await placesApi.suggest(suggestReq);
       return { id: call.id, tool: call.tool, ok: true, result: res };
     }
@@ -885,7 +889,7 @@ export async function guideSendMessage(args: {
 
   let assistantText = "";
   let steps = 0;
-  // Track only THIS turn's tool results — don't re-send old ones
+  // Track only THIS turn's tool results - don't re-send old ones
   let currentTurnToolResults: GuideToolResult[] = [];
 
   while (steps < maxSteps) {

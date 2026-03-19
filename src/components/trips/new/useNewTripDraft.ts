@@ -36,7 +36,7 @@ export function useNewTripDraft() {
   const [avoid] = useState<string[]>([]);
   const [depart_at] = useState<string | null>(null);
 
-  // Trip preferences — stop density, category toggles
+  // Trip preferences - stop density, category toggles
   const [tripPrefs, setTripPrefs] = useState<TripPreferences>({ ...DEFAULT_TRIP_PREFS });
 
   const [mapCenter, setMapCenter] = useState<NavCoord | null>(null);
@@ -44,7 +44,7 @@ export function useNewTripDraft() {
   // Track locating state natively in the draft
   const [isLocating, setIsLocating] = useState(false);
 
-  // Live position tracking — starts immediately so map shows the user’s dot
+  // Live position tracking - starts immediately so map shows the user’s dot
   // and Locate button can resolve instantly from the cached position.
   const geo = useGeolocation({ autoStart: true, hapticOnFix: false });
 

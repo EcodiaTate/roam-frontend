@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Volume2, VolumeX, Maximize2, Crosshair, X } from "lucide-react";
+import { Volume2, VolumeX, Maximize2, Crosshair, Layers, Megaphone, X } from "lucide-react";
 import { haptic } from "@/lib/native/haptics";
 
 type Props = {
@@ -12,77 +12,72 @@ type Props = {
   onOverview: () => void;
   onRecenter: () => void;
   onEnd: () => void;
+  layerFilterActive?: boolean;
+  onLayerToggle?: () => void;
+  onReport?: () => void;
+  reportOpen?: boolean;
+  reportTray?: React.ReactNode;
+  simple?: boolean;
 };
 
-/* ── Single floating pill button ─────────────────────────────────── */
+/* ── Unified circular button — all styles inline ─────────────────── */
 
-function FloatingBtn({
+function NavBtn({
   icon,
   label,
   onClick,
-  danger,
-  active,
+  variant = "default",
   animClass,
 }: {
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
-  danger?: boolean;
-  active?: boolean;
+  variant?: "default" | "active" | "danger";
   animClass?: string;
 }) {
+  const isDefault = variant === "default";
+  const isDanger = variant === "danger";
+  const isActive = variant === "active";
+
   return (
     <button
       type="button"
       aria-label={label}
       className={animClass}
-      onClick={() => {
-        haptic.selection();
-        onClick();
-      }}
+      onClick={() => { haptic.selection(); onClick(); }}
       style={{
-        width: 46,
-        height: 46,
-        borderRadius: 16,
-        border: danger
-          ? "1px solid rgba(212,102,74,0.35)"
-          : active
-          ? "1px solid rgba(66,177,89,0.30)"
-          : "1px solid rgba(255,255,255,0.09)",
+        width: 42,
+        height: 42,
+        borderRadius: "50%",
+        border: "none",
         cursor: "pointer",
         display: "grid",
         placeItems: "center",
-        background: danger
-          ? "linear-gradient(160deg, rgba(181,69,46,0.95) 0%, rgba(145,50,30,0.98) 100%)"
-          : active
-          ? "linear-gradient(160deg, rgba(45,110,64,0.95) 0%, rgba(31,82,54,0.98) 100%)"
-          : "linear-gradient(160deg, rgba(26,21,16,0.96) 0%, rgba(16,13,10,0.98) 100%)",
-        color: "var(--on-color)",
-        backdropFilter: "blur(16px)",
-        WebkitBackdropFilter: "blur(16px)",
-        boxShadow: danger
-          ? "0 4px 16px rgba(181,69,46,0.35), 0 1px 4px rgba(0,0,0,0.2)"
-          : active
-          ? "0 4px 16px rgba(45,110,64,0.30), 0 1px 4px rgba(0,0,0,0.2)"
-          : "0 4px 16px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.15)",
-        transition: "transform 0.1s ease, background 0.2s ease, box-shadow 0.2s ease",
+        background: isDanger
+          ? "var(--brand-ochre)"
+          : isActive
+          ? "var(--brand-eucalypt)"
+          : "var(--nav-card-bg, #f0e9dc)",
+        color: isDefault
+          ? "var(--roam-text, #1a1613)"
+          : "var(--on-color, #faf6ef)",
+        boxShadow: isDanger
+          ? "0 0 16px rgba(181,69,46,0.35), 0 4px 12px rgba(181,69,46,0.2)"
+          : isActive
+          ? "0 0 16px rgba(45,110,64,0.35), 0 4px 12px rgba(45,110,64,0.2)"
+          : "0 4px 14px rgba(40,32,20,0.10), 0 1px 3px rgba(0,0,0,0.06)",
+        transition: "transform 0.12s cubic-bezier(0.34,1.56,0.64,1), background 0.2s ease, box-shadow 0.2s ease",
+        touchAction: "manipulation",
+        WebkitTapHighlightColor: "transparent",
       }}
-      onPointerDown={(e) => {
-        (e.currentTarget as HTMLElement).style.transform = "scale(0.90)";
-      }}
-      onPointerUp={(e) => {
-        (e.currentTarget as HTMLElement).style.transform = "scale(1)";
-      }}
-      onPointerCancel={(e) => {
-        (e.currentTarget as HTMLElement).style.transform = "scale(1)";
-      }}
+      onPointerDown={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(0.88)"; }}
+      onPointerUp={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(1)"; }}
+      onPointerCancel={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(1)"; }}
     >
       {icon}
     </button>
   );
 }
-
-/* ── Main component ───────────────────────────────────────────────── */
 
 export function NavigationControls({
   visible,
@@ -91,10 +86,15 @@ export function NavigationControls({
   onOverview,
   onRecenter,
   onEnd,
+  layerFilterActive,
+  onLayerToggle,
+  onReport,
+  reportOpen,
+  reportTray,
+  simple,
 }: Props) {
   const [confirmEnd, setConfirmEnd] = useState(false);
 
-  // Auto-dismiss confirm after 4 seconds
   useEffect(() => {
     if (!confirmEnd) return;
     const t = setTimeout(() => setConfirmEnd(false), 4000);
@@ -103,94 +103,108 @@ export function NavigationControls({
 
   if (!visible) return null;
 
+  let idx = 0;
+
+  // Position: sits below the HUD card, right-aligned
+  // HUD card is ~82-90px from top, so controls start below that
   return (
-    <div
-      style={{
-        position: "absolute",
-        top: "calc(env(safe-area-inset-top, 0px) + 168px)",
-        right: 12,
-        zIndex: 40,
-        pointerEvents: "auto",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "flex-end",
-        gap: 8,
-      }}
-    >
-      {/* Mute / unmute */}
-      <FloatingBtn
-        animClass="nav-ctrl-enter-1"
-        icon={isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+    <div style={{
+      position: "absolute",
+      top: "calc(env(safe-area-inset-top, 0px) + 120px)",
+      right: 12,
+      zIndex: 40,
+      pointerEvents: "auto",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      gap: 8,
+    }}>
+      {onLayerToggle && (
+        <NavBtn
+          animClass={`nav-ctrl-enter-${++idx}`}
+          icon={<Layers size={17} strokeWidth={2.2} />}
+          label="Map layers"
+          onClick={onLayerToggle}
+          variant={layerFilterActive ? "active" : "default"}
+        />
+      )}
+
+      <NavBtn
+        animClass={`nav-ctrl-enter-${++idx}`}
+        icon={isMuted ? <VolumeX size={17} /> : <Volume2 size={17} />}
         label={isMuted ? "Unmute voice" : "Mute voice"}
         onClick={onToggleMute}
-        active={!isMuted}
+        variant={!isMuted ? "active" : "default"}
       />
 
-      {/* Route overview */}
-      <FloatingBtn
-        animClass="nav-ctrl-enter-2"
-        icon={<Maximize2 size={18} />}
+      <NavBtn
+        animClass={`nav-ctrl-enter-${++idx}`}
+        icon={<Maximize2 size={17} />}
         label="Route overview"
         onClick={onOverview}
       />
 
-      {/* Recenter */}
-      <FloatingBtn
-        animClass="nav-ctrl-enter-3"
-        icon={<Crosshair size={18} />}
+      <NavBtn
+        animClass={`nav-ctrl-enter-${++idx}`}
+        icon={<Crosshair size={17} />}
         label="Recenter"
         onClick={onRecenter}
       />
 
-      {/* End navigation — confirm popover */}
-      <div style={{ position: "relative" }} className="nav-ctrl-enter-4">
-        <FloatingBtn
-          icon={<X size={18} />}
+      {!simple && onReport && (
+        <div style={{ position: "relative" }} className={`nav-ctrl-enter-${++idx}`}>
+          <NavBtn
+            icon={reportOpen ? <X size={17} /> : <Megaphone size={17} />}
+            label="Report road condition"
+            onClick={onReport}
+            variant={reportOpen ? "active" : "default"}
+          />
+          {reportTray && (
+            <div style={{ position: "absolute", top: 0, right: 50, zIndex: 50 }}>
+              {reportTray}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div style={{ position: "relative" }} className={`nav-ctrl-enter-${++idx}`}>
+        <NavBtn
+          icon={<X size={17} />}
           label="End navigation"
           onClick={() => setConfirmEnd((v) => !v)}
-          danger
+          variant="danger"
         />
 
-        {/* Confirm popover — slides left from button */}
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            right: 54,
-            opacity: confirmEnd ? 1 : 0,
-            transform: confirmEnd ? "translateX(0) scale(1)" : "translateX(10px) scale(0.92)",
-            pointerEvents: confirmEnd ? "auto" : "none",
-            transition: "opacity 0.18s ease, transform 0.18s cubic-bezier(0.34,1.56,0.64,1)",
-            display: "flex",
-            flexDirection: "row",
-            gap: 6,
-            background: "linear-gradient(160deg, rgba(26,21,16,0.98) 0%, rgba(16,13,10,0.99) 100%)",
-            borderRadius: 16,
-            padding: "6px",
-            backdropFilter: "blur(20px)",
-            WebkitBackdropFilter: "blur(20px)",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.2)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            whiteSpace: "nowrap",
-          }}
-        >
+        <div style={{
+          position: "absolute",
+          top: 0,
+          right: 50,
+          opacity: confirmEnd ? 1 : 0,
+          transform: confirmEnd ? "translateX(0) scale(1)" : "translateX(10px) scale(0.92)",
+          pointerEvents: confirmEnd ? "auto" : "none",
+          transition: "opacity 0.18s ease, transform 0.18s cubic-bezier(0.34,1.56,0.64,1)",
+          display: "flex",
+          gap: 5,
+          borderRadius: 22,
+          padding: "4px",
+          whiteSpace: "nowrap",
+          background: "var(--nav-card-bg, #f0e9dc)",
+          boxShadow: "0 8px 32px rgba(40,32,20,0.18), 0 2px 8px rgba(0,0,0,0.1)",
+          border: "1px solid rgba(0,0,0,0.06)",
+        }}>
           <button
             type="button"
-            onClick={() => {
-              haptic.medium();
-              setConfirmEnd(false);
-              onEnd();
-            }}
+            onClick={() => { haptic.medium(); setConfirmEnd(false); onEnd(); }}
             style={{
-              padding: "12px 18px",
-              minHeight: 44,
-              border: "1px solid rgba(212,102,74,0.35)",
-              borderRadius: 12,
+              padding: "10px 16px",
+              minHeight: 38,
+              border: "none",
+              borderRadius: 18,
               cursor: "pointer",
               fontSize: 13,
               fontWeight: 950,
-              color: "var(--on-color)",
-              background: "linear-gradient(160deg, rgba(181,69,46,0.95) 0%, rgba(145,50,30,0.98) 100%)",
+              color: "var(--on-color, #faf6ef)",
+              background: "var(--brand-ochre)",
               letterSpacing: "-0.1px",
               touchAction: "manipulation",
               WebkitTapHighlightColor: "transparent",
@@ -200,20 +214,17 @@ export function NavigationControls({
           </button>
           <button
             type="button"
-            onClick={() => {
-              haptic.selection();
-              setConfirmEnd(false);
-            }}
+            onClick={() => { haptic.selection(); setConfirmEnd(false); }}
             style={{
-              padding: "12px 16px",
-              minHeight: 44,
-              border: "1px solid rgba(255,255,255,0.09)",
-              borderRadius: 12,
+              padding: "10px 14px",
+              minHeight: 38,
+              border: "1px solid rgba(0,0,0,0.08)",
+              borderRadius: 18,
               cursor: "pointer",
               fontSize: 13,
               fontWeight: 950,
-              color: "rgba(250,246,239,0.65)",
-              background: "rgba(255,255,255,0.06)",
+              color: "var(--text-muted, #7a7067)",
+              background: "transparent",
               letterSpacing: "-0.1px",
               touchAction: "manipulation",
               WebkitTapHighlightColor: "transparent",

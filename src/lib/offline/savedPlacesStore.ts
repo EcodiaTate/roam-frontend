@@ -4,13 +4,13 @@
 // IndexedDB is the source of truth locally; Supabase syncs when authed.
 "use client";
 
-import { idbGetAll, idbPut, idbDel, idbGet, idbStores } from "./idb";
+import { idbPut, idbGet, idbStores } from "./idb";
 import type { PlaceCategory, PlaceExtra } from "@/lib/types/places";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
 export type SavedPlace = {
-  /** Local IDB key — also used as Supabase row id */
+  /** Local IDB key - also used as Supabase row id */
   id: string;
   /** PlaceItem.id from OSM / geocoder */
   place_id: string;
@@ -112,7 +112,7 @@ export async function mergeSavedPlacesFromCloud(remote: SavedPlace[]): Promise<v
     if (!localMap.has(r.place_id)) {
       localMap.set(r.place_id, r);
     }
-    // Local is always at least as fresh — no overwrite needed
+    // Local is always at least as fresh - no overwrite needed
   }
 
   await writeAll(Array.from(localMap.values()));

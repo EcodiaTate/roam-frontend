@@ -151,7 +151,7 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
       });
       if (!mountedRef.current) return;
 
-      // 3. Save as minimal plan (navpack in IDB) — enrichment on /trip
+      // 3. Save as minimal plan (navpack in IDB) - enrichment on /trip
       await saveMinimalPlan({
         plan_id: joinedPlanId,
         navPack: pack,
@@ -254,7 +254,7 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
               margin: 0,
               padding: 0,
               cursor: "pointer",
-              width: 32, height: 32,
+              width: 44, height: 44,
               borderRadius: "50%",
               background: "var(--roam-surface-raised, #222)",
               display: "flex",

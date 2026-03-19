@@ -45,7 +45,7 @@ export function TripSkeleton() {
         }}
       />
 
-      {/* ── Map layers button (top-right) — matches TripMap ── */}
+      {/* ── Map layers button (top-right) - matches TripMap ── */}
       <div style={{
         position: "absolute",
         top: "calc(env(safe-area-inset-top, 0px) + 56px)",
@@ -57,7 +57,7 @@ export function TripSkeleton() {
         }} />
       </div>
 
-      {/* ── Side FAB stack (Exchange + Report) — matches ClientPage ── */}
+      {/* ── Side FAB stack (Exchange + Report) - matches ClientPage ── */}
       <div style={{
         position: "absolute",
         bottom: "calc(220px + var(--roam-safe-bottom, 0px) + 24px)",
@@ -76,7 +76,7 @@ export function TripSkeleton() {
         }} />
       </div>
 
-      {/* ── Bottom sheet — collapsed position matching ClientPage peek ── */}
+      {/* ── Bottom sheet - collapsed position matching ClientPage peek ── */}
       <div
         className="trip-bottom-sheet"
         style={{
@@ -99,15 +99,18 @@ export function TripSkeleton() {
 
             <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
               {[0, 1, 2].map((i) => (
-                <Skel key={i} w={32} h={32} r={10} delay={0.1 + i * 0.05} />
+                <Skel key={i} w={40} h={40} r={10} delay={0.1 + i * 0.05} style={{
+                  background: "var(--roam-text, #1a1613)",
+                  opacity: 0.25,
+                }} />
               ))}
-              {/* Ochre account/upgrade button */}
+              {/* Upgrade button - eucalypt green gradient */}
               <div
                 style={{
-                  width: 32,
-                  height: 32,
+                  width: 64,
+                  height: 40,
                   borderRadius: 10,
-                  background: "var(--brand-ochre, #b5452e)",
+                  background: "linear-gradient(135deg, #122d1e 0%, var(--brand-eucalypt-dark, #1f5236) 40%, var(--brand-eucalypt, #2d6e40) 80%, #3d8f54 100%)",
                   opacity: 0.35,
                   animation: "trip-skel-pulse 1.6s ease-in-out infinite 0.2s",
                   flexShrink: 0,

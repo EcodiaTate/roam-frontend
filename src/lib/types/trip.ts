@@ -8,14 +8,14 @@ export type TripStop = {
   name?: string | null;
   lat: number;
   lng: number;
-  /** Planned arrival time — ISO8601 local (e.g. "2026-03-20T09:00") */
+  /** Planned arrival time - ISO8601 local (e.g. "2026-03-20T09:00") */
   arrive_at?: string | null;
-  /** Planned departure time — ISO8601 local (e.g. "2026-03-20T10:30") */
+  /** Planned departure time - ISO8601 local (e.g. "2026-03-20T10:30") */
   depart_at?: string | null;
 };
 
 // ──────────────────────────────────────────────────────────────
-// Trip preferences — controls enrichment density & categories
+// Trip preferences - controls enrichment density & categories
 // ──────────────────────────────────────────────────────────────
 
 /**
@@ -36,7 +36,7 @@ export type CategoryGroup =
  *
  * - `stop_density` (1–5): How many enrichment stops to include.
  *     1 = bare minimum (fuel + rest stops only)
- *     3 = balanced (default — good mix)
+ *     3 = balanced (default - good mix)
  *     5 = everything we've got
  *
  * - `categories`: Which high-level category groups to include.
@@ -49,7 +49,7 @@ export type TripPreferences = {
   categories: Record<CategoryGroup, boolean>;
 };
 
-/** Sensible defaults — balanced density, all categories on. */
+/** Sensible defaults - balanced density, all categories on. */
 export const DEFAULT_TRIP_PREFS: TripPreferences = {
   stop_density: 3,
   categories: {

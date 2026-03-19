@@ -84,7 +84,7 @@ export function useRoamExchange() {
   const abortRef = useRef<AbortController | null>(null);
   const receivedItemsRef = useRef<EncodableItem[]>([]);
 
-  /** Start as the GIVER — transmit first, then auto-listen */
+  /** Start as the GIVER - transmit first, then auto-listen */
   const startGive = useCallback(async () => {
     abortRef.current = new AbortController();
 
@@ -95,7 +95,7 @@ export function useRoamExchange() {
 
       const myGeometry = await getMyRouteGeometry();
       if (!myGeometry) {
-        setState((s) => ({ ...s, phase: "error", error: "No active route — build a trip first" }));
+        setState((s) => ({ ...s, phase: "error", error: "No active route - build a trip first" }));
         return;
       }
 
@@ -104,7 +104,7 @@ export function useRoamExchange() {
       const items = await collectRelevantData(myGeometry);
 
       if (items.length === 0) {
-        setState((s) => ({ ...s, phase: "error", error: "No overlay data to share — try building your bundle first" }));
+        setState((s) => ({ ...s, phase: "error", error: "No overlay data to share - try building your bundle first" }));
         return;
       }
 
@@ -144,7 +144,7 @@ export function useRoamExchange() {
     }
   }, []);
 
-  /** Start as the LISTENER — receive first, then auto-send */
+  /** Start as the LISTENER - receive first, then auto-send */
   const startListen = useCallback(async () => {
     abortRef.current = new AbortController();
 
@@ -242,7 +242,7 @@ async function _doListen(
   } catch (e) {
     setState((s) => ({
       ...s, phase: "error",
-      error: `Decode failed: ${toErrorMessage(e, "corrupted data")}. Try again — hold phones closer.`,
+      error: `Decode failed: ${toErrorMessage(e, "corrupted data")}. Try again - hold phones closer.`,
     }));
   }
 }

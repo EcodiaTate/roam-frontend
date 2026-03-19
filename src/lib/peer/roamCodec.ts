@@ -1,9 +1,9 @@
 // src/lib/peer/roamCodec.ts
 // ──────────────────────────────────────────────────────────────
-// Roam Binary Codec — ultra-compact encoding for ultrasonic
+// Roam Binary Codec - ultra-compact encoding for ultrasonic
 // peer-to-peer data transfer between roamers.
 //
-// Design principle: both phones have the same "codebook" —
+// Design principle: both phones have the same "codebook" -
 // the overlay type system, severity enums, predefined messages.
 // We only transmit tiny numeric references, not full strings.
 //
@@ -595,7 +595,7 @@ function decodeItem(r: BinaryReader): EncodableItem | null {
       return { _type: "rest_area", lat, lng, quality, facilities_bits: facilities, has_water: water };
     }
     default:
-      return null; // Unknown type — stop decoding
+      return null; // Unknown type - stop decoding
   }
 }
 

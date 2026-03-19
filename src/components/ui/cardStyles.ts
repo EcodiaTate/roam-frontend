@@ -35,7 +35,7 @@ export const cardSubtitle: React.CSSProperties = {
   marginTop: 1,
 };
 
-/** Icon container — small (28×28), used in category cells and stat rows */
+/** Icon container - small (28×28), used in category cells and stat rows */
 export const iconBox28: React.CSSProperties = {
   width: 28,
   height: 28,
@@ -46,7 +46,7 @@ export const iconBox28: React.CSSProperties = {
   flexShrink: 0,
 };
 
-/** Icon container — medium (36×36), used in list rows */
+/** Icon container - medium (36×36), used in list rows */
 export const iconBox36: React.CSSProperties = {
   width: 36,
   height: 36,
@@ -57,7 +57,7 @@ export const iconBox36: React.CSSProperties = {
   flexShrink: 0,
 };
 
-/** Icon container — large (40×40), used in card headers */
+/** Icon container - large (40×40), used in card headers */
 export const iconBox40: React.CSSProperties = {
   width: 40,
   height: 40,
@@ -68,7 +68,7 @@ export const iconBox40: React.CSSProperties = {
   flexShrink: 0,
 };
 
-/** Pill/badge base — combine with color overrides */
+/** Pill/badge base - combine with color overrides */
 export const pillBase: React.CSSProperties = {
   fontSize: 11,
   fontWeight: 700,

@@ -56,7 +56,7 @@ export function useNearbyRoamers(opts?: { radiusKm?: number; enabled?: boolean; 
         radius_km: radiusKm,
       });
 
-      // Drop roamers whose last ping is too old — they're no
+      // Drop roamers whose last ping is too old - they're no
       // longer navigating and we shouldn't surface stale positions
       const now = Date.now();
       const activeRoamers = res.roamers.filter(

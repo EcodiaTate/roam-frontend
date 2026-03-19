@@ -17,13 +17,13 @@ import type { PlacesPack, PlaceItem } from "@/lib/types/places";
 import type { OfflineBundleManifest } from "@/lib/types/bundle";
 import type { GuidePack, GuideContext, TripProgress } from "@/lib/types/guide";
 import type {
-  WeatherOverlay,
-  FloodOverlay,
-  CoverageOverlay,
-  WildlifeOverlay,
-  RestAreaOverlay,
-  RouteIntelligenceScore,
-  FuelOverlay,
+    WeatherOverlay,
+    FloodOverlay,
+    CoverageOverlay,
+    WildlifeOverlay,
+    RestAreaOverlay,
+    RouteIntelligenceScore,
+    FuelOverlay,
 } from "@/lib/types/overlays";
 import type { TripStop } from "@/lib/types/trip";
 
@@ -34,7 +34,6 @@ import { usePlaceDetail } from "@/lib/context/PlaceDetailContext";
 
 import { GuideView, type GuideTabBarProps } from "@/components/trip/GuideView";
 
-import Image from "next/image";
 import { Sparkles, MapPin, Wifi, WifiOff, Satellite, AlertTriangle } from "lucide-react";
 import { GuideSkeleton } from "./GuideSkeleton";
 
@@ -193,7 +192,7 @@ export default function GuideClientPage(props: {
 
         const has = await hasCorePacks(rec.plan_id);
         if (!has && rec.zip_blob) await unpackAndStoreBundle(rec);
-        // Minimal plans (navpack-only, no zip) skip unpacking — packs are
+        // Minimal plans (navpack-only, no zip) skip unpacking - packs are
         // populated progressively by backgroundEnrich on the trip page.
 
         const packs = await getAllPacks(rec.plan_id);
@@ -251,6 +250,7 @@ export default function GuideClientPage(props: {
           fuel: fuelOverlayLoaded,
           progress: null,
           driverState: buildDriverState(weatherLoaded, fuelOverlayLoaded, navpackLoaded, null),
+          tripPrefs: rec.trip_prefs ?? null,
         });
 
         if (cancelled) return;
@@ -270,7 +270,7 @@ export default function GuideClientPage(props: {
           : null;
 
         const greetingPrompt = totalKm
-          ? `[SYSTEM: The user just opened the guide for their trip from ${origin} to ${dest} (${totalKm}km). Give them a warm welcome — mention highlights or heads-ups you know about this route from your own knowledge. Then search for more interesting stops, current conditions, or anything useful. Reply immediately with what you know, and use tools to find more — you can do both at once.]`
+          ? `[SYSTEM: The user just opened the guide for their trip from ${origin} to ${dest} (${totalKm}km). Give them a warm welcome - mention highlights or heads-ups you know about this route from your own knowledge. Then search for more interesting stops, current conditions, or anything useful. Reply immediately with what you know, and use tools to find more - you can do both at once.]`
           : `[SYSTEM: The user just opened the guide for their trip from ${origin} to ${dest}. Give them a warm welcome with what you know about this route, and search for interesting things along the way. Reply and search at the same time.]`;
 
         setBusy("chat");
@@ -290,7 +290,7 @@ export default function GuideClientPage(props: {
           });
           if (!cancelled) setGuidePack(res.pack);
         } catch {
-          // Non-critical — guide still works without greeting
+          // Non-critical - guide still works without greeting
         } finally {
           if (!cancelled) setBusy(null);
         }
@@ -514,7 +514,7 @@ export default function GuideClientPage(props: {
             </div>
           </div>
 
-          {/* Underline tab switcher — centered */}
+          {/* Underline tab switcher - centered */}
           {guideTabBar && (
             <div style={{ display: "flex", gap: 0, justifySelf: "center" }}>
               {([

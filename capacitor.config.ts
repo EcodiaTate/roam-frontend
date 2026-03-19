@@ -7,7 +7,7 @@ const config: CapacitorConfig = {
   appName: "Roam",
 
   // Static bundle built via `npm run build:static` → `out/`
-  // Capacitor serves this from device storage — fully offline, no network required.
+  // Capacitor serves this from device storage - fully offline, no network required.
   webDir: "out",
 
   server: {

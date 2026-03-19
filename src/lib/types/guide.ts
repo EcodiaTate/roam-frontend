@@ -1,13 +1,13 @@
 // src/lib/types/guide.ts
 import type { TripStop } from "./trip";
 import type {
-  PlacesRequest,
-  CorridorPlacesRequest,
-  PlacesSuggestRequest,
-  PlacesPack,
-  PlacesSuggestResponse,
-  PlaceItem,
-  PlaceCategory,
+    PlacesRequest,
+    CorridorPlacesRequest,
+    PlacesSuggestRequest,
+    PlacesPack,
+    PlacesSuggestResponse,
+    PlaceItem,
+    PlaceCategory,
 } from "./places";
 import type { BBox4 } from "./geo";
 
@@ -33,7 +33,7 @@ export type GuideAction = {
    * - "Website · Coles Express Kawana"
    * - "Call Reddy Express"
    * - "Map · Birdsville Hotel"
-   * - "Birdsville Hotel" (save — label is the place name)
+   * - "Birdsville Hotel" (save - label is the place name)
    */
   label: string;
 
@@ -46,12 +46,12 @@ export type GuideAction = {
   // For type="call"
   tel?: string | null;
 
-  // For type="map" and type="save" — place coordinates
+  // For type="map" and type="save" - place coordinates
   lat?: number | null;
   lng?: number | null;
   category?: string | null;
 
-  // For type="save" — enriched place listing for Found tab
+  // For type="save" - enriched place listing for Found tab
   description?: string | null;
 };
 
@@ -114,6 +114,8 @@ export type GuideContext = {
   manifest_route_key?: string | null;
   offline_stale?: boolean | null;
 
+  stop_density?: number | null;  // 1-5, from trip prefs
+
   progress?: TripProgress | null;
 
   traffic_summary?: Record<string, unknown> | null;
@@ -125,7 +127,7 @@ export type GuideContext = {
   weather_summary?: Record<string, unknown> | null;
   fuel_benchmarks?: Record<string, Record<string, number>> | null;
 
-  // Live driver state — enriches AI reasoning about current situation
+  // Live driver state - enriches AI reasoning about current situation
   driver_state?: {
     /** Fuel pressure 0.0-1.0 (0=just refueled, 1=empty) */
     fuel_pressure?: number;

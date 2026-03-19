@@ -60,7 +60,7 @@ export function PersistentTabs({ children }: { children: React.ReactNode }) {
   // Normalize: strip trailing slash so "/trip/" matches "/trip"
   const activeTab = normalizeTabRoute(rawPathname);
 
-  // All hidden on SSR — effects reveal on client
+  // All hidden on SSR - effects reveal on client
   const [mounted, setMounted] = useState<Set<TabRoute>>(new Set());
   const [animStates, setAnimStates] = useState<Record<TabRoute, AnimState>>({
     "/guide":    "hidden",

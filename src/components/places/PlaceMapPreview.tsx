@@ -62,7 +62,7 @@ export default function PlaceMapPreview({ lat, lng, color = "#3b82f6", height = 
         zoom,
         center: [lng, lat],
         attributionControl: false,
-        interactive: false,    // static preview — no pan/zoom
+        interactive: false,    // static preview - no pan/zoom
         fadeDuration: 0,
       });
       mapRef.current = map;

@@ -1,5 +1,5 @@
 // src/app/(app)/journal/JournalSkeleton.tsx
-// Loading shell for /journal — matches MemoriesClientPage header + timeline layout.
+// Loading shell for /journal - matches MemoriesClientPage header + timeline layout.
 
 import type { CSSProperties } from "react";
 
@@ -50,37 +50,44 @@ export function JournalSkeleton() {
           position: "sticky",
           top: 0,
           zIndex: 10,
-          padding: "20px 20px 12px",
-          background: "color-mix(in srgb, var(--roam-bg) 90%, transparent)",
-          backdropFilter: "blur(24px) saturate(150%)",
-          WebkitBackdropFilter: "blur(24px) saturate(150%)",
+          padding: "20px 20px 0",
+          background: "color-mix(in srgb, var(--roam-bg) 88%, transparent)",
+          backdropFilter: "blur(28px) saturate(160%)",
+          WebkitBackdropFilter: "blur(28px) saturate(160%)",
+          borderBottom: "1px solid var(--roam-border)",
         }}
       >
-        {/* Title row */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            height: 36,
-            marginBottom: 12,
-          }}
-        >
-          <Skel w={100} h={24} r={8} />
-        </div>
+        {/* Title row: 3-column grid - title | tabs | right spacer */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", height: 44 }}>
+          {/* Left: page title */}
+          <div style={{ justifySelf: "start" }}>
+            <Skel w={90} h={28} r={8} />
+          </div>
 
-        {/* Inner tab bar (Memories | Places) */}
-        <div
-          style={{
-            display: "flex",
-            gap: 4,
-            background: "var(--roam-bg)",
-            borderRadius: 12,
-            padding: 3,
-          }}
-        >
-          <Skel w="50%" h={40} r={9} delay={0.05} />
-          <Skel w="50%" h={40} r={9} delay={0.1} />
+          {/* Center: underline tab switcher (Memories | Places) */}
+          <div style={{ display: "flex", gap: 0, justifySelf: "center" }}>
+            {[0, 1].map((i) => (
+              <div
+                key={i}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  padding: "8px 14px",
+                  height: 44,
+                  borderBottom: i === 0 ? "3px solid var(--roam-surface-hover)" : "3px solid transparent",
+                  marginBottom: "-1px",
+                }}
+              >
+                <Skel w={13} h={13} r={4} delay={0.05 + i * 0.05} />
+                <Skel w={i === 0 ? 62 : 42} h={13} r={6} delay={0.08 + i * 0.05} />
+              </div>
+            ))}
+          </div>
+
+          {/* Right: spacer (matches ViewModeToggle width) */}
+          <div style={{ width: 96, justifySelf: "end" }} />
         </div>
       </div>
 

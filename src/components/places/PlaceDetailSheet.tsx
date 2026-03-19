@@ -1,7 +1,7 @@
 // src/components/places/PlaceDetailSheet.tsx
 //
 // Bottom-sheet detail view for any PlaceItem / DiscoveredPlace.
-// Opens from the global PlaceDetailContext — any component can call
+// Opens from the global PlaceDetailContext - any component can call
 // openPlace(place) to show this sheet.
 //
 // Layout: satellite map hero (with drag handle overlay) → header →
@@ -11,11 +11,11 @@
 "use client";
 
 import {
-  useRef,
-  useEffect,
-  useState,
-  useCallback,
-  type ReactNode,
+    useRef,
+    useEffect,
+    useState,
+    useCallback,
+    type ReactNode,
 } from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
@@ -30,33 +30,33 @@ import { CATEGORY_ICON, getCategoryColor } from "@/lib/places/categoryMeta";
 import { fmtDist, fmtCategory, normalizeUrl, safeOpen, cleanPhone } from "@/lib/places/format";
 
 import {
-  X,
-  Phone,
-  Globe,
-  Share2,
-  Navigation,
-  Plus,
-  Bookmark,
-  MapPin,
-  Clock,
-  Zap,
-  Fuel,
-  Bath,
-  Droplets,
-  Trash2,
-  Thermometer,
-  Baby,
-  Star,
-  Banknote,
-  Flag,
-  Compass,
-  ChevronRight,
-  ExternalLink,
-  WifiOff,
-  CheckCircle2,
-  XCircle,
-  Map as MapIcon,
-  type LucideIcon,
+    X,
+    Phone,
+    Globe,
+    Share2,
+    Navigation,
+    Plus,
+    Bookmark,
+    MapPin,
+    Clock,
+    Zap,
+    Fuel,
+    Bath,
+    Droplets,
+    Trash2,
+    Thermometer,
+    Baby,
+    Star,
+    Banknote,
+    Flag,
+    Compass,
+    ChevronRight,
+    ExternalLink,
+    WifiOff,
+    CheckCircle2,
+    XCircle,
+    Map as MapIcon,
+    type LucideIcon,
 } from "lucide-react";
 
 const catColor = getCategoryColor;
@@ -442,7 +442,7 @@ export function PlaceDetailSheet({
     if (handler) {
       handler(p.id, p.lat, p.lng, p.name);
     }
-    // No fallback to Google Maps — navigation is handled in-house
+    // No fallback to Google Maps - navigation is handled in-house
   }
 
   function handleShowOnMap() {
@@ -460,7 +460,7 @@ export function PlaceDetailSheet({
 
   function handleSave() {
     haptic.success();
-    // Optimistic toggle — flip savedIds immediately, handler syncs in background
+    // Optimistic toggle - flip savedIds immediately, handler syncs in background
     const next = new Set(savedIds);
     if (isSaved) { next.delete(p.id); } else { next.add(p.id); }
     setSavedIds(next);
@@ -556,7 +556,7 @@ export function PlaceDetailSheet({
               position: "absolute",
               top: 8,
               right: 8,
-              width: 40, height: 40,
+              width: 44, height: 44,
               borderRadius: "50%",
               border: "none",
               background: "rgba(0,0,0,0.4)",
@@ -582,7 +582,7 @@ export function PlaceDetailSheet({
           WebkitOverflowScrolling: "touch" as React.CSSProperties["WebkitOverflowScrolling"],
           overscrollBehaviorX: "contain",
           touchAction: "pan-y",
-          paddingBottom: 20,
+          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 20px)",
         }}>
 
           {/* ── HEADER ─────────────────────────────────────── */}

@@ -8,7 +8,7 @@ import { roamNotify } from "@/lib/native/notifications";
 import { recordArrival, getMemoryForStop } from "@/lib/offline/memoriesStore";
 import { haptic } from "@/lib/native/haptics";
 
-/** Radius in meters — triggers notification when user is within this distance */
+/** Radius in meters - triggers notification when user is within this distance */
 const PROXIMITY_RADIUS_M = 150;
 
 /** Minimum ms between notifications for the same stop (prevent spam) */
@@ -141,7 +141,7 @@ export function useStopProximity(opts: {
         notifiedRef.current.set(stopId, now);
         const stopName = stop.name?.trim() || `Stop ${i + 1}`;
 
-        // Always record arrival (idempotent — won't overwrite existing)
+        // Always record arrival (idempotent - won't overwrite existing)
         recordArrival({
           planId,
           stopId,
@@ -154,7 +154,7 @@ export function useStopProximity(opts: {
         // Skip prompt if user dismissed this stop this session
         if (isDismissedThisSession(planId, stopId)) continue;
 
-        // Check if stop already has content — don't prompt again
+        // Check if stop already has content - don't prompt again
         getMemoryForStop(planId, stopId).then((mem) => {
           if (mem && (mem.note || mem.photos.length > 0)) return;
 
@@ -169,7 +169,7 @@ export function useStopProximity(opts: {
             distance: dist,
           });
         }).catch(() => {
-          // IDB read failed — still fire prompt as fallback
+          // IDB read failed - still fire prompt as fallback
           roamNotify.stopArrived(stopName);
           haptic.success();
           onArrival?.({ stop, stopIndex: i, distance: dist });

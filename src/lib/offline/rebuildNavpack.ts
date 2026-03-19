@@ -8,15 +8,13 @@ import type { TripStop } from "@/lib/types/trip";
 import type { BBox4 } from "@/lib/types/geo";
 
 import {
-  indexCorridorGraph,
-  snapStopToNearestNode,
-  findComponentOf,
-  aStar,
-  pathToGeoJSON,
-  encodePolyline6,
-  bboxFromStopsOrLine,
-  synthesizeStepsFromPath,
-  type HazardZone,
+    indexCorridorGraph,
+    snapStopToNearestNode, aStar,
+    pathToGeoJSON,
+    encodePolyline6,
+    bboxFromStopsOrLine,
+    synthesizeStepsFromPath,
+    type HazardZone
 } from "@/lib/offline/corridorRouter";
 
 // ── Fuel reanalysis (after reroute) ─────────────────────────────────────
@@ -52,7 +50,7 @@ function appendLegCoords(fullCoords: [number, number][], coords: [number, number
  *   1. Reused from the previous navpack (matching from_stop_id → to_stop_id)
  *   2. Freshly routed via corridor A*
  *
- * There is no straight-line fallback — the corridor graph covers the route
+ * There is no straight-line fallback - the corridor graph covers the route
  * area and A* must find a road-following path. If it can't, we throw so the
  * caller knows to try OSRM or surface the error.
  */
@@ -131,7 +129,7 @@ export function rebuildNavpackOffline(args: {
 
     if (sa.distance_m > 500 || sb.distance_m > 500) {
       console.info(
-        "[rebuildNavpack] leg %d: snap distance — A (%s) %dm, B (%s) %dm",
+        "[rebuildNavpack] leg %d: snap distance - A (%s) %dm, B (%s) %dm",
         i, a.name ?? aId, Math.round(sa.distance_m),
         b.name ?? bId, Math.round(sb.distance_m),
       );

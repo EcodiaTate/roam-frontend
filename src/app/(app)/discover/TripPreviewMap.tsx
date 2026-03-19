@@ -1,7 +1,7 @@
 // src/app/(app)/discover/TripPreviewMap.tsx
 // Lightweight read-only map used in the Discover trip preview sheet.
 // Renders a route polyline + stop pins on an online raster tile basemap.
-// Uses MapLibre GL — same library as the rest of the app.
+// Uses MapLibre GL - same library as the rest of the app.
 "use client";
 
 import { useEffect, useRef } from "react";

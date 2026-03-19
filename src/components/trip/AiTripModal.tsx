@@ -170,7 +170,7 @@ function StopPreviewRow({
         )}
       </div>
 
-      {/* Remove — only for intermediate stops */}
+      {/* Remove - only for intermediate stops */}
       {!isStart && !isEnd && (
         <button
           type="button"
@@ -544,9 +544,9 @@ export function AiTripModal({
           <div
             style={{
               width: 36,
-              height: 4,
-              borderRadius: 2,
-              background: "var(--roam-border)",
+              height: 5,
+              borderRadius: 3,
+              background: "var(--roam-border-strong)",
               margin: "0 auto",
             }}
           />

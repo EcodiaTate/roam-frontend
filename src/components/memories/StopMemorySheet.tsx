@@ -8,23 +8,23 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import type { StopMemory } from "@/lib/types/memories";
 import {
-  getMemoryForStop,
-  saveMemory,
-  addPhoto,
-  removePhoto,
+    getMemoryForStop,
+    saveMemory,
+    addPhoto,
+    removePhoto,
 } from "@/lib/offline/memoriesStore";
 import { haptic } from "@/lib/native/haptics";
 import { isNative, hasPlugin } from "@/lib/native/platform";
 import { cx } from "@/lib/utils/cx";
 import {
-  X,
-  Camera,
-  ImagePlus,
-  Trash2,
-  MapPin,
-  Clock,
-  Loader2,
-  BookOpen,
+    X,
+    Camera,
+    ImagePlus,
+    Trash2,
+    MapPin,
+    Clock,
+    Loader2,
+    BookOpen,
 } from "lucide-react";
 
 import { PhotoLightbox } from "@/components/ui/PhotoLightbox";
@@ -91,7 +91,7 @@ async function takePhoto(): Promise<File | null> {
     }
     return null;
   }
-  // Web fallback — handled by file input
+  // Web fallback - handled by file input
   return null;
 }
 
@@ -374,7 +374,7 @@ export function StopMemorySheet({
         optimisticPhotos.map((p) => p.localUrl ?? p.url ?? "").filter(Boolean),
       );
 
-      // Persist in background — revert on failure
+      // Persist in background - revert on failure
       try {
         const updated = await removePhoto(memory.id, index);
         setMemory(updated);

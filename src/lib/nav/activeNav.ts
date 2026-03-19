@@ -74,10 +74,10 @@ export type ActiveNavState = {
   durationRemaining_s: number;
   etaTimestamp: number;       // unix ms
 
-  // Leg metrics (next stop only) — for leg-by-leg navigation
+  // Leg metrics (next stop only) - for leg-by-leg navigation
   legDistRemaining_m: number;
   legDurationRemaining_s: number;
-  legEtaTimestamp: number;           // unix ms — ETA to next stop
+  legEtaTimestamp: number;           // unix ms - ETA to next stop
   nextStopName: string | null;       // name of the next stop
   totalLegs: number;                 // total number of legs in the trip
 
@@ -90,7 +90,7 @@ export type ActiveNavState = {
   speed_mps: number | null;
   heading: number | null;
 
-  // ETA learning — rolling speed average for better predictions
+  // ETA learning - rolling speed average for better predictions
   rollingSpeed_mps: number;        // 5-min rolling average actual speed
   plannedSpeed_mps: number;        // planned speed from route (distance/duration)
   speedRatio: number;              // rollingSpeed / plannedSpeed (1.0 = on plan)
@@ -463,7 +463,7 @@ export function updateActiveNav(
     etaTimestamp = now + durationRemaining_s * 1000;
   }
 
-  // 6. Leg-level metrics — distance/duration/ETA to the next stop only
+  // 6. Leg-level metrics - distance/duration/ETA to the next stop only
   const currentLegBoundary = legBoundaries?.find(b => b.legIdx === currentFlat.legIdx);
   let legDistRemaining_m = distRemaining_m;
   let legDurationRemaining_s = durationRemaining_s;

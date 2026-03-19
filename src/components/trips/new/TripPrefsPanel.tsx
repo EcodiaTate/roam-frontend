@@ -184,49 +184,31 @@ export function TripPrefsPanel({
               </span>
             </div>
 
-            {/* 5-step segmented control */}
-            <div
-              style={{
-                display: "flex",
-                gap: 4,
-                background: "var(--roam-surface)",
-                borderRadius: 10,
-                padding: 3,
-                border: "1px solid var(--roam-border)",
-              }}
-            >
-              {[1, 2, 3, 4, 5].map((d) => {
-                const active = prefs.stop_density === d;
-                return (
-                  <button
-                    key={d}
-                    type="button"
-                    onClick={() => setDensity(d)}
-                    className="trip-interactive"
-                    style={{
-                      all: "unset",
-                      cursor: "pointer",
-                      flex: 1,
-                      textAlign: "center",
-                      padding: "7px 0",
-                      borderRadius: 8,
-                      fontSize: 12,
-                      fontWeight: active ? 800 : 600,
-                      color: active ? "#fff" : "var(--roam-text-muted)",
-                      background: active
-                        ? "linear-gradient(135deg, #3b82f6, #2563eb)"
-                        : "transparent",
-                      boxShadow: active
-                        ? "0 2px 8px rgba(37,99,235,0.3)"
-                        : "none",
-                      transition: "all 0.2s",
-                      WebkitTapHighlightColor: "transparent",
-                    }}
-                  >
-                    {d}
-                  </button>
-                );
-              })}
+            {/* Range slider */}
+            <div style={{ padding: "4px 2px" }}>
+              <input
+                type="range"
+                min={1}
+                max={5}
+                step={1}
+                value={prefs.stop_density}
+                onChange={(e) => setDensity(Number(e.target.value))}
+                aria-label="Stop density"
+                style={{
+                  width: "100%",
+                  height: 6,
+                  appearance: "none",
+                  WebkitAppearance: "none",
+                  background: `linear-gradient(to right, #2563eb 0%, #2563eb ${((prefs.stop_density - 1) / 4) * 100}%, var(--roam-border, #d1d5db) ${((prefs.stop_density - 1) / 4) * 100}%, var(--roam-border, #d1d5db) 100%)`,
+                  borderRadius: 999,
+                  outline: "none",
+                  cursor: "pointer",
+                }}
+              />
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+                <span style={{ fontSize: 10, fontWeight: 600, color: "var(--roam-text-muted)" }}>Minimal</span>
+                <span style={{ fontSize: 10, fontWeight: 600, color: "var(--roam-text-muted)" }}>Everything</span>
+              </div>
             </div>
 
             <div

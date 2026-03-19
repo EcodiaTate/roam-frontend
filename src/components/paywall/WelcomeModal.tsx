@@ -97,8 +97,8 @@ export function WelcomeModal({ open, lastFreeTrip = false, onClose }: Props) {
             lineHeight: 1.55,
           }}>
             {lastFreeTrip
-              ? "This is your last free trip. Explore every feature — offline maps, the AI guide, turn-by-turn nav. If you love it, Roam Untethered is $19.99, one-time."
-              : "Your first two trips are completely free. No credit card needed — just tap, plan, and go."}
+              ? "This is your last free trip. Explore every feature - offline maps, the AI guide, turn-by-turn nav. If you love it, Roam Untethered is $19.99, one-time."
+              : "Your first two trips are completely free. No credit card needed - just tap, plan, and go."}
           </p>
         </div>
 
@@ -109,7 +109,7 @@ export function WelcomeModal({ open, lastFreeTrip = false, onClose }: Props) {
               [<Download size={18} key="dl" />, "Beautiful offline maps that work without signal"],
               [<AudioLines size={18} key="audio" />, "Turn-by-turn navigation with voice guidance"],
               [<Fuel size={18} key="fuel" />, "Fuel range alerts so you never run dry in the outback"],
-              [<Sparkles size={18} key="ai" />, "AI co-pilot — fuel stops, hazards & local knowledge"],
+              [<Sparkles size={18} key="ai" />, "AI co-pilot - fuel stops, hazards & local knowledge"],
             ] as const).map(([icon, text]) => (
               <div key={text} style={{
                 display: "flex", alignItems: "center", gap: 12,
@@ -158,7 +158,7 @@ export function WelcomeModal({ open, lastFreeTrip = false, onClose }: Props) {
               color: "var(--roam-text-muted, #7a7067)",
               lineHeight: 1.5,
             }}>
-              After 2 free trips, go Untethered for $19.99 — one-time, no subscription.
+              After 2 free trips, go Untethered for $19.99 - one-time, no subscription.
             </p>
           )}
         </div>

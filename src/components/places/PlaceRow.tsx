@@ -1,5 +1,5 @@
 // src/components/places/PlaceRow.tsx
-// Single place result row — used by PlaceSearchPanel's result list.
+// Single place result row - used by PlaceSearchPanel's result list.
 "use client";
 
 import { memo } from "react";
@@ -113,7 +113,7 @@ export type PlaceRowProps = {
   distKm: number | null;
   ahead: boolean | null;
   onSelect?: (p: PlaceItem) => void;
-  /** Called when user taps the map button — zooms to place on map */
+  /** Called when user taps the map button - zooms to place on map */
   onShowOnMap?: (p: PlaceItem) => void;
   /** Whether this place is saved; if provided, shows the bookmark button */
   isSaved?: boolean;

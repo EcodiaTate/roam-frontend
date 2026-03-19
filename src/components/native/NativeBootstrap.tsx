@@ -5,16 +5,16 @@ import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 
 import {
-  configureStatusBar,
-  configureKeyboard,
-  lockPortrait,
-  hideSplash,
-  initAppLifecycle,
-  onAppStateChange,
-  initNotificationTapListener,
-  requestNotificationPermission,
-  requestLocationPermission,
-  onNotificationTap,
+    configureStatusBar,
+    configureKeyboard,
+    lockPortrait,
+    hideSplash,
+    initAppLifecycle,
+    onAppStateChange,
+    initNotificationTapListener,
+    requestNotificationPermission,
+    requestLocationPermission,
+    onNotificationTap,
 } from "@/lib/native";
 import { App } from "@capacitor/app";
 import { networkMonitor } from "@/lib/offline/networkMonitor";
@@ -69,7 +69,7 @@ export function NativeBootstrap() {
       });
 
       // 5. Permissions (notifications + location requested together so both
-      //    OS prompts appear at boot — location alone doesn't trigger a
+      //    OS prompts appear at boot - location alone doesn't trigger a
       //    visible prompt on some devices)
       await Promise.all([
         requestNotificationPermission(),
@@ -96,7 +96,7 @@ export function NativeBootstrap() {
         } catch {}
       });
 
-      // 7. Initialize RevenueCat (non-blocking — paywall still works via cached state)
+      // 7. Initialize RevenueCat (non-blocking - paywall still works via cached state)
       if (RC_API_KEY) {
         initRevenueCat(RC_API_KEY).catch(() => {});
 

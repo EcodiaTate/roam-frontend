@@ -47,7 +47,7 @@ const RULES: CategoryRule[] = [
     categories: ["camp"],
     weight: 10,
   },
-  // Free/cheap camping — specific sub-intents (high weight so they beat generic "camp")
+  // Free/cheap camping - specific sub-intents (high weight so they beat generic "camp")
   {
     keywords: [
       "free camping", "free campsite", "free camp ground",
@@ -57,7 +57,7 @@ const RULES: CategoryRule[] = [
     categories: ["camp"],
     weight: 11,
   },
-  // Rest area overnight — maps to rest_area category
+  // Rest area overnight - maps to rest_area category
   {
     keywords: [
       "rest area camping", "sleep at rest area", "overnight rest area",
@@ -371,7 +371,7 @@ export type ExtractedIntent = {
     shower_type?: "hot";
     water_type?: "potable";
   };
-  /** Camp-specific attribute filters — only applied when categories includes "camp" or "rest_area" */
+  /** Camp-specific attribute filters - only applied when categories includes "camp" or "rest_area" */
   campFilters?: {
     pets?: true;
     free?: true;
@@ -476,7 +476,7 @@ export function extractIntent(text: string): ExtractedIntent {
   if (lower.match(/\bovernight\s+(rest\s+area|at\s+rest)/) || lower.match(/\brest\s+area\s+(camp|overnight|sleep)/)) {
     campFilters.overnight_allowed = true;
   }
-  // Legal camping query — show only overnight-permitted places
+  // Legal camping query - show only overnight-permitted places
   if (lower.match(/\bcan\s+i\s+camp\b/) || lower.match(/\blegal\s+camp/) || lower.match(/\bis\s+it\s+legal\s+to\s+camp/)) {
     campFilters.overnight_allowed = true;
   }
@@ -614,7 +614,7 @@ export function filterAndRankPlaces(
     filtered = items;
   }
 
-  // Step 1b: Compound attribute filters (best-effort — places missing the field still pass)
+  // Step 1b: Compound attribute filters (best-effort - places missing the field still pass)
   if (intent.filters && Object.keys(intent.filters).length > 0) {
     const f = intent.filters;
     filtered = filtered.filter((p) => {

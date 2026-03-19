@@ -1,7 +1,7 @@
 // src/components/nav/ElevationStrip.tsx
 "use client";
 
-import { memo, useMemo, useCallback, useRef, useState, useEffect } from "react";
+import { memo, useMemo, useCallback, useRef, useState } from "react";
 import type { ElevationProfile, GradeSegment, ElevationSample } from "@/lib/types/navigation";
 import { formatDistance } from "@/lib/nav/instructions";
 import { haptic } from "@/lib/native/haptics";
@@ -16,7 +16,7 @@ type Props = {
   currentKm?: number | null;
   /** Visible km range from the map viewport [startKm, endKm] */
   viewportKmRange?: [number, number] | null;
-  /** Called when user taps a point on the chart — receives {lat, lng} to fly to */
+  /** Called when user taps a point on the chart - receives {lat, lng} to fly to */
   onTapLocation?: (loc: { lat: number; lng: number; km: number }) => void;
   /** Collapsed state (externally controlled) */
   collapsed?: boolean;
@@ -146,7 +146,7 @@ export const ElevationStrip = memo(function ElevationStrip({
     ? (currentKm / totalKm) * VB_W
     : null;
 
-  // Hover/tap handling — convert pointer X to km, then call onTapLocation
+  // Hover/tap handling - convert pointer X to km, then call onTapLocation
   const kmFromPointerEvent = useCallback((e: React.PointerEvent | React.MouseEvent): number | null => {
     const svg = svgRef.current;
     if (!svg || !samples || samples.length < 2 || totalKm <= 0) return null;
@@ -199,11 +199,11 @@ export const ElevationStrip = memo(function ElevationStrip({
     <div
       className="elev-strip"
       style={{
-        background: "rgba(15, 15, 15, 0.92)",
+        background: "color-mix(in srgb, var(--roam-bg) 92%, transparent)",
         backdropFilter: "blur(16px)",
         WebkitBackdropFilter: "blur(16px)",
-        borderTop: "1px solid rgba(255,255,255,0.06)",
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        borderTop: "1px solid var(--roam-border)",
+        borderBottom: "1px solid var(--roam-border)",
         overflow: "hidden",
         transition: "height 0.25s cubic-bezier(0.4,0,0.2,1)",
         height: isCollapsed ? 36 : CHART_H + 36,
@@ -224,7 +224,7 @@ export const ElevationStrip = memo(function ElevationStrip({
           background: "none",
           border: "none",
           cursor: "pointer",
-          color: "rgba(239,233,224,0.8)",
+          color: "var(--roam-text)",
           WebkitTapHighlightColor: "transparent",
         }}
       >
@@ -233,12 +233,12 @@ export const ElevationStrip = memo(function ElevationStrip({
           <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.03em" }}>
             ELEVATION
           </span>
-          <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(239,233,224,0.45)" }}>
+          <span style={{ fontSize: 10, fontWeight: 600, color: "var(--roam-text-muted)" }}>
             {Math.round(minElev)}m – {Math.round(maxElev)}m
           </span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 10, fontWeight: 700, color: "#4ade80" }}>
+          <span style={{ fontSize: 10, fontWeight: 700, color: "var(--brand-eucalypt)" }}>
             ↑{Math.round(profile.total_ascent_m)}m
           </span>
           <span style={{ fontSize: 10, fontWeight: 700, color: "#ef4444" }}>
@@ -267,7 +267,7 @@ export const ElevationStrip = memo(function ElevationStrip({
           onPointerLeave={handlePointerLeave}
           onClick={handleClick}
         >
-          {/* Viewport highlight — the visible section of the route */}
+          {/* Viewport highlight - the visible section of the route */}
           {vpHighlight && (
             <rect
               x={vpHighlight.x}
@@ -391,15 +391,15 @@ export const ElevationStrip = memo(function ElevationStrip({
               position: "absolute",
               top: 4,
               left: `clamp(4px, calc(${(hoverData.x / VB_W) * 100}% - 36px), calc(100% - 76px))`,
-              background: "rgba(26,26,26,0.95)",
+              background: "color-mix(in srgb, var(--roam-surface) 95%, transparent)",
               borderRadius: 6,
               padding: "3px 7px",
               fontSize: 10,
               fontWeight: 700,
-              color: "rgba(239,233,224,0.9)",
+              color: "var(--roam-text)",
               pointerEvents: "none",
               whiteSpace: "nowrap",
-              border: "1px solid rgba(255,255,255,0.1)",
+              border: "1px solid var(--roam-border-strong)",
               zIndex: 2,
             }}
           >
@@ -415,7 +415,7 @@ export const ElevationStrip = memo(function ElevationStrip({
             left: 6,
             fontSize: 9,
             fontWeight: 700,
-            color: "rgba(239,233,224,0.3)",
+            color: "var(--roam-text-muted)", opacity: 0.5,
             pointerEvents: "none",
           }}
         >
@@ -428,7 +428,7 @@ export const ElevationStrip = memo(function ElevationStrip({
             right: 6,
             fontSize: 9,
             fontWeight: 700,
-            color: "rgba(239,233,224,0.3)",
+            color: "var(--roam-text-muted)", opacity: 0.5,
             pointerEvents: "none",
           }}
         >

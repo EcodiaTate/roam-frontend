@@ -11,12 +11,12 @@ import { cumulativeKm, snapToPolyline, totalRouteKm } from "./snapToRoute";
 
 import type { PlaceItem } from "@/lib/types/places";
 import type {
-  VehicleFuelProfile,
-  FuelStation,
-  FuelLeg,
-  FuelWarning,
-  FuelAnalysis,
-  FuelTrackingState,
+    VehicleFuelProfile,
+    FuelStation,
+    FuelLeg,
+    FuelWarning,
+    FuelAnalysis,
+    FuelTrackingState,
 } from "@/lib/types/fuel";
 
 /**
@@ -26,7 +26,7 @@ import type {
  * tier-1 essentials within 30 km; a 15 km snap keeps the two layers
  * consistent while still excluding completely unrelated towns.
  *
- * Previously 5 km — caused servos between 5-30 km to appear as map pins
+ * Previously 5 km - caused servos between 5-30 km to appear as map pins
  * (via the suggestions layer) but be absent from fuel analysis, leading
  * to "No fuel ahead" while fuel icons were visible on the map.
  */
@@ -50,7 +50,7 @@ function relevantCategories(fuelType: string): Set<string> {
  * Compute a wind-based range penalty from weather overlay data.
  *
  * Headwind: reduces effective range by up to ~15% at 60+ km/h wind.
- * Tailwind: slight bonus (capped at +5% — don't encourage risky range estimates).
+ * Tailwind: slight bonus (capped at +5% - don't encourage risky range estimates).
  * Crosswind: small penalty (~5% at high speeds due to increased drag).
  *
  * @param avgWindSpeed_kmh  Average wind speed along route
@@ -93,7 +93,7 @@ export function windRangeFactor(
  * @param places         All PlaceItems from the corridor PlacesPack
  * @param profile        Vehicle fuel profile
  * @param routeKey       Route key for tagging the analysis
- * @param placesKey      Places pack key — stored so callers can detect stale cache
+ * @param placesKey      Places pack key - stored so callers can detect stale cache
  * @param rangeFactor    Optional multiplier for effective range (e.g. wind correction)
  */
 export function analyzeFuel(
@@ -153,7 +153,7 @@ export function analyzeFuel(
     // Additional fuel-type filtering for diesel/unleaded/lpg.
     // Only exclude a station if we have *explicit* fuel-type data AND the
     // required type is absent.  When has_diesel/has_unleaded/has_lpg are
-    // undefined (OSM tags missing), we keep the station — most servos don't
+    // undefined (OSM tags missing), we keep the station - most servos don't
     // have granular OSM fuel tags and we'd rather show too many than too few.
     if (profile.fuel_type === "diesel" && station.has_diesel === false) continue;
     if (profile.fuel_type === "unleaded" && station.has_unleaded === false) continue;
