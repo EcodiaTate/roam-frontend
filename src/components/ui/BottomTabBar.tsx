@@ -1,7 +1,6 @@
 // src/components/ui/BottomTabBar.tsx
 "use client";
 
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { memo, useCallback } from "react";
 import type { CSSProperties, ReactNode } from "react";
@@ -300,13 +299,13 @@ export const BottomTabBar = memo(function BottomTabBar() {
     TABS.find((t) => resolveActive(t.href))?.key ??
     (pathname === "/" ? "trip" : null);
 
-  /** For the Trip tab: navigate instantly to /trip - the trip page handles
-   *  the empty-state redirect itself, so we don't block on async IDB checks. */
-  const handleTripPress = useCallback(
-    (e: React.MouseEvent | React.PointerEvent) => {
+  /** Navigate via router.push for all tabs — prevents full page reload
+   *  on Capacitor's static-export file server where <Link> can fail. */
+  const handleTabPress = useCallback(
+    (e: React.MouseEvent | React.PointerEvent, href: string, isActive: boolean) => {
       e.preventDefault();
-      haptic.tap();
-      router.push("/trip");
+      if (!isActive) haptic.tap();
+      router.push(href);
     },
     [router],
   );
@@ -324,7 +323,7 @@ export const BottomTabBar = memo(function BottomTabBar() {
             return (
               <a
                 key={tab.key}
-                href="/trip"
+                href={tab.href}
                 role="tab"
                 aria-selected={active}
                 aria-label={tab.label}
@@ -332,7 +331,7 @@ export const BottomTabBar = memo(function BottomTabBar() {
                 className={cx("roam-tab roam-tab-center", active && "roam-tab-active")}
                 data-active={active ? "true" : "false"}
                 draggable={false}
-                onClick={handleTripPress}
+                onClick={(e) => handleTabPress(e, tab.href, active)}
               >
                 <span className="roam-tab-bump" aria-hidden="true" />
                 <span className="roam-tab-inner">
@@ -346,7 +345,7 @@ export const BottomTabBar = memo(function BottomTabBar() {
           }
 
           return (
-            <Link
+            <a
               key={tab.key}
               href={tab.href}
               role="tab"
@@ -360,17 +359,13 @@ export const BottomTabBar = memo(function BottomTabBar() {
               )}
               data-active={active ? "true" : "false"}
               draggable={false}
-              prefetch={true}
-              scroll={false}
-              onPointerDown={() => {
-                if (!active) haptic.tap();
-              }}
+              onClick={(e) => handleTabPress(e, tab.href, active)}
             >
               <span className="roam-tab-icon" aria-hidden="true">
                 {tab.icon(active)}
               </span>
               <span className="roam-tab-label">{tab.label}</span>
-            </Link>
+            </a>
           );
         })}
       </nav>
