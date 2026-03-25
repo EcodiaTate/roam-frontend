@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
-/* Capacitor redirect                                                  */
+/* Capacitoreredirect                                                  */
 /* ------------------------------------------------------------------ */
 const subscribeNoop = () => () => {};
 const getIsNative = () => Capacitor.isNativePlatform();
@@ -299,4 +299,3 @@ export default function LandingPage() {
     </div>
   );
 }
-
