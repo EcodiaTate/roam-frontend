@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useCallback } from "react";
 import type { TripPreferences, CategoryGroup } from "@/lib/types/trip";
 import {
@@ -252,8 +250,10 @@ export function TripPrefsPanel({
                       display: "flex",
                       alignItems: "center",
                       gap: 8,
-                      padding: "8px 10px",
-                      borderRadius: 10,
+                      padding: "10px 10px",
+                      minHeight: 44,
+                      boxSizing: "border-box",
+                      borderRadius: 12,
                       border: `1.5px solid ${on ? `${color}40` : "var(--roam-border)"}`,
                       background: on ? `${color}0A` : "transparent",
                       opacity: on ? 1 : 0.5,

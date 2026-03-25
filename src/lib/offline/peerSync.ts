@@ -1,5 +1,4 @@
 // src/lib/offline/peerSync.ts
-"use client";
 
 /**
  * PeerSync

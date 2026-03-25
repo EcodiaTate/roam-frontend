@@ -1,5 +1,4 @@
 // src/lib/native/keyboard.ts
-"use client";
 
 import { isNative, hasPlugin, isIOS } from "./platform";
 

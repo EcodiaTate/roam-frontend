@@ -1,5 +1,3 @@
-"use client";
-
 import { usePlanSync } from "@/lib/hooks/usePlanSync";
 
 /**

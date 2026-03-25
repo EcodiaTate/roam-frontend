@@ -1,7 +1,6 @@
 // src/components/ui/BottomTabBar.tsx
-"use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { useLocation, useNavigate } from "react-router";
 import { memo, useCallback } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { haptic } from "@/lib/native/haptics";
@@ -282,8 +281,8 @@ const TABS: Tab[] = [
 const SIMPLE_TAB_KEYS = new Set(["guide", "trip", "sos"]);
 
 export const BottomTabBar = memo(function BottomTabBar() {
-  const pathname = usePathname();
-  const router = useRouter();
+  const pathname = useLocation().pathname;
+  const navigate = useNavigate();
   const { isSimple } = useUIMode();
 
   const visibleTabs = isSimple ? TABS.filter((t) => SIMPLE_TAB_KEYS.has(t.key)) : TABS;
@@ -299,15 +298,15 @@ export const BottomTabBar = memo(function BottomTabBar() {
     TABS.find((t) => resolveActive(t.href))?.key ??
     (pathname === "/" ? "trip" : null);
 
-  /** Navigate via router.push for all tabs — prevents full page reload
+  /** Navigate via router.push for all tabs - prevents full page reload
    *  on Capacitor's static-export file server where <Link> can fail. */
   const handleTabPress = useCallback(
     (e: React.MouseEvent | React.PointerEvent, href: string, isActive: boolean) => {
       e.preventDefault();
       if (!isActive) haptic.tap();
-      router.push(href);
+      navigate(href);
     },
-    [router],
+    [navigate],
   );
 
   return (

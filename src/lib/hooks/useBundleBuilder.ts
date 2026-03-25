@@ -3,7 +3,6 @@
 // React hook wrapping buildPlanBundle with phase/error/progress state.
 // Used by /new page and invite redemption flow.
 //
-"use client";
 
 import { useCallback, useRef, useState } from "react";
 import {

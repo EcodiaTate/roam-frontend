@@ -2,11 +2,9 @@
 // Lightweight read-only map used in the Discover trip preview sheet.
 // Renders a route polyline + stop pins on an online raster tile basemap.
 // Uses MapLibre GL - same library as the rest of the app.
-"use client";
 
 import { useEffect, useRef } from "react";
 import maplibregl from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
 import type { TripStop } from "@/lib/types/trip";
 import { decodePolyline6AsLngLat } from "@/lib/nav/polyline6";
 
@@ -74,7 +72,7 @@ export default function TripPreviewMap({ geometry, stops, bbox }: Props) {
         type: "line",
         source: "route",
         layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": "#fff", "line-width": 5, "line-opacity": 0.9 },
+        paint: { "line-color": "rgba(255,255,255,0.85)", "line-width": 3.5 },
       });
 
       map.addLayer({
@@ -82,28 +80,28 @@ export default function TripPreviewMap({ geometry, stops, bbox }: Props) {
         type: "line",
         source: "route",
         layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": "#3b82f6", "line-width": 3.5 },
+        paint: { "line-color": "#3b82f6", "line-width": 2.5 },
       });
 
-      // Add stop markers (start = green, end = red, via = blue dot)
-      stops.forEach((stop, i) => {
-        const isStart = stop.type === "start" || i === 0;
-        const isEnd = stop.type === "end" || i === stops.length - 1;
-
-        const el = document.createElement("div");
-        el.style.cssText = `
-          width: ${isStart || isEnd ? 12 : 8}px;
-          height: ${isStart || isEnd ? 12 : 8}px;
-          border-radius: 50%;
-          background: ${isStart ? "#16a34a" : isEnd ? "#dc2626" : "#3b82f6"};
-          border: 2px solid #fff;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.35);
-        `;
-
-        new maplibregl.Marker({ element: el })
-          .setLngLat([stop.lng, stop.lat])
-          .addTo(map);
-      });
+      // Minimal start/end dots only - no intermediate markers on card previews
+      const first = stops[0];
+      const last = stops[stops.length - 1];
+      if (first && last) {
+        [
+          { stop: first, color: "#16a34a" },
+          { stop: last,  color: "#dc2626" },
+        ].forEach(({ stop, color }) => {
+          const el = document.createElement("div");
+          el.style.cssText = `
+            width: 6px; height: 6px; border-radius: 50%;
+            background: ${color}; border: 1.5px solid #fff;
+            box-shadow: 0 0 2px rgba(0,0,0,0.2);
+          `;
+          new maplibregl.Marker({ element: el })
+            .setLngLat([stop.lng, stop.lat])
+            .addTo(map);
+        });
+      }
 
       // Fit to bbox with padding
       const [west, south, east, north] = bbox;
@@ -127,7 +125,7 @@ export default function TripPreviewMap({ geometry, stops, bbox }: Props) {
   return (
     <div
       ref={containerRef}
-      style={{ width: "100%", height: "100%", background: "#e8eaed" }}
+      style={{ width: "100%", height: "100%", background: "var(--roam-surface-hover)" }}
     />
   );
 }

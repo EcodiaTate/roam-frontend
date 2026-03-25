@@ -1,5 +1,4 @@
 // src/components/trip/RouteScoreCard.tsx
-"use client";
 
 import { Shield, CloudSun, Wrench, Cloud } from "lucide-react";
 import type { RouteIntelligenceScore, RouteScoreCategory } from "@/lib/types/overlays";

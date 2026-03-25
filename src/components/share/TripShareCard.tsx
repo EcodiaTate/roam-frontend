@@ -1,5 +1,4 @@
 // src/components/share/TripShareCard.tsx
-"use client";
 
 import { useMemo } from "react";
 import { decodePolyline6 } from "@/lib/nav/polyline6";

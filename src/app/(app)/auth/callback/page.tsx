@@ -1,8 +1,7 @@
 // src/app/auth/callback/page.tsx
-"use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router";
 import { supabase } from "@/lib/supabase/client";
 
 /**
@@ -20,7 +19,7 @@ import { supabase } from "@/lib/supabase/client";
  *    code via detectSessionInUrl, onAuthStateChange fires → /trip.
  */
 export default function AuthCallbackPage() {
-  const router = useRouter();
+  const router = useNavigate();
 
   useEffect(() => {
     // If Capacitor is absent we're inside the SFSafariViewController sheet.
@@ -38,12 +37,12 @@ export default function AuthCallbackPage() {
     // Main WebView: exchange code → session → navigate
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session) {
-        router.replace("/trip");
+        router("/trip", { replace: true });
       }
     });
 
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) router.replace("/trip");
+      if (data.session) router("/trip", { replace: true });
     });
 
     return () => subscription.unsubscribe();

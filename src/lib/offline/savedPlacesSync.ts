@@ -3,7 +3,6 @@
 // Pushes locally-saved places to Supabase when online.
 // Unlike plans (which use a FIFO queue), saved places are small enough
 // to diff-and-push in a single pass.
-"use client";
 
 import { supabase } from "@/lib/supabase/client";
 import { listSavedPlaces } from "./savedPlacesStore";

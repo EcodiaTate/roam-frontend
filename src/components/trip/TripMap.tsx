@@ -1,12 +1,10 @@
 // src/components/trip/TripMap.tsx
-"use client";
 
 import React, { useEffect, useMemo, useRef, useCallback, useState } from "react";
 import { rewriteStyleForLocalServer, isFullyOfflineCapable } from "@/lib/offline/basemapManager";
 
 import maplibregl, { type Map as MLMap, type LngLatBoundsLike, type MapLayerMouseEvent, GeoJSONSource } from "maplibre-gl";
 import type { StyleSpecification, SourceSpecification, GeoJSONSourceSpecification } from "@maplibre/maplibre-gl-style-spec";
-import "maplibre-gl/dist/maplibre-gl.css";
 import { Protocol } from "pmtiles";
 
 import { decodePolyline6AsLngLat } from "@/lib/nav/polyline6";
@@ -36,6 +34,7 @@ import type {
 } from "@/lib/types/overlays";
 
 import { assetsApi } from "@/lib/api/assets";
+import "./TripMap.css";
 import { haptic } from "@/lib/native/haptics";
 import type { MapBaseMode, VectorTheme } from "@/components/trips/new/MapStyleSwitcher";
 
@@ -119,7 +118,7 @@ type Props = {
    /** Corridor graph - renders nodes + edges as a toggleable map layer */
    corridorGraph?: CorridorGraphPack | null;
 
-   /** Nav mode: external layer menu control — hides the built-in toggle button */
+   /** Nav mode: external layer menu control - hides the built-in toggle button */
    navLayerMenuOpen?: boolean;
    onNavLayerMenuToggle?: () => void;
    /** Fires when any overlay is toggled off/on so parent can reflect filter state */
@@ -316,6 +315,42 @@ function readStoredVis(): OverlayVisibility {
 function writeStoredVis(v: OverlayVisibility) {
   try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(v)); } catch {}
 }
+
+/** Shared empty FC - avoids allocating a new object on every effect run. */
+const EMPTY_FC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+
+/* ── Static style objects (hoisted to avoid re-allocation per render) ── */
+const LAYER_CONTROLS_STYLE_NAV: React.CSSProperties = {
+  position: "absolute",
+  top: "calc(env(safe-area-inset-top, 0px) + 12px)",
+  right: 12,
+  zIndex: 50,
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "flex-end",
+  gap: 8,
+};
+const LAYER_CONTROLS_STYLE: React.CSSProperties = {
+  position: "absolute",
+  top: "calc(env(safe-area-inset-top, 0px) + 56px)",
+  right: 12,
+  zIndex: 25,
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "flex-end",
+  gap: 8,
+};
+const RELATIVE_STYLE: React.CSSProperties = { position: "relative" };
+const LAYER_MENU_SCROLL_STYLE: React.CSSProperties = {
+  overflowY: "auto",
+  flex: 1,
+  padding: "6px 4px",
+  display: "flex",
+  flexDirection: "column",
+  gap: 2,
+};
+const FLEX_ROW_STYLE: React.CSSProperties = { display: "flex", gap: 4 };
+const FLEX_ROW_CENTER_STYLE: React.CSSProperties = { display: "flex", alignItems: "center", gap: 6 };
 
 /* ══════════════════════════════════════════════════════════════════════
    SVG Icon System - clean vector icons, no emojis
@@ -1449,7 +1484,10 @@ export const TripMap = React.memo(function TripMap(props: Props) {
       center: [(props.bbox.minLng + props.bbox.maxLng) / 2, (props.bbox.minLat + props.bbox.maxLat) / 2],
       zoom: 6,
       attributionControl: false,
-      canvasContextAttributes: { preserveDrawingBuffer: true },
+      // preserveDrawingBuffer only needed for map snapshot (share card).
+      // Disabled by default to save GPU memory; captureMapSnapshot re-renders
+      // to an offscreen canvas when a snapshot is needed.
+      canvasContextAttributes: { preserveDrawingBuffer: false },
       transformRequest: (url) => {
         if (typeof url === "string" && url.startsWith("pmtiles://")) return { url: normalizePmtilesUrl(url, origin) };
         return { url };
@@ -3032,7 +3070,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
 
-    const emptyFC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+    const emptyFC = EMPTY_FC;
 
     if (!props.weather?.points?.length) {
       const src = map.getSource(WEATHER_SRC) as GeoJSONSource | undefined;
@@ -3138,13 +3176,13 @@ export const TripMap = React.memo(function TripMap(props: Props) {
       if (map.getLayer(WEATHER_DOT_LAYER)) map.setLayoutProperty(WEATHER_DOT_LAYER, "visibility", v);
       if (map.getLayer(WEATHER_LABEL_LAYER)) map.setLayoutProperty(WEATHER_LABEL_LAYER, "visibility", v);
     }
-  }, [props.weather, styleReady, vpBounds]);
+  }, [props.weather, styleReady]); // eslint-disable-line react-hooks/exhaustive-deps -- vpBounds read via ref
 
   /* ── Emergency services overlay ──────────────────────────────────────── */
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
-    const emptyFC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+    const emptyFC = EMPTY_FC;
     if (!props.emergency?.facilities?.length) {
       const src = map.getSource(EMERGENCY_SRC) as GeoJSONSource | undefined;
       if (src) src.setData(emptyFC);
@@ -3186,13 +3224,13 @@ export const TripMap = React.memo(function TripMap(props: Props) {
       if (map.getLayer(EMERGENCY_ICON_LAYER)) map.setLayoutProperty(EMERGENCY_ICON_LAYER, "visibility", v);
       if (map.getLayer(EMERGENCY_LABEL_LAYER)) map.setLayoutProperty(EMERGENCY_LABEL_LAYER, "visibility", v);
     }
-  }, [props.emergency, styleReady, vpBounds]);
+  }, [props.emergency, styleReady]); // eslint-disable-line react-hooks/exhaustive-deps -- vpBounds read via ref
 
   /* ── Heritage overlay ────────────────────────────────────────────────── */
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
-    const emptyFC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+    const emptyFC = EMPTY_FC;
     if (!props.heritage?.sites?.length) {
       const src = map.getSource(HERITAGE_SRC) as GeoJSONSource | undefined;
       if (src) src.setData(emptyFC);
@@ -3228,13 +3266,13 @@ export const TripMap = React.memo(function TripMap(props: Props) {
       const v = overlayVisRef.current.heritage ? "visible" : "none";
       if (map.getLayer(HERITAGE_ICON_LAYER)) map.setLayoutProperty(HERITAGE_ICON_LAYER, "visibility", v);
     }
-  }, [props.heritage, styleReady, vpBounds]);
+  }, [props.heritage, styleReady]); // eslint-disable-line react-hooks/exhaustive-deps -- vpBounds read via ref
 
   /* ── Air Quality overlay ─────────────────────────────────────────────── */
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
-    const emptyFC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+    const emptyFC = EMPTY_FC;
     if (!props.airQuality?.points?.length) {
       const src = map.getSource(AQI_SRC) as GeoJSONSource | undefined;
       if (src) src.setData(emptyFC);
@@ -3279,13 +3317,13 @@ export const TripMap = React.memo(function TripMap(props: Props) {
       if (map.getLayer(AQI_DOT_LAYER)) map.setLayoutProperty(AQI_DOT_LAYER, "visibility", v);
       if (map.getLayer(AQI_LABEL_LAYER)) map.setLayoutProperty(AQI_LABEL_LAYER, "visibility", v);
     }
-  }, [props.airQuality, styleReady, vpBounds]);
+  }, [props.airQuality, styleReady]); // eslint-disable-line react-hooks/exhaustive-deps -- vpBounds read via ref
 
   /* ── Bushfire overlay ────────────────────────────────────────────────── */
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
-    const emptyFC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+    const emptyFC = EMPTY_FC;
     if (!props.bushfire?.incidents?.length && !props.bushfire?.hotspots?.length) {
       const src1 = map.getSource(BUSHFIRE_SRC) as GeoJSONSource | undefined;
       if (src1) src1.setData(emptyFC);
@@ -3341,13 +3379,13 @@ export const TripMap = React.memo(function TripMap(props: Props) {
     const v = overlayVisRef.current.bushfire ? "visible" : "none";
     if (map.getLayer(BUSHFIRE_ICON_LAYER)) map.setLayoutProperty(BUSHFIRE_ICON_LAYER, "visibility", v);
     if (map.getLayer(BUSHFIRE_HOTSPOT_LAYER)) map.setLayoutProperty(BUSHFIRE_HOTSPOT_LAYER, "visibility", v);
-  }, [props.bushfire, styleReady, vpBounds]);
+  }, [props.bushfire, styleReady]); // eslint-disable-line react-hooks/exhaustive-deps -- vpBounds read via ref
 
   /* ── Speed Cameras + Black Spots overlay ──────────────────────────────── */
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
-    const emptyFC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+    const emptyFC = EMPTY_FC;
     if (!props.speedCameras?.cameras?.length && !props.speedCameras?.black_spots?.length) {
       const src1 = map.getSource(CAMERAS_SRC) as GeoJSONSource | undefined;
       if (src1) src1.setData(emptyFC);
@@ -3414,13 +3452,13 @@ export const TripMap = React.memo(function TripMap(props: Props) {
     const v = overlayVisRef.current.cameras ? "visible" : "none";
     if (map.getLayer(CAMERAS_ICON_LAYER)) map.setLayoutProperty(CAMERAS_ICON_LAYER, "visibility", v);
     if (map.getLayer(BLACKSPOT_LAYER)) map.setLayoutProperty(BLACKSPOT_LAYER, "visibility", v);
-  }, [props.speedCameras, styleReady, vpBounds]);
+  }, [props.speedCameras, styleReady]); // eslint-disable-line react-hooks/exhaustive-deps -- vpBounds read via ref
 
   /* ── Toilets overlay ─────────────────────────────────────────────────── */
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
-    const emptyFC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+    const emptyFC = EMPTY_FC;
     if (!props.toilets?.toilets?.length) {
       const src = map.getSource(TOILETS_SRC) as GeoJSONSource | undefined;
       if (src) src.setData(emptyFC);
@@ -3457,13 +3495,13 @@ export const TripMap = React.memo(function TripMap(props: Props) {
       const v = overlayVisRef.current.toilets ? "visible" : "none";
       if (map.getLayer(TOILETS_ICON_LAYER)) map.setLayoutProperty(TOILETS_ICON_LAYER, "visibility", v);
     }
-  }, [props.toilets, styleReady, vpBounds]);
+  }, [props.toilets, styleReady]); // eslint-disable-line react-hooks/exhaustive-deps -- vpBounds read via ref
 
   /* ── School Zones overlay ────────────────────────────────────────────── */
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
-    const emptyFC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+    const emptyFC = EMPTY_FC;
     if (!props.schoolZones?.zones?.length) {
       const src = map.getSource(SCHOOL_ZONES_SRC) as GeoJSONSource | undefined;
       if (src) src.setData(emptyFC);
@@ -3500,13 +3538,13 @@ export const TripMap = React.memo(function TripMap(props: Props) {
       const v = overlayVisRef.current.school_zones ? "visible" : "none";
       if (map.getLayer(SCHOOL_ZONES_ICON_LAYER)) map.setLayoutProperty(SCHOOL_ZONES_ICON_LAYER, "visibility", v);
     }
-  }, [props.schoolZones, styleReady, vpBounds]);
+  }, [props.schoolZones, styleReady]); // eslint-disable-line react-hooks/exhaustive-deps -- vpBounds read via ref
 
   /* ── Roadkill hotspots overlay ───────────────────────────────────────── */
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
-    const emptyFC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+    const emptyFC = EMPTY_FC;
     if (!props.roadkill?.hotspots?.length) {
       const src = map.getSource(ROADKILL_SRC) as GeoJSONSource | undefined;
       if (src) src.setData(emptyFC);
@@ -3544,94 +3582,14 @@ export const TripMap = React.memo(function TripMap(props: Props) {
       const v = overlayVisRef.current.roadkill ? "visible" : "none";
       if (map.getLayer(ROADKILL_DOT_LAYER)) map.setLayoutProperty(ROADKILL_DOT_LAYER, "visibility", v);
     }
-  }, [props.roadkill, styleReady, vpBounds]);
+  }, [props.roadkill, styleReady]); // eslint-disable-line react-hooks/exhaustive-deps -- vpBounds read via ref
 
-  /* ── Register click handlers for utility overlay layers (modal, not popup) ── */
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !styleReady) return;
-
-    const handlers: Array<[string, (e: MapLayerMouseEvent) => void]> = [];
-    const addHandler = (layerId: string, handler: (e: MapLayerMouseEvent) => void) => {
-      if (!map.getLayer(layerId)) return;
-      map.on("click", layerId, handler);
-      map.on("mouseenter", layerId, () => (map.getCanvas().style.cursor = "pointer"));
-      map.on("mouseleave", layerId, () => (map.getCanvas().style.cursor = ""));
-      handlers.push([layerId, handler]);
-    };
-
-    addHandler(AQI_DOT_LAYER, (e) => {
-      const p = e?.features?.[0]?.properties; if (!p) return;
-      const extra: Record<string, unknown> = {};
-      if (p?.aqi != null) extra.aqi = Number(p.aqi);
-      if (p?.aqi_label) extra.aqi_label = String(p.aqi_label);
-      onOpenPlaceDetailRef.current?.(`aqi_${e.lngLat.lat}_${e.lngLat.lng}`, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: `Air Quality: ${p?.aqi_label ?? "Unknown"}`, category: "air_quality", extra });
-    });
-
-    addHandler(BUSHFIRE_ICON_LAYER, (e) => {
-      const p = e?.features?.[0]?.properties; if (!p) return;
-      const extra: Record<string, unknown> = {};
-      if (p?.alert_level) extra.alert_level = String(p.alert_level);
-      if (p?.status) extra.status = String(p.status);
-      onOpenPlaceDetailRef.current?.(p?.id ? String(p.id) : `bushfire_${e.lngLat.lat}_${e.lngLat.lng}`, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: p?.title ? String(p.title) : "Bushfire", category: "bushfire", extra });
-    });
-
-    addHandler(CAMERAS_ICON_LAYER, (e) => {
-      const p = e?.features?.[0]?.properties; if (!p) return;
-      const extra: Record<string, unknown> = {};
-      if (p?.camera_type) extra.camera_type = String(p.camera_type);
-      if (p?.road) extra.road = String(p.road);
-      onOpenPlaceDetailRef.current?.(p?.id ? String(p.id) : `camera_${e.lngLat.lat}_${e.lngLat.lng}`, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: p?.road ? `Speed Camera - ${String(p.road)}` : "Speed Camera", category: "speed_camera", extra });
-    });
-
-    addHandler(BLACKSPOT_LAYER, (e) => {
-      const p = e?.features?.[0]?.properties; if (!p) return;
-      const extra: Record<string, unknown> = {};
-      if (p?.road) extra.road = String(p.road);
-      if (p?.crash_count) extra.crash_count = Number(p.crash_count);
-      onOpenPlaceDetailRef.current?.(p?.id ? String(p.id) : `blackspot_${e.lngLat.lat}_${e.lngLat.lng}`, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: p?.road ? `Black Spot - ${String(p.road)}` : "Crash Black Spot", category: "black_spot", extra });
-    });
-
-    addHandler(TOILETS_ICON_LAYER, (e) => {
-      const p = e?.features?.[0]?.properties; if (!p) return;
-      const extra: Record<string, unknown> = {};
-      if (p?.is_accessible != null) extra.is_accessible = !!p.is_accessible;
-      if (p?.is_dump_point != null) extra.is_dump_point = !!p.is_dump_point;
-      onOpenPlaceDetailRef.current?.(p?.id ? String(p.id) : `toilet_${e.lngLat.lat}_${e.lngLat.lng}`, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: p?.name ? String(p.name) : "Public Toilet", category: "toilet", extra });
-    });
-
-    addHandler(SCHOOL_ZONES_ICON_LAYER, (e) => {
-      const p = e?.features?.[0]?.properties; if (!p) return;
-      const extra: Record<string, unknown> = {};
-      if (p?.speed_limit) extra.speed_limit = Number(p.speed_limit);
-      if (p?.is_active != null) extra.is_active = !!p.is_active;
-      onOpenPlaceDetailRef.current?.(p?.id ? String(p.id) : `school_${e.lngLat.lat}_${e.lngLat.lng}`, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: p?.school_name ? String(p.school_name) : "School Zone", category: "school_zone", extra });
-    });
-
-    addHandler(ROADKILL_DOT_LAYER, (e) => {
-      const p = e?.features?.[0]?.properties; if (!p) return;
-      const extra: Record<string, unknown> = {};
-      if (p?.risk_level) extra.risk_level = String(p.risk_level);
-      if (p?.count) extra.observation_count = Number(p.count);
-      if (p?.species) extra.species = String(p.species);
-      onOpenPlaceDetailRef.current?.(p?.id ? String(p.id) : `roadkill_${e.lngLat.lat}_${e.lngLat.lng}`, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: p?.species ? `Wildlife Risk: ${String(p.species)}` : "Roadkill Hotspot", category: "roadkill", extra });
-    });
-
-    addHandler(WEATHER_DOT_LAYER, (e) => {
-      const p = e?.features?.[0]?.properties; if (!p) return;
-      const extra: Record<string, unknown> = {};
-      if (p?.temp != null) extra.temperature = Number(p.temp);
-      if (p?.precip_prob != null) extra.precipitation_probability = Number(p.precip_prob);
-      if (p?.wind != null) extra.wind_speed = Number(p.wind);
-      onOpenPlaceDetailRef.current?.(`weather_${e.lngLat.lat}_${e.lngLat.lng}`, { lat: e.lngLat.lat, lng: e.lngLat.lng, name: `${Math.round(Number(p?.temp ?? 0))}° Weather`, category: "weather", extra });
-    });
-
-    return () => {
-      for (const [layerId, handler] of handlers) {
-        try { map.off("click", layerId, handler); } catch {}
-      }
-    };
-  }, [styleReady]);
+  /* ── Duplicate click handler registration removed ──
+     Click handlers for overlay layers (weather, emergency, heritage, AQI,
+     bushfire, cameras, blackspots, toilets, school zones, roadkill) are
+     already registered inside each overlay's own creation useEffect above.
+     Registering them again here caused every tap to fire the handler twice.
+     ──────────────────────────────────────────────────────────────────── */
 
 
   useEffect(() => {
@@ -3664,7 +3622,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
     if (!map) return;
     if (props.navigationMode) return; // camera controlled by useMapNavigationMode
 
-    const emptyFC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+    const emptyFC = EMPTY_FC;
     const id = props.focusedSuggestionId ?? null;
 
     // Clean up previous animation
@@ -3788,7 +3746,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
     const map = mapRef.current;
     if (!map) return;
     const id = props.highlightedAlertId ?? null;
-    const emptyFC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+    const emptyFC = EMPTY_FC;
 
     if (!id) {
       const src = map.getSource(ALERT_HIGHLIGHT_SRC) as GeoJSONSource | undefined;
@@ -3890,21 +3848,10 @@ export const TripMap = React.memo(function TripMap(props: Props) {
         const anyOff = ALL_OVERLAY_KEYS.some((k) => !overlayVis[k]);
         const isNav = !!props.navigationMode;
         return (
-          <div style={{
-            position: "absolute",
-            top: props.navigationMode
-              ? "calc(env(safe-area-inset-top, 0px) + 12px)"
-              : "calc(env(safe-area-inset-top, 0px) + 56px)",
-            right: 12,
-            zIndex: props.navigationMode ? 50 : 25,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "flex-end",
-            gap: 8,
-          }}>
+          <div style={isNav ? LAYER_CONTROLS_STYLE_NAV : LAYER_CONTROLS_STYLE}>
             {/* Layer button + dropdown wrapper */}
-            <div style={{ position: "relative" }}>
-            {/* In nav mode the toggle lives in NavigationControls — hide button here */}
+            <div style={RELATIVE_STYLE}>
+            {/* In nav mode the toggle lives in NavigationControls - hide button here */}
             {!isNav && (
               <>
               <button
@@ -3940,12 +3887,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
             {/* Expanded menu - left of button on desktop, below on mobile */}
             {layerMenuVisible && (
               <div className={`layer-menu-dropdown${layerMenuMounted ? " layer-menu-dropdown--open" : ""}${props.navigationMode ? " layer-menu-dropdown--nav" : ""}`}>
-              <div style={{
-                overflowY: "auto",
-                flex: 1,
-                padding: "6px 4px",
-                display: "flex", flexDirection: "column", gap: 2,
-              }}>
+              <div style={LAYER_MENU_SCROLL_STYLE}>
                 {/* Toggle All */}
                 <button
                   type="button"
@@ -3996,7 +3938,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
                     >
                       {overlayVis[key] && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>}
                     </span>
-                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={FLEX_ROW_CENTER_STYLE}>
                       {label}
                       {key === "weather" && props.weather && props.weather.warnings.length > 0 && (
                         <span className="ml-1 h-2 w-2 rounded-full bg-red-500 inline-block" />
@@ -4015,7 +3957,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
                   <div className="layer-menu-style-section">
                     <span className="layer-menu-style-label">MAP STYLE</span>
                     {/* Map / Sat row */}
-                    <div style={{ display: "flex", gap: 4 }}>
+                    <div style={FLEX_ROW_STYLE}>
                       <button type="button" className={`layer-menu-style-btn${mode === "vector" ? " layer-menu-style-btn--active" : ""}`} onClick={() => { haptic.selection(); props.onStyleChange!({ mode: "vector", vectorTheme }); }}>
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z"/><path d="M9 3v15M15 6v15"/></svg>
                         Map
@@ -4027,7 +3969,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
                     </div>
                     {/* Bright / Dark row - animates in when vector mode is active */}
                     <div className={mode === "vector" ? "style-theme-row style-theme-row--open" : "style-theme-row"}>
-                      <div style={{ display: "flex", gap: 4 }}>
+                      <div style={FLEX_ROW_STYLE}>
                         <button type="button" className={`layer-menu-style-btn${vectorTheme === "bright" ? " layer-menu-style-btn--active" : ""}`} onClick={() => { haptic.selection(); props.onStyleChange!({ mode: "vector", vectorTheme: "bright" }); }}>
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
                           Bright
@@ -4048,243 +3990,7 @@ export const TripMap = React.memo(function TripMap(props: Props) {
         );
       })()}
 
-      <style>{`
-        /* ── Layer toggle button ── */
-        .layer-toggle-btn {
-          width: 46px; height: 46px; border-radius: 16px;
-          border: 1px solid rgba(0,0,0,0.10);
-          cursor: pointer; display: grid; place-items: center;
-          background: linear-gradient(160deg, rgba(255,255,255,0.92) 0%, rgba(244,239,230,0.96) 100%);
-          color: var(--text-main, #1a1613);
-          backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-          box-shadow: 0 4px 16px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.06);
-          transition: transform 0.1s ease, background 0.2s ease, box-shadow 0.2s ease;
-        }
-        .layer-toggle-btn--filtered {
-          background: linear-gradient(160deg, rgba(45,110,64,0.95) 0%, rgba(31,82,54,0.98) 100%);
-          color: var(--on-color);
-          border: 1px solid rgba(45,110,64,0.35);
-          box-shadow: 0 4px 16px rgba(45,110,64,0.30), 0 1px 4px rgba(0,0,0,0.12);
-        }
-        @media (prefers-color-scheme: dark) {
-          .layer-toggle-btn {
-            background: linear-gradient(160deg, rgba(26,21,16,0.96) 0%, rgba(16,13,10,0.98) 100%);
-            color: var(--on-color);
-            border: 1px solid rgba(255,255,255,0.09);
-            box-shadow: 0 4px 16px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.15);
-          }
-        }
-
-        /* ── First-time layer hint glow + tooltip ── */
-        .layer-toggle-btn--hint {
-          animation: layer-hint-pulse 2s ease-in-out infinite;
-          border-color: rgba(45,110,64,0.5);
-        }
-        @keyframes layer-hint-pulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(45,110,64,0.5), 0 4px 16px rgba(0,0,0,0.08); }
-          50% { box-shadow: 0 0 0 8px rgba(45,110,64,0), 0 4px 20px rgba(45,110,64,0.25); }
-        }
-        @media (prefers-color-scheme: dark) {
-          .layer-toggle-btn--hint {
-            animation: layer-hint-pulse-dark 2s ease-in-out infinite;
-            border-color: rgba(74,222,128,0.4);
-          }
-        }
-        @keyframes layer-hint-pulse-dark {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0.45), 0 4px 16px rgba(0,0,0,0.3); }
-          50% { box-shadow: 0 0 0 8px rgba(74,222,128,0), 0 4px 20px rgba(74,222,128,0.2); }
-        }
-        .layer-hint-tooltip {
-          position: absolute;
-          top: 50%;
-          right: calc(100% + 10px);
-          transform: translateY(-50%);
-          background: rgba(26,22,18,0.92);
-          color: rgba(250,246,239,0.95);
-          font-size: 12px;
-          font-weight: 700;
-          letter-spacing: -0.1px;
-          padding: 7px 12px;
-          border-radius: 10px;
-          white-space: nowrap;
-          pointer-events: none;
-          backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-          border: 1px solid rgba(255,255,255,0.08);
-          box-shadow: 0 4px 16px rgba(0,0,0,0.2);
-          animation: layer-hint-fade-in 0.4s ease-out;
-        }
-        .layer-hint-arrow {
-          position: absolute;
-          top: 50%;
-          right: -5px;
-          transform: translateY(-50%) rotate(45deg);
-          width: 8px; height: 8px;
-          background: rgba(26,22,18,0.92);
-          border-right: 1px solid rgba(255,255,255,0.08);
-          border-bottom: 1px solid rgba(255,255,255,0.08);
-        }
-        @keyframes layer-hint-fade-in {
-          from { opacity: 0; transform: translateY(-50%) translateX(6px); }
-          to { opacity: 1; transform: translateY(-50%) translateX(0); }
-        }
-
-        /* ── Layer menu dropdown ── */
-        .layer-menu-dropdown {
-          position: absolute;
-          top: 0;
-          right: calc(100% + 8px);
-          transform-origin: top right;
-          max-height: min(420px, calc(100dvh - env(safe-area-inset-top, 0px) - 56px - 180px - var(--bottom-nav-height, 80px)));
-          background: linear-gradient(160deg, rgba(255,255,255,0.97) 0%, rgba(244,239,230,0.99) 100%);
-          backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-          border-radius: 18px;
-          border: 1px solid rgba(0,0,0,0.08);
-          box-shadow: 0 12px 40px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.6);
-          min-width: 150px;
-          display: flex; flex-direction: column;
-          overflow: hidden;
-          opacity: 0;
-          transform: translateY(-8px) scale(0.96);
-          transition: opacity 280ms cubic-bezier(0.34,1.56,0.64,1), transform 280ms cubic-bezier(0.34,1.56,0.64,1);
-        }
-        .layer-menu-dropdown--open {
-          opacity: 1;
-          transform: translateY(0) scale(1);
-        }
-        /* Nav mode: dropdown opens below the button instead of to the left */
-        .layer-menu-dropdown--nav {
-          top: calc(100% + 8px);
-          right: 0;
-          transform-origin: top right;
-        }
-        .layer-menu-dropdown--nav:not(.layer-menu-dropdown--open) {
-          transform: translateY(-8px) scale(0.96);
-        }
-        .layer-menu-dropdown > div:first-child {
-          mask-image: linear-gradient(to bottom, black calc(100% - 32px), transparent 100%);
-          -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 32px), transparent 100%);
-        }
-        @media (prefers-color-scheme: dark) {
-          .layer-menu-dropdown {
-            background: linear-gradient(160deg, rgba(26,21,16,0.97) 0%, rgba(16,13,10,0.99) 100%);
-            border: 1px solid rgba(255,255,255,0.07);
-            box-shadow: 0 12px 40px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.05);
-          }
-        }
-
-        /* ── Layer menu items ── */
-        .layer-menu-item {
-          display: flex; align-items: center; gap: 10px;
-          padding: 8px 12px; border-radius: 10px; border: none;
-          background: transparent; color: var(--text-main, #1a1613); cursor: pointer;
-          font-size: 13px; font-weight: 500; width: 100%; text-align: left;
-        }
-        .layer-menu-item--all {
-          font-weight: 700;
-          border-bottom: 1px solid rgba(0,0,0,0.06);
-        }
-        @media (prefers-color-scheme: dark) {
-          .layer-menu-item { color: white; }
-          .layer-menu-item--all { border-bottom-color: rgba(255,255,255,0.08); }
-        }
-
-        /* ── Layer menu checkboxes ── */
-        .layer-menu-check {
-          width: 18px; height: 18px; border-radius: 5px;
-          border: 2px solid rgba(0,0,0,0.25);
-          background: transparent;
-          display: grid; place-items: center; flex-shrink: 0;
-          transition: background 0.15s ease;
-        }
-        .layer-menu-check--on {
-          background: var(--text-main, #1a1613);
-          border: none;
-        }
-        @media (prefers-color-scheme: dark) {
-          .layer-menu-check { border-color: rgba(255,255,255,0.4); }
-          .layer-menu-check--on { background: white; }
-        }
-
-        /* ── Map style section ── */
-        .layer-menu-style-section {
-          padding: 8px 8px 6px;
-          border-top: 1px solid rgba(0,0,0,0.06);
-          display: flex; flex-direction: column; gap: 6px;
-        }
-        .layer-menu-style-label {
-          font-size: 10px; font-weight: 700; color: var(--text-muted, #7a7067);
-          letter-spacing: 0.08em; padding: 0 4px;
-        }
-        .layer-menu-style-btn {
-          flex: 1; height: 34px; border-radius: 9px; border: none;
-          cursor: pointer; font-size: 12px; font-weight: 700;
-          display: flex; align-items: center; justify-content: center; gap: 5px;
-          background: transparent; color: var(--text-main, #1a1613);
-          transition: background 0.15s ease;
-        }
-        .layer-menu-style-btn--active {
-          background: rgba(0,0,0,0.08);
-        }
-        @media (prefers-color-scheme: dark) {
-          .layer-menu-style-section { border-top-color: rgba(255,255,255,0.08); }
-          .layer-menu-style-label { color: rgba(255,255,255,0.4); }
-          .layer-menu-style-btn { color: white; }
-          .layer-menu-style-btn--active { background: rgba(255,255,255,0.18); }
-        }
-
-        .style-theme-row {
-          max-height: 0;
-          opacity: 0;
-          overflow: hidden;
-          transition: max-height 220ms cubic-bezier(0.4,0,0.2,1), opacity 180ms ease;
-        }
-        .style-theme-row--open {
-          max-height: 48px;
-          opacity: 1;
-        }
-        .trip-map-popup .maplibregl-popup-content {
-          border-radius: var(--r-card, 24px);
-          padding: 16px 18px;
-          background: color-mix(in srgb, var(--roam-surface, #f4efe6) 82%, transparent);
-          color: var(--roam-text);
-          backdrop-filter: blur(20px) saturate(170%);
-          -webkit-backdrop-filter: blur(20px) saturate(170%);
-          box-shadow:
-            0 12px 40px rgba(40,32,20,0.18),
-            0 2px 8px rgba(40,32,20,0.10),
-            inset 0 1px 0 rgba(255,255,255,0.35);
-          border: 1px solid rgba(255,255,255,0.18);
-        }
-        @media (prefers-color-scheme: dark) {
-          .trip-map-popup .maplibregl-popup-content {
-            background: color-mix(in srgb, var(--roam-surface, #1a1a1a) 75%, transparent);
-            box-shadow:
-              0 12px 40px rgba(0,0,0,0.40),
-              0 2px 8px rgba(0,0,0,0.25),
-              inset 0 1px 0 rgba(255,255,255,0.06);
-            border: 1px solid rgba(255,255,255,0.08);
-          }
-        }
-        .trip-map-popup .maplibregl-popup-close-button {
-          font-size: 16px;
-          font-weight: 800;
-          color: var(--roam-text-muted);
-          padding: 4px 8px;
-          border-radius: 10px;
-          transition: transform 80ms ease, background 120ms ease;
-          -webkit-tap-highlight-color: transparent;
-        }
-        .trip-map-popup .maplibregl-popup-close-button:hover {
-          background: var(--roam-surface-hover);
-          color: var(--roam-text);
-        }
-        .trip-map-popup .maplibregl-popup-close-button:active {
-          transform: scale(0.88);
-        }
-        .trip-map-popup .maplibregl-popup-tip {
-          border-top-color: color-mix(in srgb, var(--roam-surface, #f4efe6) 82%, transparent);
-        }
-      `}</style>
+      {/* Styles moved to TripMap.css - imported at top of file */}
     </div>
   );
 });

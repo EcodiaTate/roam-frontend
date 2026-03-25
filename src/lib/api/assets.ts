@@ -29,16 +29,16 @@ function trimSlashes(x: string) {
 }
 
 function supaBaseUrl(): string {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+  const url = import.meta.env.VITE_SUPABASE_URL || "";
   return url.replace(/\/+$/g, "");
 }
 
 function bucket(): string {
-  return process.env.NEXT_PUBLIC_SUPABASE_TILES_BUCKET || "tiles";
+  return import.meta.env.VITE_SUPABASE_TILES_BUCKET || "tiles";
 }
 
 function tilesPrefix(): string {
-  return trimSlashes(process.env.NEXT_PUBLIC_SUPABASE_TILES_PREFIX || "tiles");
+  return trimSlashes(import.meta.env.VITE_SUPABASE_TILES_PREFIX || "tiles");
 }
 
 function joinPath(...parts: string[]) {

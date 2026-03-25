@@ -1,5 +1,4 @@
 // src/components/nav/ElevationStrip.tsx
-"use client";
 
 import { memo, useMemo, useCallback, useRef, useState } from "react";
 import type { ElevationProfile, GradeSegment, ElevationSample } from "@/lib/types/navigation";

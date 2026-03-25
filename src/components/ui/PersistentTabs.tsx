@@ -1,34 +1,28 @@
 // src/components/ui/PersistentTabs.tsx
-"use client";
 
 import { Suspense, useEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
-import dynamic from "next/dynamic";
+import { useLocation } from "react-router";
+import { lazy } from "react";
 
 import { TripSkeleton } from "@/app/(app)/trip/TripSkeleton";
 import { GuideSkeleton } from "@/app/(app)/guide/GuideSkeleton";
 import { DiscoverSkeleton } from "@/app/(app)/discover/DiscoverSkeleton";
 import { JournalSkeleton } from "@/app/(app)/journal/JournalSkeleton";
 
-const TripClientPage = dynamic(
-  () => import("@/app/(app)/trip/ClientPage").then((m) => ({ default: m.TripClientPage })),
-  { ssr: false }
+const TripClientPage = lazy(
+  () => import("@/app/(app)/trip/ClientPage").then((m) => ({ default: m.TripClientPage }))
 );
-const GuideClientPage = dynamic(
-  () => import("@/app/(app)/guide/ClientPage"),
-  { ssr: false }
+const GuideClientPage = lazy(
+  () => import("@/app/(app)/guide/ClientPage")
 );
-const EmergencyClientPage = dynamic(
-  () => import("@/app/(app)/sos/ClientPage"),
-  { ssr: false }
+const EmergencyClientPage = lazy(
+  () => import("@/app/(app)/sos/ClientPage")
 );
-const DiscoverClientPage = dynamic(
-  () => import("@/app/(app)/discover/ClientPage"),
-  { ssr: false }
+const DiscoverClientPage = lazy(
+  () => import("@/app/(app)/discover/ClientPage")
 );
-const MemoriesClientPage = dynamic(
-  () => import("@/app/(app)/journal/ClientPage"),
-  { ssr: false }
+const MemoriesClientPage = lazy(
+  () => import("@/app/(app)/journal/ClientPage")
 );
 
 /* ── Tab definitions ─────────────────────────────────────────────────── */
@@ -53,7 +47,7 @@ type AnimState =
 /* ── Component ───────────────────────────────────────────────────────── */
 
 export function PersistentTabs({ children }: { children: React.ReactNode }) {
-  const rawPathname = usePathname();
+  const rawPathname = useLocation().pathname;
   const [isClient, setIsClient] = useState(false);
   useEffect(() => { setIsClient(true); }, []);
 

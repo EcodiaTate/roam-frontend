@@ -8,20 +8,20 @@
 
 /** Solid accent colour for a 0–10 route score. */
 export function scoreColor(score: number): string {
-  if (score >= 8) return "#22c55e";
-  if (score >= 6) return "#3b82f6";
-  if (score >= 4) return "#f59e0b";
-  if (score >= 2) return "#f97316";
-  return "#ef4444";
+  if (score >= 8) return "var(--roam-success)";
+  if (score >= 6) return "var(--roam-info)";
+  if (score >= 4) return "var(--roam-warn)";
+  if (score >= 2) return "var(--severity-moderate)";
+  return "var(--roam-danger)";
 }
 
 /** 12%-alpha background tint matching scoreColor. */
 export function scoreBg(score: number): string {
-  if (score >= 8) return "rgba(34,197,94,0.12)";
-  if (score >= 6) return "rgba(59,130,246,0.12)";
-  if (score >= 4) return "rgba(245,158,11,0.12)";
-  if (score >= 2) return "rgba(249,115,22,0.12)";
-  return "rgba(239,68,68,0.12)";
+  if (score >= 8) return "var(--accent-tint)";
+  if (score >= 6) return "var(--info-tint)";
+  if (score >= 4) return "var(--severity-minor-tint)";
+  if (score >= 2) return "var(--severity-moderate-tint)";
+  return "var(--danger-tint)";
 }
 
 // ── Fuel warning severity ────────────────────────────────────────────────
@@ -36,7 +36,7 @@ export function severityColor(severity: string): { bg: string; text: string; ico
         icon: "var(--text-error, #ef4444)",
       };
     case "warn":
-      return { bg: "rgba(245,158,11,0.1)", text: "#b45309", icon: "#f59e0b" };
+      return { bg: "var(--bg-warn)", text: "var(--text-warn)", icon: "var(--roam-warn)" };
     default:
       return {
         bg: "var(--roam-surface-hover)",
@@ -54,6 +54,6 @@ export function legColor(leg: {
   gap_exceeds_warn: boolean;
 }): string {
   if (leg.gap_exceeds_range) return "var(--bg-error, #ef4444)";
-  if (leg.gap_exceeds_warn) return "#f59e0b";
-  return "#22c55e";
+  if (leg.gap_exceeds_warn) return "var(--roam-warn)";
+  return "var(--roam-success)";
 }

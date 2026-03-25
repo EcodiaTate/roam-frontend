@@ -1,5 +1,4 @@
 // src/lib/native/orientation.ts
-"use client";
 
 import { isNative, hasPlugin } from "./platform";
 

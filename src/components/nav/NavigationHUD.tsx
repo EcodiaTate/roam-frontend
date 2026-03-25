@@ -1,5 +1,4 @@
 // src/components/nav/NavigationHUD.tsx
-"use client";
 
 import { memo, useMemo } from "react";
 import type { ActiveNavState } from "@/lib/nav/activeNav";
@@ -59,9 +58,14 @@ const NAV_CARD_BG = "var(--nav-card-bg, #f0e9dc)";
 export const NavigationHUD = memo(function NavigationHUD({ nav, visible, simple }: Props) {
   const currentStep = nav.currentStep;
   const nextStep = nav.nextStep;
+  // Memoize on maneuver type+modifier (stable strings) instead of object reference,
+  // since activeNav returns a new currentStep object every GPS tick even if the step hasn't changed.
+  const maneuverType = currentStep?.maneuver?.type;
+  const maneuverModifier = currentStep?.maneuver?.modifier;
   const iconName = useMemo(
     () => (currentStep ? maneuverIcon(currentStep.maneuver) : "arrow-up"),
-    [currentStep],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [maneuverType, maneuverModifier],
   );
 
   const isImminent  = nav.distToNextManeuver_m < 100;
@@ -113,7 +117,7 @@ export const NavigationHUD = memo(function NavigationHUD({ nav, visible, simple 
           pointerEvents: "auto",
         }}
       >
-        {/* Circle — rendered as SVG background circle + arrow path in one SVG */}
+        {/* Circle - rendered as SVG background circle + arrow path in one SVG */}
         <svg
           className={isImminent ? "hud-imminent" : undefined}
           width={cs}
@@ -132,7 +136,7 @@ export const NavigationHUD = memo(function NavigationHUD({ nav, visible, simple 
         >
           {/* Background circle */}
           <circle cx={cs / 2} cy={cs / 2} r={cs / 2} fill={circleColor} style={{ transition: "fill 0.4s ease" }} />
-          {/* Centered arrow — scale 24→iconSize, then center in circle */}
+          {/* Centered arrow - scale 24→iconSize, then center in circle */}
           {(() => {
             const iconSize = simple ? 36 : 32;
             const scale = iconSize / 24;
@@ -179,7 +183,7 @@ export const NavigationHUD = memo(function NavigationHUD({ nav, visible, simple 
             )}
           </div>
 
-          {/* "then" preview — inside the card */}
+          {/* "then" preview - inside the card */}
           {!simple && nextStep && (
             <div style={{
               marginTop: 5,

@@ -1,5 +1,4 @@
 // src/lib/hooks/usePlanSync.ts
-"use client";
 
 import { useCallback, useEffect, useState } from "react";
 import { planSync } from "@/lib/offline/planSync";

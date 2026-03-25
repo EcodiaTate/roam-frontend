@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useCallback, useEffect, useRef } from "react";
 import type { TripStop } from "@/lib/types/trip";
 import type { PlaceItem } from "@/lib/types/places";
@@ -148,7 +146,7 @@ function CalendarPicker({ value, onChange, onClose }: {
           type="button"
           onClick={prevMonth}
           style={{
-            all: "unset", cursor: "pointer", width: 32, height: 32, borderRadius: 8,
+            all: "unset", cursor: "pointer", width: 44, height: 44, borderRadius: 10,
             display: "grid", placeItems: "center",
             background: "var(--roam-surface-hover)", color: "var(--roam-text)",
             touchAction: "manipulation", WebkitTapHighlightColor: "transparent",
@@ -166,7 +164,7 @@ function CalendarPicker({ value, onChange, onClose }: {
           type="button"
           onClick={nextMonth}
           style={{
-            all: "unset", cursor: "pointer", width: 32, height: 32, borderRadius: 8,
+            all: "unset", cursor: "pointer", width: 44, height: 44, borderRadius: 10,
             display: "grid", placeItems: "center",
             background: "var(--roam-surface-hover)", color: "var(--roam-text)",
             touchAction: "manipulation", WebkitTapHighlightColor: "transparent",
@@ -212,9 +210,9 @@ function CalendarPicker({ value, onChange, onClose }: {
                 cursor: "pointer",
                 display: "grid",
                 placeItems: "center",
-                height: 34,
-                borderRadius: 8,
-                fontSize: 12,
+                height: 44,
+                borderRadius: 10,
+                fontSize: 13,
                 fontWeight: sel ? 900 : 600,
                 color: sel ? "var(--on-color)" : today ? "var(--brand-eucalypt)" : "var(--roam-text)",
                 background: sel
@@ -516,7 +514,7 @@ function SchedulePopover({ stop, onEdit, anchorRef, onClose }: {
           style={{
             all: "unset", cursor: "pointer",
             display: "flex", alignItems: "center", gap: 5,
-            height: 34, padding: "0 10px", borderRadius: 9,
+            height: 44, padding: "0 12px", borderRadius: 10,
             background: "var(--roam-surface-hover)",
             color: "var(--roam-text)", fontSize: 12, fontWeight: 700,
             fontVariantNumeric: "tabular-nums",
@@ -532,7 +530,7 @@ function SchedulePopover({ stop, onEdit, anchorRef, onClose }: {
           style={{
             all: "unset", cursor: "pointer",
             display: "flex", alignItems: "center", gap: 4,
-            height: 34, padding: "0 10px", borderRadius: 9,
+            height: 44, padding: "0 12px", borderRadius: 10,
             background: "var(--roam-surface-hover)",
             color: "var(--roam-text)", fontSize: 13, fontWeight: 800,
             fontVariantNumeric: "tabular-nums", letterSpacing: "-0.3px",
@@ -747,8 +745,8 @@ export function StopRow(props: {
           className="trip-badge"
           style={{
             width: "100%", textAlign: "center", justifyContent: "center", paddingInline: 6,
-            background: "#fff", color: "#1a1613",
-            border: "1px solid var(--roam-border, rgba(0,0,0,0.1))",
+            background: "var(--roam-surface)", color: "var(--roam-text)",
+            border: "1px solid var(--roam-border)",
           }}
         >
           {badgeForType(s.type)}
@@ -803,6 +801,8 @@ export function StopRow(props: {
                     style={{
                       width: "100%",
                       padding: "11px 16px",
+                      minHeight: 44,
+                      boxSizing: "border-box",
                       background: "transparent",
                       border: "none",
                       borderBottom: "1px solid var(--roam-border)",
@@ -810,7 +810,9 @@ export function StopRow(props: {
                       cursor: "pointer",
                       display: "flex",
                       flexDirection: "column",
+                      justifyContent: "center",
                       gap: 2,
+                      WebkitTapHighlightColor: "transparent",
                     }}
                   >
                     <span style={{ fontSize: 14, fontWeight: 700, color: "var(--roam-text)" }}>{it.name}</span>
@@ -879,16 +881,16 @@ export function StopRow(props: {
 
       {/* Reorder / remove controls */}
       {(canMoveUp || canMoveDown || canRemove) && (
-        <div style={{ display: "flex", gap: 3, paddingTop: 8, flexShrink: 0, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 4, paddingTop: 8, flexShrink: 0, alignItems: "center" }}>
           {canMoveUp && (
             <button
               type="button"
               onClick={() => { haptic.selection(); props.onMoveUp(); }}
               className="trip-interactive trip-btn-icon"
-              style={{ width: 30, height: 30, background: "var(--roam-surface-raised)" }}
+              style={{ width: 44, height: 44, background: "var(--roam-surface-raised)" }}
               aria-label="Move up"
             >
-              <ChevronUp size={14} />
+              <ChevronUp size={16} />
             </button>
           )}
           {canMoveDown && (
@@ -896,10 +898,10 @@ export function StopRow(props: {
               type="button"
               onClick={() => { haptic.selection(); props.onMoveDown(); }}
               className="trip-interactive trip-btn-icon"
-              style={{ width: 30, height: 30, background: "var(--roam-surface-raised)" }}
+              style={{ width: 44, height: 44, background: "var(--roam-surface-raised)" }}
               aria-label="Move down"
             >
-              <ChevronDown size={14} />
+              <ChevronDown size={16} />
             </button>
           )}
           {canRemove && (
@@ -907,10 +909,10 @@ export function StopRow(props: {
               type="button"
               onClick={() => { haptic.medium(); props.onRemove(); }}
               className="trip-interactive trip-btn-icon trip-btn-danger"
-              style={{ width: 30, height: 30 }}
+              style={{ width: 44, height: 44 }}
               aria-label="Remove stop"
             >
-              <X size={13} />
+              <X size={15} />
             </button>
           )}
         </div>

@@ -1,5 +1,4 @@
 // src/lib/hooks/useEnrichment.ts
-"use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { NavPack } from "@/lib/types/navigation";

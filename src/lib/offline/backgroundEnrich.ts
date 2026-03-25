@@ -1,5 +1,4 @@
 // src/lib/offline/backgroundEnrich.ts
-"use client";
 
 import type { NavPack } from "@/lib/types/navigation";
 import type { TripPreferences } from "@/lib/types/trip";
@@ -34,13 +33,13 @@ import type { PlaceCategory } from "@/lib/types/places";
 import type { CategoryGroup } from "@/lib/types/trip";
 
 const CATEGORY_GROUP_MAP: Record<CategoryGroup, PlaceCategory[]> = {
-  essentials:     ["fuel", "ev_charging", "rest_area", "toilet", "water", "mechanic", "hospital", "pharmacy"],
+  essentials:     ["fuel", "ev_charging", "rest_area", "toilet", "water", "mechanic", "hospital", "pharmacy", "emergency_phone"],
   food:           ["bakery", "cafe", "restaurant", "fast_food", "pub", "bar"],
   accommodation:  ["camp", "hotel", "motel", "hostel"],
   nature:         ["viewpoint", "waterfall", "swimming_hole", "beach", "national_park", "hiking", "picnic", "hot_spring", "cave", "fishing", "surf"],
   culture:        ["visitor_info", "museum", "gallery", "heritage", "winery", "brewery", "attraction", "market", "library", "showground"],
   family:         ["playground", "pool", "zoo", "theme_park", "dog_park", "golf", "cinema"],
-  supplies:       ["grocery", "town", "atm", "laundromat", "dump_point"],
+  supplies:       ["grocery", "town", "atm", "laundromat", "dump_point", "shower", "water_fill"],
 };
 
 function resolveEnabledCategories(prefs: TripPreferences): PlaceCategory[] {
@@ -205,7 +204,7 @@ export function startEnrichment(args: {
       const stopCoords: number[][] = [];
       if (placesData?.items) {
         for (const item of placesData.items) {
-          if (item.lat && item.lng) stopCoords.push([item.lat, item.lng]);
+          if (item.lat != null && item.lng != null) stopCoords.push([item.lat, item.lng]);
         }
       }
       console.info("[enrich] passing %d stop coords to corridor", stopCoords.length);

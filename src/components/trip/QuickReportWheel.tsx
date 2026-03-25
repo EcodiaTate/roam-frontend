@@ -1,5 +1,4 @@
 // src/components/trip/QuickReportWheel.tsx
-"use client";
 
 /**
  * QuickReportWheel
@@ -258,7 +257,7 @@ export function QuickReportWheel({ position, onSubmit, trayOnly }: QuickReportWh
         </div>
       </div>
 
-      {/* ── FAB — hidden in trayOnly mode ── */}
+      {/* ── FAB - hidden in trayOnly mode ── */}
       {!trayOnly && (
         <button
           ref={fabRef}

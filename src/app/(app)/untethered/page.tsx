@@ -1,7 +1,5 @@
-"use client";
-
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router";
 import { Capacitor } from "@capacitor/core";
 import {
     Infinity,
@@ -95,7 +93,7 @@ function TopoPattern() {
 /* ── Unlocked account page ────────────────────────────────────────────── */
 
 function UnlockedPage({ email, entered }: { email: string; entered: boolean }) {
-  const router = useRouter();
+  const navigate = useNavigate();
   return (
     <div
       style={{
@@ -157,14 +155,14 @@ function UnlockedPage({ email, entered }: { email: string; entered: boolean }) {
         {/* Back button */}
         <button
           type="button"
-          onClick={() => { haptic.light(); router.back(); }}
+          onClick={() => { haptic.light(); navigate(-1); }}
           style={{
             position: "absolute",
             top: 16,
             left: 16,
             zIndex: 5,
-            width: 40,
-            height: 40,
+            width: 44,
+            height: 44,
             borderRadius: "50%",
             border: "1px solid rgba(255,255,255,0.15)",
             background: "rgba(0,0,0,0.15)",
@@ -497,7 +495,7 @@ function PurchasePage({
   onPurchase: () => void;
   onRestore: () => void;
 }) {
-  const router = useRouter();
+  const navigate = useNavigate();
   const busy = buying || restoring;
 
   return (
@@ -558,14 +556,14 @@ function PurchasePage({
 
         <button
           type="button"
-          onClick={() => { haptic.light(); router.back(); }}
+          onClick={() => { haptic.light(); navigate(-1); }}
           style={{
             position: "absolute",
             top: 16,
             left: 16,
             zIndex: 5,
-            width: 40,
-            height: 40,
+            width: 44,
+            height: 44,
             borderRadius: "50%",
             border: "1px solid rgba(255,255,255,0.15)",
             background: "rgba(0,0,0,0.15)",
@@ -901,7 +899,7 @@ function PurchasePage({
 /* ── Page ──────────────────────────────────────────────────────────────── */
 
 export default function UntetheredPage() {
-  const router = useRouter();
+  const navigate = useNavigate();
   const { user, session } = useAuth();
   const isNative = Capacitor.isNativePlatform();
 
@@ -945,7 +943,7 @@ export default function UntetheredPage() {
     }
 
     if (!session) {
-      router.push("/login?next=checkout");
+      navigate("/login?next=checkout");
       return;
     }
 
@@ -956,7 +954,7 @@ export default function UntetheredPage() {
     } finally {
       setBuying(false);
     }
-  }, [isNative, session, router]);
+  }, [isNative, session, navigate]);
 
   const handleRestore = useCallback(async () => {
     haptic.light();

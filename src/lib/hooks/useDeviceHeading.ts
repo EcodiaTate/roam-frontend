@@ -3,7 +3,6 @@
 // Returns the device compass heading (degrees from north, 0-360) using the
 // DeviceOrientation API. On iOS 13+ this requires a user-gesture permission
 // request which is handled automatically on first activation.
-"use client";
 
 import { useEffect, useRef, useState } from "react";
 

@@ -1,5 +1,4 @@
 // src/lib/hooks/useNetworkStatus.ts
-"use client";
 
 import { useEffect, useSyncExternalStore } from "react";
 import { networkMonitor } from "@/lib/offline/networkMonitor";

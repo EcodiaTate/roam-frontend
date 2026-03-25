@@ -1,5 +1,4 @@
 // src/components/auth/SyncBootstrap.tsx
-"use client";
 
 import { useEffect, useRef } from "react";
 import { useAuth } from "@/lib/supabase/auth";

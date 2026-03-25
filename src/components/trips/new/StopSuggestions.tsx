@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Plus, Loader2, Sparkles } from "lucide-react";
 import { getCategoryIcon, getCategoryColor } from "@/lib/places/categoryMeta";

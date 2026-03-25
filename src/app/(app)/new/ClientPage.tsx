@@ -1,7 +1,5 @@
-"use client";
-
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router";
 
 import type { NavPack } from "@/lib/types/navigation";
 
@@ -35,7 +33,7 @@ function genPlanId() {
 }
 
 export default function NewTripClientPage() {
-  const router = useRouter();
+  const router = useNavigate();
   const draft = useNewTripDraft();
   const bundle = useBundleBuilder();
 
@@ -229,11 +227,8 @@ export default function NewTripClientPage() {
         depart_at: effectiveDepartAt,
       });
 
-      // Step 2: Navigate immediately - don't wait for IDB save
-      router.replace(`/trip?plan_id=${encodeURIComponent(plan_id)}`);
-
-      // Step 3: Save in background - /trip page will pick it up
-      Promise.all([
+      // Step 2: Save to IDB first so /trip page can find the plan on boot
+      await Promise.all([
         saveMinimalPlan({
           plan_id,
           navPack: pack,
@@ -242,7 +237,10 @@ export default function NewTripClientPage() {
           tripPrefs: draft.tripPrefs,
         }),
         incrementTripsUsed(),
-      ]).catch(() => {});
+      ]);
+
+      // Step 3: Navigate after IDB write completes
+      router(`/trip?plan_id=${encodeURIComponent(plan_id)}`, { replace: true });
     } catch (e: unknown) {
       setRouteError(toErrorMessage(e, "Failed to save trip"));
       setSavingAndGoing(false);
@@ -259,7 +257,7 @@ export default function NewTripClientPage() {
       // If we already have a route, navigate instantly
       if (navPack) {
         sessionStorage.setItem("roam_live_navpack", JSON.stringify(navPack));
-        router.replace("/live");
+        router("/live", { replace: true });
         return;
       }
       // Otherwise route first, then navigate
@@ -271,7 +269,7 @@ export default function NewTripClientPage() {
         depart_at: effectiveDepartAt,
       });
       sessionStorage.setItem("roam_live_navpack", JSON.stringify(pack));
-      router.replace("/live");
+      router("/live", { replace: true });
     } catch (e: unknown) {
       setRouteError(toErrorMessage(e, "Failed to get route"));
       setGoingNow(false);

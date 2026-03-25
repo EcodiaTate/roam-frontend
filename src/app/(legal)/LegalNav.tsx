@@ -1,7 +1,5 @@
-"use client";
-
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import Link from "next/link";
+import { Link } from "react-router";
 import { Compass, Menu, X, ArrowRight } from "lucide-react";
 
 type Platform = "ios" | "android" | "desktop";
@@ -76,14 +74,14 @@ export default function LegalNav({ activePath }: LegalNavProps) {
       <style>{NAV_STYLES}</style>
       <nav className={`rl-nav ${scrolled ? "rl-nav-s" : ""}`}>
         <div className="rl-nav-bar">
-          <Link href="/" className="rl-nav-logo">
+          <Link to="/" className="rl-nav-logo">
             <Compass size={22} strokeWidth={2.5} />
             <span>ROAM</span>
           </Link>
 
           <div className="rl-nav-links">
-            <Link href="/#features" className="rl-nav-link">Features</Link>
-            <Link href="/#how" className="rl-nav-link">How It Works</Link>
+            <Link to="/#features" className="rl-nav-link">Features</Link>
+            <Link to="/#how" className="rl-nav-link">How It Works</Link>
             {[
               { href: "/contact", label: "Contact" },
               { href: "/terms", label: "Terms" },
@@ -92,7 +90,7 @@ export default function LegalNav({ activePath }: LegalNavProps) {
             ].map(({ href, label }) => (
               <Link
                 key={href}
-                href={href}
+                to={href}
                 className={`rl-nav-link${activePath === href ? " rl-nav-link-active" : ""}`}
               >
                 {label}
@@ -115,8 +113,8 @@ export default function LegalNav({ activePath }: LegalNavProps) {
 
         {menuOpen && (
           <div className="rl-nav-mobile">
-            <Link href="/#features" className="rl-nav-mobile-link" onClick={() => setMenuOpen(false)}>Features</Link>
-            <Link href="/#how" className="rl-nav-mobile-link" onClick={() => setMenuOpen(false)}>How It Works</Link>
+            <Link to="/#features" className="rl-nav-mobile-link" onClick={() => setMenuOpen(false)}>Features</Link>
+            <Link to="/#how" className="rl-nav-mobile-link" onClick={() => setMenuOpen(false)}>How It Works</Link>
             {[
               { href: "/contact", label: "Contact" },
               { href: "/terms", label: "Terms" },
@@ -125,7 +123,7 @@ export default function LegalNav({ activePath }: LegalNavProps) {
             ].map(({ href, label }) => (
               <Link
                 key={href}
-                href={href}
+                to={href}
                 className="rl-nav-mobile-link"
                 onClick={() => setMenuOpen(false)}
               >

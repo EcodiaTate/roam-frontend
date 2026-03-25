@@ -1,5 +1,4 @@
 // src/lib/hooks/useNearbyRoamers.ts
-"use client";
 
 /**
  * useNearbyRoamers

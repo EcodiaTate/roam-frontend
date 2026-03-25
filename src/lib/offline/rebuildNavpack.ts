@@ -1,5 +1,4 @@
 // src/lib/offline/rebuildNavpack.ts
-"use client";
 
 import type { NavPack, NavLeg, NavRoute, CorridorGraphPack } from "@/lib/types/navigation";
 import { decodePolyline6AsLngLat } from "@/lib/nav/polyline6";

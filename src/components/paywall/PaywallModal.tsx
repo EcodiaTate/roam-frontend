@@ -1,7 +1,5 @@
-"use client";
-
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router";
 import { createPortal } from "react-dom";
 import { haptic } from "@/lib/native/haptics";
 import {
@@ -51,7 +49,7 @@ const HERO_COPY = {
 type AnimState = "entering" | "open" | "exiting" | "closed";
 
 export function PaywallModal({ open, onClose, onUnlocked, variant = "gate" }: Props) {
-  const router = useRouter();
+  const router = useNavigate();
   const [mounted, setMounted] = useState(false);
   const [buying, setBuying] = useState(false);
   const [restoring, setRestoring] = useState(false);
@@ -139,7 +137,7 @@ export function PaywallModal({ open, onClose, onUnlocked, variant = "gate" }: Pr
 
     // Web - must be signed in so the payment can be linked to the account
     if (!session) {
-      router.push("/login?next=checkout");
+      router("/login?next=checkout");
       return;
     }
 
@@ -387,6 +385,7 @@ export function PaywallModal({ open, onClose, onUnlocked, variant = "gate" }: Pr
               color: "var(--on-color, #faf6ef)",
               border: "none",
               padding: "16px",
+              minHeight: 52,
               borderRadius: "var(--r-btn, 14px)",
               fontSize: 16,
               fontWeight: 800,
@@ -395,6 +394,8 @@ export function PaywallModal({ open, onClose, onUnlocked, variant = "gate" }: Pr
               letterSpacing: "0.01em",
               boxShadow: busy ? "none" : "0 4px 16px rgba(181,69,46,0.35)",
               transition: "opacity 0.15s, box-shadow 0.15s",
+              WebkitTapHighlightColor: "transparent",
+              touchAction: "manipulation",
             }}
           >
             {buying
@@ -448,7 +449,7 @@ export function PaywallModal({ open, onClose, onUnlocked, variant = "gate" }: Pr
             <>
               <button
                 type="button"
-                onClick={() => { haptic.light(); router.push("/login?next=/untethered"); onClose(); }}
+                onClick={() => { haptic.light(); router("/login?next=/untethered"); onClose(); }}
                 disabled={busy}
                 style={{
                   all: "unset",

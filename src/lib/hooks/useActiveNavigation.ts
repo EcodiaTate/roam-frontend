@@ -1,5 +1,4 @@
 // src/hooks/useActiveNavigation.ts
-"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -23,6 +22,8 @@ import {
     cancelSpeech,
     speakFatigueWarning,
     initVoice,
+    startTtsKeepalive,
+    stopTtsKeepalive,
 } from "@/lib/nav/voice";
 import {
     updateFatigue,
@@ -39,6 +40,7 @@ import { haptic } from "@/lib/native/haptics";
 import { decodePolyline6 } from "@/lib/nav/polyline6";
 import { type GpsSmoother, createGpsSmoother, smoothPosition } from "@/lib/nav/gpsSmooth";
 import { GpsInterpolator } from "@/lib/nav/gpsInterpolator";
+import { cumulativeKm, buildPolylineIndex, type PolylineIndex } from "@/lib/nav/snapToRoute";
 import type { NavPack } from "@/lib/types/navigation";
 import type { RoamPosition } from "@/lib/native/geolocation";
 
@@ -152,7 +154,7 @@ export function useActiveNavigation(
   }, [navpack]);
 
   const routeData = useMemo(() => {
-    if (!navpack?.primary?.geometry) return { pts: [] as [number, number][], totalM: 0 };
+    if (!navpack?.primary?.geometry) return { pts: [] as [number, number][], totalM: 0, polylineIndex: null as PolylineIndex | null };
     const decoded = decodePolyline6(navpack.primary.geometry);
     // decodePolyline6 returns [lng, lat][] for GeoJSON compat - we need [lat, lng][] for activeNav
     const pts: [number, number][] = decoded.map((p) => [p.lat, p.lng]);
@@ -165,7 +167,10 @@ export function useActiveNavigation(
         Math.sin(dlng / 2) ** 2;
       totalM += 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
-    return { pts, totalM };
+    // Build spatial index for O(1) snap — critical for long outback routes (20k+ points)
+    const cumKm = cumulativeKm(decoded);
+    const polylineIndex = decoded.length > 100 ? buildPolylineIndex(decoded, cumKm) : null;
+    return { pts, totalM, polylineIndex };
   }, [navpack]);
 
   const legBoundaries = useMemo(() => {
@@ -212,6 +217,7 @@ export function useActiveNavigation(
       routeDataRef.current.totalM,
       configRef.current,
       legBoundariesRef.current,
+      routeDataRef.current.polylineIndex,
     );
 
     // 2. Update fatigue - with weather-aware conditions
@@ -269,6 +275,8 @@ export function useActiveNavigation(
 
     // Pre-load TTS voice so first announcement isn't delayed
     initVoice();
+    // Start iOS TTS keepalive to prevent 15s freeze bug
+    startTtsKeepalive();
 
     // Initialize navigation state
     const initial = startNavigation(navpackRef.current);
@@ -300,6 +308,7 @@ export function useActiveNavigation(
     stopBackgroundTracking();
     interpolatorRef.current?.stop();
     cancelSpeech();
+    stopTtsKeepalive();
     setNav((prev) => stopNavigation(prev));
     setLastPosition(null);
     lastTickRef.current = 0;
@@ -335,6 +344,7 @@ export function useActiveNavigation(
       }
       interpolatorRef.current?.stop();
       cancelSpeech();
+      stopTtsKeepalive();
     };
   }, []);
 

@@ -13,8 +13,8 @@
 # testing
 /coverage
 
-# next.js
-/.next/
+# Vite / build output
+/dist/
 /out/
 
 # production
@@ -33,16 +33,7 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
-# vercel
-# Next static export (Capacitor bundle)
-out/
-
-# Next build cache
-.next/
-.vercel
-
 # typescript
 *.tsbuildinfo
-next-env.d.ts
 
 secrets/

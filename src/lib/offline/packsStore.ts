@@ -1,5 +1,4 @@
 // src/lib/offline/packsStore.ts
-"use client";
 
 import { idbDel, idbGet, idbPut, idbStores, idbWithTx } from "./idb";
 

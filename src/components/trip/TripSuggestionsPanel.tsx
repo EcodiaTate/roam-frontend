@@ -1,5 +1,4 @@
 // src/components/trip/TripSuggestionsPanel.tsx
-"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PlaceCategory, PlaceItem, PlacesPack } from "@/lib/types/places";
@@ -367,8 +366,8 @@ export function TripSuggestionsPanel(props: {
                   style={{
                     fontSize: 10,
                     fontWeight: 950,
-                    background: isActive ? "var(--roam-accent)" : "rgba(0,0,0,0.06)",
-                    color: isActive ? "white" : "var(--roam-text-muted)",
+                    background: isActive ? "var(--roam-accent)" : "var(--roam-border-strong)",
+                    color: isActive ? "var(--on-color)" : "var(--roam-text-muted)",
                     borderRadius: 999,
                     padding: "1px 5px",
                     minWidth: 16,

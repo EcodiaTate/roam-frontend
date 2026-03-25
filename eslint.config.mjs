@@ -1,12 +1,14 @@
-import { defineConfig, globalIgnores } from "eslint/config";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
+import js from "@eslint/js";
+import tseslint from "typescript-eslint";
+import { globalIgnores } from "eslint/config";
 
-const eslintConfig = defineConfig([
-  ...nextVitals,
-  ...nextTs,
+const eslintConfig = tseslint.config(
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
   {
     rules: {
+      // TypeScript handles variable scoping; no-undef false-positives on globals
+      "no-undef": "off",
       "@typescript-eslint/no-unused-vars": [
         "warn",
         {
@@ -18,14 +20,13 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // Override default ignores of eslint-config-next.
   globalIgnores([
-    // Default ignores of eslint-config-next:
-    ".next/**",
+    "dist/**",
     "out/**",
     "build/**",
-    "next-env.d.ts",
+    "android/**",
+    "ios/**",
   ]),
-]);
+);
 
 export default eslintConfig;

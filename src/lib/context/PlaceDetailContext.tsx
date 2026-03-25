@@ -8,9 +8,8 @@
 //   const { openPlace } = usePlaceDetail();
 //   openPlace(discoveredPlace);
 
-"use client";
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from "react";
 import type { PlaceItem } from "@/lib/types/places";
 import type { DiscoveredPlace } from "@/lib/types/guide";
 
@@ -78,15 +77,24 @@ export function PlaceDetailProvider({ children }: { children: ReactNode }) {
     setShowOnMapHandler(() => handler);
   }, []);
 
+  const value = useMemo<PlaceDetailContextValue>(() => ({
+    place, openPlace, closePlace,
+    navigateHandler, registerNavigateHandler,
+    saveHandler, registerSaveHandler,
+    showOnMapHandler, registerShowOnMapHandler,
+    savedIds, setSavedIds,
+    stopPlaceIds, setStopPlaceIds,
+  }), [
+    place, openPlace, closePlace,
+    navigateHandler, registerNavigateHandler,
+    saveHandler, registerSaveHandler,
+    showOnMapHandler, registerShowOnMapHandler,
+    savedIds, setSavedIds,
+    stopPlaceIds, setStopPlaceIds,
+  ]);
+
   return (
-    <PlaceDetailContext.Provider value={{
-      place, openPlace, closePlace,
-      navigateHandler, registerNavigateHandler,
-      saveHandler, registerSaveHandler,
-      showOnMapHandler, registerShowOnMapHandler,
-      savedIds, setSavedIds,
-      stopPlaceIds, setStopPlaceIds,
-    }}>
+    <PlaceDetailContext.Provider value={value}>
       {children}
     </PlaceDetailContext.Provider>
   );

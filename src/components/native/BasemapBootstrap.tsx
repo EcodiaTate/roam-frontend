@@ -4,7 +4,6 @@
 // and starts the local tile server if so. Silent - no UI.
 // Must be inside a client boundary.
 
-"use client";
 
 import { useEffect, useRef } from "react";
 import { initBasemap } from "@/lib/offline/basemapManager";
@@ -19,7 +18,7 @@ export function BasemapBootstrap() {
     initBasemap("australia")
       .then((status) => {
         if (status.state === "installed") {
-          console.log("[BasemapBootstrap] ✅ Tile server started, basemap ready");
+          // basemap ready - tile server started
         }
       })
       .catch((e) => {

@@ -1,5 +1,4 @@
 // src/lib/peer/useRoamExchange.ts
-"use client";
 
 /**
  * useRoamExchange

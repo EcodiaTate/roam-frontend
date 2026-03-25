@@ -1,5 +1,4 @@
 // src/components/nav/OffRouteBanner.tsx
-"use client";
 
 import { AlertTriangle, RotateCcw } from "lucide-react";
 import { formatDistance } from "@/lib/nav/instructions";

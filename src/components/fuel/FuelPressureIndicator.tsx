@@ -1,5 +1,4 @@
 // src/components/fuel/FuelPressureIndicator.tsx
-"use client";
 
 import { memo, useMemo } from "react";
 import { Fuel } from "lucide-react";

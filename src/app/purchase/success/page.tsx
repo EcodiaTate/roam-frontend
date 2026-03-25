@@ -7,10 +7,9 @@
 //   2. Continue polling user_entitlements until it appears (max 12 × 2.5s).
 //   3. Timeout screen if still not visible after 30 s.
 
-"use client";
 
 import { Suspense, useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useNavigate, useSearchParams } from "react-router";
 import { supabase } from "@/lib/supabase/client";
 import { haptic } from "@/lib/native/haptics";
 import { api } from "@/lib/api";
@@ -127,8 +126,8 @@ const UNLOCK_FEATURES = [
 /* ── Main page ────────────────────────────────────────────────────────── */
 
 function PurchaseSuccessInner() {
-  const router = useRouter();
-  const sp = useSearchParams();
+  const navigate = useNavigate();
+  const [sp] = useSearchParams();
   const sessionId = sp.get("session_id") ?? "";
   const [status, setStatus] = useState<"polling" | "unlocked" | "timeout">("polling");
   const [entered, setEntered] = useState(false);
@@ -209,7 +208,7 @@ function PurchaseSuccessInner() {
         if (data) {
           localStorage.setItem("roam_unlimited_unlocked", "1");
           setStatus("unlocked");
-          timer = setTimeout(() => router.replace("/trip"), 4000);
+          timer = setTimeout(() => navigate("/trip", { replace: true }), 4000);
           return;
         }
       } catch {
@@ -222,7 +221,7 @@ function PurchaseSuccessInner() {
 
     timer = setTimeout(poll, POLL_INTERVAL);
     return () => clearTimeout(timer);
-  }, [router, sessionId]);
+  }, [navigate, sessionId]);
 
   const isUnlocked = status === "unlocked";
 
@@ -561,7 +560,7 @@ function PurchaseSuccessInner() {
 
           <button
             type="button"
-            onClick={() => { haptic.tap(); router.replace("/trip"); }}
+            onClick={() => { haptic.tap(); navigate("/trip", { replace: true }); }}
             className="trip-interactive"
             style={{
               marginTop: 4, padding: "14px 32px",

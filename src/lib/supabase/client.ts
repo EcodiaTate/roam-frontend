@@ -1,12 +1,12 @@
 // src/lib/supabase/client.ts
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-const SUPA_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+const SUPA_URL = import.meta.env.VITE_SUPABASE_URL ?? "";
+const SUPA_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY ?? "";
 
 if (!SUPA_URL || !SUPA_ANON) {
   console.warn(
-    "[Roam] NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY is missing. " +
+    "[Roam] VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY is missing. " +
       "Auth and sync will not work.",
   );
 }

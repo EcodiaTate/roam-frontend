@@ -1,5 +1,4 @@
 // src/app/sos/ClientPage.tsx
-"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -661,9 +660,9 @@ export default function EmergencyClientPage() {
                   ) : null}
                 </button>
 
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontWeight: 800, fontSize: 20, letterSpacing: "-0.3px" }}>{c.name}</div>
-                  <div className="trip-muted" style={{ marginTop: 3 }}>
+                <div style={{ minWidth: 0, flex: 1, overflow: "hidden" }}>
+                  <div style={{ fontWeight: 800, fontSize: 20, letterSpacing: "-0.3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</div>
+                  <div className="trip-muted" style={{ marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {c.phone}
                     {c.relationship ? ` · ${c.relationship}` : ""}
                     {c.notes ? ` · ${c.notes}` : ""}
@@ -691,7 +690,7 @@ export default function EmergencyClientPage() {
                   type="button"
                   className="trip-interactive sos-action-btn"
                   onClick={() => {
-                    if (!lat || !lon) {
+                    if (lat == null || lon == null) {
                       setErr("Location unavailable right now.");
                       haptic.error();
                       return;

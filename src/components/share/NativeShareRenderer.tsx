@@ -1,7 +1,6 @@
 // src/components/share/NativeShareRenderer.tsx
 // Headless component that renders a TripShareCard off-screen, captures it as a PNG,
 // invokes the OS share sheet (native or Web Share API), then calls onDone.
-"use client";
 
 import { useEffect, useRef } from "react";
 import { TripShareCard, type ShareCardData } from "./TripShareCard";

@@ -1,5 +1,4 @@
 // src/lib/native/geolocation.ts
-"use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Geolocation, type Position } from "@capacitor/geolocation";

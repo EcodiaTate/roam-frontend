@@ -11,7 +11,8 @@ export type { BBox4, NavCoord };
 export type PlaceCategory =
   // Essentials & safety
   | "fuel" | "ev_charging" | "rest_area" | "toilet" | "water"
-  | "dump_point" | "shower" | "mechanic" | "hospital" | "pharmacy"
+  | "dump_point" | "shower" | "water_fill" | "mechanic" | "hospital" | "pharmacy"
+  | "emergency_phone"
   // Supplies
   | "grocery" | "town" | "atm" | "laundromat"
   // Food & drink
@@ -227,4 +228,4 @@ export type StopSuggestionItem = {
 
 export type StopSuggestionsResponse = {
   suggestions: StopSuggestionItem[];
-};;
+};

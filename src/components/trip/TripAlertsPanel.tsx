@@ -1,5 +1,4 @@
 // src/components/trip/TripAlertsPanel.tsx
-"use client";
 
 import { useMemo, useState, useCallback } from "react";
 import type {

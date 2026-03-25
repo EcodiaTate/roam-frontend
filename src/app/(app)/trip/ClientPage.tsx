@@ -1,10 +1,9 @@
 // src/app/trip/ClientPage.tsx
-"use client";
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import type { MapBaseMode, VectorTheme } from "@/components/trips/new/MapStyleSwitcher";
 import { createPortal } from "react-dom";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useNavigate, useLocation, useSearchParams } from "react-router";
 import type { Map as MLMap, GeoJSONSource } from "maplibre-gl";
 import maplibregl from "maplibre-gl";
 
@@ -144,9 +143,9 @@ function computeWindFactor(weather: WeatherOverlay | null, navpack: NavPack | nu
 /* ── Component ────────────────────────────────────────────────────────── */
 
 export function TripClientPage(props: { initialPlanId: string | null }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const sp = useSearchParams();
+  const router = useNavigate();
+  const pathname = useLocation().pathname;
+  const [sp] = useSearchParams();
   const pathnameRef = useRef(pathname);
   pathnameRef.current = pathname;
 
@@ -173,6 +172,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   // Boot state
   const [phase, setPhase] = useState<BootPhase>("resolving");
   const [bootError, setBootError] = useState<string | null>(null);
+  // Incremented to force re-boot (e.g. after active plan deletion)
+  const [bootSeq, setBootSeq] = useState(0);
 
   // Data state
   const [plan, setPlan] = useState<OfflinePlanRecord | null>(null);
@@ -294,6 +295,23 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     return onPlanEvent((type, payload) => {
       if (type === "plan:saved" && payload.planId !== bootedPlanIdRef.current) {
         setPlansDot(true);
+      }
+    });
+  }, []);
+
+  // Re-boot when the active plan is deleted (e.g. from PlanDrawer).
+  // Without this, the trip page shows stale data for a plan that no longer
+  // exists in IDB, and the user is stuck with no way to recover.
+  useEffect(() => {
+    return onPlanEvent((type, payload) => {
+      if (type === "plan:deleted" && payload.planId === bootedPlanIdRef.current) {
+        bootedPlanIdRef.current = null;
+        setPlan(null);
+        setNavpack(null);
+        setCorridor(null);
+        setPlaces(null);
+        setPhase("resolving");
+        setBootSeq((s) => s + 1);
       }
     });
   }, []);
@@ -420,8 +438,10 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         if (preferredId) {
           const preferred = await getOfflinePlan(preferredId);
           if (preferred) {
-            const hasPacks = await hasCorePacks(preferred.plan_id);
-            const hasNav = !hasPacks && await hasNavpack(preferred.plan_id);
+            const [hasPacks, hasNav] = await Promise.all([
+              hasCorePacks(preferred.plan_id),
+              hasNavpack(preferred.plan_id),
+            ]);
             if (hasPacks || preferred.zip_blob || hasNav) rec = preferred;
           }
         }
@@ -429,11 +449,13 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         if (!rec) {
           // Preferred plan wasn't usable - scan all plans for one that is
           const all = await listOfflinePlans();
-          for (const candidate of all) {
+          const checks = await Promise.all(all.map(async (candidate) => {
             const hasPacks = await hasCorePacks(candidate.plan_id);
             const hasNav = !hasPacks && await hasNavpack(candidate.plan_id);
-            if (hasPacks || candidate.zip_blob || hasNav) { rec = candidate; break; }
-          }
+            return hasPacks || candidate.zip_blob || hasNav;
+          }));
+          const idx = checks.indexOf(true);
+          if (idx !== -1) rec = all[idx];
         }
 
         if (cancelled) return;
@@ -453,7 +475,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           // Only redirect when the user is actually viewing the /trip tab.
           // PersistentTabs pre-mounts this page on other tabs - don't hijack navigation.
           if (pathnameRef.current === "/trip" || pathnameRef.current === "/trip/") {
-            router.replace("/new");
+            router("/new", { replace: true });
           } else {
             setPhase("deferred");
           }
@@ -578,13 +600,14 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
 
     boot();
     return () => { cancelled = true; };
-  }, [desiredPlanId, router, sp]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [desiredPlanId, router, sp, bootSeq]);
 
   // ── Deferred redirect: boot found no plans while on another tab.
   //    When the user actually navigates to /trip, redirect to /new.
   useEffect(() => {
     if (phase === "deferred" && (pathname === "/trip" || pathname === "/trip/")) {
-      router.replace("/new");
+      router("/new", { replace: true });
     }
   }, [phase, pathname, router]);
 
@@ -927,12 +950,22 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   }, [hazards, effectivePosition, activeNav.isActive, activeNav.isMuted]);
 
   // ── Overlay polling ─────────────────────────────────────────────
-  const pollOverlays = useCallback(async () => {
-    if (!isOnline) return;
-    if (!navpack?.primary?.bbox) return;
+  // ── Stable poll refs (avoid recreating callbacks / resetting intervals) ──
+  const navpackPollRef = useRef(navpack);
+  const planPollRef = useRef(plan);
+  const isOnlinePollRef = useRef(isOnline);
+  useEffect(() => {
+    navpackPollRef.current = navpack;
+    planPollRef.current = plan;
+    isOnlinePollRef.current = isOnline;
+  });
 
-    const bbox = navpack.primary.bbox;
-    const currentPlanId = plan?.plan_id;
+  const pollOverlays = useCallback(async () => {
+    if (!isOnlinePollRef.current) return;
+    if (!navpackPollRef.current?.primary?.bbox) return;
+
+    const bbox = navpackPollRef.current.primary.bbox;
+    const currentPlanId = planPollRef.current?.plan_id;
 
     try {
       const [trafficRes, hazardsRes] = await Promise.allSettled([
@@ -951,7 +984,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     } catch (e) {
       console.warn("[Trip] overlay poll failed:", e);
     }
-  }, [navpack, plan, isOnline]);
+  }, []); // stable - reads state from refs
 
   // Start polling when navpack is ready
   useEffect(() => {
@@ -973,21 +1006,21 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
 
   // ── Route score polling ──────────────────────────────────────────
   const pollRouteScore = useCallback(async () => {
-    if (!isOnline) return;
-    if (!navpack?.primary?.bbox || !navpack.primary.route_key) return;
+    if (!isOnlinePollRef.current) return;
+    if (!navpackPollRef.current?.primary?.bbox || !navpackPollRef.current.primary.route_key) return;
 
-    const currentPlanId = plan?.plan_id;
+    const currentPlanId = planPollRef.current?.plan_id;
     try {
       const fresh = await bundleApi.scoreRefresh({
-        route_key: navpack.primary.route_key,
-        bbox: navpack.primary.bbox,
+        route_key: navpackPollRef.current.primary.route_key,
+        bbox: navpackPollRef.current.primary.bbox,
       });
       setRouteScore(fresh);
       if (currentPlanId) putPack(currentPlanId, "route_score", fresh).catch(() => {});
     } catch (e) {
       console.warn("[Trip] score poll failed:", e);
     }
-  }, [navpack, plan, isOnline]);
+  }, []); // stable - reads state from refs
 
   useEffect(() => {
     if (phase !== "ready" || !navpack?.primary?.bbox) return;
@@ -1227,7 +1260,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         }
       } catch {}
     }
-  }, [navpack, plan, places, corridor, isOnline, traffic, hazards]);
+  }, [navpack, plan, places, corridor, isOnline, traffic, hazards, weather, fuelOverlay]);
 
   // ── React to remote plan changes (shared trip sync) ───────────────
   // planSync merges Supabase Realtime updates into IDB and emits
@@ -1329,7 +1362,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     const name = p?.name ?? placeName ?? null;
     const askAbout = name ? encodeURIComponent(`Tell me more about ${name}`) : "";
     const url = `/guide?plan_id=${encodeURIComponent(plan.plan_id)}&focus_place_id=${encodeURIComponent(placeId)}${askAbout ? `&ask_about=${askAbout}` : ""}`;
-    router.push(url);
+    router(url);
   }, [plan, places, router]);
 
   // ── Add stop from map popup ──────────────────────────────────────
@@ -1866,7 +1899,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
               type="button"
               className="trip-interactive"
               style={{ borderRadius: 999, minHeight: 42, padding: "0 20px", fontWeight: 950, background: "var(--roam-accent)", color: "var(--on-color)", boxShadow: "var(--shadow-button)" }}
-              onClick={() => router.replace("/new")}
+              onClick={() => router("/new", { replace: true })}
             >
               Build a Trip
             </button>
@@ -1876,7 +1909,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           open={paywallOpen}
           variant={paywallVariant}
           onClose={() => setPaywallOpen(false)}
-          onUnlocked={() => { setPaywallOpen(false); setUnlocked(true); router.replace("/new"); }}
+          onUnlocked={() => { setPaywallOpen(false); setUnlocked(true); router("/new", { replace: true }); }}
         />
       </div>
     );
@@ -2195,7 +2228,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           }
           const gate = await checkTripGate();
           if (gate.allowed) {
-            router.push("/new");
+            router("/new");
           } else {
             setPaywallVariant("gate");
             setPaywallOpen(true);
@@ -2209,7 +2242,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         mode={inviteMode}
         onClose={() => setInviteOpen(false)}
         onRedeemed={(joinedPlanId) => {
-          router.replace(`/trip?plan_id=${encodeURIComponent(joinedPlanId)}`);
+          router(`/trip?plan_id=${encodeURIComponent(joinedPlanId)}`, { replace: true });
         }}
       />
 

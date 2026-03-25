@@ -1,5 +1,4 @@
 // src/components/nav/NavigationControls.tsx
-"use client";
 
 import { useState, useEffect } from "react";
 import { Volume2, VolumeX, Maximize2, Crosshair, Layers, Megaphone, X } from "lucide-react";
@@ -20,7 +19,7 @@ type Props = {
   simple?: boolean;
 };
 
-/* ── Unified circular button — all styles inline ─────────────────── */
+/* ── Unified circular button - all styles inline ─────────────────── */
 
 function NavBtn({
   icon,
@@ -46,8 +45,8 @@ function NavBtn({
       className={animClass}
       onClick={() => { haptic.selection(); onClick(); }}
       style={{
-        width: 42,
-        height: 42,
+        width: 48,
+        height: 48,
         borderRadius: "50%",
         border: "none",
         cursor: "pointer",
@@ -190,14 +189,14 @@ export function NavigationControls({
           whiteSpace: "nowrap",
           background: "var(--nav-card-bg, #f0e9dc)",
           boxShadow: "0 8px 32px rgba(40,32,20,0.18), 0 2px 8px rgba(0,0,0,0.1)",
-          border: "1px solid rgba(0,0,0,0.06)",
+          border: "1px solid var(--roam-border)",
         }}>
           <button
             type="button"
             onClick={() => { haptic.medium(); setConfirmEnd(false); onEnd(); }}
             style={{
               padding: "10px 16px",
-              minHeight: 38,
+              minHeight: 44,
               border: "none",
               borderRadius: 18,
               cursor: "pointer",
@@ -217,13 +216,13 @@ export function NavigationControls({
             onClick={() => { haptic.selection(); setConfirmEnd(false); }}
             style={{
               padding: "10px 14px",
-              minHeight: 38,
-              border: "1px solid rgba(0,0,0,0.08)",
+              minHeight: 44,
+              border: "1px solid var(--roam-border-strong)",
               borderRadius: 18,
               cursor: "pointer",
               fontSize: 13,
               fontWeight: 950,
-              color: "var(--text-muted, #7a7067)",
+              color: "var(--roam-text-muted)",
               background: "transparent",
               letterSpacing: "-0.1px",
               touchAction: "manipulation",

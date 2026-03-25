@@ -3,11 +3,9 @@
 // Lightweight MapLibre mini-map showing a single place marker.
 // Used inside PlaceDetailSheet. Dynamically imported to avoid bloating
 // the initial bundle with maplibre-gl.
-"use client";
 
 import { useEffect, useRef } from "react";
 import maplibregl, { type Map as MLMap } from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
 import { Protocol } from "pmtiles";
 import { assetsApi } from "@/lib/api/assets";
 import { rewriteStyleForLocalServer, isFullyOfflineCapable } from "@/lib/offline/basemapManager";

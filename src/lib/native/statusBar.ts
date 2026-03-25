@@ -1,5 +1,4 @@
 // src/lib/native/statusBar.ts
-"use client";
 
 import { isNative, hasPlugin, isAndroid } from "./platform";
 

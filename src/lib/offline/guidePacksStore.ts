@@ -1,5 +1,4 @@
 // src/lib/offline/guidePacksStore.ts
-"use client";
 
 import { idbDel, idbGet, idbGetAll, idbPut, idbStores } from "./idb";
 import type { GuidePack } from "@/lib/types/guide";

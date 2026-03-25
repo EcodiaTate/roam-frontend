@@ -2,12 +2,10 @@
 //
 // Lightweight MapLibre map for the journal/memories page.
 // Plots memory stop pins with satellite style (online) or vector fallback (offline).
-"use client";
 
 import { useEffect, useRef, useState } from "react";
 import maplibregl, { type Map as MLMap } from "maplibre-gl";
 import type { StyleSpecification, SourceSpecification } from "@maplibre/maplibre-gl-style-spec";
-import "maplibre-gl/dist/maplibre-gl.css";
 import { Protocol } from "pmtiles";
 
 import { assetsApi } from "@/lib/api/assets";

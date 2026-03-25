@@ -1,9 +1,8 @@
 // src/components/trip/PlanDrawer.tsx
-"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFLIP } from "@/lib/hooks/useFLIP";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router";
 import {
     Check,
     Clock,
@@ -194,9 +193,9 @@ function InlineRename({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          width: 36,
-          height: 36,
-          borderRadius: 8,
+          width: 44,
+          height: 44,
+          borderRadius: 10,
           background: "var(--roam-accent)",
           color: "var(--on-color)",
           flexShrink: 0,
@@ -204,7 +203,7 @@ function InlineRename({
           WebkitTapHighlightColor: "transparent",
         }}
       >
-        <Check size={16} />
+        <Check size={18} />
       </button>
       <button
         type="button"
@@ -215,9 +214,9 @@ function InlineRename({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          width: 36,
-          height: 36,
-          borderRadius: 8,
+          width: 44,
+          height: 44,
+          borderRadius: 10,
           background: "var(--roam-surface)",
           border: "1px solid var(--roam-border)",
           color: "var(--roam-text-muted)",
@@ -559,7 +558,7 @@ export function PlanDrawer({
   /** Called when the AI button is tapped. If provided, opens AI planner inline; otherwise navigates to /new. */
   onAiTrip?: () => void;
 }) {
-  const router = useRouter();
+  const router = useNavigate();
   const { user } = useAuth();
   const { isSimple, toggle: toggleUIMode } = useUIMode();
   const [plans, setPlans] = useState<OfflinePlanRecord[]>([]);
@@ -685,7 +684,7 @@ export function PlanDrawer({
     (planId: string) => {
       haptic.light();
       onClose();
-      router.push(`/trip?plan_id=${encodeURIComponent(planId)}`);
+      router(`/trip?plan_id=${encodeURIComponent(planId)}`);
     },
     [router, onClose],
   );
@@ -761,7 +760,7 @@ export function PlanDrawer({
 
       try {
         if (alreadyPublished) {
-          await unpublishTrip(planId);
+          await unpublishTrip(user.id, planId);
         } else {
           const payload = buildPublishPayload(plan.preview);
           payload.id = planId; // use plan_id as public trip id for idempotency
@@ -854,12 +853,13 @@ export function PlanDrawer({
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                width: 40,
-                height: 40,
-                borderRadius: 10,
+                width: 44,
+                height: 44,
+                borderRadius: 12,
                 background: "var(--roam-surface-hover)",
                 color: "var(--roam-text)",
                 WebkitTapHighlightColor: "transparent",
+                touchAction: "manipulation",
               }}
             >
               <X size={18} />
@@ -926,7 +926,7 @@ export function PlanDrawer({
               onClick={() => {
                 haptic.light();
                 onClose();
-                if (onNewTrip) { onNewTrip(); } else { router.push("/new"); }
+                if (onNewTrip) { onNewTrip(); } else { router("/new"); }
               }}
               style={{
                 all: "unset",
@@ -1053,9 +1053,10 @@ export function PlanDrawer({
                 style={{
                   all: "unset",
                   cursor: "pointer",
-                  width: 44,
-                  height: 26,
-                  borderRadius: 13,
+                  width: 50,
+                  height: 30,
+                  borderRadius: 15,
+                  padding: 0,
                   background: memPromptsOn
                     ? "var(--brand-eucalypt, #2d6e40)"
                     : "var(--roam-border)",
@@ -1073,9 +1074,9 @@ export function PlanDrawer({
                   style={{
                     position: "absolute",
                     top: 3,
-                    left: memPromptsOn ? 21 : 3,
-                    width: 20,
-                    height: 20,
+                    left: memPromptsOn ? 25 : 3,
+                    width: 24,
+                    height: 24,
                     borderRadius: "50%",
                     background: "#fff",
                     boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
@@ -1115,9 +1116,10 @@ export function PlanDrawer({
                 style={{
                   all: "unset",
                   cursor: "pointer",
-                  width: 44,
-                  height: 26,
-                  borderRadius: 13,
+                  width: 50,
+                  height: 30,
+                  borderRadius: 15,
+                  padding: 0,
                   background: isSimple
                     ? "var(--brand-eucalypt, #2d6e40)"
                     : "var(--roam-border)",
@@ -1135,9 +1137,9 @@ export function PlanDrawer({
                   style={{
                     position: "absolute",
                     top: 3,
-                    left: isSimple ? 21 : 3,
-                    width: 20,
-                    height: 20,
+                    left: isSimple ? 25 : 3,
+                    width: 24,
+                    height: 24,
                     borderRadius: "50%",
                     background: "#fff",
                     boxShadow: "0 1px 3px rgba(0,0,0,0.2)",

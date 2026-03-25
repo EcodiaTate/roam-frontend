@@ -1,9 +1,7 @@
 // src/components/new/NewTripMap.tsx
-"use client";
 
 import { useEffect, useMemo, useRef, useCallback } from "react";
 import maplibregl, { type Map as MLMap, type GeoJSONSource, type StyleSpecification } from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
 import { Protocol } from "pmtiles";
 
 import type { TripStop } from "@/lib/types/trip";

@@ -1,6 +1,5 @@
 // src/components/trip/StopQuickActionMenu.tsx
 // Portal-based quick action menu shown on long-press of a stop pin or list item.
-"use client";
 
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";

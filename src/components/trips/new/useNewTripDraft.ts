@@ -1,5 +1,4 @@
 // src/components/trips/new/useNewTripDraft.ts
-"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { TripStop, TripStopType, TripPreferences } from "@/lib/types/trip";

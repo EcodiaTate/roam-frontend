@@ -5,7 +5,6 @@
 // Stores/retrieves the user's vehicle fuel profile from the
 // IDB "meta" store. One profile applies to all plans.
 // ──────────────────────────────────────────────────────────────
-"use client";
 
 import { idbGet, idbPut, idbStores } from "./idb";
 import { DEFAULT_FUEL_PROFILE, type VehicleFuelProfile } from "@/lib/types/fuel";

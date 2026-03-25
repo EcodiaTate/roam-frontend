@@ -1,5 +1,4 @@
 // src/components/ui/UIModePickerModal.tsx
-"use client";
 
 import { useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
@@ -118,6 +117,7 @@ export function UIModePickerModal({ open, onClose }: Props) {
               alignItems: "center",
               gap: 16,
               padding: "18px 18px",
+              minHeight: 48,
               borderRadius: 16,
               background: "var(--roam-surface-hover, rgba(26,22,19,0.04))",
               border: "2px solid var(--brand-eucalypt, #2d6e40)",
@@ -126,6 +126,9 @@ export function UIModePickerModal({ open, onClose }: Props) {
               touchAction: "manipulation",
               transition: "transform 0.1s ease",
             }}
+            onPointerDown={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(0.97)"; }}
+            onPointerUp={(e) => { (e.currentTarget as HTMLElement).style.transform = ""; }}
+            onPointerCancel={(e) => { (e.currentTarget as HTMLElement).style.transform = ""; }}
           >
             <div style={{
               width: 52, height: 52, borderRadius: 14,
@@ -163,6 +166,7 @@ export function UIModePickerModal({ open, onClose }: Props) {
               alignItems: "center",
               gap: 16,
               padding: "18px 18px",
+              minHeight: 48,
               borderRadius: 16,
               background: "var(--roam-surface-hover, rgba(26,22,19,0.04))",
               border: "2px solid transparent",
@@ -170,6 +174,9 @@ export function UIModePickerModal({ open, onClose }: Props) {
               touchAction: "manipulation",
               transition: "transform 0.1s ease",
             }}
+            onPointerDown={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(0.97)"; }}
+            onPointerUp={(e) => { (e.currentTarget as HTMLElement).style.transform = ""; }}
+            onPointerCancel={(e) => { (e.currentTarget as HTMLElement).style.transform = ""; }}
           >
             <div style={{
               width: 52, height: 52, borderRadius: 14,

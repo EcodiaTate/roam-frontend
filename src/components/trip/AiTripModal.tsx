@@ -1,5 +1,4 @@
 // src/components/trip/AiTripModal.tsx
-"use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MapPin, Sparkles, Trash2, X } from "lucide-react";
@@ -181,9 +180,9 @@ function StopPreviewRow({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            width: 40,
-            height: 40,
-            borderRadius: 10,
+            width: 44,
+            height: 44,
+            borderRadius: 12,
             color: "var(--roam-text-muted)",
             flexShrink: 0,
             touchAction: "manipulation",
@@ -499,7 +498,9 @@ export function AiTripModal({
         style={{
           position: "fixed",
           inset: 0,
-          background: "rgba(0,0,0,0.5)",
+          background: "rgba(10,8,6,0.65)",
+          backdropFilter: "blur(4px)",
+          WebkitBackdropFilter: "blur(4px)",
           zIndex: 50,
           animation: "aitm-fadeIn 0.15s ease",
         }}
@@ -519,12 +520,15 @@ export function AiTripModal({
           width: "min(100%, 440px)",
           maxHeight: "90dvh",
           background: "var(--roam-surface)",
-          borderRadius: "20px 20px 0 0",
+          borderRadius: "24px 24px 0 0",
+          boxShadow: "var(--shadow-sheet, 0 -8px 32px rgba(40,32,20,0.10))",
           zIndex: 51,
           display: "flex",
           flexDirection: "column",
           transition: dragState.current ? "none" : "transform 0.25s cubic-bezier(0.4,0,0.2,1)",
           paddingBottom: "calc(var(--bottom-nav-height, 100px) + 12px)",
+          willChange: "transform",
+          contain: "layout style",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -535,10 +539,11 @@ export function AiTripModal({
           onPointerUp={onDragPointerUp}
           onPointerCancel={onDragPointerUp}
           style={{
-            padding: "10px 0 6px",
+            padding: "12px 0 8px",
             cursor: busy ? "default" : "grab",
             touchAction: "none",
             flexShrink: 0,
+            minHeight: 28,
           }}
         >
           <div
@@ -547,6 +552,7 @@ export function AiTripModal({
               height: 5,
               borderRadius: 3,
               background: "var(--roam-border-strong)",
+              opacity: 0.6,
               margin: "0 auto",
             }}
           />
@@ -599,9 +605,9 @@ export function AiTripModal({
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                width: 40,
-                height: 40,
-                borderRadius: 10,
+                width: 44,
+                height: 44,
+                borderRadius: 12,
                 background: "var(--roam-surface-hover)",
                 color: "var(--roam-text-muted)",
                 touchAction: "manipulation",

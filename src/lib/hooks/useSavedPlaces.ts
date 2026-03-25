@@ -2,7 +2,6 @@
 //
 // React hook for saved places - reads from IndexedDB, syncs with Supabase
 // when the user is authenticated.
-"use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import type { PlaceItem } from "@/lib/types/places";

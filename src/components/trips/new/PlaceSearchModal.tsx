@@ -1,5 +1,4 @@
 // src/components/new/PlaceSearchModal.tsx
-"use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { NavCoord } from "@/lib/types/geo";

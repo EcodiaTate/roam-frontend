@@ -1,5 +1,4 @@
 // src/lib/native/share.ts
-"use client";
 
 import { hasPlugin, isNative } from "./platform";
 

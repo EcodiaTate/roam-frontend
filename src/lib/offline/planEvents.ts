@@ -2,7 +2,6 @@
 //
 // Tiny typed event bus that decouples plansStore (emitter) from planSync (listener).
 // This avoids circular imports: plansStore emits events, planSync subscribes.
-"use client";
 
 export type PlanEventType =
   | "plan:saved"            // after saveOfflinePlan / updateOfflinePlan

@@ -1,5 +1,4 @@
 // src/components/trip/TripView.tsx
-"use client";
 
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useFLIP } from "@/lib/hooks/useFLIP";
@@ -618,11 +617,15 @@ export function TripView({
         const dy = mv.clientY - startY;
         if (Math.sqrt(dx * dx + dy * dy) > 8) cancel();
       };
-      document.addEventListener("pointermove", onMove);
-      document.addEventListener("pointerup", () => {
+      const cleanup = () => {
         cancel();
         document.removeEventListener("pointermove", onMove);
-      }, { once: true });
+        document.removeEventListener("pointerup", cleanup);
+        document.removeEventListener("pointercancel", cleanup);
+      };
+      document.addEventListener("pointermove", onMove);
+      document.addEventListener("pointerup", cleanup);
+      document.addEventListener("pointercancel", cleanup);
     },
     [],
   );

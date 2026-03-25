@@ -1,5 +1,4 @@
 // src/lib/offline/plansStore.ts
-"use client";
 
 import type { OfflineBundleManifest } from "@/lib/types/bundle";
 import type { NavPack } from "@/lib/types/navigation";
@@ -68,14 +67,30 @@ const META_CURRENT_PLAN_ID = "current_plan_id";
  * Keys are "${planId}:${kind}".
  */
 const PACK_KINDS = [
-       "manifest",
-      "navpack",
-       "corridor",
-       "places",
-       "traffic",
-       "hazards",
-       "fuel_analysis",
-     ] as const;
+  "manifest",
+  "navpack",
+  "corridor",
+  "places",
+  "traffic",
+  "hazards",
+  "fuel_analysis",
+  "elevation",
+  "weather",
+  "fuel",
+  "flood",
+  "coverage",
+  "wildlife",
+  "rest_areas",
+  "route_score",
+  "emergency",
+  "heritage",
+  "air_quality",
+  "bushfire",
+  "speed_cameras",
+  "toilets",
+  "school_zones",
+  "roadkill",
+] as const;
 
 /* ── IDB helpers ──────────────────────────────────────────────────────── */
 

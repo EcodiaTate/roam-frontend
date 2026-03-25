@@ -1,0 +1,239 @@
+/* ── TripMap layer controls ──────────────────────────────────────────
+   Extracted from inline <style> tag to avoid re-parsing on every render.
+   ──────────────────────────────────────────────────────────────────── */
+
+/* ── Layer toggle button ── */
+.layer-toggle-btn {
+  width: 46px; height: 46px; border-radius: 16px;
+  border: 1px solid rgba(0,0,0,0.10);
+  cursor: pointer; display: grid; place-items: center;
+  background: linear-gradient(160deg, rgba(255,255,255,0.92) 0%, rgba(244,239,230,0.96) 100%);
+  color: var(--text-main, #1a1613);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.06);
+  transition: transform 0.1s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+.layer-toggle-btn--filtered {
+  background: linear-gradient(160deg, rgba(45,110,64,0.95) 0%, rgba(31,82,54,0.98) 100%);
+  color: var(--on-color);
+  border: 1px solid rgba(45,110,64,0.35);
+  box-shadow: 0 4px 16px rgba(45,110,64,0.30), 0 1px 4px rgba(0,0,0,0.12);
+}
+@media (prefers-color-scheme: dark) {
+  .layer-toggle-btn {
+    background: linear-gradient(160deg, rgba(26,21,16,0.96) 0%, rgba(16,13,10,0.98) 100%);
+    color: var(--on-color);
+    border: 1px solid rgba(255,255,255,0.09);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.15);
+  }
+}
+
+/* ── First-time layer hint glow + tooltip ── */
+.layer-toggle-btn--hint {
+  animation: layer-hint-pulse 2s ease-in-out infinite;
+  border-color: rgba(45,110,64,0.5);
+}
+@keyframes layer-hint-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(45,110,64,0.5), 0 4px 16px rgba(0,0,0,0.08); }
+  50% { box-shadow: 0 0 0 8px rgba(45,110,64,0), 0 4px 20px rgba(45,110,64,0.25); }
+}
+@media (prefers-color-scheme: dark) {
+  .layer-toggle-btn--hint {
+    animation: layer-hint-pulse-dark 2s ease-in-out infinite;
+    border-color: rgba(74,222,128,0.4);
+  }
+}
+@keyframes layer-hint-pulse-dark {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0.45), 0 4px 16px rgba(0,0,0,0.3); }
+  50% { box-shadow: 0 0 0 8px rgba(74,222,128,0), 0 4px 20px rgba(74,222,128,0.2); }
+}
+.layer-hint-tooltip {
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 10px);
+  transform: translateY(-50%);
+  background: rgba(26,22,18,0.92);
+  color: rgba(250,246,239,0.95);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: -0.1px;
+  padding: 7px 12px;
+  border-radius: 10px;
+  white-space: nowrap;
+  pointer-events: none;
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  animation: layer-hint-fade-in 0.4s ease-out;
+}
+.layer-hint-arrow {
+  position: absolute;
+  top: 50%;
+  right: -5px;
+  transform: translateY(-50%) rotate(45deg);
+  width: 8px; height: 8px;
+  background: rgba(26,22,18,0.92);
+  border-right: 1px solid rgba(255,255,255,0.08);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+@keyframes layer-hint-fade-in {
+  from { opacity: 0; transform: translateY(-50%) translateX(6px); }
+  to { opacity: 1; transform: translateY(-50%) translateX(0); }
+}
+
+/* ── Layer menu dropdown ── */
+.layer-menu-dropdown {
+  position: absolute;
+  top: 0;
+  right: calc(100% + 8px);
+  transform-origin: top right;
+  max-height: min(420px, calc(100dvh - env(safe-area-inset-top, 0px) - 56px - 180px - var(--bottom-nav-height, 80px)));
+  background: linear-gradient(160deg, rgba(255,255,255,0.97) 0%, rgba(244,239,230,0.99) 100%);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border-radius: 18px;
+  border: 1px solid rgba(0,0,0,0.08);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.6);
+  min-width: 150px;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(-8px) scale(0.96);
+  transition: opacity 280ms cubic-bezier(0.34,1.56,0.64,1), transform 280ms cubic-bezier(0.34,1.56,0.64,1);
+}
+.layer-menu-dropdown--open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+/* Nav mode: dropdown opens below the button instead of to the left */
+.layer-menu-dropdown--nav {
+  top: calc(100% + 8px);
+  right: 0;
+  transform-origin: top right;
+}
+.layer-menu-dropdown--nav:not(.layer-menu-dropdown--open) {
+  transform: translateY(-8px) scale(0.96);
+}
+.layer-menu-dropdown > div:first-child {
+  mask-image: linear-gradient(to bottom, black calc(100% - 32px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 32px), transparent 100%);
+}
+@media (prefers-color-scheme: dark) {
+  .layer-menu-dropdown {
+    background: linear-gradient(160deg, rgba(26,21,16,0.97) 0%, rgba(16,13,10,0.99) 100%);
+    border: 1px solid rgba(255,255,255,0.07);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+}
+
+/* ── Layer menu items ── */
+.layer-menu-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; border-radius: 10px; border: none;
+  background: transparent; color: var(--text-main, #1a1613); cursor: pointer;
+  font-size: 13px; font-weight: 500; width: 100%; text-align: left;
+}
+.layer-menu-item--all {
+  font-weight: 700;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+@media (prefers-color-scheme: dark) {
+  .layer-menu-item { color: white; }
+  .layer-menu-item--all { border-bottom-color: rgba(255,255,255,0.08); }
+}
+
+/* ── Layer menu checkboxes ── */
+.layer-menu-check {
+  width: 18px; height: 18px; border-radius: 5px;
+  border: 2px solid rgba(0,0,0,0.25);
+  background: transparent;
+  display: grid; place-items: center; flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+.layer-menu-check--on {
+  background: var(--text-main, #1a1613);
+  border: none;
+}
+@media (prefers-color-scheme: dark) {
+  .layer-menu-check { border-color: rgba(255,255,255,0.4); }
+  .layer-menu-check--on { background: white; }
+}
+
+/* ── Map style section ── */
+.layer-menu-style-section {
+  padding: 8px 8px 6px;
+  border-top: 1px solid rgba(0,0,0,0.06);
+  display: flex; flex-direction: column; gap: 6px;
+}
+.layer-menu-style-label {
+  font-size: 10px; font-weight: 700; color: var(--text-muted, #7a7067);
+  letter-spacing: 0.08em; padding: 0 4px;
+}
+.layer-menu-style-btn {
+  flex: 1; height: 34px; border-radius: 9px; border: none;
+  cursor: pointer; font-size: 12px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  background: transparent; color: var(--text-main, #1a1613);
+  transition: background 0.15s ease;
+}
+.layer-menu-style-btn--active {
+  background: rgba(0,0,0,0.08);
+}
+@media (prefers-color-scheme: dark) {
+  .layer-menu-style-section { border-top-color: rgba(255,255,255,0.08); }
+  .layer-menu-style-label { color: rgba(255,255,255,0.4); }
+  .layer-menu-style-btn { color: white; }
+  .layer-menu-style-btn--active { background: rgba(255,255,255,0.18); }
+}
+
+.style-theme-row {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 220ms cubic-bezier(0.4,0,0.2,1), opacity 180ms ease;
+}
+.style-theme-row--open {
+  max-height: 48px;
+  opacity: 1;
+}
+.trip-map-popup .maplibregl-popup-content {
+  border-radius: var(--r-card, 24px);
+  padding: 16px 18px;
+  background: color-mix(in srgb, var(--roam-surface, #f4efe6) 82%, transparent);
+  color: var(--roam-text);
+  backdrop-filter: blur(20px) saturate(170%);
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
+  box-shadow:
+    0 12px 40px rgba(40,32,20,0.18),
+    0 2px 8px rgba(40,32,20,0.10),
+    inset 0 1px 0 rgba(255,255,255,0.35);
+  border: 1px solid rgba(255,255,255,0.18);
+}
+@media (prefers-color-scheme: dark) {
+  .trip-map-popup .maplibregl-popup-content {
+    background: color-mix(in srgb, var(--roam-surface, #1a1a1a) 75%, transparent);
+    box-shadow:
+      0 12px 40px rgba(0,0,0,0.40),
+      0 2px 8px rgba(0,0,0,0.25),
+      inset 0 1px 0 rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+}
+.trip-map-popup .maplibregl-popup-close-button {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--roam-text-muted);
+  padding: 4px 8px;
+  border-radius: 10px;
+  transition: transform 80ms ease, background 120ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.trip-map-popup .maplibregl-popup-close-button:hover {
+  background: var(--roam-surface-hover);
+  color: var(--roam-text);
+}
+.trip-map-popup .maplibregl-popup-close-button:active {
+  transform: scale(0.88);
+}
+.trip-map-popup .maplibregl-popup-tip {
+  border-top-color: color-mix(in srgb, var(--roam-surface, #f4efe6) 82%, transparent);
+}

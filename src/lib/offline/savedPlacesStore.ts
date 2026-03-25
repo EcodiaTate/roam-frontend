@@ -2,7 +2,6 @@
 //
 // Offline-first saved places (bookmarks).
 // IndexedDB is the source of truth locally; Supabase syncs when authed.
-"use client";
 
 import { idbPut, idbGet, idbStores } from "./idb";
 import type { PlaceCategory, PlaceExtra } from "@/lib/types/places";

@@ -1,9 +1,7 @@
 // src/app/login/page.tsx
-"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-/* eslint-disable @next/next/no-img-element */
+import { useNavigate } from "react-router";
 import { Capacitor } from "@capacitor/core";
 import { useAuth } from "@/lib/supabase/auth";
 import { useNetworkStatus } from "@/lib/hooks/useNetworkStatus";
@@ -19,7 +17,7 @@ export default function LoginPage() {
     signInWithAppleNative,
   } = useAuth();
 
-  const router = useRouter();
+  const router = useNavigate();
 
   const [mode, setMode] = useState<"login" | "signup">("signup");
   const [email, setEmail] = useState("");
@@ -34,7 +32,7 @@ export default function LoginPage() {
   // After sign-in, always redirect to /new
   useEffect(() => {
     if (loading || !session) return;
-    router.replace("/new");
+    router("/new", { replace: true });
   }, [loading, session, router]);
 
   const handleGoogle = useCallback(async () => {

@@ -1,5 +1,3 @@
-"use client";
-
 import React from "react";
 import { haptic } from "@/lib/native/haptics";
 import { Sun, Moon, Map as MapIcon, Satellite } from "lucide-react";
@@ -16,9 +14,9 @@ const pillBase: React.CSSProperties = {
   alignItems: "center",
   justifyContent: "center",
   gap: 5,
-  height: 34,
-  padding: "0 12px",
-  borderRadius: 9,
+  height: 44,
+  padding: "0 14px",
+  borderRadius: 10,
   fontSize: 12,
   fontWeight: 700,
   color: "#fff",
@@ -28,7 +26,7 @@ const pillBase: React.CSSProperties = {
 
 const iconPillBase: React.CSSProperties = {
   ...pillBase,
-  width: 34,
+  width: 44,
   padding: 0,
 };
 

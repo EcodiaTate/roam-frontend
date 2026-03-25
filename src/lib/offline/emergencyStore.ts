@@ -1,5 +1,3 @@
-"use client";
-
 import { idbGetAll, idbPut, idbDel, idbGet, idbStores } from "./idb";
 import type { EmergencyContact, EmergencyContactLocal } from "@/lib/types/emergency";
 

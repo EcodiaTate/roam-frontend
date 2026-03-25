@@ -1,5 +1,4 @@
 // src/lib/guide/tripProgress.ts
-"use client";
 
 import type { TripStop } from "@/lib/types/trip";
 import type { NavPack, NavLeg } from "@/lib/types/navigation";

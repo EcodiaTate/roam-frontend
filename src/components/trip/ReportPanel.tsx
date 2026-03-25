@@ -1,5 +1,4 @@
 // src/components/trip/ReportPanel.tsx
-"use client";
 
 /**
  * ReportPanel - Two-phase crowd-sourced road observation reporter.

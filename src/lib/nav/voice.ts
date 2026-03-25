@@ -266,8 +266,35 @@ export function initVoice(): void {
 }
 
 /**
+ * iOS WebView TTS keepalive.
+ *
+ * iOS WKWebView pauses speechSynthesis after ~15s of silence, causing the
+ * next speak() call to be swallowed. We work around this by periodically
+ * calling cancel()+resume() which keeps the synthesis engine alive.
+ * The timer runs only while active navigation is in progress.
+ */
+let _keepaliveTimer: ReturnType<typeof setInterval> | null = null;
+
+export function startTtsKeepalive(): void {
+  if (_keepaliveTimer) return;
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+  _keepaliveTimer = setInterval(() => {
+    if (!window.speechSynthesis.speaking) {
+      window.speechSynthesis.cancel();
+    }
+  }, 10_000); // ping every 10s
+}
+
+export function stopTtsKeepalive(): void {
+  if (_keepaliveTimer) {
+    clearInterval(_keepaliveTimer);
+    _keepaliveTimer = null;
+  }
+}
+
+/**
  * Speak text using Web Speech API with the best available voice.
- * Handles the iOS WebView 30-second freeze bug by cancelling + resuming.
+ * Handles the iOS WebView 15-second freeze bug via keepalive timer + resume.
  */
 export function speak(
   text: string,

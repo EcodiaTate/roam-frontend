@@ -1,5 +1,4 @@
 // src/lib/guide/guideEngine.ts
-"use client";
 
 import type { TripStop } from "@/lib/types/trip";
 import type { NavPack, CorridorGraphPack, TrafficOverlay, HazardOverlay } from "@/lib/types/navigation";

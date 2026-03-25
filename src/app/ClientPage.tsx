@@ -1,8 +1,6 @@
-"use client";
-
 import { useEffect, useState, useMemo, useSyncExternalStore } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { useNavigate } from "react-router";
+import { Link } from "react-router";
 import { Capacitor } from "@capacitor/core";
 import "./landing.css";
 import {
@@ -28,11 +26,11 @@ const getIsNative = () => Capacitor.isNativePlatform();
 const getIsNativeServer = () => false;
 
 function useNativeRedirect() {
-  const router = useRouter();
+  const navigate = useNavigate();
   const isNative = useSyncExternalStore(subscribeNoop, getIsNative, getIsNativeServer);
   useEffect(() => {
-    if (isNative) router.replace("/trip");
-  }, [isNative, router]);
+    if (isNative) navigate("/trip", { replace: true });
+  }, [isNative, navigate]);
   return isNative;
 }
 
@@ -145,7 +143,7 @@ export default function LandingPage() {
 
       <nav className={`rl-nav ${scrolled ? "rl-nav-s" : ""}`}>
         <div className="rl-nav-bar">
-          <Link href="/" className="rl-nav-logo">
+          <Link to="/" className="rl-nav-logo">
             <Compass size={20} strokeWidth={2.5} />
             <span>ROAM</span>
           </Link>

@@ -1,6 +1,5 @@
 // src/lib/supabase/savedPlacesCloud.ts
 // Supabase sync layer for saved places.
-"use client";
 
 import { supabase } from "@/lib/supabase/client";
 import type { SavedPlace } from "@/lib/offline/savedPlacesStore";
@@ -30,7 +29,7 @@ export async function cloudUpsertSavedPlace(p: SavedPlace): Promise<void> {
       saved_at: p.saved_at,
       extra: p.extra ?? null,
     },
-    { onConflict: "place_id" },
+    { onConflict: "user_id,place_id" },
   );
   if (error) throw new Error(error.message);
 }

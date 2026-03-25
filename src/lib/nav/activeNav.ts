@@ -9,7 +9,7 @@
 import type { NavPack, NavStep } from "@/lib/types/navigation";
 import type { RoamPosition } from "@/lib/native/geolocation";
 import type { FatigueState } from "@/lib/nav/fatigue";
-import { haversineM } from "@/lib/nav/snapToRoute";
+import { haversineM, type PolylineIndex, snapToPolylineIndexed } from "@/lib/nav/snapToRoute";
 
 // ──────────────────────────────────────────────────────────────
 // Config
@@ -325,6 +325,7 @@ export function updateActiveNav(
   routeTotalM: number,
   config: ActiveNavConfig = DEFAULT_NAV_CONFIG,
   legBoundaries?: LegBoundary[],
+  polylineIndex?: PolylineIndex | null,
 ): ActiveNavState {
   const now = position.timestamp || Date.now();
 
@@ -336,8 +337,20 @@ export function updateActiveNav(
     return { ...prev, updatedAt: now };
   }
 
-  // 1. Snap to route
-  const snap = snapToLine(position.lat, position.lng, routePts);
+  // 1. Snap to route — use spatial index (O(1)) when available, fall back to linear scan
+  let snap: SnapResult;
+  if (polylineIndex) {
+    const indexed = snapToPolylineIndexed({ lat: position.lat, lng: position.lng }, polylineIndex);
+    snap = {
+      segIdx: indexed.segIdx,
+      distFromRoute_m: indexed.distance_m,
+      distAlongLine_m: indexed.km * 1000,
+      nearestLat: 0, // not needed downstream
+      nearestLng: 0,
+    };
+  } else {
+    snap = snapToLine(position.lat, position.lng, routePts);
+  }
   const kmAlongRoute = snap.distAlongLine_m / 1000;
 
   // 2. Off-route detection

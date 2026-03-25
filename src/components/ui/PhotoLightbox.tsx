@@ -3,7 +3,6 @@
 // Full-screen image preview overlay.
 // Supports multi-image navigation with prev/next and keyboard controls.
 
-"use client";
 
 import { useCallback, useEffect, useState } from "react";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
@@ -67,7 +66,7 @@ export function PhotoLightbox({
         <span className={s.counter}>
           {urls.length > 1 ? `${index + 1} / ${urls.length}` : ""}
         </span>
-        <button type="button" className={s.closeBtn} onClick={() => { haptic.light(); onClose(); }}>
+        <button type="button" className={s.closeBtn} onClick={() => { haptic.light(); onClose(); }} aria-label="Close lightbox">
           <X size={18} strokeWidth={2} />
         </button>
       </div>
@@ -82,6 +81,7 @@ export function PhotoLightbox({
             type="button"
             className={`${s.navBtn} ${s.navPrev}`}
             onClick={goPrev}
+            aria-label="Previous photo"
           >
             <ChevronLeft size={20} strokeWidth={2} />
           </button>
@@ -100,6 +100,7 @@ export function PhotoLightbox({
             type="button"
             className={`${s.navBtn} ${s.navNext}`}
             onClick={goNext}
+            aria-label="Next photo"
           >
             <ChevronRight size={20} strokeWidth={2} />
           </button>

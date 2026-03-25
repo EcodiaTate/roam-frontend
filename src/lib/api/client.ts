@@ -54,7 +54,7 @@ function buildQueryString(
 }
 
 function getApiBase(): string {
-  const base = process.env.NEXT_PUBLIC_API_BASE;
+  const base = import.meta.env.VITE_API_BASE;
   if (!base) return "";
   return base.replace(/\/+$/, "");
 }

@@ -2,7 +2,6 @@
 // Offline-first place search engine.
 // Filters up to 8,000 PlaceItem objects in <50ms using simple array ops.
 
-"use client";
 
 import type { PlaceCategory, PlaceItem } from "@/lib/types/places";
 import { haversineKm } from "@/lib/nav/snapToRoute";

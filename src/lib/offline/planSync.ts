@@ -1,5 +1,4 @@
 // src/lib/offline/planSync.ts
-"use client";
 
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
@@ -10,6 +9,7 @@ import {
     removeOp,
     markOpFailed,
     hasQueuedUpsert,
+    purgeDeadLetterOps,
     type SyncOp,
 } from "./syncQueue";
 import {
@@ -141,7 +141,7 @@ class PlanSyncManager {
     // 2. Listen for network changes → auto-drain on reconnect
     this._networkUnsub = networkMonitor.subscribe((isOnline) => {
       if (isOnline && this._started) {
-        this.pullRemote().then(() => this.drainQueue());
+        this.pullRemote().then(() => this.drainQueue()).catch((e) => console.warn("[PlanSync] sync failed:", e));
       }
     });
 
@@ -258,6 +258,8 @@ class PlanSyncManager {
     } finally {
       this._draining = false;
       this._emit("drain_end");
+      // Purge dead-letter ops (retries exhausted) to prevent IDB bloat
+      purgeDeadLetterOps().catch(() => {});
     }
   }
 
@@ -351,13 +353,15 @@ class PlanSyncManager {
     const rec = await getOfflinePlan(planId);
     if (rec) {
       const row = localToCloud(rec, this._userId);
-      await supabase.from("roam_plans").upsert(row, { onConflict: "plan_id" });
+      const { error: planErr } = await supabase.from("roam_plans").upsert(row, { onConflict: "plan_id" });
+      if (planErr) throw new Error(`Failed to push plan for invite: ${planErr.message}`);
 
       // Ensure owner membership
-      await supabase.from("roam_plan_members").upsert(
+      const { error: memberErr } = await supabase.from("roam_plan_members").upsert(
         { plan_id: planId, user_id: this._userId, role: "owner" },
         { onConflict: "plan_id,user_id" },
       );
+      if (memberErr) throw new Error(`Failed to ensure owner membership: ${memberErr.message}`);
     }
 
     const code = this._generateCode();
@@ -399,9 +403,10 @@ class PlanSyncManager {
       .from("roam_plan_invites")
       .select("*")
       .eq("code", code.toUpperCase().trim())
-      .single();
+      .maybeSingle();
 
-    if (e1 || !invite) throw new Error("Invalid invite code");
+    if (e1) throw new Error(`Failed to look up invite: ${e1.message}`);
+    if (!invite) throw new Error("Invalid invite code");
 
     // Check expiry
     if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
@@ -425,11 +430,11 @@ class PlanSyncManager {
 
     if (e2) throw new Error(`Failed to join plan: ${e2.message}`);
 
-    // 3. Increment invite uses
-    await supabase
-      .from("roam_plan_invites")
-      .update({ uses: invite.uses + 1 })
-      .eq("code", code.toUpperCase().trim());
+    // 3. Atomically increment invite uses (avoids race with concurrent redemptions)
+    const { error: e3 } = await supabase.rpc("increment_invite_uses", {
+      p_code: code.toUpperCase().trim(),
+    });
+    if (e3) console.warn("[PlanSync] Failed to increment invite uses:", e3.message);
 
     // 4. Pull the plan definition to local IDB
     // Unlike the general pullRemote (which swallows errors for resilience),
@@ -495,10 +500,11 @@ class PlanSyncManager {
         if (error) throw new Error(`plan_upsert: ${error.message}`);
 
         // Also ensure we're an owner-member
-        await supabase.from("roam_plan_members").upsert(
+        const { error: memberErr } = await supabase.from("roam_plan_members").upsert(
           { plan_id: op.plan_id, user_id: this._userId, role: "owner" },
           { onConflict: "plan_id,user_id" },
         );
+        if (memberErr) throw new Error(`plan_upsert membership: ${memberErr.message}`);
         break;
       }
 
@@ -521,7 +527,8 @@ class PlanSyncManager {
             label: op.payload?.label ?? null,
             updated_at: new Date().toISOString(),
           })
-          .eq("plan_id", op.plan_id);
+          .eq("plan_id", op.plan_id)
+          .eq("owner_id", this._userId);
 
         if (error) throw new Error(`plan_label: ${error.message}`);
         break;

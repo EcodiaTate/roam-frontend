@@ -1,5 +1,4 @@
 // src/components/basemap/BasemapDownloadCard.tsx
-"use client";
 
 import { useCallback, useEffect, useRef } from "react";
 import { useBasemapPack } from "@/lib/hooks/useBasemapPack";
@@ -97,7 +96,8 @@ const styles: Record<string, React.CSSProperties> = {
     display: "flex",
     alignItems: "center",
     gap: 8,
-    padding: "8px 16px",
+    padding: "12px 16px",
+    minHeight: 44,
     background: "transparent",
     border: "none",
     color: "#fff",
@@ -106,6 +106,7 @@ const styles: Record<string, React.CSSProperties> = {
     letterSpacing: "0.2px",
     cursor: "pointer",
     outline: "none",
+    touchAction: "manipulation",
     WebkitTapHighlightColor: "transparent",
   },
 };

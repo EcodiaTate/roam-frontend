@@ -1,8 +1,7 @@
 // src/components/native/NativeBootstrap.tsx
-"use client";
 
 import { useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router";
 
 import {
     configureStatusBar,
@@ -23,7 +22,7 @@ import { initRevenueCat } from "@/lib/paywall/tripGate";
 import { supabase } from "@/lib/supabase/client";
 
 // Set this env var to your RevenueCat iOS/Android API key
-const RC_API_KEY = process.env.NEXT_PUBLIC_REVENUECAT_API_KEY ?? "";
+const RC_API_KEY = import.meta.env.VITE_REVENUECAT_API_KEY ?? "";
 
 /**
  * Invisible component that initializes all native Capacitor plugins.
@@ -39,7 +38,7 @@ const RC_API_KEY = process.env.NEXT_PUBLIC_REVENUECAT_API_KEY ?? "";
  *   6. Splash screen → hide after all setup is done
  */
 export function NativeBootstrap() {
-  const router = useRouter();
+  const router = useNavigate();
   const initRef = useRef(false);
 
   useEffect(() => {
@@ -81,7 +80,7 @@ export function NativeBootstrap() {
       onNotificationTap((extra) => {
         const type = extra?.type;
         if (type === "bundle_ready" || type === "sync" || type === "hazard") {
-          router.push("/trip");
+          router("/trip");
         }
       });
 
@@ -91,7 +90,7 @@ export function NativeBootstrap() {
         try {
           const parsed = new URL(url);
           if (parsed.pathname === "/auth/callback") {
-            router.replace("/auth/callback" + parsed.search + parsed.hash);
+            router("/auth/callback" + parsed.search + parsed.hash, { replace: true });
           }
         } catch {}
       });

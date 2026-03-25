@@ -1,5 +1,4 @@
 // src/lib/offline/networkMonitor.ts
-"use client";
 
 import { healthApi } from "@/lib/api/health";
 import { isNative, hasPlugin } from "@/lib/native/platform";
@@ -92,9 +91,7 @@ class NetworkMonitorImpl {
 
     // ── Backend health polling (both native and web) ─────────────
     await this._pollBackend();
-    this._pollTimer = setInterval(() => {
-      void this._pollBackend();
-    }, this._deviceOnline ? 15_000 : 30_000);
+    this._restartPollTimer();
   }
 
   /** Stop monitoring. */
@@ -127,6 +124,18 @@ class NetworkMonitorImpl {
   }
 
   /* ── Internals ──────────────────────────────────────────────────────── */
+
+  /**
+   * Restart the backend poll timer with an interval appropriate to current connectivity.
+   * Online: poll every 15s. Offline: back off to 30s.
+   */
+  private _restartPollTimer() {
+    if (this._pollTimer) clearInterval(this._pollTimer);
+    const interval = this._deviceOnline ? 15_000 : 30_000;
+    this._pollTimer = setInterval(() => {
+      void this._pollBackend();
+    }, interval);
+  }
 
   private _setupBrowserListeners() {
     if (typeof window === "undefined") return;
@@ -179,7 +188,11 @@ class NetworkMonitorImpl {
   private _setBackendReachable(v: boolean) {
     const prev = this.online;
     this._backendReachable = v;
-    if (this.online !== prev) this._notify();
+    if (this.online !== prev) {
+      this._notify();
+      // Adjust poll frequency to match new connectivity state
+      if (this._started) this._restartPollTimer();
+    }
   }
 
   private _notify() {

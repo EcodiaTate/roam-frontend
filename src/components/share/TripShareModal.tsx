@@ -1,5 +1,4 @@
 // src/components/share/TripShareModal.tsx
-"use client";
 
 import { useCallback, useRef, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
@@ -163,9 +162,10 @@ export function TripShareModal({ open, data, onClose, mapImageUrl }: Props) {
         <button type="button" onClick={onClose}
           style={{ all: "unset", cursor: "pointer", display: "flex",
             alignItems: "center", justifyContent: "center",
-            width: 40, height: 40, borderRadius: 10,
+            width: 44, height: 44, borderRadius: 12,
             background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.6)",
-            WebkitTapHighlightColor: "transparent" }}>
+            backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
+            WebkitTapHighlightColor: "transparent", touchAction: "manipulation" }}>
           <X size={18} />
         </button>
       </div>
@@ -183,7 +183,7 @@ export function TripShareModal({ open, data, onClose, mapImageUrl }: Props) {
               color: mode === m ? "#0a1f0e" : "rgba(255,255,255,0.5)",
               fontSize: 12, fontWeight: 700,
               transition: "background 0.15s, color 0.15s",
-              WebkitTapHighlightColor: "transparent" }}>
+              WebkitTapHighlightColor: "transparent", touchAction: "manipulation" }}>
             {m === "card" ? <MapIcon size={16} /> : <ImageIcon size={16} />}
             {m === "card" ? "Route Card" : "Photo Overlay"}
           </button>
@@ -234,7 +234,7 @@ export function TripShareModal({ open, data, onClose, mapImageUrl }: Props) {
                     bottom: 10, right: 10, display: "flex", alignItems: "center", gap: 4,
                     padding: "8px 14px", borderRadius: 10,
                     background: "rgba(0,0,0,0.6)", color: "#fff",
-                    fontSize: 12, fontWeight: 600, minHeight: 36,
+                    fontSize: 13, fontWeight: 600, minHeight: 44,
                     backdropFilter: "blur(8px)", WebkitTapHighlightColor: "transparent" }}>
                   <ImageIcon size={14} /> Change
                 </button>
@@ -266,7 +266,8 @@ export function TripShareModal({ open, data, onClose, mapImageUrl }: Props) {
             height: 50, borderRadius: 15,
             background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)",
             color: !canExport || exporting ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.75)",
-            fontSize: 14, fontWeight: 600, WebkitTapHighlightColor: "transparent" }}>
+            fontSize: 14, fontWeight: 600, WebkitTapHighlightColor: "transparent",
+            touchAction: "manipulation", transition: "opacity 0.15s" }}>
           {exporting ? <Loader2 size={15} style={{ animation: "roam-spin 0.75s linear infinite" }} /> : <Download size={15} />}
           Save
         </button>
@@ -279,7 +280,8 @@ export function TripShareModal({ open, data, onClose, mapImageUrl }: Props) {
             color: !canExport || exporting ? "rgba(10,31,14,0.4)" : "#0a1f0e",
             fontSize: 14, fontWeight: 700,
             boxShadow: canExport && !exporting ? "0 4px 20px rgba(74,222,128,0.3)" : "none",
-            WebkitTapHighlightColor: "transparent" }}>
+            WebkitTapHighlightColor: "transparent",
+            touchAction: "manipulation", transition: "opacity 0.15s, box-shadow 0.15s" }}>
           {exporting ? <Loader2 size={15} style={{ animation: "roam-spin 0.75s linear infinite" }} /> : <Share2 size={15} />}
           {isNative ? "Share" : "Download PNG"}
         </button>

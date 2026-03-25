@@ -84,14 +84,19 @@ export const textTruncate: React.CSSProperties = {
   textOverflow: "ellipsis",
 };
 
-/** Ghost/icon button reset */
+/** Ghost/icon button reset — 44px min for touch targets */
 export const btnReset: React.CSSProperties = {
   background: "transparent",
   border: "none",
   cursor: "pointer",
   display: "flex",
   alignItems: "center",
-  padding: "6px",
-  borderRadius: 8,
+  justifyContent: "center",
+  padding: "10px",
+  minHeight: 44,
+  minWidth: 44,
+  borderRadius: 10,
   flexShrink: 0,
+  touchAction: "manipulation",
+  WebkitTapHighlightColor: "transparent",
 };

@@ -2,12 +2,10 @@
 //
 // Lightweight MapLibre map that renders saved-place pins.
 // Clicking a pin flies to it and calls onSelectPlace.
-"use client";
 
 import { useEffect, useRef, useCallback } from "react";
 import maplibregl, { type Map as MLMap } from "maplibre-gl";
 import type { StyleSpecification } from "@maplibre/maplibre-gl-style-spec";
-import "maplibre-gl/dist/maplibre-gl.css";
 import { Protocol } from "pmtiles";
 import { assetsApi } from "@/lib/api/assets";
 import { rewriteStyleForLocalServer, isFullyOfflineCapable } from "@/lib/offline/basemapManager";
@@ -83,9 +81,13 @@ export function SavedPlacesMap({ places, onSelectPlace }: Props) {
           const placeId = feature.properties?.place_id as string;
           // Find in parent's places array (passed via ref-like mechanism through state)
           // We re-read via the closure over the ref
-          onSelectRef.current?.(
-            JSON.parse(feature.properties?.raw as string) as SavedPlace,
-          );
+          try {
+            onSelectRef.current?.(
+              JSON.parse(feature.properties?.raw as string) as SavedPlace,
+            );
+          } catch {
+            // raw property missing or malformed — ignore click
+          }
         });
 
         map.on("mouseenter", SAVED_LAYER, () => {
@@ -94,6 +96,9 @@ export function SavedPlacesMap({ places, onSelectPlace }: Props) {
         map.on("mouseleave", SAVED_LAYER, () => {
           map.getCanvas().style.cursor = "";
         });
+
+        // Populate with any places already available at mount time
+        syncPins(map, placesRef.current);
       });
     }
 
@@ -106,15 +111,12 @@ export function SavedPlacesMap({ places, onSelectPlace }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Update pins when places change
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
-
+  // Shared helper to push places into the map source + fit bounds
+  const syncPins = useCallback((map: MLMap, data: SavedPlace[]) => {
     const src = map.getSource(SAVED_SOURCE) as maplibregl.GeoJSONSource | undefined;
     if (!src) return;
 
-    const features: GeoJSON.Feature[] = places.map((p) => ({
+    const features: GeoJSON.Feature[] = data.map((p) => ({
       type: "Feature",
       geometry: { type: "Point", coordinates: [p.lng, p.lat] },
       properties: { place_id: p.place_id, name: p.name, raw: JSON.stringify(p) },
@@ -122,13 +124,12 @@ export function SavedPlacesMap({ places, onSelectPlace }: Props) {
 
     src.setData({ type: "FeatureCollection", features });
 
-    // Fit bounds if we have places
-    if (places.length > 0) {
-      if (places.length === 1) {
-        map.flyTo({ center: [places[0].lng, places[0].lat], zoom: 12 });
+    if (data.length > 0) {
+      if (data.length === 1) {
+        map.flyTo({ center: [data[0].lng, data[0].lat], zoom: 12 });
       } else {
-        const lngs = places.map((p) => p.lng);
-        const lats = places.map((p) => p.lat);
+        const lngs = data.map((p) => p.lng);
+        const lats = data.map((p) => p.lat);
         map.fitBounds(
           [
             [Math.min(...lngs) - 0.5, Math.min(...lats) - 0.5],
@@ -138,7 +139,18 @@ export function SavedPlacesMap({ places, onSelectPlace }: Props) {
         );
       }
     }
-  }, [places]);
+  }, []);
+
+  // Keep a ref to the latest places so the load callback can read them
+  const placesRef = useRef(places);
+  placesRef.current = places;
+
+  // Update pins when places change after initial load
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+    syncPins(map, places);
+  }, [places, syncPins]);
 
   return (
     <div

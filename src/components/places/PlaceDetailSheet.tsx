@@ -8,7 +8,6 @@
 //         hero image → AI description → quick actions → attributes →
 //         location → Wikipedia → OSM attribution
 
-"use client";
 
 import {
     useRef,
@@ -17,14 +16,13 @@ import {
     useCallback,
     type ReactNode,
 } from "react";
-import dynamic from "next/dynamic";
-import Image from "next/image";
+import { lazy, Suspense } from "react";
 import type { PlaceExtra } from "@/lib/types/places";
 import { usePlaceDetail } from "@/lib/context/PlaceDetailContext";
 import { parseOpeningHours, ohToHuman } from "@/lib/utils/openingHours";
 import { haptic } from "@/lib/native/haptics";
 
-const PlaceMapPreview = dynamic(() => import("@/components/places/PlaceMapPreview"), { ssr: false });
+const PlaceMapPreview = lazy(() => import("@/components/places/PlaceMapPreview"));
 
 import { CATEGORY_ICON, getCategoryColor } from "@/lib/places/categoryMeta";
 import { fmtDist, fmtCategory, normalizeUrl, safeOpen, cleanPhone } from "@/lib/places/format";
@@ -267,7 +265,7 @@ function useSwipeToDismiss(onDismiss: () => void) {
       dragRef.current = null;
       sheet.style.transition = "";
 
-      if (dy > 80) {
+      if (dy > 110) {
         sheet.style.transform = "translateY(120%)";
         setTimeout(onDismiss, 280);
       } else {
@@ -519,15 +517,17 @@ export function PlaceDetailSheet({
             touchAction: "none",
           }}
         >
-          <PlaceMapPreview
-            lat={place.lat}
-            lng={place.lng}
-            color={cc.accent}
-            height={150}
-            zoom={11}
-            styleId="roam-basemap-hybrid"
-            radius={0}
-          />
+          <Suspense fallback={null}>
+            <PlaceMapPreview
+              lat={place.lat}
+              lng={place.lng}
+              color={cc.accent}
+              height={150}
+              zoom={11}
+              styleId="roam-basemap-hybrid"
+              radius={0}
+            />
+          </Suspense>
 
           {/* Drag handle */}
           <div style={{
@@ -535,13 +535,13 @@ export function PlaceDetailSheet({
             top: 0,
             left: 0,
             right: 0,
-            padding: "10px 0",
+            padding: "12px 0",
             display: "flex",
             justifyContent: "center",
             pointerEvents: "none",
           }}>
             <div style={{
-              width: 36, height: 4,
+              width: 36, height: 5,
               background: "rgba(255,255,255,0.8)",
               borderRadius: 10,
               boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
@@ -581,6 +581,7 @@ export function PlaceDetailSheet({
           overflowY: "auto",
           WebkitOverflowScrolling: "touch" as React.CSSProperties["WebkitOverflowScrolling"],
           overscrollBehaviorX: "contain",
+          overscrollBehaviorY: "contain",
           touchAction: "pan-y",
           paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 20px)",
         }}>
@@ -678,14 +679,12 @@ export function PlaceDetailSheet({
               borderRadius: 16,
               overflow: "hidden",
             }}>
-              <Image
+              <img
                 src={thumbnailUrl}
                 alt={place.name}
-                fill
-                style={{ objectFit: "cover" }}
+                loading="eager"
+                style={{ objectFit: "cover", width: "100%", height: "100%", position: "absolute", inset: 0 }}
                 onError={() => setImgError(true)}
-                unoptimized
-                priority
               />
               <div style={{
                 position: "absolute",
@@ -749,6 +748,7 @@ export function PlaceDetailSheet({
               <SectionHeader title="Actions" />
               <div style={{
                 display: "flex",
+                flexWrap: "wrap",
                 gap: 8,
                 padding: "12px 8px",
                 borderRadius: 16,
@@ -908,9 +908,9 @@ export function PlaceDetailSheet({
                         borderRadius: "var(--r-pill)",
                         fontSize: "var(--font-sm)",
                         fontWeight: 700,
-                        background: "rgba(245,158,11,0.1)",
-                        color: "#d97706",
-                        border: "1px solid rgba(245,158,11,0.2)",
+                        background: "var(--severity-minor-tint)",
+                        color: "var(--roam-warn)",
+                        border: "1px solid var(--roam-border-strong)",
                         textTransform: "capitalize",
                       }}>
                         <Fuel size={12} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
@@ -939,8 +939,8 @@ export function PlaceDetailSheet({
                     fontSize: "var(--font-xs)",
                     fontWeight: 800,
                     marginBottom: 8,
-                    background: evOperational ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
-                    color: evOperational ? "#22c55e" : "#ef4444",
+                    background: evOperational ? "var(--accent-tint)" : "var(--danger-tint)",
+                    color: evOperational ? "var(--roam-success)" : "var(--roam-danger)",
                   }}>
                     {evOperational ? "Operational" : "Out of Service"}
                   </div>

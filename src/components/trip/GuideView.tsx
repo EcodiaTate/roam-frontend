@@ -1,8 +1,6 @@
 // src/components/trip/GuideView.tsx
-"use client";
 
 import { useMemo, useRef, useState, useEffect } from "react";
-import Image from "next/image";
 import type { PlaceItem } from "@/lib/types/places";
 import type { MouseEvent, SyntheticEvent } from "react";
 
@@ -56,6 +54,7 @@ import {
     Wifi,
     Signal,
     UtensilsCrossed,
+    WifiOff,
 } from "lucide-react";
 
 const catColor = getCategoryColor;
@@ -165,10 +164,10 @@ function ActionPill({
   const accentColor = color ?? "var(--brand-sky)";
   const baseStyle: React.CSSProperties = {
     borderRadius: 10,
-    minHeight: 34,
-    padding: "0 12px",
+    minHeight: 44,
+    padding: "0 14px",
     fontWeight: 700,
-    fontSize: 12,
+    fontSize: 13,
     border: `1px solid ${muted ? "var(--roam-border)" : accentColor + "30"}`,
     background: muted ? "transparent" : accentColor + "0D",
     color: muted ? "var(--roam-text-muted)" : accentColor,
@@ -279,10 +278,10 @@ function MessageActionsRow({
                   type="button"
                   onClick={isOnline ? () => { haptic.selection(); safeOpen(a.url!); } : () => haptic.selection()}
                   style={{
-                    display: "inline-flex", alignItems: "center", gap: 5,
-                    padding: "6px 10px", background: "none", border: "none",
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    padding: "10px 12px", minHeight: 44, background: "none", border: "none",
                     cursor: isOnline ? "pointer" : "default",
-                    fontSize: 12, fontWeight: 700,
+                    fontSize: 13, fontWeight: 700,
                     color: isOnline ? "var(--roam-text)" : "var(--roam-text-muted)",
                     opacity: isOnline ? 1 : 0.5,
                     ...dividerStyle,
@@ -299,9 +298,9 @@ function MessageActionsRow({
                   key={`sa_call_${gi}_${idx}`}
                   href={`tel:${a.tel}`}
                   style={{
-                    display: "inline-flex", alignItems: "center", gap: 5,
-                    padding: "6px 10px", textDecoration: "none",
-                    fontSize: 12, fontWeight: 700, color: "#10b981",
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    padding: "10px 12px", minHeight: 44, textDecoration: "none",
+                    fontSize: 13, fontWeight: 700, color: "#10b981",
                     ...dividerStyle,
                   }}
                 >
@@ -317,9 +316,9 @@ function MessageActionsRow({
                   type="button"
                   onClick={() => { haptic.selection(); onShowOnMap?.(a.lat!, a.lng!, a.place_id ?? undefined); }}
                   style={{
-                    display: "inline-flex", alignItems: "center", gap: 5,
-                    padding: "6px 10px", background: "none", border: "none",
-                    cursor: "pointer", fontSize: 12, fontWeight: 700, color: "#6366f1",
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    padding: "10px 12px", minHeight: 44, background: "none", border: "none",
+                    cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#6366f1",
                     ...dividerStyle,
                   }}
                 >
@@ -336,9 +335,9 @@ function MessageActionsRow({
                   type="button"
                   onClick={() => { haptic.selection(); onSwitchToFound?.(); }}
                   style={{
-                    display: "inline-flex", alignItems: "center", gap: 5,
-                    padding: "6px 10px", background: "none", border: "none",
-                    cursor: "pointer", fontSize: 12, fontWeight: 700, color: "#10b981",
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    padding: "10px 12px", minHeight: 44, background: "none", border: "none",
+                    cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#10b981",
                     ...dividerStyle,
                   }}
                 >
@@ -378,9 +377,9 @@ function MessageActionsRow({
           type="button"
           onClick={() => { haptic.selection(); onSwitchToFound(); }}
           style={{
-            padding: "6px 12px", borderRadius: 10,
+            padding: "10px 14px", minHeight: 44, borderRadius: 10,
             border: "1px solid rgba(16,185,129,0.15)", background: "rgba(16,185,129,0.06)",
-            color: "#10b981", fontSize: 12, fontWeight: 700, cursor: "pointer",
+            color: "#10b981", fontSize: 13, fontWeight: 700, cursor: "pointer",
             display: "inline-flex", alignItems: "center", gap: 6, alignSelf: "flex-start",
           }}
         >
@@ -507,7 +506,7 @@ function renderInline(nodes: InlineNode[], keyPrefix: string, inLink = false) {
         }
       } else { out.push(<span key={k}>{n.s}</span>); }
     } else if (n.t === "code") {
-      out.push(<code key={k} style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace", fontSize: "0.9em", background: "rgba(0,0,0,0.08)", padding: "2px 6px", borderRadius: 5 }}>{n.s}</code>);
+      out.push(<code key={k} style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace", fontSize: "0.9em", background: "var(--roam-surface-hover)", padding: "2px 6px", borderRadius: 5 }}>{n.s}</code>);
     } else if (n.t === "strong") {
       out.push(<strong key={k} style={{ fontWeight: 800, color: "var(--roam-text)" }}>{renderInline(n.c, k, inLink)}</strong>);
     } else if (n.t === "em") {
@@ -526,7 +525,7 @@ function MarkdownBody({ text }: { text: string }) {
       {nodes.map((n, idx) => {
         const k = `md_${idx}`;
         if (n.t === "codeblock") {
-          return (<pre key={k} style={{ margin: 0, padding: "10px 12px", borderRadius: 10, background: "rgba(0,0,0,0.08)", overflowX: "auto", fontSize: 12, lineHeight: 1.4 }}><code style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" }}>{n.code}</code></pre>);
+          return (<pre key={k} style={{ margin: 0, padding: "10px 12px", borderRadius: 10, background: "var(--roam-surface-hover)", overflowX: "auto", fontSize: 12, lineHeight: 1.4 }}><code style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" }}>{n.code}</code></pre>);
         }
         if (n.t === "h") {
           return (<div key={k} style={{ fontSize: n.level === 1 ? 15 : 14, fontWeight: 800, color: "var(--roam-text)", marginTop: 2 }}>{renderInline(n.inl, k)}</div>);
@@ -828,10 +827,10 @@ function PlaceCard({
                   type="button"
                   onClick={(e) => { stop(e); haptic.medium(); onAdd(); }}
                   style={{
-                    borderRadius: 8, height: 28, padding: "0 10px",
-                    fontWeight: 700, fontSize: 11, border: "none",
+                    borderRadius: 10, height: 36, minHeight: 44, padding: "0 12px",
+                    fontWeight: 700, fontSize: 12, border: "none",
                     background: cc.accent, color: "white",
-                    cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4,
+                    cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5,
                     WebkitTapHighlightColor: "transparent",
                   }}
                 >
@@ -843,11 +842,11 @@ function PlaceCard({
                     type="button"
                     onClick={(e) => { stop(e); haptic.selection(); onFocus(); onShowOnMap?.(); }}
                     style={{
-                      borderRadius: 8, height: 28, padding: "0 10px",
-                      fontWeight: 700, fontSize: 11,
+                      borderRadius: 10, height: 36, minHeight: 44, padding: "0 12px",
+                      fontWeight: 700, fontSize: 12,
                       border: `1px solid var(--roam-border, rgba(255,255,255,0.08))`,
                       background: "transparent", color: "var(--roam-text)", cursor: "pointer",
-                      display: "inline-flex", alignItems: "center", gap: 4,
+                      display: "inline-flex", alignItems: "center", gap: 5,
                       WebkitTapHighlightColor: "transparent",
                     }}
                   >
@@ -888,8 +887,8 @@ function PlaceCard({
               onPointerDown={stop} onTouchStart={stop} onClick={stop}
               style={{
                 textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center",
-                borderRadius: 10, minHeight: 34, padding: "0 12px",
-                fontWeight: 700, fontSize: 12, gap: 5,
+                borderRadius: 10, minHeight: 44, padding: "0 14px",
+                fontWeight: 700, fontSize: 13, gap: 6,
                 border: `1px solid var(--roam-border, rgba(255,255,255,0.08))`,
                 background: "transparent", color: "var(--roam-success)",
               }}
@@ -905,11 +904,11 @@ function PlaceCard({
               onPointerDown={stop} onTouchStart={stop}
               onClick={(e) => { stop(e); haptic.selection(); const norm = normalizeUrl(String(website)); if (norm) safeOpen(norm); }}
               style={{
-                borderRadius: 10, minHeight: 34, padding: "0 12px",
-                fontWeight: 700, fontSize: 12,
+                borderRadius: 10, minHeight: 44, padding: "0 14px",
+                fontWeight: 700, fontSize: 13,
                 border: `1px solid var(--roam-border, rgba(255,255,255,0.08))`,
                 background: "transparent", color: "var(--brand-sky)", cursor: "pointer",
-                display: "inline-flex", alignItems: "center", gap: 5,
+                display: "inline-flex", alignItems: "center", gap: 6,
               }}
             >
               <Globe size={13} />
@@ -1322,6 +1321,19 @@ export function GuideView({
       <div style={{ width: "50%", minWidth: 0 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 
+          {/* Offline banner */}
+          {!isOnline && (
+            <div style={{
+              background: "var(--bg-warn, rgba(255,180,50,0.08))", borderRadius: 14, padding: "12px 16px",
+              border: "1px solid var(--border-warn, rgba(255,180,50,0.15))",
+              display: "flex", alignItems: "center", gap: 10,
+              fontSize: 13, fontWeight: 600, color: "var(--text-warn, #e6a040)",
+            }}>
+              <WifiOff size={16} style={{ flexShrink: 0 }} />
+              <span>You&apos;re offline. Chat needs internet, but your saved places in the <strong>Found</strong> tab are available.</span>
+            </div>
+          )}
+
           {/* Welcome state - when no messages yet */}
           {thread.length === 0 && !pendingUserMsg ? (
             <div style={{
@@ -1336,7 +1348,7 @@ export function GuideView({
                   boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
                   flexShrink: 0,
                 }}>
-                  <Image src="/img/roam-app-icon.png" alt="Roam" width={40} height={40} style={{ width: "100%", height: "100%", objectFit: "cover" }} unoptimized />
+                  <img src="/img/roam-app-icon.png" alt="Roam" width={40} height={40} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 </div>
                 <div>
                   <div style={{ fontSize: 16, fontWeight: 800, color: "var(--roam-text)" }}>
@@ -1357,13 +1369,13 @@ export function GuideView({
                       key={i}
                       type="button"
                       onClick={() => handleAsk(s.query)}
-                      disabled={!guideReady || chatBusy}
+                      disabled={!guideReady || chatBusy || !isOnline}
                       style={{
                         borderRadius: 14, border: "none",
                         padding: "12px", textAlign: "left",
                         background: `${s.color}0D`,
-                        cursor: guideReady && !chatBusy ? "pointer" : "default",
-                        opacity: !guideReady || chatBusy ? 0.5 : 1,
+                        cursor: guideReady && !chatBusy && isOnline ? "pointer" : "default",
+                        opacity: !guideReady || chatBusy || !isOnline ? 0.5 : 1,
                         display: "flex", flexDirection: "column", gap: 6,
                         transition: "transform 0.1s var(--spring, ease), opacity 0.1s",
                         WebkitTapHighlightColor: "transparent",
@@ -1430,7 +1442,7 @@ export function GuideView({
                         overflow: "hidden",
                         boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
                       }}>
-                        <Image src="/img/roam-app-icon.png" alt="Roam" width={28} height={28} style={{ width: "100%", height: "100%", objectFit: "cover" }} unoptimized />
+                        <img src="/img/roam-app-icon.png" alt="Roam" width={28} height={28} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                       </div>
 
                       <div style={{
@@ -1498,7 +1510,7 @@ export function GuideView({
                     overflow: "hidden",
                     boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
                   }}>
-                    <Image src="/img/roam-app-icon.png" alt="Roam" width={28} height={28} style={{ width: "100%", height: "100%", objectFit: "cover" }} unoptimized />
+                    <img src="/img/roam-app-icon.png" alt="Roam" width={28} height={28} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                   </div>
                   <div style={{
                     padding: "12px 16px", borderRadius: "4px 16px 16px 16px",
@@ -1538,7 +1550,8 @@ export function GuideView({
                   type="text"
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Ask about your route…"
+                  placeholder={isOnline ? "Ask about your route…" : "Guide chat requires internet"}
+                  disabled={!isOnline}
                   style={{
                     flex: 1, padding: "13px 0", border: "none", outline: "none",
                     fontSize: 14, fontWeight: 500, background: "transparent",
@@ -1547,15 +1560,15 @@ export function GuideView({
                 />
                 <button
                   type="submit"
-                  disabled={!guideReady || chatBusy || !chatInput.trim()}
+                  disabled={!guideReady || chatBusy || !chatInput.trim() || !isOnline}
                   style={{
                     width: 44, height: 44, borderRadius: 12, border: "none",
-                    background: chatInput.trim() ? "var(--brand-sky)" : "transparent",
-                    color: chatInput.trim() ? "white" : "var(--roam-text-muted)",
-                    cursor: chatInput.trim() ? "pointer" : "default",
+                    background: chatInput.trim() && isOnline ? "var(--brand-sky)" : "transparent",
+                    color: chatInput.trim() && isOnline ? "white" : "var(--roam-text-muted)",
+                    cursor: chatInput.trim() && isOnline ? "pointer" : "default",
                     display: "grid", placeItems: "center",
                     transition: "all 0.15s ease",
-                    opacity: !guideReady || chatBusy ? 0.4 : 1,
+                    opacity: !guideReady || chatBusy || !isOnline ? 0.4 : 1,
                   }}
                 >
                   <Send size={16} />

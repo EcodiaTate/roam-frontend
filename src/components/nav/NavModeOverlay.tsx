@@ -2,7 +2,6 @@
 // Cinematic "nav mode activated" wrapper.
 // Rising edge → full-screen ochre/eucalypt flash + warm vignette fade-in.
 // Individual child components carry their own staggered entry classes.
-"use client";
 
 import { useEffect, useRef, useState } from "react";
 
@@ -36,7 +35,7 @@ export function NavModeOverlay({ active, children }: Props) {
 
   return (
     <>
-      {/* ── Full-screen flash — warm ochre/eucalypt burst ── */}
+      {/* ── Full-screen flash - warm ochre/eucalypt burst ── */}
       {flash && (
         <div
           aria-hidden="true"

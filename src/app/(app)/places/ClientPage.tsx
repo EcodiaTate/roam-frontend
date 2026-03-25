@@ -4,24 +4,22 @@
 // with a bottom sheet list.  Tapping a pin selects it; tapping a row
 // in the list flies to it on the map.  "Add to trip" navigates to /new
 // with the place pre-loaded via query params.
-"use client";
 
 import { useState, useCallback, useRef } from "react";
-import dynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
+import { lazy, Suspense } from "react";
+import { useNavigate } from "react-router";
 import { Map as MapIcon, Plus, Trash2, StickyNote } from "lucide-react";
 import { useSavedPlaces } from "@/lib/hooks/useSavedPlaces";
 import { SavedPlacesPanel } from "@/components/places/SavedPlacesPanel";
 import type { SavedPlace } from "@/lib/offline/savedPlacesStore";
 import { haptic } from "@/lib/native/haptics";
 
-// Lazy-load the map to avoid SSR issues with MapLibre
-const SavedPlacesMap = dynamic(
+// Lazy-load the map to avoid bundling MapLibre eagerly
+const SavedPlacesMap = lazy(
   () =>
     import("@/components/places/SavedPlacesMap").then((m) => ({
       default: m.SavedPlacesMap,
-    })),
-  { ssr: false },
+    }))
 );
 
 // ── View modes ─────────────────────────────────────────────────────────────
@@ -37,7 +35,7 @@ export function PlacesClientPage({
   viewMode?: ViewMode;
   setViewMode?: (mode: ViewMode) => void;
 } = {}) {
-  const router = useRouter();
+  const router = useNavigate();
   const { places, isLoading, removeSaved, updateNote } = useSavedPlaces();
   const [internalViewMode, setInternalViewMode] = useState<ViewMode>("split");
   const viewMode = externalViewMode ?? internalViewMode;
@@ -63,7 +61,7 @@ export function PlacesClientPage({
   // Add to trip: navigate to /new with place as initial stop
   const handleAddToTrip = useCallback((place: SavedPlace) => {
     haptic.medium();
-    router.push(
+    router(
       `/new?add_place_id=${encodeURIComponent(place.place_id)}&add_name=${encodeURIComponent(place.name)}&add_lat=${place.lat}&add_lng=${place.lng}&add_cat=${encodeURIComponent(place.category)}`,
     );
   }, [router]);
@@ -96,10 +94,12 @@ export function PlacesClientPage({
             {places.length === 0 && !isLoading ? (
               <EmptyMapPlaceholder />
             ) : (
-              <SavedPlacesMap
-                places={places}
-                onSelectPlace={handleMapSelect}
-              />
+              <Suspense fallback={null}>
+                <SavedPlacesMap
+                  places={places}
+                  onSelectPlace={handleMapSelect}
+                />
+              </Suspense>
             )}
           </div>
         )}
@@ -221,7 +221,8 @@ function SelectedPlaceCard({
           display: "flex",
           alignItems: "center",
           gap: 5,
-          padding: "7px 12px",
+          padding: "10px 12px",
+          minHeight: 44,
           borderRadius: 10,
           border: "none",
           background: "var(--roam-accent)",
@@ -230,6 +231,7 @@ function SelectedPlaceCard({
           fontWeight: 700,
           cursor: "pointer",
           flexShrink: 0,
+          touchAction: "manipulation",
           WebkitTapHighlightColor: "transparent",
         }}
       >

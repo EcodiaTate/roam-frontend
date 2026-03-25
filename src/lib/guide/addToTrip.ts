@@ -1,5 +1,4 @@
 // src/lib/guide/addToTrip.ts
-"use client";
 
 import type { OfflinePlanRecord } from "@/lib/offline/plansStore";
 import { updateOfflinePlanAtomic } from "@/lib/offline/plansStore";

@@ -3,7 +3,6 @@
 // Bottom-sheet for adding/editing a stop's journal entry (note + photos).
 // Opened when user taps a proximity notification or manually from the trip view.
 
-"use client";
 
 import { useRef, useEffect, useState, useCallback } from "react";
 import type { StopMemory } from "@/lib/types/memories";

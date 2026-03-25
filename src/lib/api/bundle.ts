@@ -41,7 +41,7 @@ export const bundleApi = {
   // GET /bundle/{plan_id}/download -> zip
   // NOTE: client.ts is JSON oriented, so for binary we use fetch directly.
   downloadUrl: (plan_id: string) => {
-    const base = (process.env.NEXT_PUBLIC_API_BASE ?? "").replace(/\/+$/, "");
+    const base = (import.meta.env.VITE_API_BASE ?? "").replace(/\/+$/, "");
     const path = `/bundle/${encodeURIComponent(plan_id)}/download`;
     return base ? `${base}${path}` : path;
   },

@@ -1,7 +1,6 @@
 // src/lib/hooks/useFLIP.ts
 // Shared FLIP (First-Last-Invert-Play) animation hook.
 // Used by TripView (stop reorder) and PlanDrawer (plan card reorder).
-"use client";
 
 import { useCallback, useLayoutEffect, useRef } from "react";
 

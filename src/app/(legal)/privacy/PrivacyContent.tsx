@@ -1,5 +1,3 @@
-"use client";
-
 import s from "../legal.module.css";
 import LegalNav from "../LegalNav";
 

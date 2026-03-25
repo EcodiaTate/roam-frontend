@@ -72,11 +72,12 @@ export async function publishTrip(
 /**
  * Unpublish (make private) a trip the user owns.
  */
-export async function unpublishTrip(tripId: string): Promise<void> {
+export async function unpublishTrip(userId: string, tripId: string): Promise<void> {
   const { error } = await supabase
     .from("public_trips")
     .update({ is_private: true, updated_at: new Date().toISOString() })
-    .eq("id", tripId);
+    .eq("id", tripId)
+    .eq("owner_id", userId);
 
   if (error) throw new Error(`Failed to unpublish trip: ${error.message}`);
 }
@@ -201,16 +202,19 @@ export async function clonePublicTrip(
     .select("*")
     .eq("id", tripId)
     .eq("is_private", false)
-    .single();
+    .maybeSingle();
 
-  if (error || !trip) throw new Error("Trip not found or no longer public");
+  if (error) throw new Error(`Failed to fetch trip: ${error.message}`);
+  if (!trip) throw new Error("Trip not found or no longer public");
 
   const row = trip as PublicTripRow;
 
   // Record the clone (upsert so re-clones are idempotent)
-  await supabase
+  const { error: cloneErr } = await supabase
     .from("public_trip_clones")
     .upsert({ trip_id: tripId, cloner_id: userId }, { onConflict: "trip_id,cloner_id" });
+
+  if (cloneErr) console.warn("[publicTrips] Failed to record clone:", cloneErr.message);
 
   // Build a preview shape for the caller to create a local IDB draft
   const preview: Partial<OfflinePlanPreview> = {

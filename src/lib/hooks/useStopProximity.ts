@@ -1,5 +1,4 @@
 // src/lib/hooks/useStopProximity.ts
-"use client";
 
 import { useCallback, useEffect, useRef } from "react";
 import type { RoamPosition } from "@/lib/native/geolocation";

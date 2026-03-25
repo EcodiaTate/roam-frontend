@@ -1,5 +1,4 @@
 // src/components/trip/ExchangePanel.tsx
-"use client";
 
 /**
  * ExchangePanel

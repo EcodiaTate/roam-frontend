@@ -34,25 +34,40 @@ export function drawCover(
 
 let fontFaceCSS: string | null = null;
 
+/** Fetch a font as a base64 data-URL. Tries local bundle first, then CDN. */
+async function fetchFontDataUrl(localPath: string, cdnUrl: string): Promise<string> {
+  for (const url of [localPath, cdnUrl]) {
+    try {
+      const r = await fetch(url);
+      if (!r.ok) continue;
+      const buf = await r.arrayBuffer();
+      if (buf.byteLength < 1000) continue; // reject HTML error pages
+      const bytes = new Uint8Array(buf);
+      let binary = "";
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+      return `data:font/woff2;base64,${btoa(binary)}`;
+    } catch { /* try next */ }
+  }
+  return "";
+}
+
 export async function getFontFaceCSS(): Promise<string> {
   if (fontFaceCSS) return fontFaceCSS;
   try {
-    const fontUrls = [
-      // Plus Jakarta Sans 700
-      "https://fonts.gstatic.com/s/plusjakartasans/v8/LDIbaomQNQcsA88c7O9yZ4KMCoOg4IA6-91aHEjcWuA_KU7NSg.woff2",
-      // Plus Jakarta Sans 800
-      "https://fonts.gstatic.com/s/plusjakartasans/v8/LDIbaomQNQcsA88c7O9yZ4KMCoOg4IA6-91aHEjcWuA_907NSg.woff2",
-      // Syne 700
-      "https://fonts.gstatic.com/s/syne/v22/8vIS7w4qzmVxsWxjBZRjr0FKM_04uQ.woff2",
-    ];
-    const [bold, extrabold, syne] = await Promise.all(
-      fontUrls.map(async (url) => {
-        const r = await fetch(url);
-        const buf = await r.arrayBuffer();
-        const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
-        return `data:font/woff2;base64,${b64}`;
-      }),
-    );
+    const [bold, extrabold, syne] = await Promise.all([
+      fetchFontDataUrl(
+        "/fonts/PlusJakartaSans-Bold.woff2",
+        "https://fonts.gstatic.com/s/plusjakartasans/v12/LDIoaomQNQcsA88c7O9yZ4KMCoOg4Ko20yw.woff2",
+      ),
+      fetchFontDataUrl(
+        "/fonts/PlusJakartaSans-ExtraBold.woff2",
+        "https://fonts.gstatic.com/s/plusjakartasans/v12/LDIoaomQNQcsA88c7O9yZ4KMCoOg4Ko20yw.woff2",
+      ),
+      fetchFontDataUrl(
+        "/fonts/Syne-Bold.woff2",
+        "https://fonts.gstatic.com/s/syne/v24/8vIS7w4qzmVxsWxjBZRjr0FKM_3fvg6jTY8.woff2",
+      ),
+    ]);
     fontFaceCSS = `
       @font-face { font-family: 'Plus Jakarta Sans'; font-weight: 700; src: url('${bold}') format('woff2'); }
       @font-face { font-family: 'Plus Jakarta Sans'; font-weight: 800; src: url('${extrabold}') format('woff2'); }
@@ -60,7 +75,7 @@ export async function getFontFaceCSS(): Promise<string> {
       @font-face { font-family: 'Syne'; font-weight: 700; src: url('${syne}') format('woff2'); }
     `;
   } catch {
-    fontFaceCSS = ""; // fall back silently
+    fontFaceCSS = "";
   }
   return fontFaceCSS;
 }

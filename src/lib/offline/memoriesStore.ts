@@ -1,5 +1,4 @@
 // src/lib/offline/memoriesStore.ts
-"use client";
 
 import type { StopMemory, StopPhoto } from "@/lib/types/memories";
 import { idbGet, idbGetAll, idbPut, idbDel, idbStores } from "./idb";

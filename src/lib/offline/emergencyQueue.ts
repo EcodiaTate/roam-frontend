@@ -1,5 +1,3 @@
-"use client";
-
 import { idbWithTx, idbStores } from "./idb";
 import type { EmergencyContact, EmergencySyncOp } from "@/lib/types/emergency";
 

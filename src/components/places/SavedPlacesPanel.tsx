@@ -2,7 +2,6 @@
 //
 // Full-screen panel showing the user's saved places library.
 // Used inside the search/add-stop flow as a "Saved" tab and on the /places page.
-"use client";
 
 import { useState, useMemo, useCallback } from "react";
 import { Bookmark, Search, X, MapPin, Trash2, StickyNote, Check } from "lucide-react";
@@ -77,11 +76,13 @@ function NoteEditor({
             background: "var(--roam-surface-hover)",
             border: "none",
             borderRadius: 8,
-            padding: "6px 14px",
+            padding: "10px 14px",
+            minHeight: 44,
             fontSize: 13,
             fontWeight: 700,
             color: "var(--roam-text-muted)",
             cursor: "pointer",
+            touchAction: "manipulation",
           }}
         >
           Cancel
@@ -97,7 +98,8 @@ function NoteEditor({
             background: "var(--roam-accent)",
             border: "none",
             borderRadius: 8,
-            padding: "6px 14px",
+            padding: "10px 14px",
+            minHeight: 44,
             fontSize: 13,
             fontWeight: 700,
             color: "var(--on-color)",
@@ -106,6 +108,7 @@ function NoteEditor({
             alignItems: "center",
             gap: 6,
             transition: "transform 0.1s ease",
+            touchAction: "manipulation",
             WebkitTapHighlightColor: "transparent",
           }}
           onPointerDown={(e) => {
@@ -284,12 +287,14 @@ function ActionChip({
         gap: 4,
         background: "none",
         border: "none",
-        padding: "3px 10px 3px 0",
+        padding: "10px 12px",
+        minHeight: 44,
         fontSize: 12,
         fontWeight: 700,
         color: danger ? "var(--roam-danger)" : "var(--roam-text-muted)",
         cursor: "pointer",
         transition: "transform 0.1s ease, opacity 0.1s ease",
+        touchAction: "manipulation",
         WebkitTapHighlightColor: "transparent",
       }}
       onPointerDown={(e) => {
@@ -399,11 +404,18 @@ export function SavedPlacesPanel({
               style={{
                 background: "none",
                 border: "none",
-                padding: 2,
+                padding: 10,
+                minWidth: 44,
+                minHeight: 44,
                 cursor: "pointer",
                 color: "var(--roam-text-muted)",
                 display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                touchAction: "manipulation",
+                WebkitTapHighlightColor: "transparent",
               }}
+              aria-label="Clear search"
             >
               <X size={14} />
             </button>

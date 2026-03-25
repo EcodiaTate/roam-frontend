@@ -1,14 +1,13 @@
 import React from "react";
-import "./legal.module.css"
-export default function LegalLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+import { Outlet } from "react-router";
+import "./legal.module.css";
 
+export function LegalLayout() {
   return (
     <div style={styles.wrapper}>
-      <main style={styles.main}>{children}</main>
+      <main style={styles.main}>
+        <Outlet />
+      </main>
       <footer style={styles.footer}>
         <p style={styles.footerText}>
           © {new Date().getFullYear()} Ecodia Pty Ltd · ABN: 89693123278
@@ -20,6 +19,8 @@ export default function LegalLayout({
     </div>
   );
 }
+
+export default LegalLayout;
 
 const styles: Record<string, React.CSSProperties> = {
   wrapper: {

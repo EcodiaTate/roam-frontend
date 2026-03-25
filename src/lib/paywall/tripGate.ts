@@ -289,7 +289,7 @@ export type GateResult =
 
 export async function checkTripGate(): Promise<GateResult> {
   // Dev shortcut: ?paywall=1 forces paywall, ?welcome=1 forces welcome modal
-  if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
+  if (typeof window !== "undefined" && import.meta.env.DEV) {
     const p = new URLSearchParams(window.location.search);
     if (p.get("paywall") === "1") return { allowed: false, reason: "paywall", tripsUsed: 2, unlocked: false };
     if (p.get("welcome") === "1") return { allowed: false, reason: "welcome", tripsUsed: 0, unlocked: false };

@@ -6,7 +6,6 @@
 //   - Smooth entry/exit transitions that can't be interrupted by tracking
 //   - Manual pan detection with auto-resume
 //   - 60 fps interpolated camera driven by GpsInterpolator (no easeTo jitter)
-"use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Map as MLMap } from "maplibre-gl";

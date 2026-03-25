@@ -1,8 +1,7 @@
 // src/components/auth/AuthGate.tsx
-"use client";
 
 import { useEffect, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router";
 import { useAuth } from "@/lib/supabase/auth";
 import { useNetworkStatus } from "@/lib/hooks/useNetworkStatus";
 
@@ -24,13 +23,13 @@ import { useNetworkStatus } from "@/lib/hooks/useNetworkStatus";
 export function AuthGate({ children }: { children: ReactNode }) {
   const { loading, session } = useAuth();
   const { deviceOnline } = useNetworkStatus();
-  const router = useRouter();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!loading && !session && deviceOnline) {
-      router.replace("/login");
+      navigate("/login", { replace: true });
     }
-  }, [loading, session, deviceOnline, router]);
+  }, [loading, session, deviceOnline, navigate]);
 
   if (loading) {
     return (

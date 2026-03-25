@@ -1,5 +1,4 @@
 // src/lib/guide/intentMapper.ts
-"use client";
 
 import type { PlaceCategory } from "@/lib/types/places";
 import type { PlaceItem } from "@/lib/types/places";

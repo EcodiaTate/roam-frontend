@@ -1,5 +1,4 @@
 // src/lib/hooks/useObservations.ts
-"use client";
 
 import { toErrorMessage } from "@/lib/utils/errors";
 

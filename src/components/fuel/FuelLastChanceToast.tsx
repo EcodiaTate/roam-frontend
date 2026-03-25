@@ -1,5 +1,4 @@
 // src/components/fuel/FuelLastChanceToast.tsx
-"use client";
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { Fuel, X } from "lucide-react";
@@ -26,7 +25,7 @@ const toastContainer: React.CSSProperties = {
 };
 
 const toastCard: React.CSSProperties = {
-  background: "rgba(239,68,68,0.95)",
+  background: "var(--brand-ochre)",
   backdropFilter: "blur(16px)",
   WebkitBackdropFilter: "blur(16px)",
   borderRadius: 16,
@@ -124,7 +123,7 @@ export function FuelLastChanceToast({
   const gapKm = activeWarning.gap_km ?? 0;
 
   return (
-    <div style={toastContainer}>
+    <div style={toastContainer} role="alert">
       <div style={toastCard}>
         <Fuel size={20} strokeWidth={2.5} style={toastIcon} />
         <div style={toastContent}>

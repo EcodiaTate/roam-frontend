@@ -1,6 +1,5 @@
 // src/components/ui/TogglePill.tsx
 // Reusable pill-shaped toggle button for filter UIs.
-"use client";
 
 import type { ReactNode } from "react";
 import { haptic } from "@/lib/native/haptics";
@@ -28,8 +27,9 @@ export function TogglePill({
         border: active
           ? "1.5px solid var(--roam-accent)"
           : "1.5px solid var(--roam-border-strong)",
-        padding: "5px 11px",
-        fontSize: 12,
+        padding: "8px 14px",
+        minHeight: 44,
+        fontSize: 13,
         fontWeight: 700,
         background: active ? "var(--accent-tint)" : "transparent",
         color: active ? "var(--roam-accent)" : "var(--roam-text-muted)",

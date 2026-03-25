@@ -1,5 +1,4 @@
 // src/components/trip/NearbyRoamersIndicator.tsx
-"use client";
 
 /**
  * NearbyRoamersIndicator
@@ -21,7 +20,7 @@ type Props = {
 function confidenceColor(c: string): string {
   if (c === "high") return "var(--brand-eucalypt)";
   if (c === "medium") return "var(--brand-amber)";
-  return "var(--text-muted)";
+  return "var(--roam-text-muted)";
 }
 
 export const NearbyRoamersIndicator = memo(function NearbyRoamersIndicator({ roamers }: Props) {

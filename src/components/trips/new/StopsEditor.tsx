@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useEffect, useRef, useState } from "react";
 import type { TripStop } from "@/lib/types/trip";
 import type { NavPack } from "@/lib/types/navigation";
@@ -553,10 +551,10 @@ export function StopsEditor(props: {
                 }}
                 style={{
                   borderRadius: 999,
-                  height: 34,
+                  height: 44,
                   ...(isSimple
-                    ? { display: "flex", alignItems: "center", gap: 6, padding: "0 14px 0 10px" }
-                    : { width: 34, display: "grid", placeItems: "center" }),
+                    ? { display: "flex", alignItems: "center", gap: 6, padding: "0 16px 0 12px" }
+                    : { width: 44, display: "grid", placeItems: "center" }),
                   background: "var(--roam-text, #1a1613)",
                   color: "var(--roam-surface, #f4efe6)",
                   border: "none",
@@ -581,10 +579,10 @@ export function StopsEditor(props: {
                 }}
                 style={{
                   borderRadius: 999,
-                  height: 34,
+                  height: 44,
                   ...(isSimple
-                    ? { display: "flex", alignItems: "center", gap: 6, padding: "0 14px 0 10px" }
-                    : { width: 34, display: "grid", placeItems: "center" }),
+                    ? { display: "flex", alignItems: "center", gap: 6, padding: "0 16px 0 12px" }
+                    : { width: 44, display: "grid", placeItems: "center" }),
                   background: "rgba(56,189,248,0.12)",
                   color: "var(--brand-sky, #38bdf8)",
                   border: "1px solid rgba(56,189,248,0.2)",
@@ -609,7 +607,7 @@ export function StopsEditor(props: {
                     display: "flex", alignItems: "center", gap: 5,
                     background: "linear-gradient(135deg, #122d1e 0%, var(--brand-eucalypt-dark, #1f5236) 40%, var(--brand-eucalypt, #2d6e40) 80%, #3d8f54 100%)",
                     borderRadius: 999, padding: "0 12px",
-                    height: 34, border: "1px solid rgba(255,255,255,0.12)", cursor: "pointer",
+                    height: 44, border: "1px solid rgba(255,255,255,0.12)", cursor: "pointer",
                     boxShadow: "0 2px 12px rgba(31,82,54,0.45), 0 1px 3px rgba(31,82,54,0.20), inset 0 1px 0 rgba(255,255,255,0.10)",
                     overflow: "hidden",
                     WebkitTapHighlightColor: "transparent",

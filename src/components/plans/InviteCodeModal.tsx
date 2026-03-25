@@ -1,8 +1,6 @@
-"use client";
-
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router";
 import { usePlanSync } from "@/lib/hooks/usePlanSync";
 import { getOfflinePlan, setCurrentPlanId, saveMinimalPlan } from "@/lib/offline/plansStore";
 import { navApi } from "@/lib/api/nav";
@@ -25,7 +23,7 @@ type AnimState = "entering" | "open" | "exiting" | "closed";
  * in the viewport regardless of parent CSS containment / transforms.
  */
 export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Props) {
-  const router = useRouter();
+  const router = useNavigate();
   const { createInvite, redeemInvite, online } = usePlanSync();
 
   const [code, setCode] = useState("");
@@ -166,7 +164,7 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
       haptic.success();
       onRedeemed?.(joinedPlanId);
       onClose();
-      router.push(`/trip?plan_id=${encodeURIComponent(joinedPlanId)}`);
+      router(`/trip?plan_id=${encodeURIComponent(joinedPlanId)}`);
     } catch (e: unknown) {
       if (!mountedRef.current) return;
       setError(toErrorMessage(e, "Failed to join plan"));
@@ -201,13 +199,13 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: "rgba(0,0,0,0.6)",
-        backdropFilter: "blur(4px)",
-        WebkitBackdropFilter: "blur(4px)",
+        backgroundColor: "rgba(10,8,6,0.65)",
+        backdropFilter: "blur(6px)",
+        WebkitBackdropFilter: "blur(6px)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        zIndex: 100,
+        zIndex: 200,
         padding: 20,
         height: "100dvh",
         width: "100vw",
@@ -223,11 +221,11 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
         onClick={(e) => e.stopPropagation()}
         style={{
           backgroundColor: "var(--roam-surface, #1a1a1a)",
-          borderRadius: 20,
+          borderRadius: 24,
           padding: 24,
           width: "100%",
           maxWidth: 400,
-          boxShadow: "0 20px 40px rgba(0,0,0,0.4)",
+          boxShadow: "0 20px 48px rgba(0,0,0,0.35)",
           position: "relative",
           maxHeight: "90dvh",
           overflowY: "auto",
@@ -297,8 +295,9 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
                   onClick={handleCopy}
                   style={{
                     width: "100%",
+                    minHeight: 48,
                     padding: "12px",
-                    borderRadius: 12,
+                    borderRadius: 14,
                     border: copied
                       ? "1px solid var(--brand-eucalypt, #2d6e40)"
                       : "1px solid var(--roam-border)",
@@ -311,6 +310,7 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
                       ? "var(--brand-eucalypt, #2d6e40)"
                       : "var(--roam-text, #eee)",
                     transition: "all 0.2s ease",
+                    WebkitTapHighlightColor: "transparent",
                   }}
                 >
                   {copied ? "Copied!" : "Copy code"}
@@ -331,11 +331,14 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
                     color: "#fff",
                     border: "none",
                     padding: "14px",
-                    borderRadius: 12,
+                    minHeight: 50,
+                    borderRadius: 14,
                     fontSize: 15,
                     fontWeight: 700,
                     cursor: "pointer",
                     opacity: busy ? 0.6 : 1,
+                    boxShadow: busy ? "none" : "0 4px 16px rgba(26,111,166,0.25)",
+                    WebkitTapHighlightColor: "transparent",
                   }}
                 >
                   {busy ? "Generating…" : "Generate invite code"}
@@ -370,12 +373,16 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
                 letterSpacing: "0.2em",
                 fontFamily: "monospace",
                 padding: "14px",
-                borderRadius: 12,
+                minHeight: 56,
+                borderRadius: 14,
                 border: "1.5px solid var(--roam-border, #333)",
                 background: "var(--roam-surface-raised, #222)",
                 color: "var(--roam-text, #eee)",
                 outline: "none",
+                transition: "border-color 0.15s, box-shadow 0.15s",
               }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = "var(--brand-sky, #3b82f6)"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(59,130,246,0.15)"; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = "var(--roam-border, #333)"; e.currentTarget.style.boxShadow = "none"; }}
             />
             <button
               type="button"
@@ -388,11 +395,15 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
                 color: "#fff",
                 border: "none",
                 padding: "14px",
-                borderRadius: 12,
+                minHeight: 50,
+                borderRadius: 14,
                 fontSize: 15,
                 fontWeight: 700,
                 opacity: busy || code.trim().length < 4 ? 0.5 : 1,
                 cursor: "pointer",
+                boxShadow: busy || code.trim().length < 4 ? "none" : "0 4px 16px rgba(26,111,166,0.25)",
+                WebkitTapHighlightColor: "transparent",
+                transition: "opacity 0.15s, box-shadow 0.15s",
               }}
             >
               {busy ? "Joining…" : "Join plan"}

@@ -1,5 +1,4 @@
 // src/lib/nav/offline/corridorRouter.ts
-"use client";
 
 import type { CorridorGraphPack, CorridorNode, NavStep, NavManeuver, ManeuverType, ManeuverModifier } from "@/lib/types/navigation";
 import type { TripStop } from "@/lib/types/trip";
@@ -66,13 +65,14 @@ function findLargestComponent(
   for (const startId of nodeById.keys()) {
     if (visited.has(startId)) continue;
 
-    // BFS from this unvisited node
+    // BFS from this unvisited node (FIFO queue via index pointer to avoid O(n) shift())
     const component = new Set<number>();
     const queue = [startId];
+    let head = 0;
     visited.add(startId);
 
-    while (queue.length > 0) {
-      const current = queue.pop()!;
+    while (head < queue.length) {
+      const current = queue[head++];
       component.add(current);
 
       const neighbors = adj.get(current);
@@ -101,10 +101,11 @@ function findLargestComponent(
 export function findComponentOf(idx: GraphIndex, startId: number): Set<number> {
   const component = new Set<number>();
   const queue = [startId];
+  let head = 0;
   component.add(startId);
 
-  while (queue.length > 0) {
-    const current = queue.pop()!;
+  while (head < queue.length) {
+    const current = queue[head++];
     const neighbors = idx.adj.get(current);
     if (neighbors) {
       for (const nb of neighbors) {

@@ -3,7 +3,6 @@
 // Headless component mounted once in the app layout.
 // Connects useSavedPlaces to PlaceDetailContext so PlaceDetailSheet
 // can read and toggle bookmark state without prop-drilling.
-"use client";
 
 import { useEffect } from "react";
 import { usePlaceDetail } from "@/lib/context/PlaceDetailContext";

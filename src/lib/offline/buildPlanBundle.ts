@@ -5,7 +5,6 @@
 //   2. Invite redemption - building bundle for a shared plan stub
 //   3. /trip page - rebuilding stale/missing bundles
 //
-"use client";
 
 import type { NavPack } from "@/lib/types/navigation";
 import type { OfflineBundleManifest } from "@/lib/types/bundle";

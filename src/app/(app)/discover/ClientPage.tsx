@@ -1,9 +1,8 @@
 // src/app/(app)/discover/ClientPage.tsx
-"use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import dynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
+import { lazy, Suspense } from "react";
+import { useNavigate } from "react-router";
 import {
     Check,
     Clock,
@@ -14,10 +13,12 @@ import {
     Route,
     Sliders,
     Users,
+    WifiOff,
     X
 } from "lucide-react";
 
 import { useAuth } from "@/lib/supabase/auth";
+import { useNetworkStatus } from "@/lib/hooks/useNetworkStatus";
 import { useGeolocation } from "@/lib/native/geolocation";
 import {
     fetchDiscoverFeed,
@@ -31,7 +32,7 @@ import { CLONE_TRIP_SEED_KEY, type CloneTripSeed } from "@/lib/types/discover";
 
 import s from "./Discover.module.css";
 
-const TripPreviewMap = dynamic(() => import("./TripPreviewMap"), { ssr: false });
+const TripPreviewMap = lazy(() => import("./TripPreviewMap"));
 
 /* ── Proximity filter options ─────────────────────────────────────── */
 
@@ -77,7 +78,7 @@ function CardMapPreview({
   return (
     <div ref={ref} className={s.cardMap}>
       {visible && (
-        <TripPreviewMap geometry={geometry} stops={stops} bbox={bbox} />
+        <Suspense fallback={null}><TripPreviewMap geometry={geometry} stops={stops} bbox={bbox} /></Suspense>
       )}
     </div>
   );
@@ -139,8 +140,8 @@ function TripCard({
             ...((trip.clone_count ?? 0) > 0
               ? [{ icon: Users, text: String(trip.clone_count) }]
               : []),
-          ].map((stat) => (
-            <span key={stat.text} className={s.cardStatPill}>
+          ].map((stat, i) => (
+            <span key={i} className={s.cardStatPill}>
               <stat.icon size={10} strokeWidth={2.5} />
               {stat.text}
             </span>
@@ -351,7 +352,7 @@ function TripPreviewSheet({
                   {[
                     { value: formatDistanceOrDash(trip.distance_m), label: "distance", icon: Route },
                     { value: formatDurationOrDash(trip.duration_s), label: "drive time", icon: Clock },
-                    { value: String(trip.stops.length), label: "stops", icon: MapPin },
+                    { value: String(trip.stops?.length ?? 0), label: "stops", icon: MapPin },
                   ].map((stat, i, arr) => (
                     <div key={stat.label} style={{ display: "contents" }}>
                       <div className={s.statCell}>
@@ -431,9 +432,10 @@ function TripPreviewSheet({
 /* ── Main Discover Screen ─────────────────────────────────────────── */
 
 export default function DiscoverClientPage() {
-  const router = useRouter();
+  const router = useNavigate();
   const { user } = useAuth();
   const { position } = useGeolocation({ autoStart: true });
+  const { online: isOnline } = useNetworkStatus();
 
   const [feed, setFeed] = useState<PublicTripRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -532,7 +534,7 @@ export default function DiscoverClientPage() {
       // sessionStorage unavailable - /new will start empty
     }
 
-    router.push("/new");
+    router("/new");
   }, [user, selectedTrip, router]);
 
   const showFilterChips = filterOpen || filterClosing;
@@ -598,17 +600,31 @@ export default function DiscoverClientPage() {
         ) : loadErr ? (
           <div className={s.stateCenter}>
             <div className={s.stateIcon}>
-              <Globe size={28} style={{ opacity: 0.5 }} />
+              {!isOnline ? <WifiOff size={28} style={{ opacity: 0.5 }} /> : <Globe size={28} style={{ opacity: 0.5 }} />}
             </div>
-            <p className={s.stateTitle}>Could not load trips</p>
-            <p className={s.stateSub}>{loadErr}</p>
-            <button
-              type="button"
-              className={s.retryBtn}
-              onClick={() => { haptic.light(); loadFeed(radiusOption); }}
-            >
-              Retry
-            </button>
+            <p className={s.stateTitle}>{!isOnline ? "You\u2019re offline" : "Could not load trips"}</p>
+            <p className={s.stateSub}>
+              {!isOnline
+                ? "Discover needs internet to browse public trips. Your saved trips are in the Plans drawer on the Trip page."
+                : loadErr}
+            </p>
+            {!isOnline ? (
+              <button
+                type="button"
+                className={s.retryBtn}
+                onClick={() => { haptic.light(); router("/trip"); }}
+              >
+                Go to My Trips
+              </button>
+            ) : (
+              <button
+                type="button"
+                className={s.retryBtn}
+                onClick={() => { haptic.light(); loadFeed(radiusOption); }}
+              >
+                Retry
+              </button>
+            )}
           </div>
         ) : feed.length === 0 ? (
           <div className={s.stateCenter}>

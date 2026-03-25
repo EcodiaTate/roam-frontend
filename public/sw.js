@@ -5,15 +5,36 @@
 //
 // To update cached assets, increment CACHE_VERSION.
 
-const CACHE_VERSION = "roam-v2";
+const CACHE_VERSION = "roam-v4";
 const SHELL_URLS = [
+  // ── Pages (every route a user can navigate to) ──
   "/",
   "/trip/",
   "/guide/",
   "/sos/",
+  "/new/",
+  "/live/",
+  "/discover/",
+  "/journal/",
+  "/places/",
+  "/untethered/",
+  "/login/",
+
+  // ── PWA manifest + icons ──
   "/manifest.webmanifest",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
+
+  // ── Static images used by share cards + UI ──
+  "/img/roam-app-icon.png",
+  "/img/roam-logo.png",
+  "/img/noise.png",
+  "/img/paper-texture.png",
+
+  // ── Bundled share card fonts (offline fallback) ──
+  "/fonts/PlusJakartaSans-Bold.woff2",
+  "/fonts/PlusJakartaSans-ExtraBold.woff2",
+  "/fonts/Syne-Bold.woff2",
 ];
 
 // ── Install: pre-cache the app shell ──────────────────────────────────────
@@ -53,12 +74,15 @@ self.addEventListener("fetch", (event) => {
     return; // let browser handle normally
   }
 
-  // Navigation requests: try the actual URL first, fall back to cached "/"
-  // only as a last resort (offline). Do NOT always serve "/" — that breaks
-  // pathname-based routing (all navigations would land on the homepage).
+  // Navigation requests: network-first, then try the exact cached page,
+  // then fall back to cached "/" as a last resort (SPA routing).
   if (request.mode === "navigate") {
     event.respondWith(
-      fetch(request).catch(() => caches.match("/").then((cached) => cached ?? Response.error())),
+      fetch(request).catch(() =>
+        caches.match(request).then((exact) =>
+          exact ?? caches.match("/").then((root) => root ?? Response.error()),
+        ),
+      ),
     );
     return;
   }

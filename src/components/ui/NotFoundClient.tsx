@@ -1,11 +1,8 @@
-"use client";
-
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Link, useNavigate } from "react-router";
 import { haptic } from "@/lib/native/haptics";
 
 export function NotFoundClient() {
-  const router = useRouter();
+  const navigate = useNavigate();
 
   return (
     <div
@@ -55,9 +52,9 @@ export function NotFoundClient() {
         Looks like you&apos;ve wandered a bit too far. We couldn&apos;t find the page you&apos;re looking for.
       </p>
 
-      {/* Valid Next.js Link for the home route */}
-      <Link 
-        href="/" 
+      {/* Home link */}
+      <Link
+        to="/"
         style={{ textDecoration: "none", width: "100%", maxWidth: 300 }}
       >
         <button 
@@ -71,7 +68,7 @@ export function NotFoundClient() {
       {/* Client-side router action for going back */}
       <div style={{ width: "100%", maxWidth: 300, marginTop: 16 }}>
         <button 
-          onClick={() => { haptic.tap(); router.back(); }}
+          onClick={() => { haptic.tap(); navigate(-1); }}
           className="trip-interactive trip-btn trip-btn-secondary"
           style={{ width: "100%" }}
         >

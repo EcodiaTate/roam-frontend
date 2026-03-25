@@ -1,5 +1,4 @@
 // src/components/nav/StartNavigationButton.tsx
-"use client";
 
 import { useState } from "react";
 import { Navigation, Loader2 } from "lucide-react";

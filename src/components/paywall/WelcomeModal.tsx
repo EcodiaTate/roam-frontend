@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { haptic } from "@/lib/native/haptics";
@@ -138,10 +136,13 @@ export function WelcomeModal({ open, lastFreeTrip = false, onClose }: Props) {
               color: "var(--on-color, #faf6ef)",
               border: "none",
               padding: "16px",
+              minHeight: 52,
               borderRadius: "var(--r-btn, 14px)",
               fontSize: 16,
               fontWeight: 800,
               cursor: "pointer",
+              WebkitTapHighlightColor: "transparent",
+              touchAction: "manipulation",
               boxShadow: lastFreeTrip
                 ? "0 4px 16px rgba(122,61,0,0.30)"
                 : "0 4px 16px rgba(31,82,54,0.30)",

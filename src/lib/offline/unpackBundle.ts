@@ -1,11 +1,10 @@
 // src/lib/offline/unpackBundle.ts
-"use client";
 
 import { unzipSync, strFromU8 } from "fflate";
 
 import type { OfflinePlanRecord } from "@/lib/offline/plansStore";
 import type { OfflineBundleManifest } from "@/lib/types/bundle";
-import type { NavPack, CorridorGraphPack, TrafficOverlay, HazardOverlay } from "@/lib/types/navigation";
+import type { NavPack, CorridorGraphPack, TrafficOverlay, HazardOverlay, ElevationResponse } from "@/lib/types/navigation";
 import type { PlacesPack } from "@/lib/types/places";
 import type {
   WeatherOverlay,
@@ -74,6 +73,7 @@ export async function unpackAndStoreBundle(plan: OfflinePlanRecord) {
   const toilets = maybeJson<ToiletsOverlay>(files, "toilets.json");
   const schoolZones = maybeJson<SchoolZonesOverlay>(files, "school_zones.json");
   const roadkill = maybeJson<RoadkillOverlay>(files, "roadkill.json");
+  const elevation = maybeJson<ElevationResponse>(files, "elevation.json");
 
   await putPack(plan.plan_id, "manifest", manifest);
   await putPack(plan.plan_id, "navpack", navpack);
@@ -96,11 +96,13 @@ export async function unpackAndStoreBundle(plan: OfflinePlanRecord) {
   if (toilets)   await putPack(plan.plan_id, "toilets", toilets);
   if (schoolZones) await putPack(plan.plan_id, "school_zones", schoolZones);
   if (roadkill)  await putPack(plan.plan_id, "roadkill", roadkill);
+  if (elevation) await putPack(plan.plan_id, "elevation", elevation);
 
   return {
     manifest, navpack, corridor,
     places, traffic, hazards,
     weather, fuel, flood, coverage, wildlife, restAreas, routeScore,
     emergency, heritage, airQuality, bushfire, speedCameras, toilets, schoolZones, roadkill,
+    elevation,
   };
 }

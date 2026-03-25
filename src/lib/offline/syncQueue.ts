@@ -1,5 +1,4 @@
 // src/lib/offline/syncQueue.ts
-"use client";
 
 import { idbGetAll, idbPut, idbDel, idbStores } from "./idb";
 
@@ -100,7 +99,7 @@ export async function getPendingCount(): Promise<number> {
  * Purge dead-letter ops (retries >= MAX_RETRIES).
  * Call periodically or on user action.
  */
-async function purgeDeadLetterOps(): Promise<number> {
+export async function purgeDeadLetterOps(): Promise<number> {
   const all = await idbGetAll<SyncOp>(STORE);
   const dead = all.filter((o) => o.retries >= MAX_RETRIES);
   for (const op of dead) {

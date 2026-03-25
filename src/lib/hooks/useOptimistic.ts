@@ -5,7 +5,6 @@
 // action in the background.  If it fails, rolls back to the snapshot
 // taken before the optimistic update and surfaces the error.
 //
-"use client";
 
 import { useCallback, useRef } from "react";
 import { haptic } from "@/lib/native/haptics";

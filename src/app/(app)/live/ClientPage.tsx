@@ -1,10 +1,9 @@
 // src/app/live/ClientPage.tsx
 // Online-only "Go Now" trip - instant navigation without offline bundles.
 // No IDB storage, no corridor, no bundle build. Just route + navigate.
-"use client";
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router";
 import type { Map as MLMap } from "maplibre-gl";
 
 import { TripMap } from "@/components/trip/TripMap";
@@ -56,7 +55,7 @@ function _clearLiveNavPack(): void {
 /* ── Component ────────────────────────────────────────────────────────── */
 
 export default function LiveTripClientPage() {
-  const router = useRouter();
+  const router = useNavigate();
 
   // Native hooks
   const geo = useGeolocation({ autoStart: true, highAccuracy: true });
@@ -238,7 +237,7 @@ export default function LiveTripClientPage() {
             type="button"
             className="trip-interactive"
             style={{ borderRadius: 999, minHeight: 42, padding: "0 20px", fontWeight: 950, background: "var(--roam-accent)", color: "var(--on-color)", boxShadow: "var(--shadow-button)" }}
-            onClick={() => router.replace("/new")}
+            onClick={() => router("/new", { replace: true })}
           >
             Plan a Trip
           </button>
@@ -355,10 +354,10 @@ export default function LiveTripClientPage() {
                 <span style={{
                   display: "inline-flex", alignItems: "center", gap: 4,
                   padding: "2px 8px", borderRadius: 999,
-                  background: "rgba(34, 197, 94, 0.12)", color: "#16a34a",
+                  background: "var(--accent-tint)", color: "var(--roam-success)",
                   fontSize: 11, fontWeight: 800, letterSpacing: "0.04em",
                   textTransform: "uppercase", flexShrink: 0,
-                  border: "1px solid rgba(34, 197, 94, 0.2)",
+                  border: "1px solid var(--roam-border-strong)",
                 }}>
                   <Radio size={10} strokeWidth={3} />
                   Live

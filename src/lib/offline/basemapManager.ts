@@ -9,7 +9,6 @@
 // This is the "source of truth" for basemap readiness.
 // UI components use the useBasemapPack hook which wraps this.
 
-"use client";
 
 import { Capacitor } from "@capacitor/core";
 import { RoamTileServer } from "@/plugins/roam-tile-server";
@@ -158,9 +157,9 @@ export function getPmtilesUrl(tileId: string = "australia"): string {
     return `pmtiles://${_serverInfo.url}/tiles/${tileId}.pmtiles`;
   }
   // Fallback to Supabase (online mode)
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/g, "") ?? "";
-  const bucket = process.env.NEXT_PUBLIC_SUPABASE_TILES_BUCKET || "tiles";
-  const prefix = (process.env.NEXT_PUBLIC_SUPABASE_TILES_PREFIX || "tiles").replace(/^\/+|\/+$/g, "");
+  const base = (import.meta.env.VITE_SUPABASE_URL ?? "").replace(/\/+$/g, "");
+  const bucket = import.meta.env.VITE_SUPABASE_TILES_BUCKET || "tiles";
+  const prefix = (import.meta.env.VITE_SUPABASE_TILES_PREFIX || "tiles").replace(/^\/+|\/+$/g, "");
   return `pmtiles://${base}/storage/v1/object/public/${bucket}/${prefix}/${tileId}.pmtiles`;
 }
 
@@ -172,10 +171,9 @@ export function getPmtilesUrl(tileId: string = "australia"): string {
  * We only fall back to the CDN when running in a browser (dev/web preview).
  */
 export function getGlyphsUrl(): string {
-  if (Capacitor.isNativePlatform()) {
-    return "/offline/glyphs/{fontstack}/{range}.pbf";
-  }
-  return "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf";
+  // Glyphs are bundled in the static export at /offline/glyphs/ — use them
+  // everywhere (native + web) so the map renders offline without CDN access.
+  return "/offline/glyphs/{fontstack}/{range}.pbf";
 }
 
 /**
@@ -203,9 +201,9 @@ export function isFullyOfflineCapable(): boolean {
  * Points to the PMTiles file in Supabase public storage.
  */
 function getDownloadUrl(region: string): string {
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/g, "") ?? "";
-  const bucket = process.env.NEXT_PUBLIC_SUPABASE_TILES_BUCKET || "tiles";
-  const prefix = (process.env.NEXT_PUBLIC_SUPABASE_TILES_PREFIX || "tiles").replace(/^\/+|\/+$/g, "");
+  const base = (import.meta.env.VITE_SUPABASE_URL ?? "").replace(/\/+$/g, "");
+  const bucket = import.meta.env.VITE_SUPABASE_TILES_BUCKET || "tiles";
+  const prefix = (import.meta.env.VITE_SUPABASE_TILES_PREFIX || "tiles").replace(/^\/+|\/+$/g, "");
   const parts = [prefix, `${region}.pmtiles`].filter(Boolean).join("/");
   return `${base}/storage/v1/object/public/${bucket}/${parts}`;
 }

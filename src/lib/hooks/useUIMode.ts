@@ -1,5 +1,4 @@
 // src/lib/hooks/useUIMode.ts
-"use client";
 
 import { useSyncExternalStore, useCallback } from "react";
 

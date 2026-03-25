@@ -1,5 +1,3 @@
-"use client";
-
 import { AuthGate } from "@/components/auth/AuthGate";
 import type { ReactNode } from "react";
 

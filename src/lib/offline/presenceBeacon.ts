@@ -1,5 +1,4 @@
 // src/lib/offline/presenceBeacon.ts
-"use client";
 
 /**
  * PresenceBeacon

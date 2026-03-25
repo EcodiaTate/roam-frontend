@@ -1,8 +1,7 @@
 // src/app/guide/ClientPage.tsx
-"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useNavigate, useSearchParams } from "react-router";
 
 import { haptic } from "@/lib/native/haptics";
 import { toErrorMessage } from "@/lib/utils/errors";
@@ -104,8 +103,8 @@ export default function GuideClientPage(props: {
   initialPlanId: string | null;
   initialFocusPlaceId: string | null;
 }) {
-  const router = useRouter();
-  const sp = useSearchParams();
+  const router = useNavigate();
+  const [sp] = useSearchParams();
   const { online: isOnline } = useNetworkStatus();
   const { registerNavigateHandler } = usePlaceDetail();
 
@@ -283,7 +282,7 @@ export default function GuideClientPage(props: {
             context,
             userText: greetingPrompt,
             preferredCategories: [],
-            maxSteps: 2,
+            maxSteps: 1,
             progress: null,
             corridorPlaces,
             onPackUpdate: (p) => { if (!cancelled) setGuidePack(p); },
@@ -402,7 +401,7 @@ export default function GuideClientPage(props: {
           mode: "auto",
         });
         haptic.success();
-        router.push(`/trip?plan_id=${encodeURIComponent(plan.plan_id)}`);
+        router(`/trip?plan_id=${encodeURIComponent(plan.plan_id)}`);
       } catch (e: unknown) {
         haptic.error();
         setErr(toErrorMessage(e));
@@ -431,8 +430,9 @@ export default function GuideClientPage(props: {
       const placeFromGuide = guidePack?.discovered_places?.find((x) => x.id === placeId);
       const placeName = placeFromPack?.name ?? placeFromGuide?.name ?? null;
       const nameParam = placeName ? `&focus_place_name=${encodeURIComponent(placeName)}` : "";
-      router.replace(
+      router(
         `/trip?plan_id=${encodeURIComponent(plan.plan_id)}&focus_place_id=${encodeURIComponent(placeId)}&focus_lat=${lat}&focus_lng=${lng}${nameParam}`,
+        { replace: true },
       );
     },
     [plan, places, guidePack, router],
@@ -462,7 +462,7 @@ export default function GuideClientPage(props: {
           <AlertTriangle size={32} style={{ color: "var(--text-warn)" }} />
           <p style={{ fontSize: 15, fontWeight: 600 }}>{err}</p>
           <button
-            onClick={() => router.push("/trip")}
+            onClick={() => router("/trip")}
             style={{
               padding: "10px 24px",
               borderRadius: 999,

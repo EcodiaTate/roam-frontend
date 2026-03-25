@@ -1,5 +1,4 @@
 // src/lib/supabase/auth.tsx
-"use client";
 
 import {
   createContext,

@@ -4,7 +4,6 @@
 // Provides reactive state for download progress, install status,
 // and tile server readiness.
 
-"use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Capacitor } from "@capacitor/core";

@@ -1,5 +1,4 @@
 // src/components/trip/EnrichmentBanner.tsx
-"use client";
 
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, Loader2, CheckCircle2, WifiOff } from "lucide-react";
@@ -103,8 +102,8 @@ export function EnrichmentBanner({ progress }: { progress: EnrichProgress | null
   if (isDone) {
     return (
       <div className={`pointer-events-auto absolute left-4 top-[env(safe-area-inset-top,0px)] z-50 mt-2 ${animClass}`} onAnimationEnd={handleAnimEnd}>
-        <div className="flex w-fit items-center gap-2 rounded-2xl bg-emerald-600/90 px-4 py-2.5 text-sm font-medium text-white shadow-lg backdrop-blur-md">
-          <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+        <div style={S.doneChip}>
+          <CheckCircle2 style={{ width: 16, height: 16, flexShrink: 0 }} />
           <span>Trip fully loaded</span>
         </div>
         <style>{KEYFRAMES}</style>
@@ -115,20 +114,19 @@ export function EnrichmentBanner({ progress }: { progress: EnrichProgress | null
   if (isError) {
     return (
       <div className={`pointer-events-auto absolute left-4 top-[env(safe-area-inset-top,0px)] z-50 mt-2 ${animClass}`}>
-        <div className="w-fit overflow-hidden rounded-2xl bg-zinc-900/90 shadow-lg backdrop-blur-md">
-          <div className="flex items-center gap-2.5 px-4 py-2.5">
-            <AlertTriangle className="h-4 w-4 flex-shrink-0 text-amber-400" />
-            <span className="text-sm font-medium text-white">
+        <div style={S.chipOuter}>
+          <div style={S.chipInner}>
+            <AlertTriangle style={{ width: 16, height: 16, flexShrink: 0, color: "var(--roam-warn)" }} />
+            <span style={S.chipLabel}>
               Trip setup incomplete
             </span>
-            <span className="ml-3 text-xs tabular-nums text-zinc-400">
+            <span style={S.chipCounter}>
               {progress.completed}/{total}
             </span>
           </div>
-          <div className="h-0.5 bg-zinc-800">
+          <div style={S.barTrack}>
             <div
-              className="h-full bg-amber-500 transition-all duration-300 ease-out"
-              style={{ width: `${Math.round((progress.completed / total) * 100)}%` }}
+              style={{ ...S.barFillWarn, width: `${Math.round((progress.completed / total) * 100)}%` }}
             />
           </div>
         </div>
@@ -139,29 +137,29 @@ export function EnrichmentBanner({ progress }: { progress: EnrichProgress | null
 
   return (
     <div className={`pointer-events-auto absolute left-4 top-[env(safe-area-inset-top,0px)] z-50 mt-2 ${animClass}`}>
-      <div className="w-fit overflow-hidden rounded-2xl bg-zinc-900/90 shadow-lg backdrop-blur-md">
-        <div className="flex items-center gap-2.5 px-4 py-2.5">
-          <Loader2 className="enrich-spin h-4 w-4 flex-shrink-0 text-blue-400" />
-          <span className="text-sm font-medium text-white">
+      <div style={S.chipOuter}>
+        <div style={S.chipInner}>
+          <Loader2 className="enrich-spin" style={{ width: 16, height: 16, flexShrink: 0, color: "var(--roam-info)" }} />
+          <span style={S.chipLabel}>
             Setting up your trip&hellip;
           </span>
-          <span className="ml-3 text-xs tabular-nums text-zinc-400">
+          <span style={S.chipCounter}>
             {displayInt}/{total}
           </span>
         </div>
         {/* Progress bar - smooth continuous animation */}
-        <div className="h-0.5 bg-zinc-800">
+        <div style={S.barTrack}>
           <div
-            className="h-full bg-blue-500"
             style={{
+              ...S.barFillInfo,
               width: `${pct}%`,
               transition: "width 400ms cubic-bezier(0.4, 0, 0.2, 1)",
             }}
           />
         </div>
         {progress.corridorReady && (
-          <div className="flex items-center gap-1.5 px-4 py-1.5 text-xs text-emerald-400">
-            <WifiOff className="h-3 w-3" />
+          <div style={S.corridorReady}>
+            <WifiOff style={{ width: 12, height: 12 }} />
             Offline rerouting ready
           </div>
         )}
@@ -170,6 +168,71 @@ export function EnrichmentBanner({ progress }: { progress: EnrichProgress | null
     </div>
   );
 }
+
+const S: Record<string, React.CSSProperties> = {
+  doneChip: {
+    display: "flex",
+    width: "fit-content",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: 16,
+    background: "var(--roam-success)",
+    padding: "10px 16px",
+    fontSize: 14,
+    fontWeight: 500,
+    color: "var(--on-color)",
+    boxShadow: "var(--shadow-medium)",
+    backdropFilter: "blur(12px)",
+    WebkitBackdropFilter: "blur(12px)",
+  },
+  chipOuter: {
+    width: "fit-content",
+    overflow: "hidden",
+    borderRadius: 16,
+    background: "var(--surface-raised)",
+    boxShadow: "var(--shadow-medium)",
+    backdropFilter: "blur(12px)",
+    WebkitBackdropFilter: "blur(12px)",
+  },
+  chipInner: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    padding: "10px 16px",
+  },
+  chipLabel: {
+    fontSize: 14,
+    fontWeight: 500,
+    color: "var(--roam-text)",
+  },
+  chipCounter: {
+    marginLeft: 12,
+    fontSize: 12,
+    fontVariantNumeric: "tabular-nums",
+    color: "var(--roam-text-muted)",
+  },
+  barTrack: {
+    height: 2,
+    background: "var(--roam-border-strong)",
+  },
+  barFillWarn: {
+    height: "100%",
+    background: "var(--roam-warn)",
+    transition: "width 300ms ease-out",
+  },
+  barFillInfo: {
+    height: "100%",
+    background: "var(--roam-info)",
+  },
+  corridorReady: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    padding: "6px 16px",
+    fontSize: 12,
+    color: "var(--roam-success)",
+  },
+};
 
 const KEYFRAMES = `
   .enrich-fade-in {

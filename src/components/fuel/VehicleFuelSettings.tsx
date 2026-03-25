@@ -1,5 +1,4 @@
 // src/components/fuel/VehicleFuelSettings.tsx
-"use client";
 
 import { useState, useCallback, useEffect } from "react";
 import { X, Fuel, Zap, Flame, PlugZap } from "lucide-react";
@@ -51,12 +50,14 @@ const closeBtn: React.CSSProperties = {
   background: "var(--roam-surface-hover)",
   border: "none",
   borderRadius: 999,
-  width: 40,
-  height: 40,
+  width: 44,
+  height: 44,
   display: "grid",
   placeItems: "center",
   cursor: "pointer",
   color: "var(--roam-text-muted)",
+  touchAction: "manipulation",
+  WebkitTapHighlightColor: "transparent",
 };
 
 const sectionLabel: React.CSSProperties = {
@@ -81,7 +82,7 @@ const segmentBtn = (active: boolean): React.CSSProperties => ({
   padding: "10px 12px",
   borderRadius: 12,
   border: active ? "2px solid var(--roam-accent)" : "2px solid transparent",
-  background: active ? "rgba(59,130,246,0.1)" : "var(--roam-surface-hover)",
+  background: active ? "var(--accent-tint)" : "var(--roam-surface-hover)",
   color: active ? "var(--roam-accent)" : "var(--roam-text-muted)",
   fontWeight: 900,
   fontSize: 12,
@@ -126,7 +127,7 @@ const saveButton: React.CSSProperties = {
   padding: "12px 20px",
   borderRadius: 12,
   background: "var(--roam-accent)",
-  color: "#fff",
+  color: "var(--on-color)",
   border: "none",
   fontWeight: 950,
   fontSize: 14,
@@ -205,7 +206,7 @@ export function VehicleFuelSettings({
         {/* Header */}
         <div style={headerRow}>
           <div style={titleText}>Vehicle Fuel Settings</div>
-          <button type="button" style={closeBtn} onClick={onClose}>
+          <button type="button" style={closeBtn} onClick={onClose} aria-label="Close">
             <X size={16} strokeWidth={2.5} />
           </button>
         </div>

@@ -1,6 +1,5 @@
 // src/components/places/PlaceRow.tsx
 // Single place result row - used by PlaceSearchPanel's result list.
-"use client";
 
 import { memo } from "react";
 import type { PlaceItem } from "@/lib/types/places";
@@ -96,8 +95,8 @@ const BOOKMARK_BTN_BASE: React.CSSProperties = {
   flexShrink: 0,
   display: "flex",
   alignItems: "center",
-  minWidth: 40,
-  minHeight: 40,
+  minWidth: 44,
+  minHeight: 44,
   justifyContent: "center",
   touchAction: "manipulation",
   WebkitTapHighlightColor: "transparent",

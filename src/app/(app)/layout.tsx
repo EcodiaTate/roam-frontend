@@ -1,6 +1,5 @@
-"use client";
-
 import { useEffect, useState } from "react";
+import { Outlet } from "react-router";
 import { BottomTabBar } from "@/components/ui/BottomTabBar";
 import { PersistentTabs } from "@/components/ui/PersistentTabs";
 import { PlaceDetailProvider } from "@/lib/context/PlaceDetailContext";
@@ -9,7 +8,7 @@ import { SavedPlacesSync } from "@/components/places/SavedPlacesSync";
 import { UIModePickerModal, hasChosenUIMode } from "@/components/ui/UIModePickerModal";
 import { useAuth } from "@/lib/supabase/auth";
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+export function AppLayout() {
   const { session, loading } = useAuth();
   const [modePickerOpen, setModePickerOpen] = useState(false);
 
@@ -32,7 +31,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <SavedPlacesSync />
       <div className="roam-shell">
         <main className="roam-main">
-          <PersistentTabs>{children}</PersistentTabs>
+          <PersistentTabs>
+            <Outlet />
+          </PersistentTabs>
         </main>
         <BottomTabBar />
         {/* Global place detail sheet - opened via usePlaceDetail().openPlace() from anywhere */}
@@ -43,3 +44,5 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     </PlaceDetailProvider>
   );
 }
+
+export default AppLayout;

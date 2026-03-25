@@ -1,5 +1,4 @@
 // src/lib/native/notifications.ts
-"use client";
 
 import { hasPlugin, isNative } from "./platform";
 

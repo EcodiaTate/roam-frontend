@@ -2,7 +2,6 @@
 //
 // Shared debounced search hook with abort control.
 // Eliminates duplicate search patterns across StopRow, PlaceSearchModal, etc.
-"use client";
 
 import { useCallback, useRef, useState } from "react";
 

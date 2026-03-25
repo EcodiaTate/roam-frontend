@@ -1,7 +1,6 @@
 // src/components/places/PlaceSearchPanel.tsx
 // Structured offline place search + filter panel.
 // Works 100% offline against the local PlacesPack (IndexedDB).
-"use client";
 
 import {
     memo,
@@ -935,7 +934,7 @@ const CHIP_STYLES = {
 
 const BADGE_STYLES = {
   active:   { fontSize: 10, fontWeight: 800, background: "var(--roam-accent)", color: "var(--on-color)", borderRadius: 999, padding: "1px 5px", minWidth: 16, textAlign: "center", transition: "background 100ms ease, color 100ms ease" } as React.CSSProperties,
-  inactive: { fontSize: 10, fontWeight: 800, background: "rgba(0,0,0,0.07)", color: "var(--roam-text-muted)", borderRadius: 999, padding: "1px 5px", minWidth: 16, textAlign: "center", transition: "background 100ms ease, color 100ms ease" } as React.CSSProperties,
+  inactive: { fontSize: 10, fontWeight: 800, background: "var(--roam-border-strong)", color: "var(--roam-text-muted)", borderRadius: 999, padding: "1px 5px", minWidth: 16, textAlign: "center", transition: "background 100ms ease, color 100ms ease" } as React.CSSProperties,
 };
 
 function chipStyle(active: boolean, small = false): React.CSSProperties {

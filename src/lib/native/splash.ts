@@ -1,5 +1,4 @@
 // src/lib/native/splash.ts
-"use client";
 
 import { isNative, hasPlugin } from "./platform";
 

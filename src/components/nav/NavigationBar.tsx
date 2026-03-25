@@ -1,5 +1,4 @@
 // src/components/nav/NavigationBar.tsx
-"use client";
 
 import { memo } from "react";
 import type { ActiveNavState } from "@/lib/nav/activeNav";
@@ -102,7 +101,7 @@ export const NavigationBar = memo(function NavigationBar({ nav, fuelTracking, vi
           alignItems: "center",
           minWidth: 0,
         }}>
-          {/* Distance + divider + time — grouped left */}
+          {/* Distance + divider + time - grouped left */}
           <div style={{
             display: "flex",
             alignItems: "center",
@@ -146,7 +145,7 @@ export const NavigationBar = memo(function NavigationBar({ nav, fuelTracking, vi
           {/* Spacer pushes fuel button to the right */}
           <div style={{ flex: 1 }} />
 
-          {/* Fuel — tappable pill to detour to nearest servo */}
+          {/* Fuel - tappable pill to detour to nearest servo */}
           {fuelText && (
             <button
               type="button"
@@ -188,7 +187,7 @@ export const NavigationBar = memo(function NavigationBar({ nav, fuelTracking, vi
           )}
         </div>
 
-        {/* Circle — ETA stacked: label / time / ampm */}
+        {/* Circle - ETA stacked: label / time / ampm */}
         <div style={{
           flexShrink: 0,
           width: cs,
