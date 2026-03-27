@@ -86,7 +86,7 @@ export function SavedPlacesMap({ places, onSelectPlace }: Props) {
               JSON.parse(feature.properties?.raw as string) as SavedPlace,
             );
           } catch {
-            // raw property missing or malformed — ignore click
+            // raw property missing or malformed  ignore click
           }
         });
 

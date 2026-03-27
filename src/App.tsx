@@ -12,21 +12,16 @@ import GlobalError from "./app/error";
 import AppError from "./app/(app)/error";
 
 // ── Loading skeletons (imported eagerly for instant fallbacks) ──────────
-import { DiscoverSkeleton } from "./app/(app)/discover/DiscoverSkeleton";
-import { GuideSkeleton } from "./app/(app)/guide/GuideSkeleton";
 import { NewTripSkeleton } from "./app/(app)/new/NewTripSkeleton";
-import { TripSkeleton } from "./app/(app)/trip/TripSkeleton";
-import { JournalSkeleton } from "./app/(app)/journal/JournalSkeleton";
 import LiveLoading from "./app/(app)/live/loading";
 import LoginLoading from "./app/(app)/login/loading";
 import PlacesLoading from "./app/(app)/places/loading";
-import SosLoading from "./app/(app)/sos/loading";
 import UntetheredLoading from "./app/(app)/untethered/loading";
 
 // ── Lazy-loaded page components ────────────────────────────────────────
 const LandingPage = lazy(() => import("./app/ClientPage"));
 
-// App (tab) routes — these are rendered by PersistentTabs inside AppLayout,
+// App (tab) routes  these are rendered by PersistentTabs inside AppLayout,
 // so the actual tab pages (trip, guide, discover, journal, sos) don't need
 // individual lazy routes. Non-tab routes under (app) are lazy-loaded here.
 const LoginPage = lazy(() => import("./app/(app)/login/page"));
@@ -77,7 +72,7 @@ export function App() {
 
             {/* App shell routes */}
             <Route element={<ErrorBoundary fallback={(props) => <AppError {...props} />}><AppLayout /></ErrorBoundary>}>
-            {/* Tab routes — PersistentTabs renders the actual content */}
+            {/* Tab routes  PersistentTabs renders the actual content */}
             <Route path="discover" element={<NullPage />} />
             <Route path="guide" element={<NullPage />} />
             <Route path="journal" element={<NullPage />} />
