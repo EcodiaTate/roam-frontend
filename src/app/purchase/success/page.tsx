@@ -355,18 +355,18 @@ function PurchaseSuccessInner() {
               background: "rgba(255,255,255,0.12)",
               backdropFilter: "blur(12px)",
               WebkitBackdropFilter: "blur(12px)",
-              border: "1px solid rgba(255,255,255,0.15)",
+              border: "1px solid var(--roam-border-strong)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              boxShadow: "0 8px 40px rgba(0,0,0,0.12)",
+              boxShadow: "var(--shadow-heavy)",
             }}
           >
             <Compass
               size={38}
               strokeWidth={1.6}
               style={{
-                color: "#fff",
+                color: "var(--on-color)",
                 animation: "roam-spin 3s ease-in-out infinite",
                 filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.15))",
               }}
@@ -376,7 +376,7 @@ function PurchaseSuccessInner() {
           <div>
             <h1 style={{
               fontSize: 28, fontWeight: 950, margin: "0 0 8px",
-              color: "#fff", letterSpacing: "-0.4px",
+              color: "var(--on-color)", letterSpacing: "-0.4px",
             }}>
               Payment confirmed!
             </h1>
@@ -390,11 +390,11 @@ function PurchaseSuccessInner() {
 
           {/* Shimmer bar - ochre tones */}
           <div style={{
-            width: 200, height: 4, borderRadius: 99,
+            width: 200, height: 4, borderRadius: "var(--r-pill)",
             background: "rgba(255,255,255,0.10)", overflow: "hidden",
           }}>
             <div style={{
-              width: "100%", height: "100%", borderRadius: 99,
+              width: "100%", height: "100%", borderRadius: "var(--r-pill)",
               background: "linear-gradient(90deg, #d98a5c, #faf6ef, #e8b84d, #d98a5c)",
               backgroundSize: "200% 100%",
               animation: "shimmer-bar 2s ease-in-out infinite",
@@ -425,7 +425,7 @@ function PurchaseSuccessInner() {
               border: "2px solid rgba(255,255,255,0.25)",
               display: "flex", alignItems: "center", justifyContent: "center",
               animation: "success-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.15), inset 0 1px 1px rgba(255,255,255,0.20)",
+              boxShadow: "var(--shadow-heavy)",
             }}>
               <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
                 <path
@@ -451,7 +451,7 @@ function PurchaseSuccessInner() {
             background: "rgba(255,255,255,0.15)",
             backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)",
             borderRadius: 999, padding: "5px 16px", marginBottom: 8,
-            border: "1px solid rgba(255,255,255,0.15)",
+            border: "1px solid var(--roam-border-strong)",
             animation: "fade-up 0.5s ease 0.4s both",
           }}>
             <MapPin size={12} style={{ color: "rgba(255,255,255,0.85)" }} />
@@ -464,7 +464,7 @@ function PurchaseSuccessInner() {
           </div>
 
           <h1 style={{
-            fontSize: 34, fontWeight: 950, margin: 0, color: "#fff",
+            fontSize: 34, fontWeight: 950, margin: 0, color: "var(--on-color)",
             lineHeight: 1.08, letterSpacing: "-0.5px",
             animation: "fade-up 0.5s ease 0.5s both",
           }}>
@@ -493,7 +493,7 @@ function PurchaseSuccessInner() {
                   background: "rgba(255,255,255,0.12)",
                   backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
                   borderRadius: 999, padding: "6px 14px 6px 10px",
-                  border: "1px solid rgba(255,255,255,0.10)",
+                  border: "1px solid var(--roam-border)",
                   animation: `pill-pop 0.4s cubic-bezier(0.34,1.56,0.64,1) ${0.9 + i * 0.1}s both`,
                 }}
               >
@@ -501,12 +501,12 @@ function PurchaseSuccessInner() {
                   width: 22, height: 22, borderRadius: "50%",
                   background: f.color,
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  color: "#fff", flexShrink: 0,
+                  color: "var(--on-color)", flexShrink: 0,
                   boxShadow: `0 2px 6px ${f.color}44`,
                 }}>
                   {f.icon}
                 </div>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "#fff", whiteSpace: "nowrap" }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "var(--on-color)", whiteSpace: "nowrap" }}>
                   {f.label}
                 </span>
               </div>
@@ -536,9 +536,9 @@ function PurchaseSuccessInner() {
             width: 80, height: 80, borderRadius: "50%",
             background: "rgba(255,255,255,0.12)",
             backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
-            border: "1px solid rgba(255,255,255,0.15)",
+            border: "1px solid var(--roam-border-strong)",
             display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.10)",
+            boxShadow: "var(--shadow-heavy)",
           }}>
             <Compass size={34} strokeWidth={1.8} style={{ color: "rgba(255,255,255,0.8)" }} />
           </div>
@@ -546,7 +546,7 @@ function PurchaseSuccessInner() {
           <div>
             <h1 style={{
               fontSize: 24, fontWeight: 900, margin: "0 0 8px",
-              color: "#fff", letterSpacing: "-0.3px",
+              color: "var(--on-color)", letterSpacing: "-0.3px",
             }}>
               Still processing...
             </h1>
@@ -568,8 +568,8 @@ function PurchaseSuccessInner() {
               background: "rgba(255,255,255,0.15)",
               backdropFilter: "blur(8px)",
               WebkitBackdropFilter: "blur(8px)",
-              border: "1px solid rgba(255,255,255,0.20)",
-              color: "#fff", fontWeight: 700,
+              border: "1px solid var(--roam-border-strong)",
+              color: "var(--on-color)", fontWeight: 700,
               cursor: "pointer", fontSize: 15,
               WebkitTapHighlightColor: "transparent",
             }}
@@ -584,7 +584,7 @@ function PurchaseSuccessInner() {
         .purchase-success-root {
           --ps-bg: linear-gradient(165deg, #b5452e 0%, #c9633e 40%, #d98a5c 70%, #e8b84d 100%);
         }
-        @media (prefers-color-scheme: dark) {
+        [data-theme="tactical-night"] {
           .purchase-success-root {
             --ps-bg: linear-gradient(165deg, #3a1208 0%, #6b2518 25%, #b5452e 55%, #c9633e 80%, #8b5a3a 100%);
           }

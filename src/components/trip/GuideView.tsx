@@ -163,7 +163,7 @@ function ActionPill({
 }) {
   const accentColor = color ?? "var(--brand-sky)";
   const baseStyle: React.CSSProperties = {
-    borderRadius: 10,
+    borderRadius: "var(--r-card)",
     minHeight: 44,
     padding: "0 14px",
     fontWeight: 700,
@@ -249,10 +249,10 @@ function MessageActionsRow({
             alignItems: "center",
             flexWrap: "wrap",
             gap: 0,
-            borderRadius: 20,
+            borderRadius: "var(--r-card)",
             overflow: "hidden",
             alignSelf: "flex-start",
-            border: "1px solid var(--roam-border, rgba(255,255,255,0.08))",
+            border: "1px solid var(--roam-border)",
             background: "var(--roam-surface, rgba(255,255,255,0.04))",
           }}
         >
@@ -262,7 +262,7 @@ function MessageActionsRow({
               fontSize: 12,
               fontWeight: 700,
               color: "var(--roam-text-muted)",
-              borderRight: "1px solid var(--roam-border, rgba(255,255,255,0.08))",
+              borderRight: "1px solid var(--roam-border)",
               whiteSpace: "nowrap",
             }}>
               {group.name}
@@ -270,7 +270,7 @@ function MessageActionsRow({
           ) : null}
           {group.actions.map((a, idx) => {
             const isLast = idx === group.actions.length - 1;
-            const dividerStyle = !isLast ? { borderRight: "1px solid var(--roam-border, rgba(255,255,255,0.08))" } : {};
+            const dividerStyle = !isLast ? { borderRight: "1px solid var(--roam-border)" } : {};
             if (a.type === "web" && a.url) {
               return (
                 <button
@@ -300,7 +300,7 @@ function MessageActionsRow({
                   style={{
                     display: "inline-flex", alignItems: "center", gap: 6,
                     padding: "10px 12px", minHeight: 44, textDecoration: "none",
-                    fontSize: 13, fontWeight: 700, color: "#10b981",
+                    fontSize: 13, fontWeight: 700, color: "var(--roam-success)",
                     ...dividerStyle,
                   }}
                 >
@@ -318,7 +318,7 @@ function MessageActionsRow({
                   style={{
                     display: "inline-flex", alignItems: "center", gap: 6,
                     padding: "10px 12px", minHeight: 44, background: "none", border: "none",
-                    cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#6366f1",
+                    cursor: "pointer", fontSize: 13, fontWeight: 700, color: "var(--brand-shared)",
                     ...dividerStyle,
                   }}
                 >
@@ -337,7 +337,7 @@ function MessageActionsRow({
                   style={{
                     display: "inline-flex", alignItems: "center", gap: 6,
                     padding: "10px 12px", minHeight: 44, background: "none", border: "none",
-                    cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#10b981",
+                    cursor: "pointer", fontSize: 13, fontWeight: 700, color: "var(--roam-success)",
                     ...dividerStyle,
                   }}
                 >
@@ -377,9 +377,9 @@ function MessageActionsRow({
           type="button"
           onClick={() => { haptic.selection(); onSwitchToFound(); }}
           style={{
-            padding: "10px 14px", minHeight: 44, borderRadius: 10,
-            border: "1px solid rgba(16,185,129,0.15)", background: "rgba(16,185,129,0.06)",
-            color: "#10b981", fontSize: 13, fontWeight: 700, cursor: "pointer",
+            padding: "10px 14px", minHeight: 44, borderRadius: "var(--r-card)",
+            border: "2px solid var(--roam-success)", background: "var(--roam-surface-hover)",
+            color: "var(--roam-success)", fontSize: "var(--font-sm)", fontWeight: 700, cursor: "pointer",
             display: "inline-flex", alignItems: "center", gap: 6, alignSelf: "flex-start",
           }}
         >
@@ -506,7 +506,7 @@ function renderInline(nodes: InlineNode[], keyPrefix: string, inLink = false) {
         }
       } else { out.push(<span key={k}>{n.s}</span>); }
     } else if (n.t === "code") {
-      out.push(<code key={k} style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace", fontSize: "0.9em", background: "var(--roam-surface-hover)", padding: "2px 6px", borderRadius: 5 }}>{n.s}</code>);
+      out.push(<code key={k} style={{ fontFamily: "var(--ff-mono)", fontSize: "0.9em", background: "var(--roam-surface-hover)", padding: "2px 6px", borderRadius: "var(--r-btn)" }}>{n.s}</code>);
     } else if (n.t === "strong") {
       out.push(<strong key={k} style={{ fontWeight: 800, color: "var(--roam-text)" }}>{renderInline(n.c, k, inLink)}</strong>);
     } else if (n.t === "em") {
@@ -525,7 +525,7 @@ function MarkdownBody({ text }: { text: string }) {
       {nodes.map((n, idx) => {
         const k = `md_${idx}`;
         if (n.t === "codeblock") {
-          return (<pre key={k} style={{ margin: 0, padding: "10px 12px", borderRadius: 10, background: "var(--roam-surface-hover)", overflowX: "auto", fontSize: 12, lineHeight: 1.4 }}><code style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" }}>{n.code}</code></pre>);
+          return (<pre key={k} style={{ margin: 0, padding: "10px 12px", borderRadius: "var(--r-card)", background: "var(--roam-surface-hover)", overflowX: "auto", fontSize: 12, lineHeight: 1.4 }}><code style={{ fontFamily: "var(--ff-mono)" }}>{n.code}</code></pre>);
         }
         if (n.t === "h") {
           return (<div key={k} style={{ fontSize: n.level === 1 ? 15 : 14, fontWeight: 800, color: "var(--roam-text)", marginTop: 2 }}>{renderInline(n.inl, k)}</div>);
@@ -647,7 +647,7 @@ function ExtraBadges({ place }: { place: PlaceItem }) {
             fontSize: 10,
             fontWeight: 700,
             padding: "2px 8px",
-            borderRadius: 5,
+            borderRadius: "var(--r-btn)",
             background: b.accent ? "rgba(16,185,129,0.12)" : b.warn ? "rgba(239,68,68,0.10)" : cc.bg,
             color: b.accent ? "#059669" : b.warn ? "#dc2626" : cc.fg,
             whiteSpace: "nowrap",
@@ -693,8 +693,8 @@ function CampAmenities({ place }: { place: PlaceItem }) {
   return (
     <div style={{
       display: "flex", gap: 2, flexWrap: "wrap", marginTop: 6,
-      padding: "5px 6px", borderRadius: 10,
-      background: "rgba(139,92,246,0.05)", border: "1px solid rgba(139,92,246,0.10)",
+      padding: "5px 6px", borderRadius: "var(--r-card)",
+      background: "rgba(139,92,246,0.05)", border: "1px solid var(--brand-shared)",
     }}>
       {visible.map((a) => {
         const val = extra[a.key];
@@ -704,7 +704,7 @@ function CampAmenities({ place }: { place: PlaceItem }) {
         return (
           <div key={a.key} title={a.label + tip} style={{
             display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
-            padding: "3px 5px", borderRadius: 7, minWidth: 34, opacity: on ? 1 : 0.28,
+            padding: "3px 5px", borderRadius: "var(--r-card)", minWidth: 34, opacity: on ? 1 : 0.28,
           }}>
             <Icon size={13} color={on ? a.trueColor : "var(--roam-text-muted)"} strokeWidth={on ? 2.5 : 1.5} />
             <span style={{
@@ -788,10 +788,10 @@ function PlaceCard({
       style={{
         display: "flex",
         overflow: "hidden",
-        borderRadius: 16,
+        borderRadius: "var(--r-card)",
         cursor: "pointer",
         background: "var(--roam-surface)",
-        border: isFocused ? `2px solid ${cc.accent}` : "1px solid var(--roam-border, rgba(255,255,255,0.06))",
+        border: isFocused ? `2px solid ${cc.accent}` : "1px solid var(--roam-border)",
         transition: "border-color 0.15s, box-shadow 0.15s",
         boxShadow: isFocused ? `0 0 0 3px ${cc.accent}20` : "0 1px 3px rgba(0,0,0,0.06)",
       }}
@@ -806,7 +806,7 @@ function PlaceCard({
             style={{
               width: 38,
               height: 38,
-              borderRadius: 10,
+              borderRadius: "var(--r-card)",
               background: cc.bg,
               color: cc.fg,
               display: "grid",
@@ -827,7 +827,7 @@ function PlaceCard({
                   type="button"
                   onClick={(e) => { stop(e); haptic.medium(); onAdd(); }}
                   style={{
-                    borderRadius: 10, height: 36, minHeight: 44, padding: "0 12px",
+                    borderRadius: "var(--r-card)", height: 36, minHeight: 44, padding: "0 12px",
                     fontWeight: 700, fontSize: 12, border: "none",
                     background: cc.accent, color: "white",
                     cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5,
@@ -842,9 +842,9 @@ function PlaceCard({
                     type="button"
                     onClick={(e) => { stop(e); haptic.selection(); onFocus(); onShowOnMap?.(); }}
                     style={{
-                      borderRadius: 10, height: 36, minHeight: 44, padding: "0 12px",
+                      borderRadius: "var(--r-card)", height: 36, minHeight: 44, padding: "0 12px",
                       fontWeight: 700, fontSize: 12,
-                      border: `1px solid var(--roam-border, rgba(255,255,255,0.08))`,
+                      border: `1px solid var(--roam-border)`,
                       background: "transparent", color: "var(--roam-text)", cursor: "pointer",
                       display: "inline-flex", alignItems: "center", gap: 5,
                       WebkitTapHighlightColor: "transparent",
@@ -872,7 +872,7 @@ function PlaceCard({
             fontSize: 13, fontWeight: 500, lineHeight: 1.5,
             color: "var(--roam-text-muted)",
             padding: "4px 0 2px",
-            borderTop: "1px solid var(--roam-border, rgba(255,255,255,0.04))",
+            marginTop: 4, paddingTop: 6,
           }}>
             {guideDesc}
           </div>
@@ -887,9 +887,9 @@ function PlaceCard({
               onPointerDown={stop} onTouchStart={stop} onClick={stop}
               style={{
                 textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center",
-                borderRadius: 10, minHeight: 44, padding: "0 14px",
+                borderRadius: "var(--r-card)", minHeight: 44, padding: "0 14px",
                 fontWeight: 700, fontSize: 13, gap: 6,
-                border: `1px solid var(--roam-border, rgba(255,255,255,0.08))`,
+                border: `1px solid var(--roam-border)`,
                 background: "transparent", color: "var(--roam-success)",
               }}
             >
@@ -904,9 +904,9 @@ function PlaceCard({
               onPointerDown={stop} onTouchStart={stop}
               onClick={(e) => { stop(e); haptic.selection(); const norm = normalizeUrl(String(website)); if (norm) safeOpen(norm); }}
               style={{
-                borderRadius: 10, minHeight: 44, padding: "0 14px",
+                borderRadius: "var(--r-card)", minHeight: 44, padding: "0 14px",
                 fontWeight: 700, fontSize: 13,
-                border: `1px solid var(--roam-border, rgba(255,255,255,0.08))`,
+                border: `1px solid var(--roam-border)`,
                 background: "transparent", color: "var(--brand-sky)", cursor: "pointer",
                 display: "inline-flex", alignItems: "center", gap: 6,
               }}
@@ -944,9 +944,9 @@ function DiscoveryGroup({
       {/* Group header with category color */}
       <div style={{
         display: "flex", alignItems: "center", gap: 8, padding: "8px 12px",
-        background: cc.soft, borderRadius: 12,
+        background: cc.soft, borderRadius: "var(--r-card)",
       }}>
-        <div style={{ width: 28, height: 28, borderRadius: 8, background: cc.bg, color: cc.fg, display: "grid", placeItems: "center" }}>
+        <div style={{ width: 28, height: 28, borderRadius: "var(--r-card)", background: cc.bg, color: cc.fg, display: "grid", placeItems: "center" }}>
           <Icon size={15} />
         </div>
         <span style={{ fontSize: 14, fontWeight: 700, color: cc.fg, textTransform: "capitalize" }}>{label}</span>
@@ -1195,7 +1195,7 @@ export function GuideView({
       } else if (hour >= 11 && hour < 14) {
         suggestions.push({ label: "Lunch spot", desc: "Pub meal or bakery", query: "Where should I stop for lunch? I want a proper feed - pub counter meal, bakery, or good cafe.", Icon: Utensils, color: "#f97316" });
       } else if (hour >= 14 && hour < 17) {
-        suggestions.push({ label: "Arvo break", desc: "Stretch & explore", query: "Good spot for an afternoon break? Lookout, swimming hole, or a cold beer somewhere?", Icon: Eye, color: "#10b981" });
+        suggestions.push({ label: "Arvo break", desc: "Stretch & explore", query: "Good spot for an afternoon break? Lookout, swimming hole, or a cold beer somewhere?", Icon: Eye, color: "var(--roam-success)" });
       } else if (hour >= 17 && hour < 20) {
         suggestions.push({ label: "Stay tonight", desc: "Camps, pubs & motels", query: "Where should I stay tonight? Show me the best options - camps, motels, or a pub with rooms.", Icon: Bed, color: "#8b5cf6" });
       } else {
@@ -1204,9 +1204,9 @@ export function GuideView({
 
       // Phase-specific discovery
       if (pct < 0.35) {
-        suggestions.push({ label: "Hidden gems", desc: "Detours worth taking", query: "Any hidden gems or interesting detours coming up? I've got time to explore.", Icon: Compass, color: "#6366f1" });
+        suggestions.push({ label: "Hidden gems", desc: "Detours worth taking", query: "Any hidden gems or interesting detours coming up? I've got time to explore.", Icon: Compass, color: "var(--brand-shared)" });
       } else if (pct < 0.65) {
-        suggestions.push({ label: "Best ahead", desc: "Don't miss these", query: "What are the absolute must-see stops in the next 100km? Don't let me miss anything good.", Icon: Camera, color: "#6366f1" });
+        suggestions.push({ label: "Best ahead", desc: "Don't miss these", query: "What are the absolute must-see stops in the next 100km? Don't let me miss anything good.", Icon: Camera, color: "var(--brand-shared)" });
       }
 
       // Fatigue awareness
@@ -1216,7 +1216,7 @@ export function GuideView({
 
       // Arriving
       if (kmRemaining < 80 && kmRemaining > 5) {
-        suggestions.push({ label: "Arriving soon", desc: "What's at the destination", query: "I'm nearly there - what should I know about the destination? Where to eat tonight, any tips?", Icon: Target, color: "#10b981" });
+        suggestions.push({ label: "Arriving soon", desc: "What's at the destination", query: "I'm nearly there - what should I know about the destination? Where to eat tonight, any tips?", Icon: Target, color: "var(--roam-success)" });
       }
 
       // Nature / scenic always welcome
@@ -1224,7 +1224,7 @@ export function GuideView({
 
     } else {
       // Planning phase - no active trip progress
-      suggestions.push({ label: "Route highlights", desc: "Best stops along the way", query: "What are the absolute must-see highlights along this route? Don't let me drive past anything amazing.", Icon: Camera, color: "#6366f1" });
+      suggestions.push({ label: "Route highlights", desc: "Best stops along the way", query: "What are the absolute must-see highlights along this route? Don't let me drive past anything amazing.", Icon: Camera, color: "var(--brand-shared)" });
       suggestions.push({ label: "Fuel planning", desc: "Where are the long gaps?", query: "Where are the fuel stops along this route? Are there any long gaps I should plan for?", Icon: Fuel, color: "#f59e0b" });
       suggestions.push({ label: "Best bakeries", desc: "Pies, slices & coffee", query: "Where are the best country bakeries along this route? I want legendary pies.", Icon: Star, color: "#ea580c" });
       suggestions.push({ label: "Camp spots", desc: "Free camps & parks", query: "What are the best camping spots along this route? Include free camps if there are any good ones.", Icon: Tent, color: "#8b5cf6" });
@@ -1264,7 +1264,7 @@ export function GuideView({
       {/* ── Tab switcher (only rendered when not hoisted externally) ── */}
       {!renderTabBar && (
         <div style={{ flexShrink: 0, zIndex: 40, background: "var(--roam-bg)", paddingTop: 8, paddingBottom: 4 }}>
-          <div style={{ display: "flex", gap: 2, background: "var(--roam-surface)", borderRadius: 14, padding: 3, border: "1px solid var(--roam-border, rgba(255,255,255,0.06))" }}>
+          <div style={{ display: "flex", gap: 2, background: "var(--roam-surface)", borderRadius: "var(--r-card)", padding: 3, border: "1px solid var(--roam-border)" }}>
             {([
               { key: "chat" as ViewTab, label: "Guide", Icon: Sparkles, badge: null },
               { key: "discoveries" as ViewTab, label: "Found", Icon: MapPin, badge: discoveredPlaces.length > 0 ? discoveredPlaces.length : null },
@@ -1277,7 +1277,7 @@ export function GuideView({
                   type="button"
                   onClick={() => { haptic.selection(); setActiveTab(tab.key); }}
                   style={{
-                    flex: 1, borderRadius: 11, border: "none", padding: "10px 8px",
+                    flex: 1, borderRadius: "var(--r-card)", border: "none", padding: "10px 8px",
                     fontSize: 13, fontWeight: 700,
                     background: active ? "var(--brand-sky)" : "transparent",
                     color: active ? "white" : "var(--roam-text-muted)",
@@ -1324,8 +1324,8 @@ export function GuideView({
           {/* Offline banner */}
           {!isOnline && (
             <div style={{
-              background: "var(--bg-warn, rgba(255,180,50,0.08))", borderRadius: 14, padding: "12px 16px",
-              border: "1px solid var(--border-warn, rgba(255,180,50,0.15))",
+              background: "var(--bg-warn, rgba(255,180,50,0.08))", borderRadius: "var(--r-card)", padding: "12px 16px",
+              border: "1px solid var(--roam-warn)",
               display: "flex", alignItems: "center", gap: 10,
               fontSize: 13, fontWeight: 600, color: "var(--text-warn, #e6a040)",
             }}>
@@ -1337,15 +1337,15 @@ export function GuideView({
           {/* Welcome state - when no messages yet */}
           {thread.length === 0 && !pendingUserMsg ? (
             <div style={{
-              background: "var(--roam-surface)", borderRadius: 18, padding: "20px 16px",
-              border: "1px solid var(--roam-border, rgba(255,255,255,0.06))",
+              background: "var(--roam-surface)", borderRadius: "var(--r-card)", padding: "20px 16px",
+              border: "1px solid var(--roam-border)",
             }}>
               {/* Guide identity header */}
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
                 <div style={{
-                  width: 40, height: 40, borderRadius: 12,
+                  width: 40, height: 40, borderRadius: "var(--r-card)",
                   overflow: "hidden",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+                  boxShadow: "var(--shadow-medium)",
                   flexShrink: 0,
                 }}>
                   <img src="/img/roam-app-icon.png" alt="Roam" width={40} height={40} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -1371,7 +1371,7 @@ export function GuideView({
                       onClick={() => handleAsk(s.query)}
                       disabled={!guideReady || chatBusy || !isOnline}
                       style={{
-                        borderRadius: 14, border: "none",
+                        borderRadius: "var(--r-card)", border: "none",
                         padding: "12px", textAlign: "left",
                         background: `${s.color}0D`,
                         cursor: guideReady && !chatBusy && isOnline ? "pointer" : "default",
@@ -1382,7 +1382,7 @@ export function GuideView({
                       }}
                     >
                       <div style={{
-                        width: 30, height: 30, borderRadius: 9,
+                        width: 30, height: 30, borderRadius: "var(--r-card)",
                         background: `${s.color}1A`, color: s.color,
                         display: "grid", placeItems: "center",
                       }}>
@@ -1421,7 +1421,7 @@ export function GuideView({
                         maxWidth: "85%", padding: "10px 14px", borderRadius: "16px 16px 4px 16px",
                         background: "var(--brand-sky)", color: "white",
                         fontSize: 14, fontWeight: 600, lineHeight: 1.4,
-                        boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                        boxShadow: "var(--shadow-soft)",
                       }}>
                         {m.content}
                       </div>
@@ -1438,9 +1438,9 @@ export function GuideView({
                     }}>
                       {/* Guide avatar */}
                       <div style={{
-                        width: 28, height: 28, borderRadius: 8, flexShrink: 0, marginTop: 2,
+                        width: 28, height: 28, borderRadius: "var(--r-card)", flexShrink: 0, marginTop: 2,
                         overflow: "hidden",
-                        boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+                        boxShadow: "var(--shadow-soft)",
                       }}>
                         <img src="/img/roam-app-icon.png" alt="Roam" width={28} height={28} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                       </div>
@@ -1448,7 +1448,7 @@ export function GuideView({
                       <div style={{
                         flex: 1, padding: "10px 14px", borderRadius: "4px 16px 16px 16px",
                         background: "var(--roam-surface)",
-                        border: "1px solid var(--roam-border, rgba(255,255,255,0.06))",
+                        border: "1px solid var(--roam-border)",
                         fontSize: 14, fontWeight: 500, lineHeight: 1.45,
                         color: "var(--roam-text)",
                       }}>
@@ -1471,7 +1471,7 @@ export function GuideView({
                         onClick={() => { haptic.selection(); setActiveTab("discoveries"); }}
                         style={{
                           marginTop: 6, marginLeft: 36, padding: "6px 12px",
-                          borderRadius: 10, border: "1px solid rgba(59,130,246,0.15)",
+                          borderRadius: "var(--r-card)", border: "1px solid var(--roam-info)",
                           background: "rgba(59,130,246,0.06)",
                           color: "var(--brand-sky)",
                           fontSize: 12, fontWeight: 700, cursor: "pointer",
@@ -1495,7 +1495,7 @@ export function GuideView({
                     maxWidth: "85%", padding: "10px 14px", borderRadius: "16px 16px 4px 16px",
                     background: "var(--brand-sky)", color: "white",
                     fontSize: 14, fontWeight: 600, lineHeight: 1.4,
-                    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                    boxShadow: "var(--shadow-soft)",
                   }}>
                     {pendingUserMsg}
                   </div>
@@ -1506,16 +1506,16 @@ export function GuideView({
               {chatBusy ? (
                 <div style={{ display: "flex", gap: 8, animation: "guideFadeIn 0.2s ease" }}>
                   <div style={{
-                    width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+                    width: 28, height: 28, borderRadius: "var(--r-card)", flexShrink: 0,
                     overflow: "hidden",
-                    boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+                    boxShadow: "var(--shadow-soft)",
                   }}>
                     <img src="/img/roam-app-icon.png" alt="Roam" width={28} height={28} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                   </div>
                   <div style={{
                     padding: "12px 16px", borderRadius: "4px 16px 16px 16px",
                     background: "var(--roam-surface)",
-                    border: "1px solid var(--roam-border, rgba(255,255,255,0.06))",
+                    border: "1px solid var(--roam-border)",
                   }}>
                     <TypingDots />
                   </div>
@@ -1541,8 +1541,8 @@ export function GuideView({
             <form onSubmit={handleSubmit} style={{ display: "flex", gap: 8 }}>
               <div style={{
                 flex: 1, display: "flex", alignItems: "center",
-                background: "var(--roam-surface)", borderRadius: 14,
-                border: "1px solid var(--roam-border, rgba(255,255,255,0.06))",
+                background: "var(--roam-surface)", borderRadius: "var(--r-card)",
+                border: "1px solid var(--roam-border)",
                 padding: "0 4px 0 16px",
                 transition: "border-color 0.15s",
               }}>
@@ -1562,7 +1562,7 @@ export function GuideView({
                   type="submit"
                   disabled={!guideReady || chatBusy || !chatInput.trim() || !isOnline}
                   style={{
-                    width: 44, height: 44, borderRadius: 12, border: "none",
+                    width: 44, height: 44, borderRadius: "var(--r-card)", border: "none",
                     background: chatInput.trim() && isOnline ? "var(--brand-sky)" : "transparent",
                     color: chatInput.trim() && isOnline ? "white" : "var(--roam-text-muted)",
                     cursor: chatInput.trim() && isOnline ? "pointer" : "default",
@@ -1587,7 +1587,7 @@ export function GuideView({
                       onClick={() => handleAsk(s.query)}
                       disabled={!guideReady}
                       style={{
-                        flex: "0 0 auto", borderRadius: 10, border: "none",
+                        flex: "0 0 auto", borderRadius: "var(--r-card)", border: "none",
                         padding: "7px 11px", fontSize: 12, fontWeight: 700,
                         background: `${s.color}0D`, color: s.color,
                         cursor: "pointer", whiteSpace: "nowrap",
@@ -1611,11 +1611,11 @@ export function GuideView({
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {discoveredPlaces.length === 0 ? (
             <div style={{
-              background: "var(--roam-surface)", borderRadius: 18, padding: 32, textAlign: "center",
-              border: "1px solid var(--roam-border, rgba(255,255,255,0.06))",
+              background: "var(--roam-surface)", borderRadius: "var(--r-card)", padding: 32, textAlign: "center",
+              border: "1px solid var(--roam-border)",
             }}>
               <div style={{
-                width: 52, height: 52, borderRadius: 14, margin: "0 auto 14px",
+                width: 52, height: 52, borderRadius: "var(--r-card)", margin: "0 auto 14px",
                 background: "rgba(59,130,246,0.08)", color: "var(--brand-sky)",
                 display: "grid", placeItems: "center",
               }}>
@@ -1631,7 +1631,7 @@ export function GuideView({
                 type="button"
                 onClick={() => { haptic.selection(); setActiveTab("chat"); }}
                 style={{
-                  marginTop: 16, borderRadius: 12, border: "none", padding: "10px 20px",
+                  marginTop: 16, borderRadius: "var(--r-card)", border: "none", padding: "10px 20px",
                   fontSize: 14, fontWeight: 700,
                   background: "var(--brand-sky)", color: "white", cursor: "pointer",
                   display: "inline-flex", alignItems: "center", gap: 8,
@@ -1646,8 +1646,8 @@ export function GuideView({
             <>
               {/* Summary header */}
               <div style={{
-                background: "var(--roam-surface)", borderRadius: 14, padding: "12px 16px",
-                border: "1px solid var(--roam-border, rgba(255,255,255,0.06))",
+                background: "var(--roam-surface)", borderRadius: "var(--r-card)", padding: "12px 16px",
+                border: "1px solid var(--roam-border)",
                 display: "flex", alignItems: "center", justifyContent: "space-between",
               }}>
                 <div>
@@ -1662,7 +1662,7 @@ export function GuideView({
                   type="button"
                   onClick={() => { haptic.selection(); setActiveTab("chat"); }}
                   style={{
-                    borderRadius: 10, border: "1px solid var(--roam-border, rgba(255,255,255,0.08))",
+                    borderRadius: "var(--r-card)", border: "1px solid var(--roam-border)",
                     padding: "7px 12px", fontSize: 12, fontWeight: 700,
                     background: "transparent", color: "var(--brand-sky)",
                     cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6,

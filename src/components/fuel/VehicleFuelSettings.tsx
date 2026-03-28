@@ -26,9 +26,9 @@ const panel: React.CSSProperties = {
   maxHeight: "80vh",
   overflowY: "auto",
   background: "var(--roam-surface)",
-  borderRadius: 20,
+  borderRadius: "var(--r-card)",
   padding: "20px 20px 24px",
-  boxShadow: "0 16px 64px rgba(0,0,0,0.25)",
+  boxShadow: "var(--shadow-heavy)",
   animation: "roam-fuel-settings-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
 };
 
@@ -80,7 +80,7 @@ const segmentBtn = (active: boolean): React.CSSProperties => ({
   flex: 1,
   minWidth: 70,
   padding: "10px 12px",
-  borderRadius: 12,
+  borderRadius: "var(--r-card)",
   border: active ? "2px solid var(--roam-accent)" : "2px solid transparent",
   background: active ? "var(--accent-tint)" : "var(--roam-surface-hover)",
   color: active ? "var(--roam-accent)" : "var(--roam-text-muted)",
@@ -125,7 +125,7 @@ const saveButton: React.CSSProperties = {
   width: "100%",
   marginTop: 24,
   padding: "12px 20px",
-  borderRadius: 12,
+  borderRadius: "var(--r-card)",
   background: "var(--roam-accent)",
   color: "var(--on-color)",
   border: "none",
@@ -287,7 +287,7 @@ export function VehicleFuelSettings({
         <div style={{
           marginTop: 18,
           padding: "10px 14px",
-          borderRadius: 12,
+          borderRadius: "var(--r-card)",
           background: "var(--roam-surface-hover)",
           fontSize: 12,
           fontWeight: 700,

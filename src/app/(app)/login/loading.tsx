@@ -34,7 +34,7 @@ export default function LoginLoading() {
           style={{
             width: 56,
             height: 56,
-            borderRadius: 14,
+            borderRadius: "var(--r-card)",
             background: "var(--roam-surface-hover)",
             animation: "login-skel-pulse 1.6s ease-in-out infinite",
           }}
@@ -45,7 +45,7 @@ export default function LoginLoading() {
           style={{
             width: 140,
             height: 22,
-            borderRadius: 8,
+            borderRadius: "var(--r-card)",
             background: "var(--roam-surface-hover)",
             animation: "login-skel-pulse 1.6s ease-in-out infinite 0.05s",
           }}
@@ -56,7 +56,7 @@ export default function LoginLoading() {
           style={{
             width: 220,
             height: 14,
-            borderRadius: 6,
+            borderRadius: "var(--r-card)",
             background: "var(--roam-surface-hover)",
             animation: "login-skel-pulse 1.6s ease-in-out infinite 0.1s",
           }}
@@ -126,7 +126,7 @@ export default function LoginLoading() {
           style={{
             width: 200,
             height: 14,
-            borderRadius: 6,
+            borderRadius: "var(--r-card)",
             background: "var(--roam-surface-hover)",
             animation: "login-skel-pulse 1.6s ease-in-out infinite 0.3s",
           }}

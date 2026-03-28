@@ -63,7 +63,7 @@
   gap: 6px;
   padding: 0 14px;
   height: 44px;
-  border-radius: 12px;
+  border-radius: var(--r-card);
   background: var(--roam-surface);
   color: var(--roam-text);
   font-size: 13px;
@@ -85,7 +85,7 @@
   background: var(--brand-eucalypt);
   color: var(--on-color);
   border-color: var(--brand-eucalypt);
-  box-shadow: 0 2px 10px rgba(45, 110, 64, 0.28);
+  box-shadow: var(--shadow-soft);
 }
 
 .filterBtn:active {
@@ -144,7 +144,7 @@
   background: var(--brand-eucalypt);
   color: var(--on-color);
   border-color: var(--brand-eucalypt);
-  box-shadow: 0 2px 10px rgba(45, 110, 64, 0.28);
+  box-shadow: var(--shadow-soft);
 }
 
 .filterChip:active {
@@ -192,7 +192,7 @@
 .stateIcon {
   width: 64px;
   height: 64px;
-  border-radius: 18px;
+  border-radius: var(--r-card);
   background: var(--roam-surface-raised);
   border: 1.5px solid var(--roam-border);
   display: grid;
@@ -235,12 +235,12 @@
   margin-top: 8px;
   padding: 12px 28px;
   min-height: 44px;
-  border-radius: 14px;
+  border-radius: var(--r-card);
   background: var(--brand-eucalypt);
   color: var(--on-color);
   font-size: 14px;
   font-weight: 700;
-  box-shadow: 0 2px 12px rgba(45, 110, 64, 0.25);
+  box-shadow: var(--shadow-soft);
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   transition: transform 0.15s ease-out;
@@ -281,7 +281,7 @@
   display: flex;
   flex-direction: column;
   background: var(--roam-surface-raised);
-  border-radius: 20px;
+  border-radius: var(--r-card);
   border: 1.5px solid var(--roam-border-strong);
   overflow: hidden;
   cursor: pointer;
@@ -309,7 +309,6 @@
   background: var(--roam-surface-hover);
   overflow: hidden;
   flex-shrink: 0;
-  border-bottom: 1px solid var(--roam-border);
 }
 
 /* ── Card body ───────────────────────────────────────────────── */
@@ -354,15 +353,14 @@
   font-weight: 700;
   color: var(--roam-text-muted);
   background: var(--roam-surface-hover);
-  border: 1px solid var(--roam-border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   padding: 4px 8px;
 }
 
 /* ── Card footer (start → end) ───────────────────────────────── */
 .cardFooter {
   padding: 9px 14px;
-  border-top: 1px solid var(--roam-border);
+  background: var(--roam-surface-hover);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -433,7 +431,7 @@
   width: min(100%, 480px);
   z-index: 61;
   background: var(--roam-surface);
-  border-radius: 22px 22px 0 0;
+  border-radius: var(--r-card) var(--r-card) 0 0;
   box-shadow: var(--shadow-sheet);
   display: flex;
   flex-direction: column;
@@ -477,10 +475,9 @@
   place-items: center;
   width: 44px;
   height: 44px;
-  border-radius: 12px;
+  border-radius: var(--r-card);
   background: var(--roam-surface-hover);
   color: var(--roam-text-muted);
-  border: 1px solid var(--roam-border);
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   transition: transform 60ms ease-out;
@@ -502,7 +499,7 @@
   height: 200px;
   position: relative;
   flex-shrink: 0;
-  border-radius: 14px;
+  border-radius: var(--r-card);
   overflow: hidden;
   margin: 0 12px;
 }
@@ -510,7 +507,7 @@
 .sheetMapEmpty {
   height: 100px;
   margin: 0 12px;
-  border-radius: 14px;
+  border-radius: var(--r-card);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -549,7 +546,7 @@
   gap: 0;
   margin-bottom: 16px;
   background: var(--roam-surface-raised);
-  border-radius: 14px;
+  border-radius: var(--r-card);
   border: 1.5px solid var(--roam-border);
   overflow: hidden;
 }
@@ -616,12 +613,12 @@
   align-items: center;
   gap: 10px;
   padding: 7px 10px;
-  border-radius: 10px;
+  border-radius: var(--r-card);
 }
 
 .stopRowHighlight {
   background: var(--roam-surface-raised);
-  border: 1px solid var(--roam-border);
+  box-shadow: var(--shadow-soft);
 }
 
 .stopDot {
@@ -682,7 +679,7 @@
 .cloneError {
   margin-bottom: 8px;
   padding: 10px 14px;
-  border-radius: 10px;
+  border-radius: var(--r-card);
   background: var(--bg-error, #fae5e2);
   color: var(--text-error, #922018);
   font-size: 13px;
@@ -698,13 +695,13 @@
   gap: 8px;
   width: 100%;
   height: 54px;
-  border-radius: 16px;
+  border-radius: var(--r-card);
   background: linear-gradient(135deg, var(--brand-ochre), color-mix(in srgb, var(--brand-ochre) 70%, #fff));
   color: var(--on-color);
   font-size: 15px;
   font-weight: 800;
   cursor: pointer;
-  box-shadow: 0 4px 20px rgba(181, 69, 46, 0.28);
+  box-shadow: var(--shadow-medium);
   transition:
     background 0.25s,
     box-shadow 0.25s,
@@ -719,7 +716,7 @@
 
 .cloneBtnDone {
   background: linear-gradient(135deg, var(--brand-eucalypt), color-mix(in srgb, var(--brand-eucalypt) 70%, #fff));
-  box-shadow: 0 4px 20px rgba(45, 110, 64, 0.25);
+  box-shadow: var(--shadow-medium);
   cursor: default;
 }
 

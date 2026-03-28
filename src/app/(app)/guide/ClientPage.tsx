@@ -467,7 +467,7 @@ export default function GuideClientPage(props: {
               padding: "10px 24px",
               borderRadius: 999,
               background: "var(--roam-accent)",
-              color: "#fff",
+              color: "var(--on-color)",
               fontSize: 14,
               fontWeight: 700,
               border: "none",
@@ -500,7 +500,7 @@ export default function GuideClientPage(props: {
           zIndex: 50,
           padding: "calc(env(safe-area-inset-top, 0px) + 20px) 16px 0",
           background: "var(--roam-bg)",
-          borderBottom: "1px solid var(--roam-border)",
+          boxShadow: "0 2px 0 var(--roam-border)",
         }}
       >
         {/* Title row: title | tabs (centered) | status */}
@@ -637,7 +637,7 @@ export default function GuideClientPage(props: {
                       top: -1,
                       width: 10,
                       height: 10,
-                      borderRadius: 5,
+                      borderRadius: "var(--r-btn)",
                       background: m.visited ? "var(--roam-accent)" : "var(--roam-surface)",
                       border: "2px solid var(--roam-surface-hover)",
                       transform: "translateX(-50%)",

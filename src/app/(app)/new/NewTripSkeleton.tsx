@@ -88,7 +88,7 @@ export function NewTripSkeleton() {
                 }} />
                 <Skel w={34} h={34} r={999} delay={0.15} style={{
                   background: "rgba(56,189,248,0.12)",
-                  border: "1px solid rgba(56,189,248,0.2)",
+                  border: "1px solid var(--roam-info)",
                 }} />
               </div>
             </div>
@@ -116,14 +116,14 @@ export function NewTripSkeleton() {
                     style={{
                       width: 32,
                       height: 32,
-                      borderRadius: 16,
+                      borderRadius: "var(--r-card)",
                       background: "var(--roam-surface)",
                       flexShrink: 0,
                     }}
                   />
                   <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-                    <div style={{ height: 14, borderRadius: 6, background: "var(--roam-surface)", width: i === 0 ? "40%" : "55%" }} />
-                    <div style={{ height: 11, borderRadius: 6, background: "var(--roam-surface)", width: "65%" }} />
+                    <div style={{ height: 14, borderRadius: "var(--r-card)", background: "var(--roam-surface)", width: i === 0 ? "40%" : "55%" }} />
+                    <div style={{ height: 11, borderRadius: "var(--r-card)", background: "var(--roam-surface)", width: "65%" }} />
                   </div>
                 </div>
               ))}

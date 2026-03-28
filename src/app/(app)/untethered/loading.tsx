@@ -43,7 +43,7 @@ export default function UntetheredLoading() {
           style={{
             width: 260,
             height: 34,
-            borderRadius: 10,
+            borderRadius: "var(--r-card)",
             background: "rgba(255,255,255,0.15)",
             animation: "unt-skel-pulse 1.6s ease-in-out infinite 0.1s",
           }}
@@ -53,7 +53,7 @@ export default function UntetheredLoading() {
           style={{
             width: 220,
             height: 14,
-            borderRadius: 6,
+            borderRadius: "var(--r-card)",
             background: "rgba(255,255,255,0.12)",
             animation: "unt-skel-pulse 1.6s ease-in-out infinite 0.15s",
           }}
@@ -79,14 +79,14 @@ export default function UntetheredLoading() {
               style={{
                 width: 44,
                 height: 44,
-                borderRadius: 12,
+                borderRadius: "var(--r-card)",
                 background: "var(--roam-surface-hover)",
                 flexShrink: 0,
               }}
             />
             <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-              <div style={{ height: 14, borderRadius: 6, background: "var(--roam-surface-hover)", width: "50%" }} />
-              <div style={{ height: 11, borderRadius: 6, background: "var(--roam-surface-hover)", width: "80%" }} />
+              <div style={{ height: 14, borderRadius: "var(--r-card)", background: "var(--roam-surface-hover)", width: "50%" }} />
+              <div style={{ height: 11, borderRadius: "var(--r-card)", background: "var(--roam-surface-hover)", width: "80%" }} />
             </div>
           </div>
         ))}
@@ -97,7 +97,7 @@ export default function UntetheredLoading() {
             marginTop: 8,
             width: "100%",
             height: 56,
-            borderRadius: 16,
+            borderRadius: "var(--r-card)",
             background: "linear-gradient(135deg, #b5452e 0%, #d98a5c 100%)",
             opacity: 0.3,
             animation: "unt-skel-pulse 1.6s ease-in-out infinite 0.3s",

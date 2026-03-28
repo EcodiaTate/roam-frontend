@@ -893,7 +893,7 @@ export function StalenessBar({
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: 6,
-      padding: "5px 10px", borderRadius: 8,
+      padding: "5px 10px", borderRadius: "var(--r-card)",
       background: worst.level === "expired" ? "var(--danger-tint)" : worst.level === "stale" ? "var(--severity-minor-tint)" : "transparent",
     }}>
       <Clock size={11} color={worst.color} strokeWidth={2.5} />
@@ -932,7 +932,7 @@ export function AlertFiltersBar({
           onClick={onToggleHideBehind}
           style={{
             display: "flex", alignItems: "center", gap: 4,
-            padding: "4px 10px", borderRadius: 8, border: "none",
+            padding: "4px 10px", borderRadius: "var(--r-card)", border: "none",
             background: hideBehind ? "var(--info-tint)" : "var(--roam-surface-hover)",
             color: hideBehind ? "var(--roam-info)" : "var(--roam-text-muted)",
             fontSize: 10, fontWeight: 900, cursor: "pointer",
@@ -946,7 +946,7 @@ export function AlertFiltersBar({
       {dismissedCount > 0 && (
         <span style={{
           fontSize: 10, fontWeight: 800, color: "var(--roam-text-muted)",
-          padding: "4px 8px", borderRadius: 6, background: "var(--roam-surface-hover)",
+          padding: "4px 8px", borderRadius: "var(--r-card)", background: "var(--roam-surface-hover)",
         }}>
           {dismissedCount} dismissed
         </span>
@@ -982,7 +982,7 @@ export function RouteBlockedBanner({
         }
       }}
       style={{
-        padding: "12px 14px", borderRadius: 16, cursor: "pointer",
+        padding: "12px 14px", borderRadius: "var(--r-card)", cursor: "pointer",
         background: "var(--danger-tint)",
         border: "2px solid var(--roam-border-strong)",
         boxShadow: "var(--shadow-soft)",
@@ -991,7 +991,7 @@ export function RouteBlockedBanner({
     >
       <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
         <div style={{
-          width: 40, height: 40, borderRadius: 12,
+          width: 40, height: 40, borderRadius: "var(--r-card)",
           background: "var(--danger-tint)", border: "2px solid var(--roam-border-strong)",
           display: "grid", placeItems: "center", flexShrink: 0,
           animation: "roam-pulse-glow 2s ease-in-out infinite",
@@ -1018,7 +1018,7 @@ export function RouteBlockedBanner({
               type="button"
               onClick={(e) => { e.stopPropagation(); haptic.medium(); onRebuildRequested(); }}
               style={{
-                marginTop: 8, padding: "7px 14px", borderRadius: 10,
+                marginTop: 8, padding: "7px 14px", borderRadius: "var(--r-card)",
                 border: "none", cursor: "pointer",
                 background: "var(--roam-danger)", color: "var(--on-color)",
                 fontSize: 11, fontWeight: 950, letterSpacing: "0.2px",
@@ -1149,7 +1149,7 @@ export function AlertCard({
                     <span style={{
                       fontSize: 9, fontWeight: 950, color: alert.sevColor,
                       background: `color-mix(in srgb, ${alert.sevColor} 12%, transparent)`,
-                      padding: "2px 6px", borderRadius: 6,
+                      padding: "2px 6px", borderRadius: "var(--r-card)",
                       textTransform: "uppercase", letterSpacing: "0.5px", flexShrink: 0,
                     }}>
                       {alert.sevLabel}
@@ -1157,7 +1157,7 @@ export function AlertCard({
                     {(alert.routeImpact === "blocks_route" || alert.routeImpact === "affects_route") && (
                       <span style={{
                         fontSize: 9, fontWeight: 950, color: impactCfg.color,
-                        background: impactCfg.bg, padding: "2px 6px", borderRadius: 6,
+                        background: impactCfg.bg, padding: "2px 6px", borderRadius: "var(--r-card)",
                         textTransform: "uppercase", letterSpacing: "0.5px", flexShrink: 0,
                       }}>
                         {impactCfg.label}
@@ -1223,7 +1223,7 @@ export function AlertCard({
             <div
               onClick={(e) => { e.stopPropagation(); onDismiss(alert.id); }}
               style={{
-                width: 18, height: 18, borderRadius: 9,
+                width: 18, height: 18, borderRadius: "var(--r-card)",
                 background: "var(--roam-surface-hover)",
                 display: "grid", placeItems: "center", cursor: "pointer",
                 transition: "background 0.12s ease",
@@ -1234,7 +1234,7 @@ export function AlertCard({
           )}
           {alert.coord && !compact && (
             <div style={{
-              width: 7, height: 7, borderRadius: 7,
+              width: 7, height: 7, borderRadius: "var(--r-card)",
               background: highlighted ? (isBlocker ? "var(--roam-danger)" : alert.sevColor) : `color-mix(in srgb, ${isBlocker ? "var(--roam-danger)" : alert.sevColor} 35%, transparent)`,
               transition: "background 0.2s ease",
               boxShadow: highlighted ? `0 0 6px ${isBlocker ? "var(--roam-danger)" : alert.sevColor}` : "none",
@@ -1307,13 +1307,13 @@ export function NextAlertBanner({
         <AlertCard alert={next} highlighted={highlighted === next.id} onHighlight={onHighlight} onDismiss={onDismiss} />
       ) : !next && blockers.length === 0 && totalCount > 0 ? (
         <div style={{
-          padding: "10px 14px", borderRadius: 14,
+          padding: "10px 14px", borderRadius: "var(--r-card)",
           background: highCount > 0 ? "var(--danger-tint)" : "var(--severity-minor-tint)",
           border: `1px solid var(--roam-border-strong)`,
           display: "flex", alignItems: "center", gap: 10,
         }}>
           <div style={{
-            width: 30, height: 30, borderRadius: 10,
+            width: 30, height: 30, borderRadius: "var(--r-card)",
             background: highCount > 0 ? "var(--danger-tint)" : "var(--severity-minor-tint)",
             border: `1px solid var(--roam-border)`,
             display: "grid", placeItems: "center", flexShrink: 0,
@@ -1348,7 +1348,7 @@ export function NextAlertBanner({
           type="button"
           onClick={() => { haptic.selection(); setShowAll((v) => !v); }}
           style={{
-            padding: "7px 12px", borderRadius: 10, border: "none",
+            padding: "7px 12px", borderRadius: "var(--r-card)", border: "none",
             background: "var(--roam-surface-hover)", color: "var(--roam-text-muted)",
             fontSize: 11, fontWeight: 900, cursor: "pointer",
             display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
@@ -1418,7 +1418,7 @@ export function LegAlertStrip({
       <div
         onClick={() => { haptic.selection(); setExpanded((v) => !v); }}
         style={{
-          padding: "8px 12px", borderRadius: 11, cursor: "pointer",
+          padding: "8px 12px", borderRadius: "var(--r-card)", cursor: "pointer",
           background: hasBlocker ? "var(--danger-tint)" : worst.sevBg,
           border: `1.5px solid color-mix(in srgb, ${displayColor} 20%, transparent)`,
           display: "flex", alignItems: "center", gap: 8, transition: "all 0.12s ease",

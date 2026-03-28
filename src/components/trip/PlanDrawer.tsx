@@ -178,7 +178,7 @@ function InlineRename({
           color: "var(--roam-text)",
           background: "var(--roam-surface-raised, var(--roam-surface))",
           border: "1.5px solid var(--brand-sky)",
-          borderRadius: 8,
+          borderRadius: "var(--r-card)",
           padding: "6px 10px",
           outline: "none",
           minWidth: 0,
@@ -195,7 +195,7 @@ function InlineRename({
           justifyContent: "center",
           width: 44,
           height: 44,
-          borderRadius: 10,
+          borderRadius: "var(--r-card)",
           background: "var(--roam-accent)",
           color: "var(--on-color)",
           flexShrink: 0,
@@ -216,7 +216,7 @@ function InlineRename({
           justifyContent: "center",
           width: 44,
           height: 44,
-          borderRadius: 10,
+          borderRadius: "var(--r-card)",
           background: "var(--roam-surface)",
           border: "1px solid var(--roam-border)",
           color: "var(--roam-text-muted)",
@@ -291,7 +291,7 @@ function PlanCard({
     <div
       style={{
         background: "var(--roam-card-bg, var(--roam-surface))",
-        borderRadius: 16,
+        borderRadius: "var(--r-card)",
         border: isCurrent
           ? "2px solid var(--brand-sky)"
           : "1px solid var(--roam-border)",
@@ -855,7 +855,7 @@ export function PlanDrawer({
                 justifyContent: "center",
                 width: 44,
                 height: 44,
-                borderRadius: 12,
+                borderRadius: "var(--r-card)",
                 background: "var(--roam-surface-hover)",
                 color: "var(--roam-text)",
                 WebkitTapHighlightColor: "transparent",
@@ -881,7 +881,7 @@ export function PlanDrawer({
                 justifyContent: "center",
                 gap: 6,
                 height: 48,
-                borderRadius: 12,
+                borderRadius: "var(--r-card)",
                 background: "var(--roam-surface-hover)",
                 border: "1px solid var(--roam-border)",
                 color: "var(--roam-text)",
@@ -907,10 +907,10 @@ export function PlanDrawer({
                   justifyContent: "center",
                   gap: 6,
                   height: 48,
-                  borderRadius: 12,
+                  borderRadius: "var(--r-card)",
                   background: "var(--roam-surface-hover)",
-                  border: "1px solid var(--brand-sky, #38bdf8)",
-                  color: "var(--brand-sky, #38bdf8)",
+                  border: "1px solid var(--brand-sky)",
+                  color: "var(--brand-sky)",
                   fontSize: isSimple ? 15 : 13,
                   fontWeight: 700,
                   touchAction: "manipulation",
@@ -937,7 +937,7 @@ export function PlanDrawer({
                 justifyContent: "center",
                 gap: 6,
                 height: isSimple ? 54 : 48,
-                borderRadius: 12,
+                borderRadius: "var(--r-card)",
                 background: "var(--roam-accent)",
                 color: "var(--on-color)",
                 fontSize: isSimple ? 15 : 13,
@@ -1029,7 +1029,7 @@ export function PlanDrawer({
                 justifyContent: "space-between",
                 padding: "10px 12px",
                 marginTop: 8,
-                borderRadius: 12,
+                borderRadius: "var(--r-card)",
                 background: "var(--roam-surface-raised, var(--roam-surface))",
                 border: "1px solid var(--roam-border)",
               }}
@@ -1055,7 +1055,7 @@ export function PlanDrawer({
                   cursor: "pointer",
                   width: 50,
                   height: 30,
-                  borderRadius: 15,
+                  borderRadius: "var(--r-card)",
                   padding: 0,
                   background: memPromptsOn
                     ? "var(--brand-eucalypt, #2d6e40)"
@@ -1078,7 +1078,7 @@ export function PlanDrawer({
                     width: 24,
                     height: 24,
                     borderRadius: "50%",
-                    background: "#fff",
+                    background: "var(--roam-surface)",
                     boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
                     transition: "left 0.2s cubic-bezier(0.4,0,0.2,1)",
                   }}
@@ -1094,7 +1094,7 @@ export function PlanDrawer({
                 justifyContent: "space-between",
                 padding: "10px 12px",
                 marginTop: 8,
-                borderRadius: 12,
+                borderRadius: "var(--r-card)",
                 background: "var(--roam-surface-raised, var(--roam-surface))",
                 border: "1px solid var(--roam-border)",
               }}
@@ -1118,7 +1118,7 @@ export function PlanDrawer({
                   cursor: "pointer",
                   width: 50,
                   height: 30,
-                  borderRadius: 15,
+                  borderRadius: "var(--r-card)",
                   padding: 0,
                   background: isSimple
                     ? "var(--brand-eucalypt, #2d6e40)"
@@ -1141,7 +1141,7 @@ export function PlanDrawer({
                     width: 24,
                     height: 24,
                     borderRadius: "50%",
-                    background: "#fff",
+                    background: "var(--roam-surface)",
                     boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
                     transition: "left 0.2s cubic-bezier(0.4,0,0.2,1)",
                   }}

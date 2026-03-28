@@ -223,7 +223,7 @@ function SelectedPlaceCard({
           gap: 5,
           padding: "10px 12px",
           minHeight: 44,
-          borderRadius: 10,
+          borderRadius: "var(--r-card)",
           border: "none",
           background: "var(--roam-accent)",
           color: "var(--on-color)",
@@ -244,7 +244,7 @@ function SelectedPlaceCard({
         style={{
           background: "var(--roam-surface-hover)",
           border: "none",
-          borderRadius: 10,
+          borderRadius: "var(--r-card)",
           width: 40,
           height: 40,
           display: "grid",

@@ -227,7 +227,7 @@ const NAV_STYLES = `
   flex-direction: column;
   padding: 8px 24px 24px;
   max-width: 1100px; margin: 0 auto;
-  border-top: 1px solid rgba(232, 221, 208, 0.08);
+  border-top: 2px solid rgba(232, 221, 208, 0.06);
 }
 .rl-nav-mobile-link {
   display: block;
@@ -236,7 +236,7 @@ const NAV_STYLES = `
   font-weight: 600; font-size: 16px;
   color: rgba(232, 221, 208, 0.5);
   text-decoration: none;
-  border-bottom: 1px solid rgba(232, 221, 208, 0.08);
+  border-bottom: 2px solid rgba(232, 221, 208, 0.06);
   transition: color 0.2s;
 }
 .rl-nav-mobile-link:hover { color: #e8ddd0; }
@@ -244,7 +244,7 @@ const NAV_STYLES = `
   display: inline-flex; align-items: center; gap: 8px;
   margin-top: 20px;
   background: #d4845a; color: #ffffff;
-  padding: 14px 28px; border-radius: 14px;
+  padding: 14px 28px; border-radius: var(--r-card);
   font-family: 'Bricolage Grotesque', sans-serif;
   font-weight: 800; font-size: 15px;
   text-decoration: none;

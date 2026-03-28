@@ -46,19 +46,19 @@ const LEVEL_STYLES: Record<PressureLevel, {
     bg: "linear-gradient(160deg, rgba(45,110,64,0.95) 0%, rgba(31,82,54,0.98) 100%)",
     text: "var(--on-color)",
     icon: "var(--on-color)",
-    border: "1px solid rgba(45,110,64,0.35)",
+    border: "1px solid var(--roam-success)",
   },
   warn: {
     bg: "linear-gradient(160deg, rgba(184,135,42,0.95) 0%, rgba(148,107,30,0.98) 100%)",
     text: "var(--on-color)",
     icon: "var(--on-color)",
-    border: "1px solid rgba(184,135,42,0.35)",
+    border: "1px solid var(--roam-warn)",
   },
   critical: {
     bg: "linear-gradient(160deg, rgba(181,69,46,0.95) 0%, rgba(145,50,30,0.98) 100%)",
     text: "var(--on-color)",
     icon: "var(--on-color)",
-    border: "1px solid rgba(181,69,46,0.35)",
+    border: "1px solid var(--roam-danger)",
   },
 };
 

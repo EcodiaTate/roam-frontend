@@ -433,7 +433,7 @@ export function TripSuggestionsPanel(props: {
                     style={{
                       width: 30,
                       height: 30,
-                      borderRadius: 8,
+                      borderRadius: "var(--r-card)",
                       background: "var(--roam-surface-hover)",
                       display: "grid",
                       placeItems: "center",

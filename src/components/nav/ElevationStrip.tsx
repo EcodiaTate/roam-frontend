@@ -240,7 +240,7 @@ export const ElevationStrip = memo(function ElevationStrip({
           <span style={{ fontSize: 10, fontWeight: 700, color: "var(--brand-eucalypt)" }}>
             ↑{Math.round(profile.total_ascent_m)}m
           </span>
-          <span style={{ fontSize: 10, fontWeight: 700, color: "#ef4444" }}>
+          <span style={{ fontSize: 10, fontWeight: 700, color: "var(--roam-danger)" }}>
             ↓{Math.round(profile.total_descent_m)}m
           </span>
           {isCollapsed
@@ -391,7 +391,7 @@ export const ElevationStrip = memo(function ElevationStrip({
               top: 4,
               left: `clamp(4px, calc(${(hoverData.x / VB_W) * 100}% - 36px), calc(100% - 76px))`,
               background: "color-mix(in srgb, var(--roam-surface) 95%, transparent)",
-              borderRadius: 6,
+              borderRadius: "var(--r-card)",
               padding: "3px 7px",
               fontSize: 10,
               fontWeight: 700,

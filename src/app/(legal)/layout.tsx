@@ -30,8 +30,7 @@ const styles: Record<string, React.CSSProperties> = {
     WebkitOverflowScrolling: "touch",
     background: "var(--bg-sand)",
     color: "var(--text-main)",
-    fontFamily:
-      '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
+    fontFamily: "var(--ff-body)",
     display: "flex",
     flexDirection: "column",
   },

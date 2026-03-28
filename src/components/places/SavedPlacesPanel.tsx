@@ -56,7 +56,7 @@ function NoteEditor({
           width: "100%",
           background: "var(--roam-surface-hover)",
           border: "none",
-          borderRadius: 10,
+          borderRadius: "var(--r-card)",
           padding: "8px 12px",
           fontSize: 14,
           color: "var(--roam-text)",
@@ -75,7 +75,7 @@ function NoteEditor({
           style={{
             background: "var(--roam-surface-hover)",
             border: "none",
-            borderRadius: 8,
+            borderRadius: "var(--r-card)",
             padding: "10px 14px",
             minHeight: 44,
             fontSize: 13,
@@ -97,7 +97,7 @@ function NoteEditor({
           style={{
             background: "var(--roam-accent)",
             border: "none",
-            borderRadius: 8,
+            borderRadius: "var(--r-card)",
             padding: "10px 14px",
             minHeight: 44,
             fontSize: 13,
@@ -170,7 +170,7 @@ function SavedRow({
           style={{
             width: 36,
             height: 36,
-            borderRadius: 10,
+            borderRadius: "var(--r-card)",
             background: "var(--roam-surface-hover)",
             display: "grid",
             placeItems: "center",
@@ -220,7 +220,7 @@ function SavedRow({
               color: "var(--roam-accent)",
               flexShrink: 0,
               padding: "3px 8px",
-              borderRadius: 6,
+              borderRadius: "var(--r-card)",
               background: "var(--accent-tint)",
             }}
           >
@@ -375,7 +375,7 @@ export function SavedPlacesPanel({
             alignItems: "center",
             gap: 8,
             background: "var(--roam-surface-hover)",
-            borderRadius: 12,
+            borderRadius: "var(--r-card)",
             padding: "8px 12px",
           }}
         >

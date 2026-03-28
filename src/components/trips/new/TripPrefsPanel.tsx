@@ -23,7 +23,7 @@ type GroupMeta = {
 };
 
 const GROUPS: GroupMeta[] = [
-  { key: "essentials",     label: "Essentials",     Icon: Fuel,         color: "#ef4444" },
+  { key: "essentials",     label: "Essentials",     Icon: Fuel,         color: "var(--roam-danger)" },
   { key: "food",           label: "Food & Drink",   Icon: Utensils,     color: "#f59e0b" },
   { key: "accommodation",  label: "Accommodation",  Icon: Tent,         color: "#8b5cf6" },
   { key: "nature",         label: "Nature",         Icon: TreePine,     color: "#22c55e" },
@@ -105,7 +105,7 @@ export function TripPrefsPanel({
           style={{
             width: 28,
             height: 28,
-            borderRadius: 8,
+            borderRadius: "var(--r-card)",
             display: "grid",
             placeItems: "center",
             background: "rgba(59,130,246,0.10)",
@@ -253,7 +253,7 @@ export function TripPrefsPanel({
                       padding: "10px 10px",
                       minHeight: 44,
                       boxSizing: "border-box",
-                      borderRadius: 12,
+                      borderRadius: "var(--r-card)",
                       border: `1.5px solid ${on ? `${color}40` : "var(--roam-border)"}`,
                       background: on ? `${color}0A` : "transparent",
                       opacity: on ? 1 : 0.5,

@@ -56,7 +56,7 @@ export default function PlacesLoading() {
               style={{
                 width: 36,
                 height: 36,
-                borderRadius: 12,
+                borderRadius: "var(--r-card)",
                 background: "var(--roam-surface-hover)",
                 flexShrink: 0,
               }}
@@ -65,7 +65,7 @@ export default function PlacesLoading() {
               <div
                 style={{
                   height: 14,
-                  borderRadius: 6,
+                  borderRadius: "var(--r-card)",
                   background: "var(--roam-surface-hover)",
                   width: i % 2 === 0 ? "55%" : "70%",
                 }}
@@ -73,7 +73,7 @@ export default function PlacesLoading() {
               <div
                 style={{
                   height: 11,
-                  borderRadius: 6,
+                  borderRadius: "var(--r-card)",
                   background: "var(--roam-surface-hover)",
                   width: "40%",
                 }}

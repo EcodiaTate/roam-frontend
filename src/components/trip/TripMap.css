@@ -4,28 +4,28 @@
 
 /* ── Layer toggle button ── */
 .layer-toggle-btn {
-  width: 46px; height: 46px; border-radius: 16px;
-  border: 1px solid rgba(0,0,0,0.10);
+  width: 46px; height: 46px; border-radius: var(--r-card);
+  border: 1px solid var(--roam-border);
   cursor: pointer; display: grid; place-items: center;
   background: linear-gradient(160deg, rgba(255,255,255,0.92) 0%, rgba(244,239,230,0.96) 100%);
-  color: var(--text-main, #1a1613);
+  color: var(--text-main, #1A1A1A);
   backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.06);
+  box-shadow: var(--shadow-medium);
   transition: transform 0.1s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 .layer-toggle-btn--filtered {
   background: linear-gradient(160deg, rgba(45,110,64,0.95) 0%, rgba(31,82,54,0.98) 100%);
   color: var(--on-color);
-  border: 1px solid rgba(45,110,64,0.35);
+  border: 1px solid var(--roam-success);
   box-shadow: 0 4px 16px rgba(45,110,64,0.30), 0 1px 4px rgba(0,0,0,0.12);
 }
-@media (prefers-color-scheme: dark) {
-  .layer-toggle-btn {
-    background: linear-gradient(160deg, rgba(26,21,16,0.96) 0%, rgba(16,13,10,0.98) 100%);
-    color: var(--on-color);
-    border: 1px solid rgba(255,255,255,0.09);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.15);
-  }
+[data-theme="tactical-night"] .layer-toggle-btn {
+  background: rgba(26, 26, 26, 0.72);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  color: var(--on-color);
+  border: 1px solid var(--roam-border);
+  box-shadow: var(--shadow-medium);
 }
 
 /* ── First-time layer hint glow + tooltip ── */
@@ -37,11 +37,9 @@
   0%, 100% { box-shadow: 0 0 0 0 rgba(45,110,64,0.5), 0 4px 16px rgba(0,0,0,0.08); }
   50% { box-shadow: 0 0 0 8px rgba(45,110,64,0), 0 4px 20px rgba(45,110,64,0.25); }
 }
-@media (prefers-color-scheme: dark) {
-  .layer-toggle-btn--hint {
-    animation: layer-hint-pulse-dark 2s ease-in-out infinite;
-    border-color: rgba(74,222,128,0.4);
-  }
+[data-theme="tactical-night"] .layer-toggle-btn--hint {
+  animation: layer-hint-pulse-dark 2s ease-in-out infinite;
+  border-color: rgba(74,222,128,0.4);
 }
 @keyframes layer-hint-pulse-dark {
   0%, 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0.45), 0 4px 16px rgba(0,0,0,0.3); }
@@ -58,12 +56,12 @@
   font-weight: 700;
   letter-spacing: -0.1px;
   padding: 7px 12px;
-  border-radius: 10px;
+  border-radius: var(--r-card);
   white-space: nowrap;
   pointer-events: none;
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255,255,255,0.08);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  border: 1px solid var(--roam-border);
+  box-shadow: var(--shadow-medium);
   animation: layer-hint-fade-in 0.4s ease-out;
 }
 .layer-hint-arrow {
@@ -73,8 +71,8 @@
   transform: translateY(-50%) rotate(45deg);
   width: 8px; height: 8px;
   background: rgba(26,22,18,0.92);
-  border-right: 1px solid rgba(255,255,255,0.08);
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  border-right: 1px solid var(--roam-border);
+  border-bottom: 1px solid var(--roam-border);
 }
 @keyframes layer-hint-fade-in {
   from { opacity: 0; transform: translateY(-50%) translateX(6px); }
@@ -90,9 +88,9 @@
   max-height: min(420px, calc(100dvh - env(safe-area-inset-top, 0px) - 56px - 180px - var(--bottom-nav-height, 80px)));
   background: linear-gradient(160deg, rgba(255,255,255,0.97) 0%, rgba(244,239,230,0.99) 100%);
   backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-  border-radius: 18px;
-  border: 1px solid rgba(0,0,0,0.08);
-  box-shadow: 0 12px 40px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.6);
+  border-radius: var(--r-card);
+  border: 1px solid var(--roam-border);
+  box-shadow: var(--shadow-heavy);
   min-width: 150px;
   display: flex; flex-direction: column;
   overflow: hidden;
@@ -117,29 +115,27 @@
   mask-image: linear-gradient(to bottom, black calc(100% - 32px), transparent 100%);
   -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 32px), transparent 100%);
 }
-@media (prefers-color-scheme: dark) {
-  .layer-menu-dropdown {
-    background: linear-gradient(160deg, rgba(26,21,16,0.97) 0%, rgba(16,13,10,0.99) 100%);
-    border: 1px solid rgba(255,255,255,0.07);
-    box-shadow: 0 12px 40px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.05);
-  }
+[data-theme="tactical-night"] .layer-menu-dropdown {
+  background: rgba(26, 26, 26, 0.80);
+  backdrop-filter: blur(20px) saturate(1.3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  border: 1px solid var(--roam-border);
+  box-shadow: var(--shadow-heavy);
 }
 
 /* ── Layer menu items ── */
 .layer-menu-item {
   display: flex; align-items: center; gap: 10px;
-  padding: 8px 12px; border-radius: 10px; border: none;
-  background: transparent; color: var(--text-main, #1a1613); cursor: pointer;
+  padding: 8px 12px; border-radius: var(--r-card); border: none;
+  background: transparent; color: var(--text-main, #1A1A1A); cursor: pointer;
   font-size: 13px; font-weight: 500; width: 100%; text-align: left;
 }
 .layer-menu-item--all {
   font-weight: 700;
-  border-bottom: 1px solid rgba(0,0,0,0.06);
+  border-bottom: 1px solid var(--roam-border);
 }
-@media (prefers-color-scheme: dark) {
-  .layer-menu-item { color: white; }
-  .layer-menu-item--all { border-bottom-color: rgba(255,255,255,0.08); }
-}
+[data-theme="tactical-night"] .layer-menu-item { color: var(--text-main); }
+[data-theme="tactical-night"] .layer-menu-item--all { border-bottom-color: rgba(255,255,255,0.08); }
 
 /* ── Layer menu checkboxes ── */
 .layer-menu-check {
@@ -150,40 +146,36 @@
   transition: background 0.15s ease;
 }
 .layer-menu-check--on {
-  background: var(--text-main, #1a1613);
+  background: var(--text-main, #1A1A1A);
   border: none;
 }
-@media (prefers-color-scheme: dark) {
-  .layer-menu-check { border-color: rgba(255,255,255,0.4); }
-  .layer-menu-check--on { background: white; }
-}
+[data-theme="tactical-night"] .layer-menu-check { border-color: rgba(255,255,255,0.4); }
+[data-theme="tactical-night"] .layer-menu-check--on { background: white; }
 
 /* ── Map style section ── */
 .layer-menu-style-section {
   padding: 8px 8px 6px;
-  border-top: 1px solid rgba(0,0,0,0.06);
+  border-top: 1px solid var(--roam-border);
   display: flex; flex-direction: column; gap: 6px;
 }
 .layer-menu-style-label {
-  font-size: 10px; font-weight: 700; color: var(--text-muted, #7a7067);
+  font-size: 10px; font-weight: 700; color: var(--text-muted, #545454);
   letter-spacing: 0.08em; padding: 0 4px;
 }
 .layer-menu-style-btn {
   flex: 1; height: 34px; border-radius: 9px; border: none;
   cursor: pointer; font-size: 12px; font-weight: 700;
   display: flex; align-items: center; justify-content: center; gap: 5px;
-  background: transparent; color: var(--text-main, #1a1613);
+  background: transparent; color: var(--text-main, #1A1A1A);
   transition: background 0.15s ease;
 }
 .layer-menu-style-btn--active {
   background: rgba(0,0,0,0.08);
 }
-@media (prefers-color-scheme: dark) {
-  .layer-menu-style-section { border-top-color: rgba(255,255,255,0.08); }
-  .layer-menu-style-label { color: rgba(255,255,255,0.4); }
-  .layer-menu-style-btn { color: white; }
-  .layer-menu-style-btn--active { background: rgba(255,255,255,0.18); }
-}
+[data-theme="tactical-night"] .layer-menu-style-section { border-top-color: rgba(255,255,255,0.08); }
+[data-theme="tactical-night"] .layer-menu-style-label { color: rgba(255,255,255,0.4); }
+[data-theme="tactical-night"] .layer-menu-style-btn { color: var(--text-main); }
+[data-theme="tactical-night"] .layer-menu-style-btn--active { background: rgba(255,255,255,0.18); }
 
 .style-theme-row {
   max-height: 0;
@@ -198,32 +190,32 @@
 .trip-map-popup .maplibregl-popup-content {
   border-radius: var(--r-card, 24px);
   padding: 16px 18px;
-  background: color-mix(in srgb, var(--roam-surface, #f4efe6) 82%, transparent);
+  background: color-mix(in srgb, var(--roam-surface, #FFFFFF) 82%, transparent);
   color: var(--roam-text);
   backdrop-filter: blur(20px) saturate(170%);
   -webkit-backdrop-filter: blur(20px) saturate(170%);
   box-shadow:
-    0 12px 40px rgba(40,32,20,0.18),
-    0 2px 8px rgba(40,32,20,0.10),
+    0 12px 40px rgba(26,26,26,0.12),
+    0 2px 8px rgba(26,26,26,0.06),
     inset 0 1px 0 rgba(255,255,255,0.35);
-  border: 1px solid rgba(255,255,255,0.18);
+  border: 1px solid var(--roam-border-strong);
 }
-@media (prefers-color-scheme: dark) {
-  .trip-map-popup .maplibregl-popup-content {
-    background: color-mix(in srgb, var(--roam-surface, #1a1a1a) 75%, transparent);
-    box-shadow:
-      0 12px 40px rgba(0,0,0,0.40),
-      0 2px 8px rgba(0,0,0,0.25),
-      inset 0 1px 0 rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.08);
-  }
+[data-theme="tactical-night"] .trip-map-popup .maplibregl-popup-content {
+  background: rgba(30, 30, 30, 0.75);
+  backdrop-filter: blur(20px) saturate(1.3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  box-shadow:
+    0 12px 40px rgba(0,0,0,0.40),
+    0 2px 8px rgba(0,0,0,0.25),
+    inset 0 1px 0 rgba(255,255,255,0.06);
+  border: 1px solid var(--roam-border);
 }
 .trip-map-popup .maplibregl-popup-close-button {
   font-size: 16px;
   font-weight: 800;
   color: var(--roam-text-muted);
   padding: 4px 8px;
-  border-radius: 10px;
+  border-radius: var(--r-card);
   transition: transform 80ms ease, background 120ms ease;
   -webkit-tap-highlight-color: transparent;
 }
@@ -235,5 +227,102 @@
   transform: scale(0.88);
 }
 .trip-map-popup .maplibregl-popup-tip {
-  border-top-color: color-mix(in srgb, var(--roam-surface, #f4efe6) 82%, transparent);
+  border-top-color: color-mix(in srgb, var(--roam-surface, #FFFFFF) 82%, transparent);
+}
+
+/* ==========================================================================
+   TERRA NOMAD — High-contrast topographic map styling
+   Simplified palette that stays legible on cached/offline tiles when zooming.
+   ========================================================================== */
+
+/* ── Map container: topo-line grid backdrop ───────────── */
+.terra-map-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Subtle topo grid shown while tiles load / on offline fallback.
+   Uses repeating-conic-gradient for a lightweight contour-line feel
+   without extra tile requests. */
+.terra-map-container::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      var(--topo-line) 0px,
+      transparent 1px,
+      transparent 40px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      var(--topo-line) 0px,
+      transparent 1px,
+      transparent 40px
+    );
+  opacity: 0.5;
+}
+
+/* Major contour lines at wider spacing */
+.terra-map-container::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      var(--topo-line-major) 0px,
+      transparent 1px,
+      transparent 200px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      var(--topo-line-major) 0px,
+      transparent 1px,
+      transparent 200px
+    );
+  opacity: 0.4;
+}
+
+/* Once MapLibre canvas loads, hide the placeholder grid */
+.terra-map-container .maplibregl-canvas {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── High-contrast map chrome overrides ──────────────── */
+/* Attribution + logo stay visible over both light and dark tiles */
+.terra-map-container .maplibregl-ctrl-attrib {
+  background: color-mix(in srgb, var(--roam-surface) 85%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 6px;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--roam-text-muted);
+}
+
+/* Zoom controls match the design language */
+.terra-map-container .maplibregl-ctrl-group button {
+  background: var(--roam-surface);
+  color: var(--roam-text);
+  border-color: var(--roam-border);
+}
+.terra-map-container .maplibregl-ctrl-group button:hover {
+  background: var(--roam-surface-hover);
+}
+[data-theme="tactical-night"] .terra-map-container .maplibregl-ctrl-group button {
+  background: var(--surface-card);
+  color: var(--text-main);
+  border-color: var(--roam-border);
+}
+[data-theme="tactical-night"] .terra-map-container .maplibregl-ctrl-group button:hover {
+  background: var(--surface-muted);
 }

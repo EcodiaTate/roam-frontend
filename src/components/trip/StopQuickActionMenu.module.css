@@ -15,8 +15,8 @@
   min-width: 160px;
   background: var(--roam-surface);
   border: 1px solid var(--roam-border);
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.22), 0 2px 8px rgba(0, 0, 0, 0.12);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-heavy);
   padding: 6px;
   display: flex;
   flex-direction: column;
@@ -59,7 +59,7 @@
   padding: 12px 12px;
   min-height: 44px;
   box-sizing: border-box;
-  border-radius: 10px;
+  border-radius: var(--r-card);
   border: none;
   background: transparent;
   color: var(--roam-text);

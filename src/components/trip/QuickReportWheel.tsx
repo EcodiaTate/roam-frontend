@@ -63,7 +63,7 @@ type Option = {
 
 const OPTIONS: Option[] = [
   { type: "hazard",         label: "Hazard",  icon: AlertTriangle, severity: "warning", color: "#f59e0b" },
-  { type: "road_closure",   label: "Closed",  icon: CircleSlash,   severity: "danger",  color: "#ef4444" },
+  { type: "road_closure",   label: "Closed",  icon: CircleSlash,   severity: "danger",  color: "var(--roam-danger)" },
   { type: "road_condition",  label: "Road",    icon: Construction,  severity: "caution", color: "#f97316" },
   { type: "speed_trap",     label: "Speed",   icon: Camera,        severity: "caution", color: "#a855f7" },
   { type: "weather",        label: "Weather", icon: CloudRain,     severity: "caution", color: "#3b82f6" },
@@ -320,7 +320,7 @@ const styles = /* css */ `
   .qr-fab {
     width: 48px;
     height: 48px;
-    border-radius: 14px;
+    border-radius: var(--r-card);
     border: none;
     cursor: pointer;
     display: grid;
@@ -342,12 +342,12 @@ const styles = /* css */ `
   .qr-fab:active { transform: scale(0.9); }
   .qr-fab.open {
     background: rgba(235, 230, 220, 0.95);
-    border-radius: 14px;
+    border-radius: var(--r-card);
   }
   .qr-fab.done {
     animation: qr-fab-confirm 0.6s ease;
   }
-  @media (prefers-color-scheme: dark) {
+  [data-theme="tactical-night"] {
     .qr-fab {
       background: rgba(30, 30, 30, 0.88);
       color: rgba(255, 255, 255, 0.9);
@@ -360,7 +360,7 @@ const styles = /* css */ `
 
   /* ── Tray ── */
   .qr-tray {
-    border-radius: 18px;
+    border-radius: var(--r-card);
     background: rgba(255, 255, 255, 0.92);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
@@ -377,7 +377,7 @@ const styles = /* css */ `
     position: relative;
     z-index: 1;
   }
-  @media (prefers-color-scheme: dark) {
+  [data-theme="tactical-night"] {
     .qr-tray {
       background: rgba(22, 22, 22, 0.92);
       box-shadow:
@@ -407,7 +407,7 @@ const styles = /* css */ `
     gap: 4px;
     padding: 8px 4px 6px;
     border: none;
-    border-radius: 14px;
+    border-radius: var(--r-card);
     cursor: pointer;
     background: transparent;
     touch-action: none;
@@ -423,7 +423,7 @@ const styles = /* css */ `
   .qr-item.hot {
     background: color-mix(in srgb, var(--c) 15%, transparent);
   }
-  @media (prefers-color-scheme: dark) {
+  [data-theme="tactical-night"] {
     .qr-item:active { background: rgba(255,255,255,0.06); }
   }
 
@@ -454,7 +454,7 @@ const styles = /* css */ `
     animation: qr-chosen-pop 0.3s cubic-bezier(0.34,1.56,0.64,1), qr-ring 0.5s ease 0.1s both;
   }
 
-  @media (prefers-color-scheme: dark) {
+  [data-theme="tactical-night"] {
     .qr-item-icon { background: rgba(255,255,255,0.07); }
   }
 

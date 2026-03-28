@@ -234,13 +234,13 @@ export function PaywallModal({ open, onClose, onUnlocked, variant = "gate" }: Pr
           <div style={{
             position: "absolute", top: -60, right: -60,
             width: 200, height: 200, borderRadius: "50%",
-            border: "1px solid rgba(255,255,255,0.08)",
+            border: "1px solid var(--roam-border)",
             pointerEvents: "none",
           }} />
           <div style={{
             position: "absolute", top: -30, right: -30,
             width: 130, height: 130, borderRadius: "50%",
-            border: "1px solid rgba(255,255,255,0.10)",
+            border: "1px solid var(--roam-border)",
             pointerEvents: "none",
           }} />
 
@@ -281,7 +281,7 @@ export function PaywallModal({ open, onClose, onUnlocked, variant = "gate" }: Pr
           <h1 style={{
             margin: "0 0 8px",
             fontSize: 26, fontWeight: 900,
-            color: "#fff",
+            color: "var(--on-color)",
             lineHeight: 1.2,
           }}>
             {HERO_COPY[variant].heading}
@@ -308,12 +308,12 @@ export function PaywallModal({ open, onClose, onUnlocked, variant = "gate" }: Pr
                 style={{
                   display: "flex", alignItems: "flex-start", gap: 14,
                   padding: "10px 0",
-                  borderBottom: "1px solid var(--roam-border, rgba(26,22,19,0.08))",
+                  borderBottom: "1px solid var(--roam-border)",
                 }}
               >
                 <div style={{
                   width: 36, height: 36, flexShrink: 0,
-                  borderRadius: 10,
+                  borderRadius: "var(--r-card)",
                   background: "rgba(181, 69, 46, 0.08)",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: 16, color: "var(--brand-ochre, #b5452e)",
@@ -412,7 +412,7 @@ export function PaywallModal({ open, onClose, onUnlocked, variant = "gate" }: Pr
             <div style={{
               marginTop: 10,
               padding: "10px 14px",
-              borderRadius: 10,
+              borderRadius: "var(--r-card)",
               background: "var(--bg-error, #fae5e2)",
               color: "var(--text-error, #922018)",
               fontSize: 13, fontWeight: 600,

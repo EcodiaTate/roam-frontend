@@ -91,7 +91,7 @@ export const NavigationBar = memo(function NavigationBar({ nav, fuelTracking, vi
           paddingRight: pad,
           borderRadius: h / 2,
           background: BAR_BG,
-          boxShadow: "0 4px 24px rgba(0,0,0,0.25), 0 1px 4px rgba(0,0,0,0.12)",
+          boxShadow: "var(--shadow-heavy)",
         }}
       >
         {/* Left content */}
@@ -114,7 +114,7 @@ export const NavigationBar = memo(function NavigationBar({ nav, fuelTracking, vi
               letterSpacing: "-0.6px",
               lineHeight: 1,
               fontVariantNumeric: "tabular-nums",
-              color: "#faf6ef",
+              color: "var(--roam-text)",
               flexShrink: 0,
             }}>
               {primaryDist}

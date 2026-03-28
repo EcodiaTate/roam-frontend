@@ -28,7 +28,7 @@ const toastCard: React.CSSProperties = {
   background: "var(--brand-ochre)",
   backdropFilter: "blur(16px)",
   WebkitBackdropFilter: "blur(16px)",
-  borderRadius: 16,
+  borderRadius: "var(--r-card)",
   padding: "14px 16px",
   display: "flex",
   alignItems: "flex-start",
@@ -40,7 +40,7 @@ const toastCard: React.CSSProperties = {
 const toastIcon: React.CSSProperties = {
   flexShrink: 0,
   marginTop: 1,
-  color: "#fff",
+  color: "var(--on-color)",
 };
 
 const toastContent: React.CSSProperties = {
@@ -51,7 +51,7 @@ const toastContent: React.CSSProperties = {
 const toastTitle: React.CSSProperties = {
   fontSize: 14,
   fontWeight: 950,
-  color: "#fff",
+  color: "var(--on-color)",
   letterSpacing: "-0.3px",
 };
 
@@ -66,11 +66,11 @@ const toastSub: React.CSSProperties = {
 const dismissBtn: React.CSSProperties = {
   background: "rgba(255,255,255,0.15)",
   border: "none",
-  borderRadius: 8,
+  borderRadius: "var(--r-card)",
   padding: "6px 12px",
   fontSize: 12,
   fontWeight: 900,
-  color: "#fff",
+  color: "var(--on-color)",
   cursor: "pointer",
   display: "inline-flex",
   alignItems: "center",

@@ -175,7 +175,7 @@ const S: Record<string, React.CSSProperties> = {
     width: "fit-content",
     alignItems: "center",
     gap: 8,
-    borderRadius: 16,
+    borderRadius: "var(--r-card)",
     background: "var(--roam-success)",
     padding: "10px 16px",
     fontSize: 14,
@@ -188,7 +188,7 @@ const S: Record<string, React.CSSProperties> = {
   chipOuter: {
     width: "fit-content",
     overflow: "hidden",
-    borderRadius: 16,
+    borderRadius: "var(--r-card)",
     background: "var(--surface-raised)",
     boxShadow: "var(--shadow-medium)",
     backdropFilter: "blur(12px)",

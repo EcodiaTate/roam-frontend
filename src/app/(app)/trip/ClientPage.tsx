@@ -744,7 +744,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       map.easeTo({ center: target, zoom: Math.max(map.getZoom(), 15), duration: 500 });
 
       // Place a draggable marker
-      const marker = new maplibregl.Marker({ color: "#4a6c53", draggable: true })
+      const marker = new maplibregl.Marker({ color: "var(--brand-eucalypt)", draggable: true })
         .setLngLat(target)
         .addTo(map);
       reportMarkerRef.current = marker;
@@ -1999,11 +1999,11 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
             background: "rgba(0,0,0,0.8)",
             backdropFilter: "blur(8px)",
             WebkitBackdropFilter: "blur(8px)",
-            color: "#fff",
+            color: "var(--on-color)",
             fontSize: 13,
             fontWeight: 600,
             padding: "8px 16px",
-            borderRadius: 20,
+            borderRadius: "var(--r-card)",
             whiteSpace: "nowrap",
             pointerEvents: "none",
           }}
@@ -2024,17 +2024,17 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
             background: "var(--brand-eucalypt, #2d6e40)",
             backdropFilter: "blur(8px)",
             WebkitBackdropFilter: "blur(8px)",
-            color: "#fff",
+            color: "var(--on-color)",
             fontSize: 13,
             fontWeight: 700,
             padding: "8px 16px",
-            borderRadius: 20,
+            borderRadius: "var(--r-card)",
             whiteSpace: "nowrap",
             pointerEvents: "none",
             display: "flex",
             alignItems: "center",
             gap: 6,
-            boxShadow: "0 4px 16px rgba(0,0,0,0.25)",
+            boxShadow: "var(--shadow-heavy)",
             animation: "roam-fadeIn 0.2s ease",
           }}
         >
@@ -2075,7 +2075,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
             style={{
               position: "relative",
               width: 46, height: 46,
-              borderRadius: 16,
+              borderRadius: "var(--r-card)",
               display: "grid",
               placeItems: "center",
               cursor: "pointer",
@@ -2093,16 +2093,16 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
                 position: "absolute",
                 top: -4, right: -4,
                 minWidth: 18, height: 18,
-                borderRadius: 9,
+                borderRadius: "var(--r-card)",
                 background: "var(--brand-eucalypt, #2d6e40)",
-                color: "#fff",
+                color: "var(--on-color)",
                 fontSize: 11,
                 fontWeight: 800,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 padding: "0 4px",
-                boxShadow: "0 2px 6px rgba(0,0,0,0.25)",
+                boxShadow: "var(--shadow-medium)",
                 lineHeight: 1,
               }}>
                 {nearbyRoamers.length}
@@ -2117,7 +2117,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
             aria-label="Report road condition"
             style={{
               width: 46, height: 46,
-              borderRadius: 16,
+              borderRadius: "var(--r-card)",
               display: "grid",
               placeItems: "center",
               cursor: "pointer",
@@ -2183,9 +2183,9 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
             right: 16,
             zIndex: 200,
             background: "var(--roam-surface)",
-            borderRadius: 12,
+            borderRadius: "var(--r-card)",
             padding: "12px 16px",
-            boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
+            boxShadow: "var(--shadow-heavy)",
             display: "flex",
             alignItems: "center",
             gap: 12,
@@ -2289,7 +2289,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
               width: "100%",
               maxWidth: 360,
               background: "var(--surface-card, #f4efe6)",
-              borderRadius: 20,
+              borderRadius: "var(--r-card)",
               overflow: "hidden",
               textAlign: "center",
             }}
@@ -2421,7 +2421,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
                 aria-label="Plans"
                 onClick={() => { haptic.selection(); setPlansDot(false); setDrawOpen(true); }}
                 style={{
-                  borderRadius: 10,
+                  borderRadius: "var(--r-card)",
                   height: 40,
                   ...(isSimple
                     ? { display: "flex", alignItems: "center", gap: 6, padding: "0 14px 0 12px" }
@@ -2462,7 +2462,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
                   aria-label="Invite"
                   onClick={() => { haptic.selection(); setInviteMode("create"); setInviteOpen(true); }}
                   style={{
-                    borderRadius: 10, width: 40, height: 40,
+                    borderRadius: "var(--r-card)", width: 40, height: 40,
                     display: "grid", placeItems: "center",
                     background: "var(--roam-text, #1a1613)", color: "var(--roam-surface, #f4efe6)",
                     border: "none",
@@ -2500,7 +2500,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
                     });
                   }}
                   style={{
-                    borderRadius: 10, width: 40, height: 40,
+                    borderRadius: "var(--r-card)", width: 40, height: 40,
                     display: "grid", placeItems: "center",
                     background: "var(--roam-text, #1a1613)", color: "var(--roam-surface, #f4efe6)",
                     border: "none",
@@ -2521,9 +2521,9 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
                     position: "relative",
                     display: "flex", alignItems: "center", gap: 4,
                     background: "linear-gradient(135deg, #122d1e 0%, var(--brand-eucalypt-dark, #1f5236) 40%, var(--brand-eucalypt, #2d6e40) 80%, #3d8f54 100%)",
-                    borderRadius: 10, padding: "0 12px",
-                    height: 40, border: "1px solid rgba(255,255,255,0.12)", cursor: "pointer",
-                    boxShadow: "0 2px 10px rgba(31,82,54,0.40), inset 0 1px 0 rgba(255,255,255,0.10)",
+                    borderRadius: "var(--r-card)", padding: "0 12px",
+                    height: 40, border: "1px solid var(--roam-border)", cursor: "pointer",
+                    boxShadow: "var(--shadow-medium)",
                     overflow: "hidden",
                     WebkitTapHighlightColor: "transparent",
                   }}
@@ -2533,7 +2533,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
                     background: "linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.10) 50%, transparent 70%)",
                     borderRadius: "inherit", pointerEvents: "none",
                   }} />
-                  <span style={{ fontSize: 10, fontWeight: 800, color: "#fff", letterSpacing: "0.06em", textTransform: "uppercase", position: "relative" }}>
+                  <span style={{ fontSize: 10, fontWeight: 800, color: "var(--on-color)", letterSpacing: "0.06em", textTransform: "uppercase", position: "relative" }}>
                     Upgrade
                   </span>
                   <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ flexShrink: 0, position: "relative" }}>
@@ -2582,9 +2582,9 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
               <div style={{
                 marginBottom: 12,
                 padding: "10px 14px",
-                borderRadius: 12,
+                borderRadius: "var(--r-card)",
                 background: "rgba(239,68,68,0.1)",
-                border: "1px solid rgba(239,68,68,0.25)",
+                border: "1px solid var(--roam-danger)",
                 display: "flex",
                 alignItems: "center",
                 gap: 10,
@@ -2594,7 +2594,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
                   <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
                 </svg>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: "#ef4444" }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: "var(--roam-danger)" }}>
                     Flood Warning on Route
                   </div>
                   <div style={{ fontSize: 11, fontWeight: 600, color: "var(--roam-text-muted)", marginTop: 2 }}>
@@ -2609,9 +2609,9 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
               <div key={`fatigue-${i}`} style={{
                 marginBottom: 8,
                 padding: "10px 14px",
-                borderRadius: 12,
+                borderRadius: "var(--r-card)",
                 background: "rgba(245,158,11,0.1)",
-                border: "1px solid rgba(245,158,11,0.2)",
+                border: "1px solid var(--roam-warn)",
                 display: "flex",
                 alignItems: "center",
                 gap: 10,
@@ -2743,16 +2743,16 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       <style>{`
         .map-fab-btn {
           background: linear-gradient(160deg, rgba(255,255,255,0.92) 0%, rgba(244,239,230,0.96) 100%);
-          color: var(--text-main, #1a1613);
-          border: 1px solid rgba(0,0,0,0.10);
-          box-shadow: 0 4px 16px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.06);
+          color: var(--roam-text);
+          border: 1px solid var(--roam-border);
+          box-shadow: var(--shadow-medium);
         }
-        @media (prefers-color-scheme: dark) {
+        [data-theme="tactical-night"] {
           .map-fab-btn {
             background: linear-gradient(160deg, rgba(26,21,16,0.96) 0%, rgba(16,13,10,0.98) 100%);
             color: var(--on-color);
-            border: 1px solid rgba(255,255,255,0.09);
-            box-shadow: 0 4px 16px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.15);
+            border: 1px solid var(--roam-border);
+            box-shadow: var(--shadow-medium);
           }
         }
       `}</style>

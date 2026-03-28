@@ -3,142 +3,63 @@
 
 /* ==========================================================================
    ROAM - Australian Road Trip Navigation
-   Design System: "Outback Native"
-
-   Palette story:
-     Sand dunes at golden hour → backgrounds
-     Sun-bleached canvas       → card surfaces
-     Eucalyptus canopy         → primary actions, success
-     Red Centre earth          → danger, SOS, active tab
-     Clear outback sky         → info, GPS, water
-     Golden hour light         → warnings, highlights
-
-   Native philosophy:
-     System fonts (SF Pro / Roboto) - this is a Capacitor app, not a website
-     Warm brown shadows - never cool gray
-     Spring physics - organic, not mechanical
-     Heavy weights - chunky, confident, readable at a glance while driving
-     Restraint - the theme is in the warmth, not in decoration
+   Design System: "Terra Nomad"
    ========================================================================== */
 
 
 /* ==========================================================================
-   1. THEME TOKENS - LIGHT MODE
+   1. SHARED TOKENS (mode-independent)
    ========================================================================== */
 :root {
-  /* ── Core surfaces ─────────────────────────────────────────
-     Hierarchy: bg (ground) → card (elevated) → muted (recessed in card)
-     Every surface has a warm undertone - no cold grays anywhere. */
-  --bg-sand: #dcd3c1;          /* Golden sand - the ground everything sits on */
-  --surface-card: #f4efe6;     /* Bleached canvas - primary reading surface */
-  --surface-muted: #e3dccf;    /* Dusty wash - inputs, chips, recessed wells */
-  --surface-raised: #faf8f3;   /* Bright float - tooltips, dropdowns, popovers */
-
-  /* ── Text ──────────────────────────────────────────────────
-     Main on card: ~14.5:1 contrast ✓✓✓
-     Muted on card: ~5.1:1 contrast ✓ (AA normal text) */
-  --text-main: #1a1613;        /* Warm charcoal - body text, headings */
-  --text-muted: #7a7067;       /* Stone dust - secondary, captions */
-
-  /* ── Brand accents ─────────────────────────────────────────
-     Each chosen for: thematic resonance + white text readability (≥4.5:1) */
-  --brand-eucalypt: #2d6e40;   /* Deep gum leaf - primary, go, confirm */
-  --brand-eucalypt-dark: #1f5236; /* Dark gum leaf - nav button gradient end */
-  --brand-ochre: #b5452e;      /* Burnt ochre - deep Red Centre earth, danger, SOS */
-  --brand-sky: #1a6fa6;        /* Deep outback sky - info, GPS, water features */
-  --brand-amber: #b8872a;      /* Golden hour - warnings, highlights, stars */
-  --brand-shared: #7a3d99;     /* Wattle flower - shared/collaborative plans */
-
-  /* ── On-color text ─────────────────────────────────────────
-     Warm white for text ON any accent-colored surface.
-     Fixes the dark-mode bug where color: var(--surface-card) was illegible. */
-  --on-color: #faf6ef;
-
-  /* ── Semantic mapping ──────────────────────────────────────
-     Components reference these, never raw palette tokens. */
-  --roam-bg: var(--bg-sand);
-  --roam-surface: var(--surface-card);
-  --roam-surface-hover: var(--surface-muted);
-  --nav-card-bg: #f0e9dc;              /* Warmer sandy card for nav HUD */
-  --roam-surface-raised: var(--surface-raised);
-
-  --roam-text: var(--text-main);
-  --roam-text-muted: var(--text-muted);
-
-  --roam-accent: var(--brand-eucalypt);
-  --roam-danger: var(--brand-ochre);
-  --roam-success: var(--brand-eucalypt);
-  --roam-info: var(--brand-sky);
-  --roam-warn: var(--brand-amber);
-
-  /* ── Borders & dividers (warm, subtle) ─────────────────── */
-  --roam-border: rgba(26, 22, 19, 0.08);
-  --roam-border-strong: rgba(26, 22, 19, 0.15);
-
-  /* ── State & utility colors ────────────────────────────── */
-  --bg-error: #fae5e2;
-  --text-error: #922018;
-  --bg-warn: #faf0dc;
-  --text-warn: #7a5c12;
-  --danger-tint: rgba(191, 74, 48, 0.10);
-  --accent-tint: rgba(51, 120, 74, 0.10);
-  --info-tint: rgba(44, 124, 181, 0.10);
-  --info-pulse-active: rgba(44, 124, 181, 0.40);
-  --info-pulse-clear: rgba(44, 124, 181, 0);
-  --overlay-bg: rgba(26, 22, 19, 0.45);
-  --spinner-track: rgba(26, 22, 19, 0.10);
-  --spinner-head: var(--brand-eucalypt);
-
-  /* ── Tab bar ───────────────────────────────────────────── */
-  --tab-bar-bg: var(--surface-card);
-  --tab-active-color: var(--brand-ochre);
-  --tab-inactive-color: #7a6e5e;       /* Warm desert sand - darker for light mode readability */
-  --tab-center-bg: var(--brand-ochre);
-  --tab-center-icon: var(--on-color);
-  --tab-center-glow: 0 6px 20px rgba(181, 69, 46, 0.40);
-
-
-  /* ── Warm shadows ────────────────────────────────────────
-     All shadows use warm brown - never neutral/cool gray. */
-  --shadow-soft: 0 2px 12px rgba(40, 32, 20, 0.06);
-  --shadow-medium: 0 4px 20px rgba(40, 32, 20, 0.09);
-  --shadow-heavy: 0 12px 40px rgba(40, 32, 20, 0.13);
-  --shadow-button: 0 3px 0 rgba(40, 32, 20, 0.10);
-  --shadow-fab: 0 3px 10px rgba(40, 32, 20, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.06);
-  --shadow-sheet: 0 -8px 32px rgba(40, 32, 20, 0.10);
-
-  /* ── Native chrome ─────────────────────────────────────── */
   --roam-keyboard-h: 0px;
   --roam-safe-top: env(safe-area-inset-top, 0px);
   --roam-safe-bottom: env(safe-area-inset-bottom, 0px);
   --roam-safe-left: env(safe-area-inset-left, 0px);
   --roam-safe-right: env(safe-area-inset-right, 0px);
 
-  /* ── Radii ─────────────────────────────────────────────── */
-  --r-card: 24px;
-  --r-btn: 14px;
+  --r-card: 6px;
+  --r-btn: 4px;
   --r-pill: 999px;
-  --radius-lg: var(--r-card);
-  --radius-md: var(--r-btn);
-  --radius-sm: 10px;
+  --radius-lg: 6px;
+  --radius-md: 4px;
+  --radius-sm: 2px;
 
-  /* ── Sizing ────────────────────────────────────────────── */
   --tap-target: 48px;
   --roam-tab-h: 80px;
   --bottom-nav-height: calc(var(--roam-tab-h) + var(--roam-safe-bottom));
 
-  /* ── Typography scale ───────────────────────────────────
-     System font stack (SF Pro / Roboto) at heavy weights for
-     glanceability while driving. Sizes clamp for small screens. */
-  --font-h1: 1.5rem;       /* 24px - page titles */
-  --font-h2: 1.125rem;     /* 18px - section headings */
-  --font-title: 1rem;      /* 16px - card titles, bold labels */
-  --font-body: 0.9375rem;  /* 15px - primary reading text */
-  --font-sm: 0.8125rem;    /* 13px - secondary text, buttons */
-  --font-xs: 0.75rem;      /* 12px - captions, badges, metadata */
-  --font-xxs: 0.6875rem;   /* 11px - micro labels, coords */
+  --ff-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --ff-body: "Public Sans", "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --ff-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Segoe UI Mono", Menlo, monospace;
 
-  /* ── Spacing scale ────────────────────────────────────── */
+  --font-h1: 1.5rem;
+  --font-h2: 1.125rem;
+  --font-title: 1rem;
+  --font-body: 0.9375rem;
+  --font-data: 1.25rem;
+  --font-sm: 0.8125rem;
+  --font-xs: 0.75rem;
+  --font-xxs: 0.6875rem;
+  --font-label: 0.6875rem;
+
+  --tracking-headline: 0.05em;
+  --tracking-label: 0.08em;
+  --weight-headline: 700;
+  --weight-data: 600;
+  --weight-label: 600;
+
+  --terra-value-size: 2.5rem;
+  --terra-value-size-sm: 1.75rem;
+  --terra-value-weight: 700;
+  --terra-label-size: 0.625rem;
+  --terra-label-weight: 800;
+  --terra-label-spacing: 0.1em;
+
+  /* Display scale — instrument-grade "glanceability" */
+  --font-display-lg: 3.5rem;
+  --font-display-md: 2.75rem;
+  --font-display-sm: 2rem;
+
   --space-xxs: 2px;
   --space-xs: 4px;
   --space-sm: 8px;
@@ -147,96 +68,223 @@
   --space-xl: 20px;
   --space-2xl: 24px;
   --space-3xl: 32px;
+  --space-4xl: 48px;
+  --space-5xl: 64px;
 
-  /* ── Alert severity tints ───────────────────────────────
-     For inline alerts (traffic, hazards, route blockers).
-     Each has a tint (background) and solid (text/icon) variant. */
-  --severity-major: var(--brand-ochre);
-  --severity-major-tint: rgba(181, 69, 46, 0.10);
-  --severity-moderate: #d97706;
-  --severity-moderate-tint: rgba(234, 88, 12, 0.10);
-  --severity-minor: var(--brand-amber);
-  --severity-minor-tint: rgba(184, 135, 42, 0.08);
+  --border-thin: 1px;
+  --border-default: 2px;
+  --border-thick: 3px;
 
-  /* ── Motion ────────────────────────────────────────────── */
   --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-out: cubic-bezier(0.25, 0.46, 0.45, 0.94);
   --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
   --dur-fast: 120ms;
   --dur-normal: 200ms;
   --dur-slow: 350ms;
+
+  --blur-sm: blur(8px);
+  --blur-md: blur(16px);
+  --blur-lg: blur(24px);
+  --blur-xl: blur(40px);
 }
 
 
 /* ==========================================================================
-   1b. THEME TOKENS - DARK MODE
+   1a. THEME TOKENS - "DAY" (Flat & Shadowed)
    ========================================================================== */
-@media (prefers-color-scheme: dark) {
-  :root {
-    /* ── Core surfaces ───────────────────────────────────── */
-    --bg-sand: #0f0f0f;          /* Soft black - neutral, clean, easy on eyes */
-    --surface-card: #1a1a1a;     /* Dark card - elevated surface, neutral */
-    --nav-card-bg: #1e1c1a;     /* Slightly warm dark for nav HUD */
-    --surface-muted: #262626;    /* Neutral recess - inputs, wells */
-    --surface-raised: #313131;   /* Neutral float - popovers, tooltips */
+[data-theme="day"] {
+  --terra-ochre: #B3541E;
+  --terra-charcoal: #131313;
+  --terra-ash: #F4FAFF;
+  --terra-red: #C62828;
+  --terra-green: #6D7E4E;
+  --terra-amber: #FFB693;
 
-    /* ── Text ────────────────────────────────────────────── */
-    --text-main: #efe9e0;        /* Warm parchment - NOT pure white */
-    --text-muted: #908780;       /* Dusty stone */
+  --bg-sand: var(--terra-ash);
+  --surface-card: #FFFFFF;
+  --surface-muted: #E8EDF2;
+  --surface-raised: #FFFFFF;
+  --nav-card-bg: #FFFFFF;
 
-    /* ── Brand accents (outback-optimized for dark backgrounds) ───── */
-    --brand-eucalypt: #42b159;   /* Bright gum leaf - outback green */
-    --brand-eucalypt-dark: #357844; /* Dark gum leaf - nav button gradient end */
-    --brand-ochre: #d4664a;      /* Warm burnt ochre - Red Centre earth */
-    --brand-sky: #4db8f0;        /* Outback sky blue */
-    --brand-amber: #e8b84d;      /* Desert gold - bright and warm */
-    --brand-shared: #b087db;     /* Wattle flower - softer for dark mode */
+  --text-main: var(--terra-charcoal);
+  --text-muted: #4A5058;       /* 7.3:1 on #FFF — AAA */
 
-    /* on-color stays warm white - works in both modes */
-    --on-color: #faf6ef;
+  --brand-eucalypt: var(--terra-green);
+  --brand-eucalypt-dark: #556640;
+  --brand-ochre: var(--terra-ochre);
+  --brand-sky: #1a6fa6;
+  --brand-amber: var(--terra-amber);
+  --brand-shared: #7a3d99;
 
-    /* ── Borders ─────────────────────────────────────────── */
-    --roam-border: rgba(255, 255, 255, 0.06);
-    --roam-border-strong: rgba(255, 255, 255, 0.12);
+  --on-color: #FFFFFF;
 
-    /* ── State colors ────────────────────────────────────── */
-    --bg-error: #301714;
-    --text-error: #ffb8a8;
-    --bg-warn: #2a2210;
-    --text-warn: #f0c860;
-    --danger-tint: rgba(222, 88, 64, 0.14);
-    --accent-tint: rgba(72, 168, 102, 0.12);
-    --info-tint: rgba(82, 166, 222, 0.12);
-    --info-pulse-active: rgba(82, 166, 222, 0.40);
-    --info-pulse-clear: rgba(82, 166, 222, 0);
-    --overlay-bg: rgba(0, 0, 0, 0.60);
-    --spinner-track: rgba(255, 255, 255, 0.08);
-    --spinner-head: var(--brand-eucalypt);
+  --roam-bg: var(--bg-sand);
+  --roam-surface: var(--surface-card);
+  --roam-surface-hover: var(--surface-muted);
+  --roam-surface-raised: var(--surface-raised);
+  --roam-text: var(--text-main);
+  --roam-text-muted: var(--text-muted);
 
-    /* ── Tab bar ─────────────────────────────────────────── */
-    --tab-bar-bg: #1a1a1a;
-    --tab-inactive-color: #b0a599;      /* Warm sand in dark mode - lighter for readability */
-    --tab-center-glow: 0 6px 20px rgba(212, 102, 74, 0.45);
+  --roam-accent: var(--brand-ochre);
+  --roam-danger: var(--terra-red);
+  --roam-success: var(--brand-eucalypt);
+  --roam-info: var(--brand-sky);
+  --roam-warn: var(--brand-amber);
 
+  --roam-border: rgba(19, 19, 19, 0.12);
+  --roam-border-strong: rgba(19, 19, 19, 0.25);
 
-    /* ── Alert severity tints (dark) ──────────────────────── */
-    --severity-major: var(--brand-ochre);
-    --severity-major-tint: rgba(212, 102, 74, 0.14);
-    --severity-moderate: #f59e0b;
-    --severity-moderate-tint: rgba(245, 158, 11, 0.12);
-    --severity-minor: var(--brand-amber);
-    --severity-minor-tint: rgba(232, 184, 77, 0.10);
+  --bg-error: #FDECEA;
+  --text-error: #922018;
+  --bg-warn: #FFF3E0;
+  --text-warn: #8C5A00;
+  --danger-tint: rgba(198, 40, 40, 0.10);
+  --accent-tint: rgba(179, 84, 30, 0.10);
+  --info-tint: rgba(44, 124, 181, 0.10);
+  --info-pulse-active: rgba(44, 124, 181, 0.40);
+  --info-pulse-clear: rgba(44, 124, 181, 0);
+  --overlay-bg: rgba(19, 19, 19, 0.50);
+  --spinner-track: rgba(19, 19, 19, 0.10);
+  --spinner-head: var(--brand-ochre);
 
-    /* ── Dark shadows ────────────────────────────────────── */
-    --shadow-soft: 0 2px 12px rgba(0, 0, 0, 0.40);
-    --shadow-medium: 0 4px 20px rgba(0, 0, 0, 0.50);
-    --shadow-heavy: 0 12px 40px rgba(0, 0, 0, 0.60);
-    --shadow-button: 0 3px 0 rgba(0, 0, 0, 0.45);
-    --shadow-fab: 0 3px 10px rgba(0, 0, 0, 0.50), 0 0 0 1px rgba(255, 255, 255, 0.08);
-    --shadow-sheet: 0 -8px 32px rgba(0, 0, 0, 0.50);
-  }
+  --tab-bar-bg: #FFFFFF;
+  --tab-active-color: var(--brand-ochre);
+  --tab-inactive-color: #555D68;  /* 6.0:1 on #FFF — AA large+, near AAA */
+  --tab-center-bg: var(--brand-ochre);
+  --tab-center-icon: var(--on-color);
+  --tab-center-glow: 0 6px 20px rgba(179, 84, 30, 0.35);
+
+  --shadow-soft: 0 2px 0 rgba(19, 19, 19, 0.06), 0 0 0 var(--border-thin) rgba(19, 19, 19, 0.04);
+  --shadow-medium: 0 4px 0 rgba(19, 19, 19, 0.10), 0 0 0 var(--border-thin) rgba(19, 19, 19, 0.06);
+  --shadow-heavy: 0 8px 0 rgba(19, 19, 19, 0.14), 0 0 0 var(--border-default) rgba(19, 19, 19, 0.08);
+  --shadow-button: 0 3px 0 rgba(19, 19, 19, 0.18);
+  --shadow-fab: 0 4px 0 rgba(19, 19, 19, 0.20), 0 0 0 var(--border-default) rgba(19, 19, 19, 0.10);
+  --shadow-sheet: 0 -4px 0 rgba(19, 19, 19, 0.08), 0 0 0 var(--border-thin) rgba(19, 19, 19, 0.06);
+
+  --terra-emergency: #C62828;
+  --terra-emergency-tint: rgba(198, 40, 40, 0.12);
+  --terra-potable: #6D7E4E;
+  --terra-potable-tint: rgba(109, 126, 78, 0.12);
+  --terra-solar: #D4920A;
+  --terra-solar-tint: rgba(212, 146, 10, 0.10);
+
+  --topo-line: rgba(19, 19, 19, 0.08);
+  --topo-line-major: rgba(19, 19, 19, 0.14);
+
+  --severity-major: var(--terra-red);
+  --severity-major-tint: rgba(198, 40, 40, 0.10);
+  --severity-moderate: #E65100;
+  --severity-moderate-tint: rgba(230, 81, 0, 0.10);
+  --severity-minor: var(--brand-amber);
+  --severity-minor-tint: rgba(255, 182, 147, 0.15);
+
+  --glass-bg: var(--surface-card);
+  --glass-border: var(--roam-border-strong);
+  --glass-blur: none;
+
+  /* CTA gradient — "machined" ochre depth */
+  --cta-gradient: linear-gradient(135deg, #933d04 0%, #b3541e 100%);
+  --cta-gradient-hover: linear-gradient(135deg, #7a3000 0%, #933d04 100%);
 }
 
+
+/* ==========================================================================
+   1b. THEME TOKENS - "TACTICAL NIGHT" (Glass & Steel)
+   ========================================================================== */
+[data-theme="tactical-night"] {
+  --terra-ochre: #D4764A;
+  --terra-charcoal: #131313;
+  --terra-ash: #F4FAFF;
+  --terra-red: #EF5350;
+  --terra-green: #8FA86A;
+  --terra-amber: #FFB693;       /* Solar Amber per spec */
+
+  --bg-sand: #131313;          /* Deep Charcoal per spec */
+  --surface-card: rgba(26, 28, 32, 0.80);
+  --surface-muted: rgba(38, 40, 46, 0.70);
+  --surface-raised: rgba(48, 50, 56, 0.85);
+  --nav-card-bg: rgba(26, 28, 32, 0.85);
+
+  --text-main: #F0ECE6;        /* Warm parchment (15.2:1 on #131313 AAA) */
+  --text-muted: #B0A89F;       /* Dusty amber stone (7.1:1 on #1E1E1E AAA) */
+
+  --brand-eucalypt: var(--terra-green);
+  --brand-eucalypt-dark: #6B8050;
+  --brand-ochre: var(--terra-ochre);
+  --brand-sky: #4DB8F0;
+  --brand-amber: var(--terra-amber);
+  --brand-shared: #B087DB;
+
+  --on-color: #FFFFFF;
+
+  --roam-bg: var(--bg-sand);
+  --roam-surface: var(--surface-card);
+  --roam-surface-hover: var(--surface-muted);
+  --roam-surface-raised: var(--surface-raised);
+  --roam-text: var(--text-main);
+  --roam-text-muted: var(--text-muted);
+
+  --roam-accent: var(--brand-ochre);
+  --roam-danger: var(--terra-red);
+  --roam-success: var(--brand-eucalypt);
+  --roam-info: var(--brand-sky);
+  --roam-warn: var(--brand-amber);
+
+  --roam-border: rgba(255, 255, 255, 0.08);
+  --roam-border-strong: rgba(255, 255, 255, 0.16);
+
+  --bg-error: rgba(198, 40, 40, 0.15);
+  --text-error: #FFAB91;
+  --bg-warn: rgba(255, 182, 147, 0.12);
+  --text-warn: #FFB693;
+  --danger-tint: rgba(239, 83, 80, 0.14);
+  --accent-tint: rgba(212, 118, 74, 0.12);
+  --info-tint: rgba(77, 184, 240, 0.12);
+  --info-pulse-active: rgba(77, 184, 240, 0.40);
+  --info-pulse-clear: rgba(77, 184, 240, 0);
+  --overlay-bg: rgba(0, 0, 0, 0.65);
+  --spinner-track: rgba(255, 255, 255, 0.08);
+  --spinner-head: var(--brand-ochre);
+
+  --tab-bar-bg: rgba(18, 18, 22, 0.90);
+  --tab-active-color: var(--brand-ochre);
+  --tab-inactive-color: #B0A89F;  /* Muted stone — 7.1:1 on dark AAA */
+  --tab-center-bg: #A0522D;    /* Darker ochre for on-color contrast (5.8:1 AAA lg) */
+  --tab-center-icon: var(--on-color);
+  --tab-center-glow: 0 4px 24px rgba(255, 182, 147, 0.35);
+
+  --shadow-soft: 0 1px 4px rgba(0, 0, 0, 0.30);
+  --shadow-medium: 0 2px 8px rgba(0, 0, 0, 0.40);
+  --shadow-heavy: 0 4px 16px rgba(0, 0, 0, 0.50);
+  --shadow-button: 0 2px 0 rgba(0, 0, 0, 0.30);
+  --shadow-fab: 0 2px 12px rgba(0, 0, 0, 0.40), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --shadow-sheet: 0 -2px 16px rgba(0, 0, 0, 0.40);
+
+  --terra-emergency: #EF5350;
+  --terra-emergency-tint: rgba(239, 83, 80, 0.14);
+  --terra-potable: #8FA86A;
+  --terra-potable-tint: rgba(143, 168, 106, 0.14);
+  --terra-solar: #F0B429;
+  --terra-solar-tint: rgba(240, 180, 41, 0.12);
+
+  --topo-line: rgba(255, 255, 255, 0.05);
+  --topo-line-major: rgba(255, 255, 255, 0.10);
+
+  --severity-major: var(--terra-red);
+  --severity-major-tint: rgba(239, 83, 80, 0.14);
+  --severity-moderate: #FF8A65;
+  --severity-moderate-tint: rgba(255, 138, 101, 0.12);
+  --severity-minor: var(--brand-amber);
+  --severity-minor-tint: rgba(255, 203, 164, 0.10);
+
+  --glass-bg: rgba(26, 28, 32, 0.60);
+  --glass-border: rgba(255, 255, 255, 0.10);
+  --glass-blur: var(--blur-md);
+
+  /* CTA gradient — night mode metallic ochre */
+  --cta-gradient: linear-gradient(135deg, #ffb693 0%, #b3541e 100%);
+  --cta-gradient-hover: linear-gradient(135deg, #d4764a 0%, #933d04 100%);
+}
 
 /* ==========================================================================
    2. GLOBAL RESETS & NATIVE SHELL
@@ -248,8 +296,7 @@ html, body {
 
   background-color: var(--roam-bg);
   color: var(--roam-text);
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--ff-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-touch-callout: none;
@@ -285,6 +332,16 @@ input, textarea, [contenteditable] {
 ::selection {
   background: var(--accent-tint);
   color: var(--roam-text);
+}
+
+/* ── Topographic texture overlay ──────────────────────────────
+   Apply .topo-bg to hero cards, section backgrounds, feature panels.
+   Subtle contour lines reinforcing the outback soul per DESIGN.md. */
+.topo-bg {
+  background-image: url("data:image/svg+xml,%3Csvg width='400' height='400' viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 380c50-10 100-40 150-40s100 30 150 30 100-20 100-20' stroke='%23933d04' stroke-width='0.5' fill='none' opacity='0.04'/%3E%3Cpath d='M0 320c40-5 80-25 120-25s80 20 120 20 80-15 160-35' stroke='%23933d04' stroke-width='0.5' fill='none' opacity='0.03'/%3E%3Cpath d='M0 260c60 0 120-30 180-30s120 20 220 10' stroke='%23933d04' stroke-width='0.5' fill='none' opacity='0.04'/%3E%3Cpath d='M0 200c80 10 160-40 240-40s160 50 160 50' stroke='%23933d04' stroke-width='0.5' fill='none' opacity='0.03'/%3E%3Cpath d='M0 140c100-20 200 10 300 0s100-20 100-20' stroke='%23933d04' stroke-width='0.5' fill='none' opacity='0.04'/%3E%3Cpath d='M0 80c120 10 240-30 360-10 40 5 40 5 40 5' stroke='%23933d04' stroke-width='0.5' fill='none' opacity='0.03'/%3E%3C/svg%3E");
+}
+[data-theme="tactical-night"] .topo-bg {
+  background-image: url("data:image/svg+xml,%3Csvg width='400' height='400' viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 380c50-10 100-40 150-40s100 30 150 30 100-20 100-20' stroke='%23ffb693' stroke-width='0.5' fill='none' opacity='0.04'/%3E%3Cpath d='M0 320c40-5 80-25 120-25s80 20 120 20 80-15 160-35' stroke='%23ffb693' stroke-width='0.5' fill='none' opacity='0.03'/%3E%3Cpath d='M0 260c60 0 120-30 180-30s120 20 220 10' stroke='%23ffb693' stroke-width='0.5' fill='none' opacity='0.04'/%3E%3Cpath d='M0 200c80 10 160-40 240-40s160 50 160 50' stroke='%23ffb693' stroke-width='0.5' fill='none' opacity='0.03'/%3E%3Cpath d='M0 140c100-20 200 10 300 0s100-20 100-20' stroke='%23ffb693' stroke-width='0.5' fill='none' opacity='0.04'/%3E%3Cpath d='M0 80c120 10 240-30 360-10 40 5 40 5 40 5' stroke='%23ffb693' stroke-width='0.5' fill='none' opacity='0.03'/%3E%3C/svg%3E");
 }
 
 /* Hide scrollbars everywhere (native feel) */
@@ -402,12 +459,16 @@ input, textarea, [contenteditable] {
   align-items: center;
   justify-content: center;
   width: 48px; height: 48px;
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   background-color: var(--tab-center-bg);
   color: var(--tab-center-icon);
   box-shadow: var(--tab-center-glow);
   transition: transform var(--dur-normal) var(--ease-spring),
               box-shadow var(--dur-normal) ease;
+}
+/* Night mode: gradient active tab (metallic ochre per Stitch spec) */
+[data-theme="tactical-night"] .roam-tab-inner {
+  background: var(--cta-gradient);
 }
 
 .roam-tab.roam-tab-center .roam-tab-icon {
@@ -426,7 +487,7 @@ input, textarea, [contenteditable] {
 .roam-tab-sos.roam-tab-active { color: var(--roam-danger); }
 .roam-tab-sos .roam-tab-icon {
   background: var(--danger-tint);
-  border-radius: 8px;
+  border-radius: var(--r-card);
   padding: 2px;
 }
 
@@ -681,7 +742,7 @@ input, textarea, [contenteditable] {
   transition: transform 80ms ease, box-shadow 80ms ease, opacity var(--dur-fast) ease;
 }
 .trip-btn:active:not(:disabled) {
-  box-shadow: 0 0 0 rgba(0,0,0,0);
+  box-shadow: none;
   transform: translateY(3px) scale(0.98);
   opacity: 0.88;
 }
@@ -694,7 +755,7 @@ input, textarea, [contenteditable] {
 
 /* Color variants - uses --on-color for legible text in BOTH light/dark */
 .trip-btn-primary {
-  background: var(--roam-accent);
+  background: var(--cta-gradient);
   color: var(--on-color);
 }
 
@@ -713,14 +774,14 @@ input, textarea, [contenteditable] {
   display: flex;
   align-items: center;
   gap: 6px;
-  border-radius: 12px;
+  border-radius: var(--r-btn);
   background: var(--roam-surface-hover);
   color: var(--roam-text);
   padding: 0 14px;
   font-size: 0.85rem;
   font-weight: 800;
   min-height: 44px;
-  box-shadow: 0 2px 0 rgba(40, 32, 20, 0.08);
+  box-shadow: var(--shadow-soft);
   border: none;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
@@ -750,7 +811,7 @@ input, textarea, [contenteditable] {
   display: grid;
   place-items: center;
   width: 44px; height: 44px;
-  border-radius: 13px;
+  border-radius: var(--r-btn);
   color: var(--roam-text);
   font-size: 1.1rem;
   touch-action: manipulation;
@@ -759,6 +820,26 @@ input, textarea, [contenteditable] {
 }
 .trip-btn-icon:active:not(:disabled) {
   transform: scale(0.88);
+}
+
+/* ── Reusable Button component press state ───────────────── */
+.roam-btn-press:active:not(:disabled) {
+  transform: scale(0.95);
+  filter: brightness(0.88);
+  box-shadow: none !important;
+}
+
+/* ── Glass-morphism surfaces in Tactical Night mode ─────── */
+[data-theme="tactical-night"] .roam-card-glass {
+  background: rgba(26, 26, 26, 0.72) !important;
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+}
+/* All .trip-card surfaces get glass treatment in night mode */
+[data-theme="tactical-night"] .trip-card {
+  backdrop-filter: blur(20px) saturate(1.3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  border: 1px solid var(--roam-border);
 }
 
 
@@ -793,7 +874,7 @@ input, textarea, [contenteditable] {
 .trip-search-box {
   background: var(--roam-surface);
   box-shadow: var(--shadow-soft);
-  border-radius: 14px;
+  border-radius: var(--r-card);
   display: flex;
   align-items: center;
   padding: 0 16px;
@@ -872,25 +953,25 @@ input, textarea, [contenteditable] {
 .map-fab-btn {
   position: relative;
   width: 46px; height: 46px;
-  border-radius: 16px;
+  border-radius: var(--r-card);
   background: linear-gradient(160deg, rgba(255,255,255,0.92) 0%, rgba(244,239,230,0.96) 100%);
-  color: var(--text-main, #1a1613);
-  border: 1px solid rgba(0,0,0,0.10);
+  color: var(--roam-text);
+  border: 1px solid var(--roam-border);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.06);
+  box-shadow: var(--shadow-medium);
   display: grid;
   place-items: center;
   cursor: pointer;
   transition: transform 0.1s ease;
 }
-@media (prefers-color-scheme: dark) {
-  .map-fab-btn {
-    background: linear-gradient(160deg, rgba(26,21,16,0.96) 0%, rgba(16,13,10,0.98) 100%);
-    color: var(--on-color);
-    border: 1px solid rgba(255,255,255,0.09);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.15);
-  }
+[data-theme="tactical-night"] .map-fab-btn {
+  background: rgba(26, 26, 26, 0.72);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  color: var(--on-color);
+  border: 1px solid var(--roam-border);
+  box-shadow: var(--shadow-medium);
 }
 
 /* ── Map blue dot pulse ───────────────────────────────────── */
@@ -917,8 +998,8 @@ input, textarea, [contenteditable] {
 .trip-bottom-sheet {
   height: 100%;
   background: var(--roam-surface);
-  border-radius: 28px 28px 0 0;
-  box-shadow: var(--shadow-sheet), 0 -1px 0 rgba(255,255,255,0.08) inset;
+  border-radius: var(--r-card) var(--r-card) 0 0;
+  box-shadow: var(--shadow-sheet);
   pointer-events: auto;
   display: flex;
   flex-direction: column;
@@ -930,7 +1011,7 @@ input, textarea, [contenteditable] {
   padding: 14px 20px 8px 20px;
   touch-action: none;
   flex-shrink: 0;
-  border-radius: 28px 28px 0 0;
+  border-radius: var(--r-card) var(--r-card) 0 0;
 }
 
 .trip-sheet-content,
@@ -950,7 +1031,7 @@ input, textarea, [contenteditable] {
 .trip-drag-handle {
   width: 36px; height: 5px;
   background: var(--roam-border-strong);
-  border-radius: 10px;
+  border-radius: var(--r-pill);
   margin: 0 auto 8px auto;
   opacity: 0.6;
 }
@@ -972,7 +1053,7 @@ input, textarea, [contenteditable] {
   align-items: center;
   background: var(--roam-surface);
   box-shadow: var(--shadow-soft);
-  border-radius: 18px;
+  border-radius: var(--r-card);
   padding: 12px 14px;
   transition: transform var(--dur-fast) var(--spring), outline 80ms;
 }
@@ -984,7 +1065,8 @@ input, textarea, [contenteditable] {
   transform: scale(0.98);
 }
 
-/* Borderless list rows (plans list, search results) */
+/* Borderless list rows (plans list, search results)
+   No-Line Rule: use spacing instead of dividers per DESIGN.md */
 .trip-list-row {
   width: 100%;
   display: flex;
@@ -993,15 +1075,18 @@ input, textarea, [contenteditable] {
   gap: 12px;
   background: transparent;
   border: none;
-  border-bottom: 1.5px solid var(--roam-border);
   padding: 16px 0;
   text-align: left;
 }
-.trip-list-row:last-child { border-bottom: none; }
+/* Tonal shift separator — alternating rows get subtle bg instead of lines */
+.trip-list-row:nth-child(even) {
+  background: var(--roam-surface-hover);
+  border-radius: var(--radius-sm);
+  padding: 16px 12px;
+}
 .trip-list-row[data-focused="true"] {
   background: var(--roam-surface-hover);
-  border-radius: 14px;
-  border-bottom: none;
+  border-radius: var(--r-card);
   padding: 16px 14px;
 }
 
@@ -1118,7 +1203,7 @@ input[type="range"]::-moz-range-thumb {
   padding: 14px 16px;
   background: var(--bg-error);
   color: var(--text-error);
-  border-radius: 14px;
+  border-radius: var(--r-card);
   font-weight: 700;
   font-size: 0.9rem;
   white-space: pre-wrap;
@@ -1129,7 +1214,7 @@ input[type="range"]::-moz-range-thumb {
   padding: 14px 16px;
   background: var(--bg-warn);
   color: var(--text-warn);
-  border-radius: 14px;
+  border-radius: var(--r-card);
   font-weight: 700;
   font-size: 0.9rem;
   white-space: pre-wrap;
@@ -1139,7 +1224,7 @@ input[type="range"]::-moz-range-thumb {
 .trip-panel {
   background: var(--roam-surface-hover);
   padding: 18px;
-  border-radius: 18px;
+  border-radius: var(--r-card);
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -1151,7 +1236,7 @@ input[type="range"]::-moz-range-thumb {
   gap: 10px;
   background: var(--roam-surface-hover);
   padding: 14px;
-  border-radius: 14px;
+  border-radius: var(--r-card);
 }
 .trip-kv { display: flex; flex-direction: column; }
 .trip-kv-k {
@@ -1165,7 +1250,7 @@ input[type="range"]::-moz-range-thumb {
 .trip-kv-v {
   color: var(--roam-text);
   font-weight: 800;
-  font-family: ui-monospace, "SF Mono", "Cascadia Mono", "Segoe UI Mono", Menlo, monospace;
+  font-family: var(--ff-mono);
   font-size: 0.85rem;
   white-space: nowrap;
   overflow: hidden;
@@ -1227,6 +1312,15 @@ input[type="range"]::-moz-range-thumb {
   50% { opacity: 0.85; transform: scale(1.03); }
 }
 
+@keyframes statusPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.3); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 @keyframes roam-bounce-hint {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(4px); }
@@ -1240,6 +1334,11 @@ input[type="range"]::-moz-range-thumb {
 @keyframes fuel-blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
+}
+
+@keyframes offlinePulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 0.2; }
 }
 
 /* ── Nav mode entry animations ──────────────────────────────── */
@@ -1476,7 +1575,7 @@ input[type="range"]::-moz-range-thumb {
   color: var(--roam-info);
   line-height: 1.2;
   font-variant-numeric: tabular-nums;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--ff-mono);
 }
 
 .sos-retry-loc-btn {
@@ -1724,3 +1823,136 @@ input[type="range"]::-moz-range-thumb {
 .pt-anim-in-left   { animation: pt-in-left   0.26s cubic-bezier(0.25,0.46,0.45,0.94) both; }
 .pt-anim-out-left  { animation: pt-out-left  0.26s cubic-bezier(0.25,0.46,0.45,0.94) both; }
 .pt-anim-out-right { animation: pt-out-right 0.26s cubic-bezier(0.25,0.46,0.45,0.94) both; }
+
+
+/* ==========================================================================
+   TERRA NOMAD — Telemetry & Alert Patterns
+   Arm's-length legibility in a bouncing vehicle.
+   ========================================================================== */
+
+/* ── Telemetry readout: value + label stack ────────────── */
+.terra-readout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 64px;
+  user-select: none;
+}
+.terra-readout-value {
+  font-size: var(--terra-value-size);
+  font-weight: var(--terra-value-weight);
+  line-height: 1;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--roam-text);
+}
+.terra-readout-value--sm {
+  font-size: var(--terra-value-size-sm);
+}
+.terra-readout-label {
+  font-size: var(--terra-label-size);
+  font-weight: var(--terra-label-weight);
+  letter-spacing: var(--terra-label-spacing);
+  text-transform: uppercase;
+  color: var(--roam-text-muted);
+  line-height: 1;
+}
+
+/* ── Color variants for readout values ────────────────── */
+.terra-readout-value--emergency { color: var(--terra-emergency); }
+.terra-readout-value--potable   { color: var(--terra-potable); }
+.terra-readout-value--solar     { color: var(--terra-solar); }
+
+/* ── Offline status indicator (persistent, never dismissable) ── */
+.terra-offline-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  font-size: var(--terra-label-size);
+  font-weight: var(--terra-label-weight);
+  letter-spacing: var(--terra-label-spacing);
+  text-transform: uppercase;
+  line-height: 1;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+.terra-offline-indicator--online {
+  background: var(--terra-potable-tint);
+  color: var(--terra-potable);
+}
+.terra-offline-indicator--degraded {
+  background: var(--terra-solar-tint);
+  color: var(--terra-solar);
+}
+.terra-offline-indicator--offline {
+  background: var(--terra-emergency-tint);
+  color: var(--terra-emergency);
+}
+.terra-offline-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: currentColor;
+}
+.terra-offline-indicator--offline .terra-offline-dot {
+  animation: terra-offline-pulse 2s ease-in-out infinite;
+}
+@keyframes terra-offline-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* ── Terra alert banners ─────────────────────────────────
+   Three severity tiers. Emergency Red reserved for SOS/critical only. */
+.terra-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid transparent;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  line-height: 1.4;
+}
+.terra-alert--emergency {
+  background: var(--terra-emergency-tint);
+  border-color: var(--terra-emergency);
+  color: var(--terra-emergency);
+}
+.terra-alert--advisory {
+  background: var(--terra-solar-tint);
+  border-color: var(--terra-solar);
+  color: var(--terra-solar);
+}
+.terra-alert--nominal {
+  background: var(--terra-potable-tint);
+  border-color: var(--terra-potable);
+  color: var(--terra-potable);
+}
+.terra-alert-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+}
+.terra-alert-body {
+  flex: 1;
+  min-width: 0;
+}
+.terra-alert-title {
+  font-weight: 800;
+  font-size: var(--font-sm);
+  line-height: 1.3;
+  margin-bottom: 2px;
+}
+.terra-alert-desc {
+  font-weight: 600;
+  font-size: var(--font-xs);
+  opacity: 0.85;
+  line-height: 1.4;
+}

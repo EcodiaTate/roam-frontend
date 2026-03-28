@@ -113,7 +113,7 @@ export const NavigationHUD = memo(function NavigationHUD({ nav, visible, simple 
           padding: `${pad}px 20px ${pad}px ${pad}px`,
           borderRadius: (cs + pad * 2) / 2,
           background: NAV_CARD_BG,
-          boxShadow: "0 4px 24px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04)",
+          boxShadow: "var(--shadow-medium)",
           pointerEvents: "auto",
         }}
       >

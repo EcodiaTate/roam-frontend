@@ -469,7 +469,7 @@ const CATEGORY_CONFIG: Record<string, CatConfig> = {
   // ── Essentials & safety ─────────────────────────────────────────────
   fuel: { icon: "fuel", color: "#d97706", size: "lg" },
   ev_charging: { icon: "lightning", color: "#2563eb", size: "lg" },
-  rest_area: { icon: "car", color: "#6366f1", size: "md" },
+  rest_area: { icon: "car", color: "var(--brand-shared)", size: "md" },
   toilet: { icon: "wc", color: "#8b5cf6", size: "sm" },
   water: { icon: "droplet", color: "#0284c7", size: "lg" },
   dump_point: { icon: "droplet", color: "#0d9488", size: "sm" },
@@ -477,7 +477,7 @@ const CATEGORY_CONFIG: Record<string, CatConfig> = {
   hospital: { icon: "cross", color: "#dc2626", size: "lg" },
   pharmacy: { icon: "pill", color: "#db2777", size: "lg" },
   // ── Supplies ────────────────────────────────────────────────────────
-  grocery: { icon: "cart", color: "#059669", size: "md" },
+  grocery: { icon: "cart", color: "var(--roam-success)", size: "md" },
   town: { icon: "town", color: "#a16207", size: "sm" },
   atm: { icon: "pin", color: "#0891b2", size: "sm" },
   laundromat: { icon: "pin", color: "#64748b", size: "sm" },
@@ -511,7 +511,7 @@ const CATEGORY_CONFIG: Record<string, CatConfig> = {
   zoo: { icon: "paw", color: "#22c55e", size: "md" },
   theme_park: { icon: "star", color: "#ec4899", size: "md" },
   dog_park: { icon: "paw", color: "#db2777", size: "sm" },
-  golf: { icon: "flag_end", color: "#059669", size: "sm" },
+  golf: { icon: "flag_end", color: "var(--roam-success)", size: "sm" },
   cinema: { icon: "star", color: "#4f46e5", size: "sm" },
   // ── Culture & sightseeing ───────────────────────────────────────────
   visitor_info: { icon: "pin", color: "#4f46e5", size: "sm" },
@@ -540,20 +540,20 @@ function getCatConfig(cat: string): CatConfig {
 /* ── Traffic/hazard overlay icon configs ─────────────────────────────── */
 
 const TRAFFIC_ICON_CFG: Record<string, { icon: keyof typeof ICON_PATHS; color: string }> = {
-  closure: { icon: "x_circle", color: "#ef4444" },
+  closure: { icon: "x_circle", color: "var(--roam-danger)" },
   flooding: { icon: "flood_wave", color: "#3b82f6" },
   congestion: { icon: "car", color: "#f59e0b" },
   roadworks: { icon: "cone", color: "#f97316" },
   hazard: { icon: "triangle_alert", color: "#eab308" },
-  incident: { icon: "siren", color: "#ef4444" },
+  incident: { icon: "siren", color: "var(--roam-danger)" },
   unknown: { icon: "question", color: "#64748b" },
 };
 
 const HAZARD_ICON_CFG: Record<string, { icon: keyof typeof ICON_PATHS; color: string }> = {
   flood: { icon: "flood_wave", color: "#3b82f6" },
   cyclone: { icon: "cyclone", color: "#7c3aed" },
-  storm: { icon: "lightning", color: "#6366f1" },
-  fire: { icon: "flame", color: "#ef4444" },
+  storm: { icon: "lightning", color: "var(--brand-shared)" },
+  fire: { icon: "flame", color: "var(--roam-danger)" },
   wind: { icon: "wind", color: "#64748b" },
   heat: { icon: "thermometer", color: "#ea580c" },
   marine: { icon: "anchor", color: "#0ea5e9" },
@@ -647,7 +647,7 @@ function loadFuelIcons(map: MLMap): Promise<void> {
   const defs = [
     { id: "roam-fuel-ok", color: "#22c55e" },
     { id: "roam-fuel-warn", color: "#f59e0b" },
-    { id: "roam-fuel-critical", color: "#ef4444" },
+    { id: "roam-fuel-critical", color: "var(--roam-danger)" },
   ];
   const promises: Promise<void>[] = [];
   for (const d of defs) {
@@ -669,8 +669,8 @@ function loadNewOverlayIcons(map: MLMap): Promise<void> {
   const defs = [
     { id: "roam-flood-minor",    color: "#eab308" },
     { id: "roam-flood-moderate", color: "#f97316" },
-    { id: "roam-flood-major",    color: "#ef4444" },
-    { id: "roam-rest-area",      color: "#6366f1" },
+    { id: "roam-flood-major",    color: "var(--roam-danger)" },
+    { id: "roam-rest-area",      color: "var(--brand-shared)" },
   ];
   const promises: Promise<void>[] = [];
   for (const d of defs) {

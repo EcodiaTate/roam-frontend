@@ -88,8 +88,8 @@ export default function TripPreviewMap({ geometry, stops, bbox }: Props) {
       const last = stops[stops.length - 1];
       if (first && last) {
         [
-          { stop: first, color: "#16a34a" },
-          { stop: last,  color: "#dc2626" },
+          { stop: first, color: "var(--roam-success)" },
+          { stop: last,  color: "var(--roam-danger)" },
         ].forEach(({ stop, color }) => {
           const el = document.createElement("div");
           el.style.cssText = `

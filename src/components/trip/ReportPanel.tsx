@@ -307,7 +307,7 @@ const pickerStyles = /* css */ `
   .report-backdrop[data-mounted] {
     opacity: 1;
   }
-  @media (prefers-color-scheme: dark) {
+  [data-theme="tactical-night"] {
     .report-backdrop {
       background: rgba(10, 8, 6, 0.55);
     }
@@ -331,7 +331,7 @@ const pickerStyles = /* css */ `
   .report-backdrop[data-mounted] .report-panel {
     transform: translateY(0) scale(1);
   }
-  @media (prefers-color-scheme: dark) {
+  [data-theme="tactical-night"] {
     .report-panel {
       box-shadow: 0 12px 40px rgba(0,0,0,0.45), 0 0 0 1px color-mix(in srgb, var(--roam-border) 40%, transparent);
     }
@@ -356,7 +356,7 @@ const pickerStyles = /* css */ `
     cursor: pointer;
     width: 40px;
     height: 40px;
-    border-radius: 10px;
+    border-radius: var(--r-card);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -410,7 +410,7 @@ const pickerStyles = /* css */ `
     justify-content: center;
     width: 36px;
     height: 36px;
-    border-radius: 10px;
+    border-radius: var(--r-card);
     background: color-mix(in srgb, var(--btn-accent) 12%, transparent);
     color: var(--btn-accent);
     flex-shrink: 0;
@@ -460,7 +460,7 @@ const barStyles = /* css */ `
     background: rgba(255, 255, 255, 0.92);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
-    border-radius: 18px;
+    border-radius: var(--r-card);
     box-shadow:
       0 8px 40px rgba(0,0,0,0.12),
       0 1px 3px rgba(0,0,0,0.08),
@@ -475,7 +475,7 @@ const barStyles = /* css */ `
     opacity: 1;
     transform: translateY(0);
   }
-  @media (prefers-color-scheme: dark) {
+  [data-theme="tactical-night"] {
     .rp-bar {
       background: rgba(22, 22, 22, 0.92);
       box-shadow:
@@ -528,7 +528,7 @@ const barStyles = /* css */ `
   .rp-bar-cancel {
     width: 36px;
     height: 36px;
-    border-radius: 10px;
+    border-radius: var(--r-card);
     border: none;
     background: rgba(0,0,0,0.06);
     color: var(--text-muted, #7a7067);
@@ -541,7 +541,7 @@ const barStyles = /* css */ `
   .rp-bar-cancel:active {
     background: rgba(0,0,0,0.12);
   }
-  @media (prefers-color-scheme: dark) {
+  [data-theme="tactical-night"] {
     .rp-bar-cancel {
       background: rgba(255,255,255,0.08);
     }
@@ -560,8 +560,8 @@ const barStyles = /* css */ `
     flex: 1;
     min-width: 0;
     padding: 7px 10px;
-    border-radius: 10px;
-    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: var(--r-card);
+    border: 1px solid var(--roam-border);
     background: rgba(0,0,0,0.04);
     font-size: 13px;
     color: var(--text-main, #1a1613);
@@ -575,7 +575,7 @@ const barStyles = /* css */ `
   .rp-bar-input:focus {
     border-color: rgba(74,108,83,0.6);
   }
-  @media (prefers-color-scheme: dark) {
+  [data-theme="tactical-night"] {
     .rp-bar-input {
       border-color: rgba(255,255,255,0.08);
       background: rgba(255,255,255,0.06);
@@ -594,7 +594,7 @@ const barStyles = /* css */ `
     padding: 12px 14px;
     min-height: 44px;
     box-sizing: border-box;
-    border-radius: 12px;
+    border-radius: var(--r-card);
     border: none;
     background: var(--brand-eucalypt, #2d6e40);
     color: var(--on-color, #faf6ef);

@@ -6,7 +6,7 @@
 /** Standard info card container */
 export const cardBase: React.CSSProperties = {
   background: "var(--roam-surface-hover)",
-  borderRadius: "var(--r-card, 14px)",
+  borderRadius: "var(--r-card)",
   padding: "14px",
   marginBottom: 0,
   border: "none",
@@ -21,7 +21,7 @@ export const cardHeaderRow: React.CSSProperties = {
 
 /** Card title text */
 export const cardTitle: React.CSSProperties = {
-  fontSize: 14,
+  fontSize: "var(--font-sm)",
   fontWeight: 800,
   color: "var(--roam-text)",
   letterSpacing: "-0.1px",
@@ -29,7 +29,7 @@ export const cardTitle: React.CSSProperties = {
 
 /** Card subtitle text */
 export const cardSubtitle: React.CSSProperties = {
-  fontSize: 11,
+  fontSize: "var(--font-xxs)",
   fontWeight: 600,
   color: "var(--roam-text-muted)",
   marginTop: 1,
@@ -39,7 +39,7 @@ export const cardSubtitle: React.CSSProperties = {
 export const iconBox28: React.CSSProperties = {
   width: 28,
   height: 28,
-  borderRadius: 8,
+  borderRadius: "var(--r-card)",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
@@ -50,7 +50,7 @@ export const iconBox28: React.CSSProperties = {
 export const iconBox36: React.CSSProperties = {
   width: 36,
   height: 36,
-  borderRadius: 10,
+  borderRadius: "var(--r-card)",
   background: "var(--roam-surface-hover)",
   display: "grid",
   placeItems: "center",
@@ -61,7 +61,7 @@ export const iconBox36: React.CSSProperties = {
 export const iconBox40: React.CSSProperties = {
   width: 40,
   height: 40,
-  borderRadius: 12,
+  borderRadius: "var(--r-card)",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
@@ -70,10 +70,10 @@ export const iconBox40: React.CSSProperties = {
 
 /** Pill/badge base - combine with color overrides */
 export const pillBase: React.CSSProperties = {
-  fontSize: 11,
+  fontSize: "var(--font-xxs)",
   fontWeight: 700,
   padding: "3px 10px",
-  borderRadius: 8,
+  borderRadius: "var(--r-card)",
   whiteSpace: "nowrap",
 };
 
@@ -95,7 +95,7 @@ export const btnReset: React.CSSProperties = {
   padding: "10px",
   minHeight: 44,
   minWidth: 44,
-  borderRadius: 10,
+  borderRadius: "var(--r-card)",
   flexShrink: 0,
   touchAction: "manipulation",
   WebkitTapHighlightColor: "transparent",

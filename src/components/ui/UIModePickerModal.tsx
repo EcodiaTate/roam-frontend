@@ -62,7 +62,7 @@ export function UIModePickerModal({ open, onClose }: Props) {
           width: "100%",
           maxWidth: 380,
           background: "var(--surface-card, #f4efe6)",
-          borderRadius: 24,
+          borderRadius: "var(--r-card)",
           overflow: "hidden",
           animation: "roam-pop 280ms cubic-bezier(0.34, 1.56, 0.64, 1) both",
         }}
@@ -81,14 +81,14 @@ export function UIModePickerModal({ open, onClose }: Props) {
           <div style={{
             position: "absolute", top: -60, left: "50%", transform: "translateX(-50%)",
             width: 240, height: 240, borderRadius: "50%",
-            border: "1px solid rgba(255,255,255,0.07)",
+            border: "1px solid var(--roam-border)",
             pointerEvents: "none",
           }} />
 
           <h1 style={{
             margin: "0 0 10px",
             fontSize: 24, fontWeight: 900,
-            color: "#fff", lineHeight: 1.2,
+            color: "var(--on-color)", lineHeight: 1.2,
           }}>
             How do you like your maps?
           </h1>
@@ -118,7 +118,7 @@ export function UIModePickerModal({ open, onClose }: Props) {
               gap: 16,
               padding: "18px 18px",
               minHeight: 48,
-              borderRadius: 16,
+              borderRadius: "var(--r-card)",
               background: "var(--roam-surface-hover, rgba(26,22,19,0.04))",
               border: "2px solid var(--brand-eucalypt, #2d6e40)",
               boxShadow: "0 2px 8px rgba(45,110,64,0.12)",
@@ -131,7 +131,7 @@ export function UIModePickerModal({ open, onClose }: Props) {
             onPointerCancel={(e) => { (e.currentTarget as HTMLElement).style.transform = ""; }}
           >
             <div style={{
-              width: 52, height: 52, borderRadius: 14,
+              width: 52, height: 52, borderRadius: "var(--r-card)",
               background: "rgba(45,110,64,0.10)",
               display: "grid", placeItems: "center", flexShrink: 0,
             }}>
@@ -167,7 +167,7 @@ export function UIModePickerModal({ open, onClose }: Props) {
               gap: 16,
               padding: "18px 18px",
               minHeight: 48,
-              borderRadius: 16,
+              borderRadius: "var(--r-card)",
               background: "var(--roam-surface-hover, rgba(26,22,19,0.04))",
               border: "2px solid transparent",
               WebkitTapHighlightColor: "transparent",
@@ -179,7 +179,7 @@ export function UIModePickerModal({ open, onClose }: Props) {
             onPointerCancel={(e) => { (e.currentTarget as HTMLElement).style.transform = ""; }}
           >
             <div style={{
-              width: 52, height: 52, borderRadius: 14,
+              width: 52, height: 52, borderRadius: "var(--r-card)",
               background: "rgba(26,111,166,0.10)",
               display: "grid", placeItems: "center", flexShrink: 0,
             }}>

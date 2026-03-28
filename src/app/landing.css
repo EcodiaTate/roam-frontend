@@ -101,7 +101,7 @@
 .rl-nav-mobile-cta {
   display: inline-flex; align-items: center; gap: 8px; margin-top: 20px;
   background: var(--white); color: var(--hero-dark);
-  padding: 14px 28px; border-radius: 12px;
+  padding: 14px 28px; border-radius: var(--r-card);
   font-weight: 800; font-size: 15px; text-align: center; justify-content: center;
   transition: transform 0.12s;
 }
@@ -146,7 +146,7 @@
 .rl-btn-hero {
   display: inline-flex; align-items: center; gap: 10px;
   background: var(--white); color: var(--hero-dark);
-  padding: 16px 36px; border-radius: 12px;
+  padding: 16px 36px; border-radius: var(--r-card);
   font-size: 15px; font-weight: 800; letter-spacing: 0.01em;
   transition: transform 0.15s, box-shadow 0.15s;
   box-shadow: 0 0 0 1px rgba(255,255,255,0.1), 0 4px 24px rgba(0,0,0,0.3);
@@ -180,7 +180,7 @@
 .rl-problem-text strong { color: var(--text); }
 .rl-visual-card {
   background: var(--hero-dark); border: 1px solid rgba(255,255,255,0.08);
-  padding: 64px 40px; text-align: center; border-radius: 24px;
+  padding: 64px 40px; text-align: center; border-radius: var(--r-card);
   box-shadow: 0 24px 64px rgba(0,0,0,0.08);
   transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s;
 }
@@ -195,7 +195,7 @@
 .rl-section-header h2 { font-size: clamp(30px, 4vw, 44px); font-weight: 800; color: var(--text); }
 .rl-features-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 12px; }
 .rl-feat-card {
-  background: var(--white); padding: 36px; border-radius: 16px;
+  background: var(--white); padding: 36px; border-radius: var(--r-card);
   border: 1px solid rgba(0,0,0,0.04);
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s;
 }
@@ -220,7 +220,7 @@
 .rl-download { padding: 0 0 140px; background: var(--sand-dark); }
 .rl-download-card {
   background: var(--hero-dark); color: var(--white);
-  padding: 80px 40px; border-radius: 24px;
+  padding: 80px 40px; border-radius: var(--r-card);
   text-align: center; position: relative; overflow: hidden;
 }
 .rl-download-card::before {
@@ -236,7 +236,7 @@
 .rl-download-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
 .rl-app-btn {
   background: var(--white); color: var(--hero-dark);
-  padding: 14px 28px; border-radius: 10px;
+  padding: 14px 28px; border-radius: var(--r-card);
   font-weight: 800; font-size: 15px;
   display: inline-flex; align-items: center; gap: 10px;
   transition: transform 0.15s, box-shadow 0.2s;
@@ -278,7 +278,7 @@
 .rl-mobile-cta { display: none; position: fixed; bottom: 24px; left: 20px; right: 20px; z-index: 1100; }
 .rl-btn-mobile {
   background: var(--hero-dark); color: var(--white) !important;
-  padding: 16px 24px; border-radius: 14px;
+  padding: 16px 24px; border-radius: var(--r-card);
   display: flex; align-items: center; justify-content: center; gap: 10px;
   font-weight: 800; font-size: 15px;
   box-shadow: 0 8px 32px rgba(0,0,0,0.25);
@@ -315,7 +315,7 @@
   .rl-hero { padding: 60px 20px 80px; }
   .rl-hero-mega { font-size: 64px; gap: 12px; }
   .rl-btn-hero { width: 100%; justify-content: center; padding: 16px 28px; font-size: 15px; }
-  .rl-download-card { padding: 56px 24px; border-radius: 20px; }
+  .rl-download-card { padding: 56px 24px; border-radius: var(--r-card); }
   .rl-download-card h2 { font-size: 32px; }
   .rl-app-btn { width: 100%; justify-content: center; }
   .rl-features-grid { grid-template-columns: 1fr; }

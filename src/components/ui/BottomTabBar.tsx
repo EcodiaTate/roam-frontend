@@ -28,8 +28,7 @@ const NAV_STYLE: CSSProperties = {
   backgroundColor: "color-mix(in srgb, var(--roam-bg) 80%, transparent)",
   backdropFilter: "blur(24px) saturate(140%)",
   WebkitBackdropFilter: "blur(24px) saturate(140%)",
-  borderTop: "1px solid color-mix(in srgb, var(--roam-text) 8%, transparent)",
-  boxShadow: "0 -1px 0 color-mix(in srgb, var(--roam-text) 5%, transparent)",
+  boxShadow: "0 -1px 3px color-mix(in srgb, var(--roam-text) 6%, transparent)",
 };
 
 // Safe-area leg below the nav - extends the blur into the home indicator zone

@@ -61,7 +61,7 @@
 
 .highlight {
   background: rgba(212, 132, 90, 0.1);
-  border-left: 3px solid #d4845a;
+  border-left: 3px solid var(--brand-ochre, #d4845a);
   padding: 12px 16px;
   border-radius: 0 8px 8px 0;
   margin: 16px 0;
@@ -76,7 +76,8 @@
 
 .divider {
   border: none;
-  border-top: 1px solid rgba(232, 221, 208, 0.06);
+  height: 2px;
+  background: rgba(232, 221, 208, 0.06);
   margin: 32px 0;
 }
 
@@ -153,7 +154,7 @@
 .select {
   background: rgba(232, 221, 208, 0.05);
   border: 1px solid rgba(232, 221, 208, 0.1);
-  border-radius: 10px;
+  border-radius: var(--r-card);
   padding: 12px 14px;
   font-size: 15px;
   color: #e8ddd0;
@@ -198,7 +199,7 @@
   background: linear-gradient(135deg, #d4845a 0%, #b86d45 100%);
   color: #1a1612;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--r-card);
   padding: 14px 24px;
   font-size: 16px;
   font-weight: 600;
@@ -226,7 +227,7 @@
 .successMsg {
   background: rgba(76, 175, 80, 0.1);
   border: 1px solid rgba(76, 175, 80, 0.2);
-  border-radius: 10px;
+  border-radius: var(--r-card);
   padding: 16px;
   text-align: center;
   color: #81c784;
@@ -244,7 +245,7 @@
 .contactCard {
   background: rgba(232, 221, 208, 0.04);
   border: 1px solid rgba(232, 221, 208, 0.06);
-  border-radius: 12px;
+  border-radius: var(--r-card);
   padding: 16px;
 }
 

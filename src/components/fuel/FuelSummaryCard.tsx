@@ -21,7 +21,7 @@ const settingsBtn: React.CSSProperties = {
 const warningBox: React.CSSProperties = {
   marginTop: 8,
   padding: "8px 10px",
-  borderRadius: 10,
+  borderRadius: "var(--r-card)",
   display: "flex",
   alignItems: "flex-start",
   gap: 8,
@@ -123,7 +123,7 @@ export function FuelSummaryCard({
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         {/* Left: icon + title */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0 }}>
-          <div style={{ background: `${statusColor}12`, padding: 6, borderRadius: 8, flexShrink: 0 }}>
+          <div style={{ background: `${statusColor}12`, padding: 6, borderRadius: "var(--r-card)", flexShrink: 0 }}>
             <Fuel size={14} strokeWidth={2.2} style={{ color: statusColor, display: "block" }} aria-hidden="true" />
           </div>
           <div style={{ minWidth: 0 }}>
@@ -174,7 +174,7 @@ export function FuelSummaryCard({
                     background: legColor(leg),
                     opacity: 0.85,
                     minWidth: 2,
-                    borderRight: i < legs.length - 1 ? "1px solid rgba(255,255,255,0.4)" : undefined,
+                    marginRight: i < legs.length - 1 ? 2 : 0,
                   }}
                 />
               ))}
@@ -227,11 +227,11 @@ export function FuelSummaryCard({
         <div style={{
           marginTop: 8,
           padding: "8px 10px",
-          borderRadius: 10,
+          borderRadius: "var(--r-card)",
           background: "var(--bg-error, rgba(239,68,68,0.1))",
-          border: "1px dashed var(--text-error, #ef4444)",
+          border: "1px dashed var(--text-error)",
         }}>
-          <div style={{ fontSize: 11, fontWeight: 900, color: "var(--text-error, #ef4444)", marginBottom: 2 }}>
+          <div style={{ fontSize: 11, fontWeight: 900, color: "var(--text-error)", marginBottom: 2 }}>
             Recommendation
           </div>
           <div style={{ fontSize: 12, fontWeight: 700, color: "var(--roam-text)", lineHeight: "1.35" }}>

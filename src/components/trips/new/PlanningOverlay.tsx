@@ -237,13 +237,13 @@ export function PlanningOverlay({ phase, error, visible }: PlanningOverlayProps)
             <div style={{
               position: "absolute", top: -60, right: -60,
               width: 200, height: 200, borderRadius: "50%",
-              border: "1px solid rgba(255,255,255,0.08)",
+              border: "1px solid var(--roam-border)",
               pointerEvents: "none",
             }} />
             <div style={{
               position: "absolute", top: -30, right: -30,
               width: 130, height: 130, borderRadius: "50%",
-              border: "1px solid rgba(255,255,255,0.10)",
+              border: "1px solid var(--roam-border)",
               pointerEvents: "none",
             }} />
 
@@ -267,7 +267,7 @@ export function PlanningOverlay({ phase, error, visible }: PlanningOverlayProps)
             <h2 style={{
               margin: "0 0 4px",
               fontSize: 19, fontWeight: 900,
-              color: "#fff", lineHeight: 1.2,
+              color: "var(--on-color)", lineHeight: 1.2,
             }}>
               {isReady
                 ? "You're good to go 🟢"
@@ -339,7 +339,7 @@ export function PlanningOverlay({ phase, error, visible }: PlanningOverlayProps)
                     {/* Icon / state indicator */}
                     <div style={{
                       width: 30, height: 30, flexShrink: 0,
-                      borderRadius: 8,
+                      borderRadius: "var(--r-card)",
                       background: done
                         ? "var(--accent-tint, rgba(51,120,74,0.10))"
                         : active
@@ -403,7 +403,7 @@ export function PlanningOverlay({ phase, error, visible }: PlanningOverlayProps)
             <div style={{ padding: "14px 20px 16px", flexShrink: 0 }}>
               <div style={{
                 padding: "10px 12px",
-                borderRadius: 10,
+                borderRadius: "var(--r-card)",
                 background: "var(--bg-error, #fae5e2)",
                 color: "var(--text-error, #922018)",
                 fontSize: 13, fontWeight: 600,

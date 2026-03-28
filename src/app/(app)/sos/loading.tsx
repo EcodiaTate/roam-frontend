@@ -26,7 +26,7 @@ export default function SosLoading() {
           style={{
             width: 160,
             height: 13,
-            borderRadius: 6,
+            borderRadius: "var(--r-card)",
             background: "var(--roam-surface-hover)",
             animation: "sos-skel-pulse 1.6s ease-in-out infinite",
           }}
@@ -36,7 +36,7 @@ export default function SosLoading() {
           style={{
             width: 240,
             height: 22,
-            borderRadius: 8,
+            borderRadius: "var(--r-card)",
             background: "var(--roam-surface-hover)",
             animation: "sos-skel-pulse 1.6s ease-in-out infinite 0.15s",
           }}
@@ -60,7 +60,7 @@ export default function SosLoading() {
         style={{
           width: 110,
           height: 22,
-          borderRadius: 8,
+          borderRadius: "var(--r-card)",
           background: "var(--roam-surface-hover)",
           animation: "sos-skel-pulse 1.6s ease-in-out infinite 0.2s",
         }}
@@ -106,7 +106,7 @@ export default function SosLoading() {
               <div
                 style={{
                   height: 20,
-                  borderRadius: 8,
+                  borderRadius: "var(--r-card)",
                   background: "var(--roam-surface-hover)",
                   width: "60%",
                   animation: `sos-skel-pulse 1.6s ease-in-out infinite ${0.1 + i * 0.12}s`,
@@ -115,7 +115,7 @@ export default function SosLoading() {
               <div
                 style={{
                   height: 14,
-                  borderRadius: 6,
+                  borderRadius: "var(--r-card)",
                   background: "var(--roam-surface-hover)",
                   width: "80%",
                   animation: `sos-skel-pulse 1.6s ease-in-out infinite ${0.2 + i * 0.12}s`,

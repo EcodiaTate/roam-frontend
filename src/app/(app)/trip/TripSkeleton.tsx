@@ -109,7 +109,7 @@ export function TripSkeleton() {
                 style={{
                   width: 64,
                   height: 40,
-                  borderRadius: 10,
+                  borderRadius: "var(--r-card)",
                   background: "linear-gradient(135deg, #122d1e 0%, var(--brand-eucalypt-dark, #1f5236) 40%, var(--brand-eucalypt, #2d6e40) 80%, #3d8f54 100%)",
                   opacity: 0.35,
                   animation: "trip-skel-pulse 1.6s ease-in-out infinite 0.2s",

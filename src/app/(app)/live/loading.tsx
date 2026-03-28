@@ -40,7 +40,7 @@ export default function LiveLoading() {
               style={{
                 height: 22,
                 width: 100,
-                borderRadius: 8,
+                borderRadius: "var(--r-card)",
                 background: "var(--roam-surface-hover)",
                 animation: "live-skel-pulse 1.6s ease-in-out infinite 0.05s",
               }}
@@ -61,7 +61,7 @@ export default function LiveLoading() {
               marginTop: 4,
               height: 12,
               width: 200,
-              borderRadius: 6,
+              borderRadius: "var(--r-card)",
               background: "var(--roam-surface-hover)",
               animation: "live-skel-pulse 1.6s ease-in-out infinite 0.12s",
             }}
@@ -74,7 +74,7 @@ export default function LiveLoading() {
             style={{
               width: "100%",
               height: 48,
-              borderRadius: 14,
+              borderRadius: "var(--r-card)",
               background: "var(--roam-surface-hover)",
               animation: "live-skel-pulse 1.6s ease-in-out infinite 0.15s",
             }}

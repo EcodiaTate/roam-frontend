@@ -70,7 +70,7 @@ export function WelcomeModal({ open, lastFreeTrip = false, onClose }: Props) {
           <div style={{
             position: "absolute", top: -80, left: "50%", transform: "translateX(-50%)",
             width: 280, height: 280, borderRadius: "50%",
-            border: "1px solid rgba(255,255,255,0.07)",
+            border: "1px solid var(--roam-border)",
             pointerEvents: "none",
           }} />
 
@@ -81,7 +81,7 @@ export function WelcomeModal({ open, lastFreeTrip = false, onClose }: Props) {
           <h1 style={{
             margin: "0 0 10px",
             fontSize: 24, fontWeight: 900,
-            color: "#fff", lineHeight: 1.2,
+            color: "var(--on-color)", lineHeight: 1.2,
           }}>
             {lastFreeTrip
               ? "Make this one count"
@@ -112,7 +112,7 @@ export function WelcomeModal({ open, lastFreeTrip = false, onClose }: Props) {
               <div key={text} style={{
                 display: "flex", alignItems: "center", gap: 12,
                 padding: "8px 0",
-                borderBottom: "1px solid var(--roam-border, rgba(26,22,19,0.07))",
+                borderBottom: "1px solid var(--roam-border)",
               }}>
                 <span style={{ width: 28, textAlign: "center", flexShrink: 0, color: "var(--brand-eucalypt, #2d6e40)", display: "flex", alignItems: "center", justifyContent: "center" }}>{icon}</span>
                 <span style={{ fontSize: 14, fontWeight: 600, color: "var(--roam-text, #1a1613)", lineHeight: 1.4 }}>

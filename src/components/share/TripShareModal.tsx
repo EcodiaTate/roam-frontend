@@ -8,6 +8,7 @@ import { haptic } from "@/lib/native/haptics";
 import { toErrorMessage } from "@/lib/utils/errors";
 import { isNative } from "@/lib/native/platform";
 import { buildCardBlob, shareBlob, loadIconDataUrl } from "@/lib/share/buildCardBlob";
+import { useTheme } from "@/lib/context/ThemeContext";
 
 type Mode = "card" | "overlay";
 
@@ -31,7 +32,7 @@ function PhotoPicker({ onPick }: { onPick: (url: string) => void }) {
       style={{ display: "flex", flexDirection: "column", alignItems: "center",
         justifyContent: "center", gap: 14, height: "100%", padding: 32, textAlign: "center",
         cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
-      <div style={{ width: 60, height: 60, borderRadius: 18,
+      <div style={{ width: 60, height: 60, borderRadius: "var(--r-card)",
         background: "rgba(255,255,255,0.05)", border: "1.5px dashed rgba(255,255,255,0.15)",
         display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.4)" }}>
         <ImageIcon size={26} />
@@ -53,6 +54,7 @@ function PhotoPicker({ onPick }: { onPick: (url: string) => void }) {
 /* ── Modal ───────────────────────────────────────────────────────── */
 
 export function TripShareModal({ open, data, onClose, mapImageUrl }: Props) {
+  const { isDark } = useTheme();
   const [mode, setMode] = useState<Mode>("card");
   const [photo, setPhoto] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -69,7 +71,7 @@ export function TripShareModal({ open, data, onClose, mapImageUrl }: Props) {
     if (open) {
       setMode("card"); setPhoto(null); setErr(null);
       if (!iconDataUrl) loadIconDataUrl().then(setIconDataUrl);
-      setTheme(window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      setTheme(isDark ? "dark" : "light");
       setMounted(true);
       // Two RAFs: first lets React flush the mount paint, second triggers the transition
       let raf2: number;
@@ -162,7 +164,7 @@ export function TripShareModal({ open, data, onClose, mapImageUrl }: Props) {
         <button type="button" onClick={onClose}
           style={{ all: "unset", cursor: "pointer", display: "flex",
             alignItems: "center", justifyContent: "center",
-            width: 44, height: 44, borderRadius: 12,
+            width: 44, height: 44, borderRadius: "var(--r-card)",
             background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.6)",
             backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
             WebkitTapHighlightColor: "transparent", touchAction: "manipulation" }}>
@@ -178,7 +180,7 @@ export function TripShareModal({ open, data, onClose, mapImageUrl }: Props) {
             onClick={() => { haptic.light(); setMode(m); }}
             style={{ all: "unset", cursor: "pointer", flex: 1,
               display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-              height: 44, borderRadius: 12,
+              height: 44, borderRadius: "var(--r-card)",
               background: mode === m ? "#4ade80" : "rgba(255,255,255,0.06)",
               color: mode === m ? "#0a1f0e" : "rgba(255,255,255,0.5)",
               fontSize: 12, fontWeight: 700,
@@ -196,8 +198,8 @@ export function TripShareModal({ open, data, onClose, mapImageUrl }: Props) {
 
         {mode === "card" ? (
           /* Card mode: map JPEG as CSS background, SVG route on top */
-          <div style={{ borderRadius: 28, overflow: "hidden",
-            boxShadow: "0 24px 64px rgba(0,0,0,0.7)",
+          <div style={{ borderRadius: "var(--r-card)", overflow: "hidden",
+            boxShadow: "var(--shadow-heavy)",
             width: "100%", aspectRatio: `${CARD_W} / ${CARD_H}`,
             position: "relative",
             background: mapImageUrl
@@ -218,8 +220,8 @@ export function TripShareModal({ open, data, onClose, mapImageUrl }: Props) {
           </div>
         ) : (
           /* Overlay mode: user photo + SVG route */
-          <div style={{ borderRadius: 28, overflow: "hidden",
-            boxShadow: "0 24px 64px rgba(0,0,0,0.7)",
+          <div style={{ borderRadius: "var(--r-card)", overflow: "hidden",
+            boxShadow: "var(--shadow-heavy)",
             width: "100%", aspectRatio: `${CARD_W} / ${CARD_H}`,
             background: "#0a1a0e", position: "relative" }}>
             {photo ? (
@@ -232,8 +234,8 @@ export function TripShareModal({ open, data, onClose, mapImageUrl }: Props) {
                 <button type="button" onClick={() => setPhoto(null)}
                   style={{ all: "unset", cursor: "pointer", position: "absolute",
                     bottom: 10, right: 10, display: "flex", alignItems: "center", gap: 4,
-                    padding: "8px 14px", borderRadius: 10,
-                    background: "rgba(0,0,0,0.6)", color: "#fff",
+                    padding: "8px 14px", borderRadius: "var(--r-card)",
+                    background: "rgba(0,0,0,0.6)", color: "var(--on-color)",
                     fontSize: 13, fontWeight: 600, minHeight: 44,
                     backdropFilter: "blur(8px)", WebkitTapHighlightColor: "transparent" }}>
                   <ImageIcon size={14} /> Change
@@ -248,9 +250,9 @@ export function TripShareModal({ open, data, onClose, mapImageUrl }: Props) {
 
       {/* ── Error ── */}
       {err && (
-        <div style={{ marginTop: 10, padding: "9px 16px", borderRadius: 10,
-          background: "rgba(251,146,60,0.15)", border: "1px solid rgba(251,146,60,0.3)",
-          color: "#fb923c", fontSize: 12, fontWeight: 600,
+        <div style={{ marginTop: 10, padding: "9px 16px", borderRadius: "var(--r-card)",
+          background: "rgba(251,146,60,0.15)", border: "1px solid var(--roam-accent)",
+          color: "var(--roam-accent)", fontSize: 12, fontWeight: 600,
           maxWidth: 380, textAlign: "center", flexShrink: 0 }}>
           {err}
         </div>
@@ -263,8 +265,8 @@ export function TripShareModal({ open, data, onClose, mapImageUrl }: Props) {
           onClick={() => handleExport("save")}
           style={{ all: "unset", cursor: !canExport || exporting ? "default" : "pointer",
             flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-            height: 50, borderRadius: 15,
-            background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)",
+            height: 50, borderRadius: "var(--r-card)",
+            background: "rgba(255,255,255,0.07)", border: "1px solid var(--roam-border)",
             color: !canExport || exporting ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.75)",
             fontSize: 14, fontWeight: 600, WebkitTapHighlightColor: "transparent",
             touchAction: "manipulation", transition: "opacity 0.15s" }}>
@@ -275,7 +277,7 @@ export function TripShareModal({ open, data, onClose, mapImageUrl }: Props) {
           onClick={() => handleExport("share")}
           style={{ all: "unset", cursor: !canExport || exporting ? "default" : "pointer",
             flex: 2, display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
-            height: 50, borderRadius: 15,
+            height: 50, borderRadius: "var(--r-card)",
             background: !canExport || exporting ? "rgba(74,222,128,0.25)" : "#4ade80",
             color: !canExport || exporting ? "rgba(10,31,14,0.4)" : "#0a1f0e",
             fontSize: 14, fontWeight: 700,

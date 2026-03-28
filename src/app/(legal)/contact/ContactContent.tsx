@@ -219,7 +219,7 @@ export default function ContactContent() {
                 style={{
                   marginTop: "16px",
                   background: "rgba(255,255,255,0.1)",
-                  border: "1px solid rgba(255,255,255,0.2)",
+                  border: "1px solid var(--roam-border-strong)",
                   borderRadius: "8px",
                   padding: "8px 16px",
                   color: "var(--roam-success)",

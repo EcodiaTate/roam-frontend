@@ -164,7 +164,7 @@ function UnlockedPage({ email, entered }: { email: string; entered: boolean }) {
             width: 44,
             height: 44,
             borderRadius: "50%",
-            border: "1px solid rgba(255,255,255,0.15)",
+            border: "1px solid var(--roam-border-strong)",
             background: "rgba(0,0,0,0.15)",
             backdropFilter: "blur(8px)",
             WebkitBackdropFilter: "blur(8px)",
@@ -203,7 +203,7 @@ function UnlockedPage({ email, entered }: { email: string; entered: boolean }) {
               borderRadius: 999,
               padding: "6px 14px",
               marginBottom: 20,
-              border: "1px solid rgba(255,255,255,0.18)",
+              border: "1px solid var(--roam-border-strong)",
             }}
           >
             <CheckCircle2 size={13} style={{ color: "rgba(255,255,255,0.95)" }} />
@@ -226,7 +226,7 @@ function UnlockedPage({ email, entered }: { email: string; entered: boolean }) {
               margin: "0 0 12px",
               fontSize: 32,
               fontWeight: 950,
-              color: "#fff",
+              color: "var(--on-color)",
               lineHeight: 1.08,
               letterSpacing: "-0.5px",
             }}
@@ -247,7 +247,7 @@ function UnlockedPage({ email, entered }: { email: string; entered: boolean }) {
               WebkitBackdropFilter: "blur(8px)",
               borderRadius: 999,
               padding: "7px 14px",
-              border: "1px solid rgba(255,255,255,0.10)",
+              border: "1px solid var(--roam-border)",
             }}
           >
             <Mail size={13} style={{ color: "rgba(255,255,255,0.7)", flexShrink: 0 }} />
@@ -329,7 +329,7 @@ function UnlockedPage({ email, entered }: { email: string; entered: boolean }) {
               alignItems: "center",
               gap: 16,
               padding: "14px 16px",
-              borderRadius: 16,
+              borderRadius: "var(--r-card)",
               background: "var(--roam-surface, #f4efe6)",
               opacity: entered ? 1 : 0,
               transform: entered ? "translateY(0)" : "translateY(16px)",
@@ -342,13 +342,13 @@ function UnlockedPage({ email, entered }: { email: string; entered: boolean }) {
                 width: 46,
                 height: 46,
                 flexShrink: 0,
-                borderRadius: 14,
+                borderRadius: "var(--r-card)",
                 background: "linear-gradient(135deg, var(--brand-ochre, #b5452e) 0%, #c9633e 100%)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                color: "#fff",
-                boxShadow: "0 2px 8px rgba(181,69,46,0.20)",
+                color: "var(--on-color)",
+                boxShadow: "var(--shadow-button)",
                 position: "relative",
               }}
             >
@@ -362,7 +362,7 @@ function UnlockedPage({ email, entered }: { email: string; entered: boolean }) {
                   width: 16,
                   height: 16,
                   borderRadius: "50%",
-                  background: "#22c55e",
+                  background: "var(--roam-success)",
                   border: "2px solid var(--roam-surface, #f4efe6)",
                   display: "flex",
                   alignItems: "center",
@@ -565,7 +565,7 @@ function PurchasePage({
             width: 44,
             height: 44,
             borderRadius: "50%",
-            border: "1px solid rgba(255,255,255,0.15)",
+            border: "1px solid var(--roam-border-strong)",
             background: "rgba(0,0,0,0.15)",
             backdropFilter: "blur(8px)",
             WebkitBackdropFilter: "blur(8px)",
@@ -615,7 +615,7 @@ function PurchasePage({
               borderRadius: 999,
               padding: "5px 14px",
               marginBottom: 18,
-              border: "1px solid rgba(255,255,255,0.10)",
+              border: "1px solid var(--roam-border)",
             }}
           >
             <span
@@ -636,7 +636,7 @@ function PurchasePage({
               margin: "0 0 14px",
               fontSize: 34,
               fontWeight: 950,
-              color: "#fff",
+              color: "var(--on-color)",
               lineHeight: 1.08,
               letterSpacing: "-0.5px",
             }}
@@ -701,7 +701,7 @@ function PurchasePage({
               alignItems: "center",
               gap: 16,
               padding: "14px 16px",
-              borderRadius: 16,
+              borderRadius: "var(--r-card)",
               background: "var(--roam-surface, #f4efe6)",
               opacity: entered ? 1 : 0,
               transform: entered ? "translateY(0)" : "translateY(16px)",
@@ -713,13 +713,13 @@ function PurchasePage({
                 width: 46,
                 height: 46,
                 flexShrink: 0,
-                borderRadius: 14,
+                borderRadius: "var(--r-card)",
                 background: "linear-gradient(135deg, var(--brand-ochre, #b5452e) 0%, #c9633e 100%)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                color: "#fff",
-                boxShadow: "0 2px 8px rgba(181,69,46,0.20)",
+                color: "var(--on-color)",
+                boxShadow: "var(--shadow-button)",
               }}
             >
               {<f.Icon size={22} strokeWidth={2.5} />}
@@ -823,7 +823,7 @@ function PurchasePage({
             background: buying
               ? "var(--brand-ochre, #b5452e)"
               : "linear-gradient(135deg, #6b2518 0%, var(--brand-ochre, #b5452e) 45%, #c9633e 100%)",
-            color: "#fff",
+            color: "var(--on-color)",
             border: "none",
             padding: "18px 20px",
             borderRadius: "var(--r-btn, 14px)",
@@ -869,7 +869,7 @@ function PurchasePage({
         )}
 
         {error && (
-          <div style={{ marginTop: 10, padding: "10px 14px", borderRadius: 10, background: "var(--bg-error, #fae5e2)", color: "var(--text-error, #922018)", fontSize: 13, fontWeight: 600, textAlign: "center" }}>
+          <div style={{ marginTop: 10, padding: "10px 14px", borderRadius: "var(--r-card)", background: "var(--bg-error, #fae5e2)", color: "var(--text-error, #922018)", fontSize: 13, fontWeight: 600, textAlign: "center" }}>
             {error}
           </div>
         )}

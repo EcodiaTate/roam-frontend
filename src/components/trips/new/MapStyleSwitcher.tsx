@@ -16,10 +16,10 @@ const pillBase: React.CSSProperties = {
   gap: 5,
   height: 44,
   padding: "0 14px",
-  borderRadius: 10,
+  borderRadius: "var(--r-card)",
   fontSize: 12,
   fontWeight: 700,
-  color: "#fff",
+  color: "var(--on-color)",
   WebkitTapHighlightColor: "transparent",
   transition: "background 140ms ease, color 140ms ease, transform 100ms ease",
 };
@@ -101,11 +101,11 @@ const glassBox: React.CSSProperties = {
   alignItems: "center",
   gap: 3,
   padding: 3,
-  borderRadius: 11,
+  borderRadius: "var(--r-card)",
   background: "rgba(0,0,0,0.45)",
   backdropFilter: "blur(12px)",
   WebkitBackdropFilter: "blur(12px)",
-  border: "1px solid rgba(255,255,255,0.12)",
+  border: "1px solid var(--roam-border)",
   boxShadow: "0 4px 16px rgba(0,0,0,0.28)",
 };
 

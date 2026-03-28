@@ -98,7 +98,7 @@ function AttrRow({ Icon, label, value, accent }: {
       <div style={{
         width: 32,
         height: 32,
-        borderRadius: 8,
+        borderRadius: "var(--r-card)",
         background: accent ? `${accent}18` : "var(--roam-surface-hover)",
         color: accent ?? "var(--roam-text-muted)",
         display: "grid",
@@ -151,7 +151,7 @@ function FacilityChip({ label, active }: { label: string; active: boolean }) {
       fontWeight: 700,
       background: active ? "var(--accent-tint)" : "var(--roam-surface-hover)",
       color: active ? "var(--brand-eucalypt)" : "var(--roam-text-muted)",
-      border: active ? "1px solid rgba(45,110,64,0.2)" : "1px solid var(--roam-border)",
+      border: active ? "2px solid var(--roam-success)" : "2px solid var(--roam-border)",
     }}>
       {active && <CheckCircle2 size={11} />}
       {label}
@@ -182,7 +182,7 @@ function ActionBtn({
       <div style={{
         width: 48,
         height: 48,
-        borderRadius: 14,
+        borderRadius: "var(--r-card)",
         background: `${color}18`,
         color: color,
         display: "grid",
@@ -543,8 +543,8 @@ export function PlaceDetailSheet({
             <div style={{
               width: 36, height: 5,
               background: "rgba(255,255,255,0.8)",
-              borderRadius: 10,
-              boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+              borderRadius: "var(--r-card)",
+              boxShadow: "var(--shadow-soft)",
             }} />
           </div>
 
@@ -562,7 +562,7 @@ export function PlaceDetailSheet({
               background: "rgba(0,0,0,0.4)",
               backdropFilter: "blur(8px)",
               WebkitBackdropFilter: "blur(8px)",
-              color: "#fff",
+              color: "var(--on-color)",
               display: "grid",
               placeItems: "center",
               cursor: "pointer",
@@ -676,7 +676,7 @@ export function PlaceDetailSheet({
               margin: "0 16px 16px",
               height: 180,
               background: cc.soft,
-              borderRadius: 16,
+              borderRadius: "var(--r-card)",
               overflow: "hidden",
             }}>
               <img
@@ -701,7 +701,7 @@ export function PlaceDetailSheet({
             {guideDesc && (
               <div style={{
                 padding: "14px 16px",
-                borderRadius: 16,
+                borderRadius: "var(--r-card)",
                 background: `${cc.accent}0f`,
                 borderLeft: `3px solid ${cc.accent}`,
               }}>
@@ -751,7 +751,7 @@ export function PlaceDetailSheet({
                 flexWrap: "wrap",
                 gap: 8,
                 padding: "12px 8px",
-                borderRadius: 16,
+                borderRadius: "var(--r-card)",
                 background: "var(--roam-surface-hover)",
               }}>
                 {(onNavigate ?? contextNavigate) && (
@@ -798,7 +798,7 @@ export function PlaceDetailSheet({
             {hasContact && (
               <div>
                 <SectionHeader title="Contact" />
-                <div style={{ borderRadius: 16, background: "var(--roam-surface-hover)", overflow: "hidden", padding: "0 14px" }}>
+                <div style={{ borderRadius: "var(--r-card)", background: "var(--roam-surface-hover)", overflow: "hidden", padding: "0 14px" }}>
                   {phone && (
                     <AttrRow
                       Icon={Phone}
@@ -846,7 +846,7 @@ export function PlaceDetailSheet({
             {extra.opening_hours && (
               <div>
                 <SectionHeader title="Hours" />
-                <div style={{ borderRadius: 16, background: "var(--roam-surface-hover)", overflow: "hidden", padding: "0 14px" }}>
+                <div style={{ borderRadius: "var(--r-card)", background: "var(--roam-surface-hover)", overflow: "hidden", padding: "0 14px" }}>
                   <AttrRow
                     Icon={Clock}
                     label="Opening Hours"
@@ -876,7 +876,7 @@ export function PlaceDetailSheet({
               <div>
                 <SectionHeader title="Fuel Available" />
                 {fuelPrices.length > 0 ? (
-                  <div style={{ borderRadius: 16, background: "var(--roam-surface-hover)", overflow: "hidden", padding: "0 14px" }}>
+                  <div style={{ borderRadius: "var(--r-card)", background: "var(--roam-surface-hover)", overflow: "hidden", padding: "0 14px" }}>
                     {fuelPrices
                       .sort((a, b) => {
                         const order = ["unleaded", "e10", "premium_unleaded_95", "premium_unleaded_98", "diesel", "premium_diesel", "lpg"];
@@ -946,7 +946,7 @@ export function PlaceDetailSheet({
                   </div>
                 )}
                 {evConnectors.length > 0 ? (
-                  <div style={{ borderRadius: 16, background: "var(--roam-surface-hover)", overflow: "hidden", padding: "0 14px" }}>
+                  <div style={{ borderRadius: "var(--r-card)", background: "var(--roam-surface-hover)", overflow: "hidden", padding: "0 14px" }}>
                     {evConnectors.map((cn, i) => (
                       <div key={`${cn.type}-${i}`} style={{
                         display: "flex",
@@ -981,8 +981,8 @@ export function PlaceDetailSheet({
                         fontSize: "var(--font-sm)",
                         fontWeight: 700,
                         background: "rgba(16,185,129,0.1)",
-                        color: "#059669",
-                        border: "1px solid rgba(16,185,129,0.2)",
+                        color: "var(--roam-success)",
+                        border: "1px solid var(--roam-success)",
                         textTransform: "capitalize",
                       }}>
                         <Zap size={12} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
@@ -1037,7 +1037,7 @@ export function PlaceDetailSheet({
             {hasDumpAttrs && (
               <div>
                 <SectionHeader title="Dump Point" />
-                <div style={{ borderRadius: 16, background: "var(--roam-surface-hover)", overflow: "hidden", padding: "0 14px" }}>
+                <div style={{ borderRadius: "var(--r-card)", background: "var(--roam-surface-hover)", overflow: "hidden", padding: "0 14px" }}>
                   {dumpType && <AttrRow Icon={Trash2} label="Type" value={dumpType.replace(/_/g, " ")} />}
                   {dumpAccess && <AttrRow Icon={Flag} label="Access" value={dumpAccess.replace(/_/g, " ")} />}
                   {dumpFee && <AttrRow Icon={Banknote} label="Fee" value={dumpFee} />}
@@ -1051,7 +1051,7 @@ export function PlaceDetailSheet({
             {hasWaterAttrs && (
               <div>
                 <SectionHeader title="Water" />
-                <div style={{ borderRadius: 16, background: "var(--roam-surface-hover)", overflow: "hidden", padding: "0 14px" }}>
+                <div style={{ borderRadius: "var(--r-card)", background: "var(--roam-surface-hover)", overflow: "hidden", padding: "0 14px" }}>
                   {waterType && <AttrRow Icon={Droplets} label="Water Type" value={waterType.replace(/_/g, " ")} accent="var(--brand-sky)" />}
                   {waterFlow && <AttrRow Icon={Droplets} label="Flow" value={waterFlow.replace(/_/g, " ")} />}
                   {waterTreated != null && <BoolRow Icon={CheckCircle2} label="Treated" value={waterTreated} />}
@@ -1064,7 +1064,7 @@ export function PlaceDetailSheet({
             {hasToiletAttrs && (
               <div>
                 <SectionHeader title="Toilets" />
-                <div style={{ borderRadius: 16, background: "var(--roam-surface-hover)", overflow: "hidden", padding: "0 14px" }}>
+                <div style={{ borderRadius: "var(--r-card)", background: "var(--roam-surface-hover)", overflow: "hidden", padding: "0 14px" }}>
                   {toiletType && <AttrRow Icon={Bath} label="Type" value={toiletType.replace(/_/g, " ")} />}
                   {toiletCount != null && <AttrRow Icon={Bath} label="Count" value={`${toiletCount} cubicles`} />}
                   {hasBabyChange && <BoolRow Icon={Baby} label="Baby change" value />}
@@ -1079,7 +1079,7 @@ export function PlaceDetailSheet({
             {hasShowerAttrs && (
               <div>
                 <SectionHeader title="Showers" />
-                <div style={{ borderRadius: 16, background: "var(--roam-surface-hover)", overflow: "hidden", padding: "0 14px" }}>
+                <div style={{ borderRadius: "var(--r-card)", background: "var(--roam-surface-hover)", overflow: "hidden", padding: "0 14px" }}>
                   {showerType && <AttrRow Icon={Thermometer} label="Type" value={`${showerType} shower`} />}
                   {showerCount != null && <AttrRow Icon={Bath} label="Count" value={`${showerCount} showers`} />}
                   {showerFee && <AttrRow Icon={Banknote} label="Fee" value={showerFee} />}
@@ -1092,7 +1092,7 @@ export function PlaceDetailSheet({
             {hasAccessCost && (
               <div>
                 <SectionHeader title="Access & Cost" />
-                <div style={{ borderRadius: 16, background: "var(--roam-surface-hover)", overflow: "hidden", padding: "0 14px" }}>
+                <div style={{ borderRadius: "var(--r-card)", background: "var(--roam-surface-hover)", overflow: "hidden", padding: "0 14px" }}>
                   {isFree && <BoolRow Icon={CheckCircle2} label="Free" value />}
                   {feeStr && <AttrRow Icon={Banknote} label="Fee" value={feeStr} accent="var(--brand-amber)" />}
                   {accessStr && <AttrRow Icon={Flag} label="Access" value={accessStr} />}
@@ -1107,7 +1107,7 @@ export function PlaceDetailSheet({
             {/* ── LOCATION ────────────────────────────────── */}
             <div>
               <SectionHeader title="Location" />
-              <div style={{ borderRadius: 16, background: "var(--roam-surface-hover)", overflow: "hidden", padding: "0 14px" }}>
+              <div style={{ borderRadius: "var(--r-card)", background: "var(--roam-surface-hover)", overflow: "hidden", padding: "0 14px" }}>
                 {address && (
                   <AttrRow Icon={MapPin} label="Address" value={address} accent="var(--roam-accent)" />
                 )}
@@ -1127,7 +1127,7 @@ export function PlaceDetailSheet({
                         fontSize: "var(--font-sm)", cursor: "pointer",
                         display: "flex", alignItems: "center", gap: 6,
                         WebkitTapHighlightColor: "transparent",
-                        fontFamily: "ui-monospace, monospace",
+                        fontFamily: "var(--ff-mono)",
                       }}
                     >
                       {fmtCoord(place.lat, true)}, {fmtCoord(place.lng, false)}
@@ -1149,7 +1149,7 @@ export function PlaceDetailSheet({
               <div>
                 <SectionHeader title="More Information" />
                 <div style={{
-                  borderRadius: 16,
+                  borderRadius: "var(--r-card)",
                   background: "var(--roam-surface-hover)",
                   padding: 14,
                   display: "flex",
@@ -1178,7 +1178,7 @@ export function PlaceDetailSheet({
                         }}
                         style={{
                           display: "flex", alignItems: "center", gap: 4,
-                          padding: "8px 12px", borderRadius: 10,
+                          padding: "8px 12px", borderRadius: "var(--r-card)",
                           background: "var(--info-tint)",
                           color: "var(--brand-sky)",
                           border: "none", fontWeight: 700,

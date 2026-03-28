@@ -54,7 +54,7 @@ export function JournalSkeleton() {
           background: "color-mix(in srgb, var(--roam-bg) 88%, transparent)",
           backdropFilter: "blur(28px) saturate(160%)",
           WebkitBackdropFilter: "blur(28px) saturate(160%)",
-          borderBottom: "1px solid var(--roam-border)",
+          boxShadow: "0 2px 0 var(--roam-border)",
         }}
       >
         {/* Title row: 3-column grid - title | tabs | right spacer */}
@@ -152,7 +152,7 @@ export function JournalSkeleton() {
                   style={{
                     width: 28,
                     height: 28,
-                    borderRadius: 14,
+                    borderRadius: "var(--r-card)",
                     background: "var(--roam-surface-hover)",
                     flexShrink: 0,
                     animation: `journal-skel-pulse 1.6s ease-in-out infinite ${0.05 + i * 0.1}s`,

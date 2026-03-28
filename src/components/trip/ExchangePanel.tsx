@@ -264,7 +264,7 @@ const panelStyles = /* css */ `
   .exchange-backdrop[data-mounted] {
     opacity: 1;
   }
-  @media (prefers-color-scheme: dark) {
+  [data-theme="tactical-night"] {
     .exchange-backdrop {
       background: rgba(10, 8, 6, 0.55);
     }
@@ -280,16 +280,16 @@ const panelStyles = /* css */ `
     background: var(--surface-card, #f4efe6);
     border-radius: var(--r-card, 24px);
     overflow: hidden;
-    box-shadow: 0 12px 40px rgba(40,32,20,0.13), 0 0 0 1px rgba(0,0,0,0.06);
+    box-shadow: var(--shadow-heavy);
     transform: translateY(10px) scale(0.97);
     transition: transform var(--dur-slow, 350ms) var(--spring, cubic-bezier(0.34,1.56,0.64,1));
   }
   .exchange-backdrop[data-mounted] .exchange-panel {
     transform: translateY(0) scale(1);
   }
-  @media (prefers-color-scheme: dark) {
+  [data-theme="tactical-night"] {
     .exchange-panel {
-      box-shadow: 0 12px 40px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.06);
+      box-shadow: var(--shadow-heavy);
     }
   }
 
@@ -312,7 +312,7 @@ const panelStyles = /* css */ `
     cursor: pointer;
     width: 40px;
     height: 40px;
-    border-radius: 10px;
+    border-radius: var(--r-card);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -370,7 +370,7 @@ const panelStyles = /* css */ `
     width: 100%;
     height: 4px;
     border-radius: 2px;
-    background: var(--roam-border, rgba(26,22,19,0.08));
+    background: var(--roam-border);
     overflow: hidden;
   }
   .exchange-progress-bar {
@@ -411,7 +411,7 @@ const panelStyles = /* css */ `
     width: 10px;
     height: 10px;
     border-radius: 50%;
-    background: var(--roam-border, rgba(26,22,19,0.08));
+    background: var(--roam-border);
     transition: background var(--dur-normal, 200ms) var(--ease-out, ease-out);
   }
   .exchange-round-dot.done {
@@ -420,7 +420,7 @@ const panelStyles = /* css */ `
   .exchange-round-line {
     width: 40px;
     height: 2px;
-    background: var(--roam-border, rgba(26,22,19,0.08));
+    background: var(--roam-border);
   }
 
   .exchange-roamers {
@@ -463,7 +463,7 @@ const panelStyles = /* css */ `
     gap: 8px;
   }
   .exchange-roamer-row + .exchange-roamer-row {
-    border-top: 1px solid var(--roam-border, rgba(26,22,19,0.08));
+    border-top: 1px solid var(--roam-border);
   }
   .exchange-roamer-dist {
     display: flex;

@@ -13,7 +13,7 @@ const gridRow: React.CSSProperties = {
 };
 
 const catCard: React.CSSProperties = {
-  borderRadius: 10,
+  borderRadius: "var(--r-card)",
   padding: "10px 12px",
   display: "flex",
   alignItems: "center",
@@ -82,7 +82,7 @@ export function RouteScoreCard({ score, simple }: { score: RouteIntelligenceScor
     <div style={cardBase}>
       {/* Header */}
       <div style={cardHeaderRow}>
-        <div style={{ ...iconBox40, background: scoreBg(score.overall), ...(simple ? { width: 48, height: 48, borderRadius: 14 } : {}) }}>
+        <div style={{ ...iconBox40, background: scoreBg(score.overall), ...(simple ? { width: 48, height: 48, borderRadius: "var(--r-card)" } : {}) }}>
           <span style={{ fontSize: simple ? 22 : 18, fontWeight: 900, color, lineHeight: 1 }}>
             {score.overall.toFixed(0)}
           </span>

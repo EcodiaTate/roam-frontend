@@ -117,7 +117,7 @@ export default function LoginPage() {
           <div
             style={{
               padding: "10px 14px",
-              borderRadius: 10,
+              borderRadius: "var(--r-card)",
               background: "var(--bg-warn, #2a1f00)",
               color: "var(--text-warn, #f5c542)",
               fontSize: 13,
@@ -172,8 +172,8 @@ export default function LoginPage() {
               padding: "0 16px",
               borderRadius: "var(--r-btn)",
               border: "none",
-              background: "#000",
-              color: "#fff",
+              background: "var(--roam-bg)",
+              color: "var(--on-color)",
               fontSize: 16,
               fontWeight: 700,
               opacity: busy ? 0.55 : 1,

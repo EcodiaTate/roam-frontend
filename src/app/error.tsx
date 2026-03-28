@@ -23,8 +23,7 @@ export default function GlobalError({
         padding: 24,
         background: "var(--bg-sand, #f4efe6)",
         color: "var(--roam-text, #1a1612)",
-        fontFamily:
-          '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
+        fontFamily: "var(--ff-body)",
         textAlign: "center",
         gap: 16,
       }}
@@ -52,10 +51,10 @@ export default function GlobalError({
         style={{
           marginTop: 8,
           padding: "14px 32px",
-          borderRadius: 14,
+          borderRadius: "var(--r-card)",
           border: "none",
           background: "var(--roam-accent, #42b159)",
-          color: "#fff",
+          color: "var(--on-color)",
           fontSize: 14,
           fontWeight: 800,
           cursor: "pointer",

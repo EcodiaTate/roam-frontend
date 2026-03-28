@@ -90,7 +90,7 @@ const PIPELINE_STEPS: PipelineStep[] = [
     label: "Check road hazards",
     activeLabel: "Looking for road warnings…",
     doneLabel: "All clear",
-    color: "#ef4444",
+    color: "var(--roam-danger)",
   },
   {
     id: "bundle",
@@ -267,7 +267,7 @@ function BuildProgressView({
                 alignItems: "center",
                 gap: 12,
                 padding: "10px 14px",
-                borderRadius: 12,
+                borderRadius: "var(--r-card)",
                 background: isActive ? `${step.color}0D` : "transparent",
                 transition: "background 0.3s, opacity 0.3s",
                 opacity: state === "pending" ? 0.35 : 1,
@@ -277,7 +277,7 @@ function BuildProgressView({
                 style={{
                   width: 32,
                   height: 32,
-                  borderRadius: 10,
+                  borderRadius: "var(--r-card)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -326,7 +326,7 @@ function BuildProgressView({
             width: "100%",
             maxWidth: 360,
             padding: "10px 14px",
-            borderRadius: 10,
+            borderRadius: "var(--r-card)",
             background: "var(--danger-tint)",
             border: "1px solid var(--roam-border-strong)",
             fontSize: 12,
@@ -354,7 +354,7 @@ function BuildProgressView({
             alignItems: "center",
             gap: 6,
             padding: "10px 20px",
-            borderRadius: 10,
+            borderRadius: "var(--r-card)",
             fontSize: 14,
             fontWeight: 700,
             color: "var(--roam-text)",
@@ -585,7 +585,7 @@ export function StopsEditor(props: {
                     : { width: 44, display: "grid", placeItems: "center" }),
                   background: "rgba(56,189,248,0.12)",
                   color: "var(--brand-sky, #38bdf8)",
-                  border: "1px solid rgba(56,189,248,0.2)",
+                  border: "1px solid var(--roam-info)",
                   WebkitTapHighlightColor: "transparent",
                 }}
               >
@@ -607,7 +607,7 @@ export function StopsEditor(props: {
                     display: "flex", alignItems: "center", gap: 5,
                     background: "linear-gradient(135deg, #122d1e 0%, var(--brand-eucalypt-dark, #1f5236) 40%, var(--brand-eucalypt, #2d6e40) 80%, #3d8f54 100%)",
                     borderRadius: 999, padding: "0 12px",
-                    height: 44, border: "1px solid rgba(255,255,255,0.12)", cursor: "pointer",
+                    height: 44, border: "1px solid var(--roam-border)", cursor: "pointer",
                     boxShadow: "0 2px 12px rgba(31,82,54,0.45), 0 1px 3px rgba(31,82,54,0.20), inset 0 1px 0 rgba(255,255,255,0.10)",
                     overflow: "hidden",
                     WebkitTapHighlightColor: "transparent",
@@ -618,7 +618,7 @@ export function StopsEditor(props: {
                     background: "linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.10) 50%, transparent 70%)",
                     borderRadius: "inherit", pointerEvents: "none",
                   }} />
-                  <span style={{ fontSize: 10, fontWeight: 800, color: "#fff", letterSpacing: "0.06em", textTransform: "uppercase", position: "relative" }}>
+                  <span style={{ fontSize: 10, fontWeight: 800, color: "var(--on-color)", letterSpacing: "0.06em", textTransform: "uppercase", position: "relative" }}>
                     Upgrade
                   </span>
                   <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ flexShrink: 0, position: "relative" }}>
@@ -740,10 +740,10 @@ export function StopsEditor(props: {
                     display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
                     width: "100%",
                     padding: "13px 24px",
-                    borderRadius: 14,
-                    border: "1px solid rgba(255,255,255,0.15)",
+                    borderRadius: "var(--r-card)",
+                    border: "1px solid var(--roam-border-strong)",
                     background: "linear-gradient(135deg, #5c1a0e 0%, var(--brand-ochre, #b5452e) 40%, #d4664a 70%, #e8956a 100%)",
-                    color: "#fff",
+                    color: "var(--on-color)",
                     fontSize: 15,
                     fontWeight: 900,
                     letterSpacing: "-0.2px",
@@ -769,7 +769,7 @@ export function StopsEditor(props: {
                     letterSpacing: "0.04em",
                     textTransform: "uppercase",
                     background: "rgba(255,255,255,0.18)",
-                    borderRadius: 5,
+                    borderRadius: "var(--r-btn)",
                     padding: "2px 6px",
                     marginLeft: 2,
                   }}>offline ready</span>
@@ -784,10 +784,10 @@ export function StopsEditor(props: {
                     style={{
                       display: "inline-flex", alignItems: "center", justifyContent: "center",
                       padding: "9px 12px",
-                      borderRadius: 12,
+                      borderRadius: "var(--r-card)",
                       border: "none",
                       background: "var(--brand-eucalypt, #2d6e40)",
-                      color: "#fff",
+                      color: "var(--on-color)",
                       fontSize: 13,
                       fontWeight: 700,
                       cursor: "pointer",
@@ -805,7 +805,7 @@ export function StopsEditor(props: {
                     style={{
                       display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5,
                       padding: "9px 12px",
-                      borderRadius: 12,
+                      borderRadius: "var(--r-card)",
                       border: "1px solid var(--roam-border)",
                       background: "var(--roam-surface-hover)",
                       color: "var(--roam-text-muted)",
