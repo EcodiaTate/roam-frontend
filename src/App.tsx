@@ -28,6 +28,7 @@ const AuthCallbackPage = lazy(() => import("./app/(app)/auth/callback/page"));
 const UntetheredPage = lazy(() => import("./app/(app)/untethered/page"));
 const LiveTripClientPage = lazy(() => import("./app/(app)/live/ClientPage"));
 const NewTripPage = lazy(() => import("./app/(app)/new/page"));
+const AccountPage = lazy(() => import("./app/(app)/account/page"));
 
 // Legal routes
 const AttributionsPage = lazy(() => import("./app/(legal)/attributions/page"));
@@ -105,6 +106,14 @@ export function App() {
               element={
                 <Suspense fallback={<UntetheredLoading />}>
                   <UntetheredPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="account"
+              element={
+                <Suspense fallback={null}>
+                  <AccountPage />
                 </Suspense>
               }
             />

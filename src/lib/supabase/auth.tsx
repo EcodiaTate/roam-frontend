@@ -11,6 +11,7 @@ import {
 } from "react";
 import type { Session, User, AuthError } from "@supabase/supabase-js";
 import { supabase } from "./client";
+import { api } from "@/lib/api";
 import { planSync } from "@/lib/offline/planSync";
 import { mergeLocalTripsToServer } from "@/lib/paywall/tripGate";
 
@@ -27,6 +28,7 @@ export type AuthState = {
   signInWithEmail: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signUpWithEmail: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
+  deleteAccount: () => Promise<{ error: string | null }>;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -198,6 +200,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     planSync.stop();
   }, []);
 
+  const deleteAccount = useCallback(async (): Promise<{ error: string | null }> => {
+    try {
+      await api.delete("/account");
+      // Server deleted the auth user — sign out locally
+      planSync.stop();
+      await supabase.auth.signOut();
+      setSession(null);
+      // Clear local storage caches
+      localStorage.removeItem("roam_trips_used");
+      localStorage.removeItem("roam_unlimited_unlocked");
+      return { error: null };
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Failed to delete account.";
+      return { error: msg };
+    }
+  }, []);
+
   const user = session?.user ?? null;
 
   const value = useMemo<AuthState>(
@@ -210,6 +229,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signInWithEmail,
       signUpWithEmail,
       signOut,
+      deleteAccount,
     }),
     [
       loading,
@@ -220,6 +240,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signInWithEmail,
       signUpWithEmail,
       signOut,
+      deleteAccount,
     ],
   );
 

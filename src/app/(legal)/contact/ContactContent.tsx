@@ -1,4 +1,5 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router";
 import { haptic } from "@/lib/native/haptics";
 import s from "../legal.module.css";
 import LegalNav from "../LegalNav";
@@ -51,6 +52,7 @@ const SUBJECT_HINTS: Partial<Record<Category, string>> = {
 /* Page                                                                */
 /* ------------------------------------------------------------------ */
 export default function ContactContent() {
+  const [searchParams] = useSearchParams();
   const [form, setForm] = useState<FormData>({
     name: "",
     email: "",
@@ -63,6 +65,14 @@ export default function ContactContent() {
   >("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const honeyRef = useRef<HTMLInputElement>(null);
+
+  // Pre-fill category from URL params (e.g. /contact?category=data-request)
+  useEffect(() => {
+    const cat = searchParams.get("category");
+    if (cat && cat in CATEGORY_LABELS) {
+      setForm((prev) => ({ ...prev, category: cat as Category }));
+    }
+  }, [searchParams]);
 
   const update = useCallback(
     (field: keyof FormData) =>
@@ -218,7 +228,7 @@ export default function ContactContent() {
                 onClick={() => setStatus("idle")}
                 style={{
                   marginTop: "16px",
-                  background: "rgba(255,255,255,0.1)",
+                  background: "var(--roam-surface)",
                   border: "1px solid var(--roam-border-strong)",
                   borderRadius: "8px",
                   padding: "8px 16px",
@@ -351,7 +361,8 @@ export default function ContactContent() {
                 <span
                   style={{
                     fontSize: "11px",
-                    color: "rgba(232,221,208,0.25)",
+                    color: "var(--roam-text-muted)",
+                    opacity: 0.5,
                     textAlign: "right",
                   }}
                 >
@@ -389,7 +400,8 @@ export default function ContactContent() {
               <p
                 style={{
                   fontSize: "12px",
-                  color: "rgba(232,221,208,0.3)",
+                  color: "var(--roam-text-muted)",
+                  opacity: 0.6,
                   lineHeight: 1.6,
                   margin: 0,
                 }}

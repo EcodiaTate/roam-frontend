@@ -33,7 +33,7 @@ import { usePlaceDetail } from "@/lib/context/PlaceDetailContext";
 
 import { GuideView, type GuideTabBarProps } from "@/components/trip/GuideView";
 
-import { Sparkles, MapPin, Wifi, WifiOff, Satellite, AlertTriangle } from "lucide-react";
+import { Sparkles, MapPin, Wifi, WifiOff, Satellite, AlertTriangle, UserCircle } from "lucide-react";
 import { SectionHeader, LiveDot } from "@/components/ui/SectionHeader";
 import { WatermarkCard } from "@/components/ui/WatermarkCard";
 import { GuideSkeleton } from "./GuideSkeleton";
@@ -568,8 +568,8 @@ export default function GuideClientPage(props: {
             </div>
           )}
 
-          {/* Right: status pill */}
-          <div style={{ justifySelf: "end" }}>
+          {/* Right: status pill + account */}
+          <div style={{ justifySelf: "end", display: "flex", alignItems: "center", gap: 8 }}>
             <div
               style={{
                 padding: "6px 10px", borderRadius: 999, fontSize: 12, fontWeight: 700,
@@ -581,6 +581,21 @@ export default function GuideClientPage(props: {
               {isOnline ? <Wifi size={13} /> : <WifiOff size={13} />}
               {isOnline ? "Online" : "Offline"}
             </div>
+            <button
+              type="button"
+              onClick={() => { haptic.light(); router("/account"); }}
+              aria-label="Account"
+              style={{
+                width: 36, height: 36, borderRadius: "50%",
+                border: "none", background: "var(--roam-surface)",
+                color: "var(--roam-text-muted)", display: "flex",
+                alignItems: "center", justifyContent: "center",
+                cursor: "pointer", flexShrink: 0,
+                WebkitTapHighlightColor: "transparent",
+              }}
+            >
+              <UserCircle size={20} />
+            </button>
           </div>
         </div>
 

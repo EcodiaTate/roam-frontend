@@ -3,7 +3,7 @@
 .pageTitle {
   font-size: 28px;
   font-weight: 700;
-  color: #e8ddd0;
+  color: var(--roam-text);
   margin: 0 0 6px;
   letter-spacing: -0.02em;
   line-height: 1.15;
@@ -11,7 +11,8 @@
 
 .effectiveDate {
   font-size: 13px;
-  color: rgba(232, 221, 208, 0.4);
+  color: var(--roam-text-muted);
+  opacity: 0.7;
   margin: 0 0 32px;
   font-weight: 400;
 }
@@ -23,7 +24,7 @@
 .sectionTitle {
   font-size: 17px;
   font-weight: 600;
-  color: #d4845a;
+  color: var(--roam-accent);
   margin: 0 0 12px;
   letter-spacing: -0.01em;
 }
@@ -31,14 +32,15 @@
 .subsectionTitle {
   font-size: 15px;
   font-weight: 600;
-  color: rgba(232, 221, 208, 0.85);
+  color: var(--roam-text);
+  opacity: 0.85;
   margin: 16px 0 8px;
 }
 
 .text {
   font-size: 14px;
   line-height: 1.7;
-  color: rgba(232, 221, 208, 0.7);
+  color: var(--roam-text-muted);
   margin: 0 0 12px;
 }
 
@@ -50,18 +52,18 @@
 .list li {
   font-size: 14px;
   line-height: 1.7;
-  color: rgba(232, 221, 208, 0.65);
+  color: var(--roam-text-muted);
   margin-bottom: 6px;
 }
 
 .list li strong {
-  color: rgba(232, 221, 208, 0.85);
+  color: var(--roam-text);
   font-weight: 600;
 }
 
 .highlight {
-  background: rgba(212, 132, 90, 0.1);
-  border-left: 3px solid var(--brand-ochre, #d4845a);
+  background: var(--accent-tint);
+  border-left: 3px solid var(--roam-accent);
   padding: 12px 16px;
   border-radius: 0 8px 8px 0;
   margin: 16px 0;
@@ -71,18 +73,19 @@
   margin: 0;
   font-size: 14px;
   line-height: 1.7;
-  color: rgba(232, 221, 208, 0.8);
+  color: var(--roam-text);
+  opacity: 0.85;
 }
 
 .divider {
   border: none;
   height: 2px;
-  background: rgba(232, 221, 208, 0.06);
+  background: var(--roam-border);
   margin: 32px 0;
 }
 
 .link {
-  color: #d4845a;
+  color: var(--roam-accent);
   text-decoration: none;
   font-weight: 500;
   transition: opacity 0.15s ease;
@@ -103,19 +106,19 @@
 .dataTable th {
   text-align: left;
   padding: 10px 12px;
-  background: rgba(232, 221, 208, 0.04);
-  color: rgba(232, 221, 208, 0.6);
+  background: var(--roam-surface);
+  color: var(--roam-text-muted);
   font-weight: 600;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  border-bottom: 1px solid rgba(232, 221, 208, 0.08);
+  border-bottom: 1px solid var(--roam-border-strong);
 }
 
 .dataTable td {
   padding: 10px 12px;
-  color: rgba(232, 221, 208, 0.65);
-  border-bottom: 1px solid rgba(232, 221, 208, 0.04);
+  color: var(--roam-text-muted);
+  border-bottom: 1px solid var(--roam-border);
   vertical-align: top;
   line-height: 1.5;
 }
@@ -140,24 +143,24 @@
 .label {
   font-size: 13px;
   font-weight: 600;
-  color: rgba(232, 221, 208, 0.6);
+  color: var(--roam-text-muted);
   letter-spacing: 0.02em;
 }
 
 .required {
-  color: #d4845a;
+  color: var(--roam-accent);
   margin-left: 2px;
 }
 
 .input,
 .textarea,
 .select {
-  background: rgba(232, 221, 208, 0.05);
-  border: 1px solid rgba(232, 221, 208, 0.1);
+  background: var(--roam-surface);
+  border: 1px solid var(--roam-border-strong);
   border-radius: var(--r-card);
   padding: 12px 14px;
   font-size: 15px;
-  color: #e8ddd0;
+  color: var(--roam-text);
   font-family: inherit;
   outline: none;
   transition: border-color 0.2s ease, background 0.2s ease;
@@ -167,13 +170,14 @@
 .input:focus,
 .textarea:focus,
 .select:focus {
-  border-color: rgba(212, 132, 90, 0.5);
-  background: rgba(232, 221, 208, 0.07);
+  border-color: var(--roam-accent);
+  background: var(--roam-surface-hover);
 }
 
 .input::placeholder,
 .textarea::placeholder {
-  color: rgba(232, 221, 208, 0.25);
+  color: var(--roam-text-muted);
+  opacity: 0.5;
 }
 
 .textarea {
@@ -191,13 +195,13 @@
 }
 
 .select option {
-  background: #1a1612;
-  color: #e8ddd0;
+  background: var(--roam-bg);
+  color: var(--roam-text);
 }
 
 .submitBtn {
-  background: linear-gradient(135deg, #d4845a 0%, #b86d45 100%);
-  color: #1a1612;
+  background: var(--roam-accent);
+  color: var(--on-color, #ffffff);
   border: none;
   border-radius: var(--r-card);
   padding: 14px 24px;
@@ -230,7 +234,7 @@
   border-radius: var(--r-card);
   padding: 16px;
   text-align: center;
-  color: #81c784;
+  color: var(--roam-success);
   font-size: 15px;
   font-weight: 500;
 }
@@ -243,8 +247,8 @@
 }
 
 .contactCard {
-  background: rgba(232, 221, 208, 0.04);
-  border: 1px solid rgba(232, 221, 208, 0.06);
+  background: var(--roam-surface);
+  border: 1px solid var(--roam-border);
   border-radius: var(--r-card);
   padding: 16px;
 }
@@ -252,13 +256,13 @@
 .contactCard h4 {
   font-size: 14px;
   font-weight: 600;
-  color: rgba(232, 221, 208, 0.85);
+  color: var(--roam-text);
   margin: 0 0 4px;
 }
 
 .contactCard p {
   font-size: 13px;
-  color: rgba(232, 221, 208, 0.5);
+  color: var(--roam-text-muted);
   margin: 0;
   line-height: 1.5;
 }
