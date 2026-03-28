@@ -25,7 +25,6 @@ export const WatermarkCard = forwardRef<HTMLDivElement, WatermarkCardProps>(
           position: "relative",
           overflow: "hidden",
           borderRadius: "var(--r-card)",
-          minHeight: 300,
           padding: "var(--space-xl)",
           display: "flex",
           flexDirection: "column",

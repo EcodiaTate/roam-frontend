@@ -526,6 +526,7 @@ export default function EmergencyClientPage() {
                 <button
                   type="button"
                   className="trip-interactive sos-retry-loc-btn"
+                  style={{ background: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.9)" }}
                   onClick={() => {
                     haptic.medium();
                     fetchLocationAuto(true);
@@ -536,29 +537,33 @@ export default function EmergencyClientPage() {
                 </button>
               </div>
             ) : (
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ display: "flex", alignItems: "flex-start", flexWrap: "wrap", gap: 8 }}>
                 <CoordinateDisplay
                   lat={lat}
                   lng={lon}
                   label="YOUR LOCATION"
                   variant="expanded"
+                  style={{ background: "rgba(255,255,255,0.08)", flexShrink: 0 }}
                 />
-                {accuracyM != null && (
-                  <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontWeight: 600, flexShrink: 0 }}>
-                    ±{Math.round(accuracyM)}m
-                  </span>
-                )}
-                <button
-                  type="button"
-                  className="trip-interactive sos-retry-loc-btn"
-                  onClick={() => {
-                    haptic.light();
-                    fetchLocationAuto(true);
-                  }}
-                  title="Refresh location"
-                >
-                  <RefreshCw size={16} />
-                </button>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, paddingTop: 4 }}>
+                  {accuracyM != null && (
+                    <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontWeight: 600, flexShrink: 0 }}>
+                      ±{Math.round(accuracyM)}m
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    className="trip-interactive sos-retry-loc-btn"
+                    style={{ background: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.9)" }}
+                    onClick={() => {
+                      haptic.light();
+                      fetchLocationAuto(true);
+                    }}
+                    title="Refresh location"
+                  >
+                    <RefreshCw size={16} />
+                  </button>
+                </div>
               </div>
             )}
           </div>

@@ -1,6 +1,6 @@
 // src/components/ui/CoordinateDisplay.tsx
 
-import { memo, useState, useCallback, useRef } from "react";
+import { memo, useState, useCallback, useRef, type CSSProperties } from "react";
 import { haptic } from "@/lib/native/haptics";
 
 type Props = {
@@ -10,6 +10,7 @@ type Props = {
   label?: string;
   /** compact = single line inline, expanded = stacked with label */
   variant?: "compact" | "expanded";
+  style?: CSSProperties;
 };
 
 /** Format a coordinate as degrees with hemisphere: "23.670° S" */
@@ -24,6 +25,7 @@ export const CoordinateDisplay = memo(function CoordinateDisplay({
   lng,
   label,
   variant = "expanded",
+  style,
 }: Props) {
   const [copied, setCopied] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -71,6 +73,7 @@ export const CoordinateDisplay = memo(function CoordinateDisplay({
         WebkitTapHighlightColor: "transparent",
         transition: "transform 200ms var(--ease-out, cubic-bezier(0.25,0.46,0.45,0.94)), background 200ms",
         minHeight: 44,
+        ...style,
       }}
       onPointerDown={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(0.97)"; }}
       onPointerUp={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(1)"; }}
