@@ -155,13 +155,13 @@ export default function LoginPage() {
           Navigate anywhere. Even offline.
         </div>
 
-        {/* Apple Sign-In (native only - true system UI, must be black bg per Apple HIG) */}
+        {/* Apple Sign-In (native only) — Apple HIG: black on light, white on dark */}
         {isNative && (
           <button
             type="button"
             onClick={handleApple}
             disabled={busy}
-            className="trip-interactive"
+            className="trip-interactive apple-sso-btn"
             style={{
               display: "flex",
               alignItems: "center",
@@ -172,8 +172,6 @@ export default function LoginPage() {
               padding: "0 16px",
               borderRadius: "var(--r-btn)",
               border: "none",
-              background: "var(--roam-bg)",
-              color: "var(--on-color)",
               fontSize: 16,
               fontWeight: 700,
               opacity: busy ? 0.55 : 1,

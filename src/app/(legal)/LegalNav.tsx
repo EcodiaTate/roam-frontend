@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { Link } from "react-router";
-import { Compass, Menu, X, ArrowRight } from "lucide-react";
+import { Capacitor } from "@capacitor/core";
+import { Compass, Menu, X, ArrowRight, ArrowLeft } from "lucide-react";
 
 type Platform = "ios" | "android" | "desktop";
 
@@ -27,15 +28,21 @@ const APP_STORE = "https://apps.apple.com/au/app/roam-nav/id000000000";
 const PLAY_STORE =
   "https://play.google.com/store/apps/details?id=au.ecodia.roam";
 
+const isNativeApp = typeof window !== "undefined" && Capacitor.isNativePlatform();
+
 function useCtaConfig(platform: Platform) {
   return useMemo(() => {
+    // Inside the native app, link back to the app — not the store
+    if (isNativeApp) {
+      return { href: "/login", label: "Back to Roam", external: false, isBack: true };
+    }
     switch (platform) {
       case "ios":
-        return { href: APP_STORE, label: "Get the App", external: true };
+        return { href: APP_STORE, label: "Get the App", external: true, isBack: false };
       case "android":
-        return { href: PLAY_STORE, label: "Get the App", external: true };
+        return { href: PLAY_STORE, label: "Get the App", external: true, isBack: false };
       default:
-        return { href: "/trip", label: "Open Roam", external: false };
+        return { href: "/trip", label: "Open Roam", external: false, isBack: false };
     }
   }, [platform]);
 }
@@ -98,9 +105,15 @@ export default function LegalNav({ activePath }: LegalNavProps) {
             ))}
           </div>
 
-          <a href={cta.href} className="rl-nav-cta" {...extProps(cta.external)}>
-            {cta.label}
-          </a>
+          {cta.external ? (
+            <a href={cta.href} className="rl-nav-cta" {...extProps(true)}>
+              {cta.label}
+            </a>
+          ) : (
+            <Link to={cta.href} className="rl-nav-cta">
+              {cta.isBack && <ArrowLeft size={14} />} {cta.label}
+            </Link>
+          )}
 
           <button
             className="rl-nav-hamburger"
@@ -130,14 +143,24 @@ export default function LegalNav({ activePath }: LegalNavProps) {
                 {label}
               </Link>
             ))}
-            <a
-              href={cta.href}
-              className="rl-nav-mobile-cta"
-              onClick={() => setMenuOpen(false)}
-              {...extProps(cta.external)}
-            >
-              {cta.label} <ArrowRight size={16} />
-            </a>
+            {cta.external ? (
+              <a
+                href={cta.href}
+                className="rl-nav-mobile-cta"
+                onClick={() => setMenuOpen(false)}
+                {...extProps(true)}
+              >
+                {cta.label} <ArrowRight size={16} />
+              </a>
+            ) : (
+              <Link
+                to={cta.href}
+                className="rl-nav-mobile-cta"
+                onClick={() => setMenuOpen(false)}
+              >
+                {cta.isBack && <ArrowLeft size={16} />} {cta.label} {!cta.isBack && <ArrowRight size={16} />}
+              </Link>
+            )}
           </div>
         )}
       </nav>

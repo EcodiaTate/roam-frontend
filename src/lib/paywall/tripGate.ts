@@ -154,9 +154,18 @@ export async function purchaseUnlimited(): Promise<{ success: boolean; error?: s
   }
   try {
     const { Purchases } = await getPurchases();
-    const { customerInfo } = await Purchases.purchaseStoreProduct({
-      product: { productIdentifier: RC_PRODUCT_ID } as never,
+
+    // Fetch the real StoreProduct from the store — purchaseStoreProduct
+    // requires a full product object, not a hand-rolled identifier.
+    const { products } = await Purchases.getProducts({
+      productIdentifiers: [RC_PRODUCT_ID],
     });
+    const product = products.find((p) => p.identifier === RC_PRODUCT_ID);
+    if (!product) {
+      return { success: false, error: "Product not found in store. Please try again later." };
+    }
+
+    const { customerInfo } = await Purchases.purchaseStoreProduct({ product });
     const unlocked = RC_ENTITLEMENT_ID in customerInfo.entitlements.active;
     if (unlocked) {
       await markEntitlementInSupabase("revenuecat");

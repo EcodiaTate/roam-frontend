@@ -834,6 +834,16 @@ input, textarea, [contenteditable] {
   color: var(--on-color);
 }
 
+/* Apple Sign-In — HIG-compliant: black on light, white on dark */
+[data-theme="day"] .apple-sso-btn {
+  background: #000000;
+  color: #FFFFFF;
+}
+[data-theme="tactical-night"] .apple-sso-btn {
+  background: #FFFFFF;
+  color: #000000;
+}
+
 .trip-btn-danger {
   background: var(--roam-surface-hover);
   color: var(--roam-danger);
