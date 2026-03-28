@@ -50,11 +50,15 @@ export default function LoginPage() {
     setBusy(true);
     try {
       const { error: err } = await signInWithAppleNative();
-      if (err) { haptic.error(); setError(err.message); }
+      if (err) {
+        haptic.error();
+        setError(err.message);
+      }
       // success -> session updates -> redirect effect fires
     } catch (e: unknown) {
       haptic.error();
-      setError(e instanceof Error ? e.message : "Apple Sign-In failed");
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(msg || "Apple Sign-In failed. Please try again or use another sign-in method.");
     } finally {
       setBusy(false);
     }
@@ -108,11 +112,11 @@ export default function LoginPage() {
       bottom: "var(--bottom-nav-height, 80px)",
       overflowY: "auto", WebkitOverflowScrolling: "touch" as const,
       display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-      padding: "12px 20px 12px",
+      padding: "24px 20px 24px",
       background: "var(--roam-bg)",
       gap: 0,
     }}>
-      <div className="trip-card" style={{ gap: 12, width: "100%", maxWidth: 400 }}>
+      <div className="trip-card" style={{ gap: 12, width: "100%", maxWidth: 440, margin: "0 auto" }}>
         {!deviceOnline && (
           <div
             style={{
@@ -196,7 +200,7 @@ export default function LoginPage() {
           onClick={handleGoogle}
           disabled={busy}
           className="trip-btn trip-btn-secondary"
-          style={{ opacity: busy ? 0.55 : 1 }}
+          style={{ opacity: busy ? 0.55 : 1, minHeight: 52, width: "100%" }}
         >
           <GoogleG />
           <span>Continue with Google</span>

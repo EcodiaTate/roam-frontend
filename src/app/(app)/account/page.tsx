@@ -239,7 +239,7 @@ export default function AccountPage() {
           ))}
         </div>
 
-        {/* Danger zone */}
+        {/* Delete account */}
         <div style={{ marginTop: 16 }}>
           <div
             style={{
@@ -247,12 +247,12 @@ export default function AccountPage() {
               fontWeight: 800,
               letterSpacing: "0.08em",
               textTransform: "uppercase",
-              color: "var(--roam-danger)",
+              color: "var(--roam-text-muted)",
               marginBottom: 8,
               paddingLeft: 4,
             }}
           >
-            Danger zone
+            Account management
           </div>
 
           <div

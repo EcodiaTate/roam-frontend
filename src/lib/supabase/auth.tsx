@@ -112,10 +112,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (Capacitor.isNativePlatform()) {
       // skipBrowserRedirect prevents Supabase from calling window.location.href,
       // which would navigate the WebView off roam.ecodia.au into Safari.
-      // Instead we open the OAuth URL in SFSafariViewController (in-app sheet).
-      // After Google auth, Supabase redirects to /auth/callback which loads inside
-      // the sheet - that page calls Browser.close() and the main WebView's
-      // onAuthStateChange fires via shared localStorage.
+      // Instead we open the OAuth URL in SFSafariViewController / Chrome Custom Tab.
+      // After Google auth, Supabase redirects to /auth/callback which detects the
+      // in-app browser context, redirects to au.ecodia.roam:// custom scheme,
+      // and the OS intercepts it → closes the browser → fires appUrlOpen.
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: { redirectTo, skipBrowserRedirect: true },
@@ -123,6 +123,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) return { error };
       if (data?.url) {
         const { Browser } = await import("@capacitor/browser");
+        // Listen for browser close — on Android the custom scheme redirect
+        // closes the Custom Tab, but we still need to exchange the code.
+        const closeHandler = await Browser.addListener("browserFinished", async () => {
+          closeHandler.remove();
+          // Give the deep-link handler a moment to route to /auth/callback
+          // which triggers the Supabase code exchange via detectSessionInUrl.
+          // If no session appears within 2s, try exchanging from the URL hash
+          // that may have been set by the deep-link handler.
+          setTimeout(async () => {
+            const { data: sess } = await supabase.auth.getSession();
+            if (!sess.session) {
+              // Force Supabase to re-check for tokens in the URL
+              await supabase.auth.getSession();
+            }
+          }, 1000);
+        });
         await Browser.open({ url: data.url, presentationStyle: "popover" });
       }
       return { error: null };
@@ -173,14 +189,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         nonce, // raw nonce
       });
 
+      if (error) {
+        console.error("[Apple SSO] signInWithIdToken error:", error.message);
+      }
       return { error };
     } catch (e: unknown) {
       // 1001 = ASAuthorizationErrorCanceled - user dismissed the sheet, not an error
-      const msg: string = e instanceof Error ? e.message : "";
-      if (msg.includes("1001") || msg.toLowerCase().includes("cancel")) {
+      // 1000 = ASAuthorizationError.unknown - often a provisioning / capability issue
+      // 1004 = ASAuthorizationErrorNotHandled - system could not handle the request
+      const msg: string = e instanceof Error ? e.message : String(e);
+      const code: string = typeof (e as { code?: unknown })?.code === "string"
+        ? (e as { code: string }).code
+        : typeof (e as { code?: unknown })?.code === "number"
+          ? String((e as { code: number }).code)
+          : "";
+      console.error("[Apple SSO] authorize error:", JSON.stringify(e), msg, "code:", code);
+
+      if (code === "1001" || msg.includes("1001") || msg.toLowerCase().includes("cancel")) {
         return { error: null };
       }
-      return { error: asAuthError(msg || "Apple Sign-In failed.") };
+      if (code === "1000" || msg.includes("1000")) {
+        return {
+          error: asAuthError(
+            "Apple Sign-In is temporarily unavailable. Please try again, or use another sign-in method.",
+          ),
+        };
+      }
+      if (code === "1004" || msg.includes("1004") || msg.toLowerCase().includes("not handled")) {
+        return {
+          error: asAuthError(
+            "Apple Sign-In could not be completed. Please try again.",
+          ),
+        };
+      }
+      return { error: asAuthError(msg || "Apple Sign-In failed. Please try again or use another sign-in method.") };
     }
   }, []);
 

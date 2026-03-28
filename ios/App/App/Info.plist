@@ -54,11 +54,11 @@
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Roam saves captured photos to your library so you can access them later.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Roam uses your location to show your position on the map and navigate along your route.</string>
+	<string>Roam uses your location to show your position on the map, provide turn-by-turn navigation along your route, and alert you when you are approaching the last fuel station before a remote stretch. For example, "You are 12km from the next fuel stop at Coober Pedy."</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Roam uses your location in the background to continue navigation when the app is minimised.</string>
+	<string>Roam uses your location in the background to continue turn-by-turn navigation and send fuel-range warnings when the app is minimised. For example, keeping your route progress updated while your phone is locked on a long outback drive.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
-	<string>Roam uses your location in the background to continue navigation when the app is minimised.</string>
+	<string>Roam uses your location in the background to continue turn-by-turn navigation and send fuel-range warnings when the app is minimised. For example, keeping your route progress updated while your phone is locked on a long outback drive.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>

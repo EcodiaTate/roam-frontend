@@ -183,6 +183,7 @@ const NAV_STYLES = `
   background: #1a1612;
   border-bottom: 1px solid transparent;
   transition: background 0.3s, border-color 0.3s, backdrop-filter 0.3s;
+  padding-top: env(safe-area-inset-top, 0px);
 }
 .rl-nav-s {
   background: rgba(26, 22, 18, 0.88);

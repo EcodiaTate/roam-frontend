@@ -12,7 +12,7 @@
 
 # testing
 /coverage
-
+secrets/
 # Vite / build output
 /dist/
 /out/

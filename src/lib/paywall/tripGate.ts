@@ -101,22 +101,41 @@ async function fetchTripCountFromSupabase(): Promise<number | null> {
 /* ── RevenueCat ──────────────────────────────────────────────────── */
 
 let _rcReady = false;
+let _rcInitPromise: Promise<void> | null = null;
 
 export async function initRevenueCat(apiKey: string): Promise<void> {
   if (!isNativePlatform() || _rcReady) return;
-  try {
-    const { Purchases, LOG_LEVEL } = await getPurchases();
-    await Purchases.setLogLevel({ level: LOG_LEVEL.ERROR });
-    await Purchases.configure({ apiKey });
-    _rcReady = true;
-  } catch (e) {
-    console.warn("[tripGate] RevenueCat init failed:", e);
+  if (_rcInitPromise) return _rcInitPromise;
+
+  _rcInitPromise = (async () => {
+    try {
+      const { Purchases, LOG_LEVEL } = await getPurchases();
+      await Purchases.setLogLevel({ level: LOG_LEVEL.ERROR });
+      await Purchases.configure({ apiKey });
+      _rcReady = true;
+    } catch (e) {
+      console.warn("[tripGate] RevenueCat init failed:", e);
+      _rcInitPromise = null; // allow retry
+    }
+  })();
+
+  return _rcInitPromise;
+}
+
+/** Wait for RC to be ready, with a timeout. Returns true if ready. */
+async function ensureRCReady(): Promise<boolean> {
+  if (_rcReady) return true;
+  if (_rcInitPromise) {
+    await Promise.race([_rcInitPromise, new Promise((r) => setTimeout(r, 5000))]);
   }
+  return _rcReady;
 }
 
 /** Native only: check RC entitlement and persist to Supabase + local cache. */
 async function syncUnlockFromRC(): Promise<boolean> {
-  if (!isNativePlatform() || !_rcReady) return false;
+  if (!isNativePlatform()) return false;
+  await ensureRCReady();
+  if (!_rcReady) return false;
   try {
     const { Purchases } = await getPurchases();
     const { customerInfo } = await Purchases.getCustomerInfo();
@@ -149,20 +168,23 @@ async function markEntitlementInSupabase(source: "revenuecat" | "stripe" | "manu
 
 export async function purchaseUnlimited(): Promise<{ success: boolean; error?: string }> {
   if (!isNativePlatform()) {
-    // Web: caller should redirect to Stripe instead - this path should not be called
     return { success: false, error: "Use Stripe on web." };
   }
+
+  const ready = await ensureRCReady();
+  if (!ready) {
+    return { success: false, error: "Payment service is still loading. Please wait a moment and try again." };
+  }
+
   try {
     const { Purchases } = await getPurchases();
 
-    // Fetch the real StoreProduct from the store — purchaseStoreProduct
-    // requires a full product object, not a hand-rolled identifier.
     const { products } = await Purchases.getProducts({
       productIdentifiers: [RC_PRODUCT_ID],
     });
     const product = products.find((p) => p.identifier === RC_PRODUCT_ID);
     if (!product) {
-      return { success: false, error: "Product not found in store. Please try again later." };
+      return { success: false, error: "Product not available. Please check your internet connection and try again." };
     }
 
     const { customerInfo } = await Purchases.purchaseStoreProduct({ product });
@@ -172,7 +194,7 @@ export async function purchaseUnlimited(): Promise<{ success: boolean; error?: s
       localSet(KEY_UNLOCKED, "1");
       return { success: true };
     }
-    return { success: false, error: "Purchase completed but entitlement not found." };
+    return { success: false, error: "Purchase completed but entitlement not found. Please tap Restore purchase." };
   } catch (e: unknown) {
     const err = e as { code?: string; message?: string };
     if (err?.code === "1") return { success: false, error: "cancelled" };
@@ -184,6 +206,12 @@ export async function restorePurchases(): Promise<{ success: boolean; error?: st
   if (!isNativePlatform()) {
     return { success: false, error: "Restore is only available in the app." };
   }
+
+  const ready = await ensureRCReady();
+  if (!ready) {
+    return { success: false, error: "Payment service is still loading. Please wait a moment and try again." };
+  }
+
   try {
     const { Purchases } = await getPurchases();
     const { customerInfo } = await Purchases.restorePurchases();
