@@ -5,6 +5,7 @@ import { haptic } from "@/lib/native/haptics";
 
 import type { FuelAnalysis } from "@/lib/types/fuel";
 import { cardBase, cardTitle, cardSubtitle, pillBase, btnReset } from "@/components/ui/cardStyles";
+import { SegmentedBar } from "@/components/ui/SegmentedBar";
 import { severityColor, legColor } from "@/lib/ui/colorHelpers";
 import { useToggle } from "@/lib/hooks/useToggle";
 
@@ -161,9 +162,20 @@ export function FuelSummaryCard({
         </div>
       </div>
 
-      {/* ── Row 2: fuel strip (compact) ── */}
+      {/* ── Row 2: segmented coverage summary ── */}
+      {legs.length > 0 && (
+        <div style={{ marginTop: 10 }}>
+          <SegmentedBar
+            value={legs.filter((l) => !l.gap_exceeds_warn).length}
+            max={legs.length}
+            color={has_critical_gaps ? "danger" : legs.some((l) => l.gap_exceeds_warn) ? "primary" : "tertiary"}
+          />
+        </div>
+      )}
+
+      {/* ── Row 3: fuel strip (detailed) ── */}
       {legs.length > 0 && totalKm > 0 && (
-        <div style={{ marginTop: 10, marginBottom: 2 }}>
+        <div style={{ marginTop: 8, marginBottom: 2 }}>
           <div style={{ position: "relative" as const }}>
             <div style={fuelStripBar}>
               {legs.map((leg, i) => (

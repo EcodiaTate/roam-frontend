@@ -25,6 +25,7 @@ import { haptic } from "@/lib/native/haptics";
 const PlaceMapPreview = lazy(() => import("@/components/places/PlaceMapPreview"));
 
 import { CATEGORY_ICON, getCategoryColor } from "@/lib/places/categoryMeta";
+import { AmenityGrid, type AmenityItem } from "@/components/ui/AmenityGrid";
 import { fmtDist, fmtCategory, normalizeUrl, safeOpen, cleanPhone } from "@/lib/places/format";
 
 import {
@@ -683,6 +684,7 @@ export function PlaceDetailSheet({
                 src={thumbnailUrl}
                 alt={place.name}
                 loading="eager"
+                className="terra-img-reveal revealed"
                 style={{ objectFit: "cover", width: "100%", height: "100%", position: "absolute", inset: 0 }}
                 onError={() => setImgError(true)}
               />
@@ -1006,6 +1008,29 @@ export function PlaceDetailSheet({
                 )}
               </div>
             )}
+
+            {/* ── AMENITY GRID (quick-glance overview) ────── */}
+            {(() => {
+              const amenities: AmenityItem[] = [];
+              if (hasWater) amenities.push({ icon: "water_drop", label: "Water" });
+              if (hasToilets) amenities.push({ icon: "wc", label: "Toilets" });
+              if (hasPowered) amenities.push({ icon: "power", label: "Powered Sites" });
+              if (isFree) amenities.push({ icon: "money_off", label: "Free" });
+              if (extra.has_showers || hasShowerAttrs) amenities.push({ icon: "shower", label: "Showers" });
+              if (extra.pets_allowed || extra.dogs_allowed) amenities.push({ icon: "pets", label: "Pet Friendly" });
+              if (wheelchair === "yes") amenities.push({ icon: "accessible", label: "Accessible" });
+              if (extra.has_bbq) amenities.push({ icon: "outdoor_grill", label: "BBQ" });
+              if (extra.has_picnic_table) amenities.push({ icon: "table_restaurant", label: "Picnic Table" });
+              if (extra.has_wifi) amenities.push({ icon: "wifi", label: "WiFi" });
+              if (extra.has_dump_point || hasDumpAttrs) amenities.push({ icon: "delete", label: "Dump Point" });
+              if (capacityStr) amenities.push({ icon: "camping", label: `${capacityStr} Sites` });
+              return amenities.length > 0 ? (
+                <div>
+                  <SectionHeader title="Amenities" />
+                  <AmenityGrid items={amenities} maxItems={6} />
+                </div>
+              ) : null;
+            })()}
 
             {/* ── CAMPING ATTRIBUTES ──────────────────────── */}
             {hasCampAttrs && (

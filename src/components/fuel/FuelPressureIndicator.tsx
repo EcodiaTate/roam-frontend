@@ -18,7 +18,7 @@ const pillBase: React.CSSProperties = {
   borderRadius: 999,
   backdropFilter: "blur(16px)",
   WebkitBackdropFilter: "blur(16px)",
-  boxShadow: "0 4px 16px rgba(0,0,0,0.25), 0 1px 4px rgba(0,0,0,0.15)",
+  boxShadow: "var(--shadow-heavy)",
   fontWeight: 900,
   fontSize: 12,
   letterSpacing: "-0.2px",

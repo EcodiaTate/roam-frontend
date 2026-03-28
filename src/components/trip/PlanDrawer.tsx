@@ -6,10 +6,8 @@ import { useNavigate } from "react-router";
 import {
     Check,
     Clock,
-    Globe,
     Image as ImageIcon,
     Link2,
-    Lock,
     MapPin,
     Navigation,
     Pencil,
@@ -27,7 +25,6 @@ import { InviteCodeModal } from "@/components/plans/InviteCodeModal";
 import { TripShareModal } from "@/components/share/TripShareModal";
 import { NativeShareRenderer } from "@/components/share/NativeShareRenderer";
 import type { ShareCardData } from "@/components/share/TripShareCard";
-import { getMemoryPromptsEnabled, setMemoryPromptsEnabled } from "@/lib/hooks/useStopProximity";
 import { haptic } from "@/lib/native/haptics";
 import { isNative } from "@/lib/native/platform";
 import { toErrorMessage } from "@/lib/utils/errors";
@@ -40,13 +37,6 @@ import {
     renameOfflinePlan,
     setCurrentPlanId,
 } from "@/lib/offline/plansStore";
-import { useAuth } from "@/lib/supabase/auth";
-import { useUIMode } from "@/lib/hooks/useUIMode";
-import {
-    publishTrip,
-    unpublishTrip,
-    buildPublishPayload,
-} from "@/lib/supabase/publicTrips";
 
 function routeLabel(p: OfflinePlanRecord): string {
   const stops = p.preview?.stops;
@@ -261,26 +251,22 @@ function PlanCard({
   plan,
   isCurrent,
   busy,
-  isPublished,
   onOpen,
   onSetActive,
   onDelete,
   onShare,
   onInvite,
-  onPublish,
   onLabelChanged,
   simple,
 }: {
   plan: OfflinePlanRecord;
   isCurrent: boolean;
   busy: boolean;
-  isPublished: boolean;
   onOpen: () => void;
   onSetActive: () => void;
   onDelete: () => void;
   onShare: () => void;
   onInvite: () => void;
-  onPublish: () => void;
   onLabelChanged: (label: string | null) => void;
   simple?: boolean;
 }) {
@@ -504,26 +490,6 @@ function PlanCard({
           </button>
         )}
 
-        {/* Publish / unpublish toggle - hidden in simple mode */}
-        {!simple && (
-          <button
-            type="button"
-            className="plan-card-action-btn"
-            disabled={busy || !plan.preview}
-            title={isPublished ? "Published - tap to make private" : "Publish to Discover feed"}
-            onClick={(e) => {
-              e.stopPropagation();
-              onPublish();
-            }}
-            style={{
-              color: isPublished ? "var(--roam-success, #16a34a)" : "var(--roam-text-muted)",
-            }}
-          >
-            {isPublished ? <Globe size={16} /> : <Lock size={16} />}
-            <span className="plan-card-action-label">{isPublished ? "Public" : "Private"}</span>
-          </button>
-        )}
-
         <button
           type="button"
           className="plan-card-action-btn plan-card-action-danger"
@@ -559,15 +525,10 @@ export function PlanDrawer({
   onAiTrip?: () => void;
 }) {
   const router = useNavigate();
-  const { user } = useAuth();
-  const { isSimple, toggle: toggleUIMode } = useUIMode();
   const [plans, setPlans] = useState<OfflinePlanRecord[]>([]);
   const [currentId, setCurrentIdLocal] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  // publishedIds: plan_ids currently live in the Discover feed
-  const [publishedIds, setPublishedIds] = useState<Set<string>>(new Set());
-
   // Invite modal state
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteMode, setInviteMode] = useState<"create" | "redeem">("redeem");
@@ -576,12 +537,6 @@ export function PlanDrawer({
   // Share card state (web modal / native renderer)
   const [shareCardData, setShareCardData] = useState<ShareCardData | null>(null);
   const [nativeSharePayload, setNativeSharePayload] = useState<{ data: ShareCardData; label: string } | null>(null);
-
-  // Memory prompts toggle
-  const [memPromptsOn, setMemPromptsOn] = useState(true);
-  useEffect(() => {
-    if (open) setMemPromptsOn(getMemoryPromptsEnabled());
-  }, [open]);
 
   const refresh = useCallback(async () => {
     try {
@@ -738,50 +693,6 @@ export function PlanDrawer({
     [],
   );
 
-  const handlePublish = useCallback(
-    async (planId: string) => {
-      if (!user) {
-        setErr("Sign in to publish trips to the Discover feed.");
-        return;
-      }
-      const plan = plans.find((p) => p.plan_id === planId);
-      if (!plan?.preview) return;
-
-      haptic.medium();
-      const alreadyPublished = publishedIds.has(planId);
-
-      // Optimistic toggle
-      setPublishedIds((prev) => {
-        const next = new Set(prev);
-        if (alreadyPublished) next.delete(planId);
-        else next.add(planId);
-        return next;
-      });
-
-      try {
-        if (alreadyPublished) {
-          await unpublishTrip(user.id, planId);
-        } else {
-          const payload = buildPublishPayload(plan.preview);
-          payload.id = planId; // use plan_id as public trip id for idempotency
-          await publishTrip(user.id, payload);
-          haptic.success();
-        }
-      } catch (e) {
-        // Revert
-        setPublishedIds((prev) => {
-          const next = new Set(prev);
-          if (alreadyPublished) next.add(planId);
-          else next.delete(planId);
-          return next;
-        });
-        setErr(toErrorMessage(e) || "Failed to update publish status");
-        haptic.error();
-      }
-    },
-    [user, plans, publishedIds],
-  );
-
   return (
     <>
       {/* Overlay */}
@@ -836,7 +747,7 @@ export function PlanDrawer({
           >
             <h2
               style={{
-                fontSize: isSimple ? 22 : 18,
+                fontSize: 18,
                 fontWeight: 900,
                 color: "var(--roam-text)",
                 margin: 0,
@@ -868,8 +779,7 @@ export function PlanDrawer({
 
           {/* Join + AI + New buttons */}
           <div style={{ display: "flex", gap: 8 }}>
-            {/* Join - hidden in simple mode */}
-            {!isSimple && <button
+            <button
               type="button"
               onClick={handleJoin}
               style={{
@@ -893,7 +803,7 @@ export function PlanDrawer({
             >
               <Link2 size={16} />
               Join
-            </button>}
+            </button>
             {onAiTrip && (
               <button
                 type="button"
@@ -911,13 +821,13 @@ export function PlanDrawer({
                   background: "var(--roam-surface-hover)",
                   border: "1px solid var(--brand-sky)",
                   color: "var(--brand-sky)",
-                  fontSize: isSimple ? 15 : 13,
+                  fontSize: 13,
                   fontWeight: 700,
                   touchAction: "manipulation",
                   WebkitTapHighlightColor: "transparent",
                 }}
               >
-                <Sparkles size={isSimple ? 18 : 16} />
+                <Sparkles size={16} />
                 AI
               </button>
             )}
@@ -936,11 +846,11 @@ export function PlanDrawer({
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 6,
-                height: isSimple ? 54 : 48,
+                height: 48,
                 borderRadius: "var(--r-card)",
                 background: "var(--roam-accent)",
                 color: "var(--on-color)",
-                fontSize: isSimple ? 15 : 13,
+                fontSize: 13,
                 fontWeight: 700,
                 boxShadow: "var(--shadow-button)",
                 touchAction: "manipulation",
@@ -1007,147 +917,18 @@ export function PlanDrawer({
                     plan={p}
                     isCurrent={p.plan_id === currentId}
                     busy={busyId === p.plan_id}
-                    isPublished={publishedIds.has(p.plan_id)}
                     onOpen={() => handleOpen(p.plan_id)}
                     onSetActive={() => handleSetActive(p.plan_id)}
                     onDelete={() => handleDelete(p.plan_id)}
                     onShare={() => handleShare(p.plan_id)}
                     onInvite={() => handleInvite(p.plan_id)}
-                    onPublish={() => handlePublish(p.plan_id)}
                     onLabelChanged={(label) => handleLabelChanged(p.plan_id, label)}
-                    simple={isSimple}
+                    simple={false}
                   />
                 </div>
               ))
             )}
 
-            {/* ── Memory prompts toggle - hidden in simple mode ── */}
-            {!isSimple && <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "10px 12px",
-                marginTop: 8,
-                borderRadius: "var(--r-card)",
-                background: "var(--roam-surface-raised, var(--roam-surface))",
-                border: "1px solid var(--roam-border)",
-              }}
-            >
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--roam-text)", marginBottom: 1 }}>
-                  Stop arrival prompts
-                </div>
-                <div style={{ fontSize: 11, fontWeight: 500, color: "var(--roam-text-muted)", lineHeight: 1.3 }}>
-                  Show memory sheet when you arrive at a stop
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  haptic.selection();
-                  const next = !memPromptsOn;
-                  setMemPromptsOn(next);
-                  setMemoryPromptsEnabled(next);
-                }}
-                style={{
-                  all: "unset",
-                  cursor: "pointer",
-                  width: 50,
-                  height: 30,
-                  borderRadius: "var(--r-card)",
-                  padding: 0,
-                  background: memPromptsOn
-                    ? "var(--brand-eucalypt, #2d6e40)"
-                    : "var(--roam-border)",
-                  position: "relative",
-                  flexShrink: 0,
-                  marginLeft: 12,
-                  transition: "background 0.2s",
-                  WebkitTapHighlightColor: "transparent",
-                }}
-                role="switch"
-                aria-checked={memPromptsOn}
-                aria-label="Stop arrival prompts"
-              >
-                <div
-                  style={{
-                    position: "absolute",
-                    top: 3,
-                    left: memPromptsOn ? 25 : 3,
-                    width: 24,
-                    height: 24,
-                    borderRadius: "50%",
-                    background: "var(--roam-surface)",
-                    boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-                    transition: "left 0.2s cubic-bezier(0.4,0,0.2,1)",
-                  }}
-                />
-              </button>
-            </div>}
-
-            {/* ── Simple Mode toggle ── */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "10px 12px",
-                marginTop: 8,
-                borderRadius: "var(--r-card)",
-                background: "var(--roam-surface-raised, var(--roam-surface))",
-                border: "1px solid var(--roam-border)",
-              }}
-            >
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: isSimple ? 16 : 13, fontWeight: 700, color: "var(--roam-text)", marginBottom: 1 }}>
-                  Simple View
-                </div>
-                <div style={{ fontSize: isSimple ? 13 : 11, fontWeight: 500, color: "var(--roam-text-muted)", lineHeight: 1.3 }}>
-                  Fewer buttons, just the essentials
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  haptic.selection();
-                  toggleUIMode();
-                }}
-                style={{
-                  all: "unset",
-                  cursor: "pointer",
-                  width: 50,
-                  height: 30,
-                  borderRadius: "var(--r-card)",
-                  padding: 0,
-                  background: isSimple
-                    ? "var(--brand-eucalypt, #2d6e40)"
-                    : "var(--roam-border)",
-                  position: "relative",
-                  flexShrink: 0,
-                  marginLeft: 12,
-                  transition: "background 0.2s",
-                  WebkitTapHighlightColor: "transparent",
-                }}
-                role="switch"
-                aria-checked={isSimple}
-                aria-label="Simple View"
-              >
-                <div
-                  style={{
-                    position: "absolute",
-                    top: 3,
-                    left: isSimple ? 25 : 3,
-                    width: 24,
-                    height: 24,
-                    borderRadius: "50%",
-                    background: "var(--roam-surface)",
-                    boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-                    transition: "left 0.2s cubic-bezier(0.4,0,0.2,1)",
-                  }}
-                />
-              </button>
-            </div>
           </div>
         </div>
       </div>

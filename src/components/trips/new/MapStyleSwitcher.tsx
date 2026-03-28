@@ -106,7 +106,7 @@ const glassBox: React.CSSProperties = {
   backdropFilter: "blur(12px)",
   WebkitBackdropFilter: "blur(12px)",
   border: "1px solid var(--roam-border)",
-  boxShadow: "0 4px 16px rgba(0,0,0,0.28)",
+  boxShadow: "var(--shadow-heavy)",
 };
 
 export function MapStyleSwitcher(props: {

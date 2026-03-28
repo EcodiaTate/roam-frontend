@@ -13,6 +13,9 @@ import { saveEmergencyContactLocalFirst, deleteEmergencyContactLocalFirst } from
 
 import type { EmergencyContactLocal } from "@/lib/types/emergency";
 import { PhoneCall, MessageSquareText, Plus, Pencil, Trash2, Satellite, MapPin, RefreshCw } from "lucide-react";
+import { SectionHeader } from "@/components/ui/SectionHeader";
+import { CoordinateDisplay } from "@/components/ui/CoordinateDisplay";
+import { WatermarkCard } from "@/components/ui/WatermarkCard";
 
 function nowIso() {
   return new Date().toISOString();
@@ -496,65 +499,76 @@ export default function EmergencyClientPage() {
     <div className="sos-page roam-scroll">
       {err ? <div className="trip-err-box">{err}</div> : null}
 
-      {/* 1) TOP PRIORITY - CALL 000 */}
-      <button type="button" className="sos-call-000" onClick={callEmergency}>
-        <PhoneCall size={40} />
-        CALL 000
-      </button>
-
-      {/* 2) AUTO LOCATION (WITH UX TIMER) */}
-      <div className="sos-location-block" data-locating={isLocating ? "true" : undefined}>
-        <div className="sos-loc-label">Your coordinates are:</div>
-        <div className="sos-loc-value">
-          {isLocating ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <Satellite size={28} className="animate-pulse" style={{ color: "var(--roam-info)" }} />
-                <span className="sos-loc-wait">
-                  {String(Math.floor(gpsSecondsLeft / 60)).padStart(2, "0")}:{String(gpsSecondsLeft % 60).padStart(2, "0")}
-                </span>
+      {/* 1) EMERGENCY - WatermarkCard with CALL 000 + location */}
+      <WatermarkCard
+        icon="sos"
+        title="Emergency"
+        subtitle="Triple Zero — Police, Fire, Ambulance"
+        accentLabel="SOS"
+        style={{ margin: "0 0 4px" }}
+        footer={
+          <div className="sos-loc-value" style={{ color: "rgba(255,255,255,0.7)" }}>
+            {isLocating ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <Satellite size={28} className="animate-pulse" style={{ color: "var(--roam-info)" }} />
+                  <span className="sos-loc-wait">
+                    {String(Math.floor(gpsSecondsLeft / 60)).padStart(2, "0")}:{String(gpsSecondsLeft % 60).padStart(2, "0")}
+                  </span>
+                </div>
+                <div style={{ fontSize: 13, opacity: 0.7 }}>
+                  {waitMessage}
+                </div>
               </div>
-              <div className="trip-muted">
-                {waitMessage}
+            ) : lat == null || lon == null ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ fontSize: 13, opacity: 0.7 }}>Location unavailable</div>
+                <button
+                  type="button"
+                  className="trip-interactive sos-retry-loc-btn"
+                  onClick={() => {
+                    haptic.medium();
+                    fetchLocationAuto(true);
+                  }}
+                >
+                  <RefreshCw size={16} />
+                  Retry location
+                </button>
               </div>
-            </div>
-          ) : lat == null || lon == null ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 4 }}>
-              <div className="trip-muted">Location unavailable</div>
-              <button
-                type="button"
-                className="trip-interactive sos-retry-loc-btn"
-                onClick={() => {
-                  haptic.medium();
-                  fetchLocationAuto(true);
-                }}
-              >
-                <RefreshCw size={16} />
-                Retry location
-              </button>
-              <div className="trip-muted" style={{ fontSize: 13 }}>
-                If this keeps failing, go to Settings → Roam → Location and set to &quot;While Using&quot;.
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <CoordinateDisplay
+                  lat={lat}
+                  lng={lon}
+                  label="YOUR LOCATION"
+                  variant="expanded"
+                />
+                {accuracyM != null && (
+                  <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontWeight: 600, flexShrink: 0 }}>
+                    ±{Math.round(accuracyM)}m
+                  </span>
+                )}
+                <button
+                  type="button"
+                  className="trip-interactive sos-retry-loc-btn"
+                  onClick={() => {
+                    haptic.light();
+                    fetchLocationAuto(true);
+                  }}
+                  title="Refresh location"
+                >
+                  <RefreshCw size={16} />
+                </button>
               </div>
-            </div>
-          ) : (
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <MapPin size={28} />
-              <span>{fmt5(lat)}, {fmt5(lon)}{accuracyM ? ` (±${Math.round(accuracyM)}m)` : ""}</span>
-              <button
-                type="button"
-                className="trip-interactive sos-retry-loc-btn"
-                onClick={() => {
-                  haptic.light();
-                  fetchLocationAuto(true);
-                }}
-                title="Refresh location"
-              >
-                <RefreshCw size={16} />
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
+            )}
+          </div>
+        }
+      >
+        <button type="button" className="sos-call-000" onClick={callEmergency} style={{ marginTop: 12 }}>
+          <PhoneCall size={40} />
+          CALL 000
+        </button>
+      </WatermarkCard>
 
       {/* 3) BIG SECOND ACTION */}
       <button
@@ -569,7 +583,12 @@ export default function EmergencyClientPage() {
       </button>
 
       {/* CONTACTS (SECONDARY) */}
-      <div className="sos-section-title">Contacts</div>
+      <SectionHeader
+        label="Emergency"
+        heading="Contacts"
+        variant="muted"
+        style={{ padding: "0 16px", marginTop: 16, marginBottom: 8 }}
+      />
 
       <button type="button" className="trip-interactive sos-add-btn" onClick={startNew}>
         <Plus size={22} />

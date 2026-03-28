@@ -25,10 +25,9 @@ import { NavigationControls } from "@/components/nav/NavigationControls";
 import { OffRouteBanner } from "@/components/nav/OffRouteBanner";
 import { StartNavigationButton } from "@/components/nav/StartNavigationButton";
 import { ElevationStrip } from "@/components/nav/ElevationStrip";
-import { RouteScoreCard } from "@/components/trip/RouteScoreCard";
+import { CompassHUD } from "@/components/nav/CompassHUD";
 import { ReportTypePicker, ReportPlacementBar, REPORT_OPTIONS } from "@/components/trip/ReportPanel";
 import type { ObservationType, ObservationSeverity } from "@/lib/types/peer";
-import { ExchangePanel } from "@/components/trip/ExchangePanel";
 import { QuickReportWheel } from "@/components/trip/QuickReportWheel";
 
 // ── Hooks ──
@@ -38,15 +37,12 @@ import { useActiveNavigation } from "@/lib/hooks/useActiveNavigation";
 import { DEFAULT_NAV_CONFIG } from "@/lib/nav/activeNav";
 import { useMapNavigationMode } from "@/lib/hooks/useMapNavigationMode";
 import { useNetworkStatus } from "@/lib/hooks/useNetworkStatus";
-import { useNearbyRoamers } from "@/lib/hooks/useNearbyRoamers";
 import { useObservations } from "@/lib/hooks/useObservations";
 import type { InterpolatedPosition } from "@/lib/nav/gpsInterpolator";
 
 import { haptic } from "@/lib/native/haptics";
-import { useStopProximity, dismissProximityStop } from "@/lib/hooks/useStopProximity";
-import { StopMemorySheet } from "@/components/memories/StopMemorySheet";
+import { useStopProximity } from "@/lib/hooks/useStopProximity";
 import { presenceBeacon } from "@/lib/offline/presenceBeacon";
-import { syncPeerDelta } from "@/lib/offline/peerSync";
 import { getCurrentPlanId, getOfflinePlan, listOfflinePlans, setCurrentPlanId, updateOfflinePlan, type OfflinePlanRecord } from "@/lib/offline/plansStore";
 import { getAllPacks, hasCorePacks, hasNavpack, putPack, putPacksAtomic } from "@/lib/offline/packsStore";
 import type { PackKind } from "@/lib/offline/packsStore";
@@ -58,10 +54,9 @@ import { overlaysToHazardZones, overlaysToAvoidZoneRequests } from "@/lib/nav/ro
 import { speakFuelWarning, speakHazardWarning } from "@/lib/nav/voice";
 
 import { navApi } from "@/lib/api/nav";
-import { bundleApi } from "@/lib/api/bundle";
 import { useEnrichment } from "@/lib/hooks/useEnrichment";
 
-import { analyzeFuel, computeFuelTracking, windRangeFactor, checkFuelArbitrage, fuelOverlayToPlaceItems, type FuelArbitrageAlert } from "@/lib/nav/fuelAnalysis";
+import { analyzeFuel, computeFuelTracking, windRangeFactor, fuelOverlayToPlaceItems } from "@/lib/nav/fuelAnalysis";
 import { computeRefreshPriority, formatAge } from "@/lib/offline/refreshPriority";
 import { decodePolyline6 } from "@/lib/nav/polyline6";
 import { cumulativeKm, buildPolylineIndex, snapToPolylineIndexed, haversineM } from "@/lib/nav/snapToRoute";
@@ -77,7 +72,6 @@ import type {
     CoverageOverlay,
     WildlifeOverlay,
     RestAreaOverlay,
-    RouteIntelligenceScore,
     FuelOverlay,
     EmergencyServicesOverlay,
     HeritageOverlay,
@@ -90,14 +84,13 @@ import type {
 } from "@/lib/types/overlays";
 
 // Updated icons here
-import { Image as ImageIcon, UserPlus, Library, WifiOff, Megaphone, Radio, Plus } from "lucide-react";
+import { Image as ImageIcon, UserPlus, Library, WifiOff, Megaphone, Plus } from "lucide-react";
 import { TripSkeleton } from "./TripSkeleton";
 import { EnrichmentBanner } from "@/components/trip/EnrichmentBanner";
 import { isUnlocked as checkIsUnlocked, checkTripGate } from "@/lib/paywall/tripGate";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { NativeShareRenderer } from "@/components/share/NativeShareRenderer";
 import { usePlaceDetail } from "@/lib/context/PlaceDetailContext";
-import { useUIMode } from "@/lib/hooks/useUIMode";
 import type { ShareCardData } from "@/components/share/TripShareCard";
 import { captureMapSnapshot } from "@/lib/share/captureMapSnapshot";
 
@@ -105,8 +98,6 @@ import { captureMapSnapshot } from "@/lib/share/captureMapSnapshot";
 
 /** Poll overlays every 90 seconds */
 const OVERLAY_POLL_INTERVAL_MS = 90_000;
-/** Refresh route score every 10 minutes */
-const SCORE_POLL_INTERVAL_MS = 10 * 60_000;
 
 /* ── Boot phases ──────────────────────────────────────────────────────── */
 
@@ -160,9 +151,6 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     [props.initialPlanId, planIdFromUrl],
   );
 
-  // UI mode (simple vs full)
-  const { isSimple } = useUIMode();
-
   // Native hooks
   const geo = useGeolocation({ autoStart: true, highAccuracy: true });
   useKeepAwake({ auto: true });
@@ -189,7 +177,6 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   const [coverage, setCoverage] = useState<CoverageOverlay | null>(null);
   const [wildlife, setWildlife] = useState<WildlifeOverlay | null>(null);
   const [restAreas, setRestAreas] = useState<RestAreaOverlay | null>(null);
-  const [routeScore, setRouteScore] = useState<RouteIntelligenceScore | null>(null);
   const [emergency, setEmergency] = useState<EmergencyServicesOverlay | null>(null);
   const [heritage, setHeritage] = useState<HeritageOverlay | null>(null);
   const [airQuality, setAirQuality] = useState<AirQualityOverlay | null>(null);
@@ -204,7 +191,6 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   const [fuelOverlay, setFuelOverlay] = useState<FuelOverlay | null>(null);
   // fuelTracking is derived from props, not stored in state - see computedFuelTracking below
   const [fuelSettingsOpen, setFuelSettingsOpen] = useState(false);
-  const [fuelArbitrage, setFuelArbitrage] = useState<FuelArbitrageAlert | null>(null);
 
   // Elevation state
   const [elevation, setElevation] = useState<ElevationResponse | null>(null);
@@ -247,7 +233,6 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   //   { type, severity } = marker placement mode (picker dismissed, map zoomed in)
   //   null = closed
   const [reportPhase, setReportPhase] = useState<ReportPhase>(null);
-  const [exchangeOpen, setExchangeOpen] = useState(false);
   const [reportMarker, setReportMarker] = useState<{ lat: number; lng: number } | null>(null);
 
   // Nav-mode layer menu + quick report state (managed here, passed to NavigationControls + TripMap)
@@ -268,16 +253,6 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
 
   // Stop-added toast
   const [stopAddedToast, setStopAddedToast] = useState<string | null>(null);
-
-  // Memory sheet state - opened by proximity notification or stop quick action
-  const [memorySheetOpen, setMemorySheetOpen] = useState(false);
-  const [memorySheetStop, setMemorySheetStop] = useState<{
-    stopId: string;
-    stopName: string | null;
-    stopIndex: number;
-    lat: number;
-    lng: number;
-  } | null>(null);
 
   useEffect(() => {
     checkIsUnlocked().then((result) => {
@@ -327,7 +302,6 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
 
   // Overlay polling refs
   const overlayTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const scoreTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Track which plan has been booted so URL-param changes (focus_place_id etc.) don't re-boot
   const bootedPlanIdRef = useRef<string | null>(null);
@@ -512,7 +486,6 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         setCoverage(packs.coverage ?? null);
         setWildlife(packs.wildlife ?? null);
         setRestAreas(packs.rest_areas ?? null);
-        setRouteScore(packs.route_score ?? null);
         setFuelOverlay(packs.fuel ?? null);
         setEmergency(packs.emergency ?? null);
         setHeritage(packs.heritage ?? null);
@@ -624,7 +597,6 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       case "coverage": setCoverage(data as CoverageOverlay); break;
       case "wildlife": setWildlife(data as WildlifeOverlay); break;
       case "rest_areas": setRestAreas(data as RestAreaOverlay); break;
-      case "route_score": setRouteScore(data as RouteIntelligenceScore); break;
       case "emergency": setEmergency(data as EmergencyServicesOverlay); break;
       case "heritage": setHeritage(data as HeritageOverlay); break;
       case "air_quality": setAirQuality(data as AirQualityOverlay); break;
@@ -700,19 +672,6 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   useEffect(() => {
     presenceBeacon.setNavigating(activeNav.isActive);
   }, [activeNav.isActive]);
-
-  // ── Nearby roamers (dead-reckoning proximity) ──
-  // Polls every 20s on shared trips (vs 60s default) for real-time awareness
-  const { roamers: nearbyRoamers } = useNearbyRoamers({ radiusKm: 50, enabled: !!effectivePosition, sharedTrip: isSharedTrip });
-
-  // ── Peer sync: pull delta when a new roamer is detected ──
-  const prevRoamerCountRef = useRef(0);
-  useEffect(() => {
-    if (nearbyRoamers.length > prevRoamerCountRef.current && effectivePosition) {
-      void syncPeerDelta(effectivePosition.lat, effectivePosition.lng);
-    }
-    prevRoamerCountRef.current = nearbyRoamers.length;
-  }, [nearbyRoamers.length, effectivePosition]);
 
   // ── User observations (crowd-sourced road intel) ──
   const observations = useObservations({
@@ -886,15 +845,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         );
         if (snap.distance_m > 2000) {
           setFuelTracking(null);
-          setFuelArbitrage(null);
         } else {
           setFuelTracking(computeFuelTracking(fuelAnalysis, snap.km, fuelAnalysis.profile));
-          // Check for fuel price arbitrage if we have live pricing data
-          if (fuelOverlay) {
-            setFuelArbitrage(
-              checkFuelArbitrage(snap.km, fuelOverlay, fuelAnalysis.profile, fuelAnalysis.profile.fuel_type),
-            );
-          }
         }
       } catch {
         setFuelTracking(null);
@@ -904,7 +856,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     return () => {
       if (fuelSnapTimerRef.current) clearTimeout(fuelSnapTimerRef.current);
     };
-  }, [fuelAnalysis, effectivePosition, routeIndex, fuelOverlay]);
+  }, [fuelAnalysis, effectivePosition, routeIndex]);
 
   // ── Voice: fuel last-chance warning ──────────────────────────────
   // Announce when a last-chance fuel station appears during active nav.
@@ -1004,37 +956,6 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     };
   }, [phase, navpack, pollOverlays]);
 
-  // ── Route score polling ──────────────────────────────────────────
-  const pollRouteScore = useCallback(async () => {
-    if (!isOnlinePollRef.current) return;
-    if (!navpackPollRef.current?.primary?.bbox || !navpackPollRef.current.primary.route_key) return;
-
-    const currentPlanId = planPollRef.current?.plan_id;
-    try {
-      const fresh = await bundleApi.scoreRefresh({
-        route_key: navpackPollRef.current.primary.route_key,
-        bbox: navpackPollRef.current.primary.bbox,
-      });
-      setRouteScore(fresh);
-      if (currentPlanId) putPack(currentPlanId, "route_score", fresh).catch(() => {});
-    } catch (e) {
-      console.warn("[Trip] score poll failed:", e);
-    }
-  }, []); // stable - reads state from refs
-
-  useEffect(() => {
-    if (phase !== "ready" || !navpack?.primary?.bbox) return;
-
-    scoreTimerRef.current = setInterval(pollRouteScore, SCORE_POLL_INTERVAL_MS);
-
-    return () => {
-      if (scoreTimerRef.current) {
-        clearInterval(scoreTimerRef.current);
-        scoreTimerRef.current = null;
-      }
-    };
-  }, [phase, navpack, pollRouteScore]);
-
   // ── Smart reconnection: prioritized overlay refresh on signal return ──
   const wasOnlineRef = useRef(isOnline);
   useEffect(() => {
@@ -1056,10 +977,9 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       );
     }
 
-    // Trigger overlay + score poll immediately (existing handlers pick up isOnline=true)
+    // Trigger overlay poll immediately (existing handler picks up isOnline=true)
     pollOverlays();
-    pollRouteScore();
-  }, [isOnline, phase, navpack, pollOverlays, pollRouteScore]);
+  }, [isOnline, phase, navpack, pollOverlays]);
 
   // ── Rebuild handler ─────────────────────────────────────────────
   // Falls back to offline corridor A* routing when the backend is unreachable.
@@ -1816,22 +1736,12 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   const effectiveStops = useMemo(() => navpack?.req?.stops ?? plan?.preview?.stops ?? [], [navpack, plan]);
   const effectiveGeom = navpack?.primary?.geometry ?? plan?.preview?.geometry ?? null;
 
-  // ── Stop proximity detection → notification + memory sheet ──
+  // ── Stop proximity detection → notification ──
   useStopProximity({
     position: geo.position,
     stops: effectiveStops,
     planId: plan?.plan_id ?? null,
     enabled: phase === "ready",
-    onArrival: useCallback((event: { stop: TripStop; stopIndex: number; distance: number }) => {
-      setMemorySheetStop({
-        stopId: event.stop.id ?? `stop-${event.stopIndex}`,
-        stopName: event.stop.name ?? null,
-        stopIndex: event.stopIndex,
-        lat: event.stop.lat,
-        lng: event.stop.lng,
-      });
-      setMemorySheetOpen(true);
-    }, []),
   });
 
   // Set of place IDs already in the trip - passed to TripMap and PlaceDetailSheet context
@@ -1984,8 +1894,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         />
       </div>
 
-      {/* ── Enrichment banner (progressive trip loading) - hidden in simple mode ── */}
-      {!isSimple && <EnrichmentBanner progress={enrichment.progress} />}
+      {/* ── Enrichment banner (progressive trip loading) ── */}
+      <EnrichmentBanner progress={enrichment.progress} />
 
       {/* ── Remote sync toast ── */}
       {remoteToastVisible && (
@@ -2052,8 +1962,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         onClose={() => setMapQuickMenu(null)}
       />
 
-      {/* ── FAB Stack (Report + Exchange) - hidden in simple mode ── */}
-      {!activeNav.isActive && !isSimple && (
+      {/* ── Report FAB ── */}
+      {!activeNav.isActive && (
         <div style={{
           position: "absolute",
           bottom: "calc(220px + var(--roam-safe-bottom, 0px) + 24px)",
@@ -2064,52 +1974,6 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           gap: 8,
           alignItems: "flex-end",
         }}>
-          {/* Exchange FAB - badge shows nearby roamer count */}
-          <button
-            type="button"
-            className="map-fab-btn"
-            onClick={() => { haptic.selection(); setExchangeOpen(true); }}
-            aria-label={nearbyRoamers.length > 0
-              ? `Exchange - ${nearbyRoamers.length} roamer${nearbyRoamers.length > 1 ? "s" : ""} nearby`
-              : "Exchange data with nearby roamer"}
-            style={{
-              position: "relative",
-              width: 46, height: 46,
-              borderRadius: "var(--r-card)",
-              display: "grid",
-              placeItems: "center",
-              cursor: "pointer",
-              backdropFilter: "blur(16px)",
-              WebkitBackdropFilter: "blur(16px)",
-              transition: "transform 0.1s ease",
-            }}
-            onPointerDown={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(0.90)"; }}
-            onPointerUp={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(1)"; }}
-            onPointerCancel={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(1)"; }}
-          >
-            <Radio size={19} strokeWidth={2.5} />
-            {nearbyRoamers.length > 0 && (
-              <span style={{
-                position: "absolute",
-                top: -4, right: -4,
-                minWidth: 18, height: 18,
-                borderRadius: "var(--r-card)",
-                background: "var(--brand-eucalypt, #2d6e40)",
-                color: "var(--on-color)",
-                fontSize: 11,
-                fontWeight: 800,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "0 4px",
-                boxShadow: "var(--shadow-medium)",
-                lineHeight: 1,
-              }}>
-                {nearbyRoamers.length}
-              </span>
-            )}
-          </button>
-          {/* Report FAB */}
           <button
             type="button"
             className="map-fab-btn"
@@ -2134,8 +1998,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         </div>
       )}
 
-      {/* ── Report Phase 1: Type Picker Overlay - hidden in simple mode ── */}
-      {!isSimple && reportPhase === "picking" && (
+      {/* ── Report Phase 1: Type Picker Overlay ── */}
+      {reportPhase === "picking" && (
         <ReportTypePicker
           onTypeSelected={(type) => {
             const opt = REPORT_OPTIONS.find((o) => o.type === type)!;
@@ -2145,8 +2009,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         />
       )}
 
-      {/* ── Report Phase 2: Placement Bar (map marker mode) - hidden in simple mode ── */}
-      {!isSimple && isPlacing && typeof reportPhase === "object" && (
+      {/* ── Report Phase 2: Placement Bar (map marker mode) ── */}
+      {isPlacing && typeof reportPhase === "object" && (
         <div style={{
           position: "absolute",
           bottom: "calc(220px + var(--roam-safe-bottom, 0px) + 16px)",
@@ -2164,51 +2028,12 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         </div>
       )}
 
-      {/* ── Exchange Panel (ultrasonic peer transfer) - hidden in simple mode ── */}
-      {!isSimple && <ExchangePanel open={exchangeOpen} onClose={() => setExchangeOpen(false)} nearbyRoamers={nearbyRoamers} />}
-
       {/* Navigation overlays are rendered at the end of the tree (after bottom sheet)
          so they paint above all other layers. See below. */}
 
-      {!activeNav.isActive && !isSimple && <FuelPressureIndicator tracking={fuelTracking} />}
+      {!activeNav.isActive && <FuelPressureIndicator tracking={fuelTracking} />}
       <FuelLastChanceToast tracking={fuelTracking} currentKm={currentKm} />
 
-      {/* Fuel price arbitrage toast - hidden in simple mode */}
-      {!isSimple && fuelArbitrage && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)",
-            left: 16,
-            right: 16,
-            zIndex: 200,
-            background: "var(--roam-surface)",
-            borderRadius: "var(--r-card)",
-            padding: "12px 16px",
-            boxShadow: "var(--shadow-heavy)",
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            border: "1px solid var(--roam-success)",
-          }}
-        >
-          <div style={{ fontSize: 22 }}>⛽</div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--roam-success)" }}>
-              Save {fuelArbitrage.savings_cents}¢/L - skip to {fuelArbitrage.cheaper_station}
-            </div>
-            <div style={{ fontSize: 11, color: "var(--roam-text-muted)", marginTop: 2 }}>
-              {fuelArbitrage.distance_km}km further · {fuelArbitrage.cheaper_price_cents}¢/L vs {fuelArbitrage.current_price_cents}¢/L
-            </div>
-          </div>
-          <button
-            onClick={() => setFuelArbitrage(null)}
-            style={{ background: "none", border: "none", color: "var(--roam-text-muted)", cursor: "pointer", padding: 4 }}
-          >
-            ✕
-          </button>
-        </div>
-      )}
       <VehicleFuelSettings
         open={fuelSettingsOpen}
         onClose={() => setFuelSettingsOpen(false)}
@@ -2365,8 +2190,8 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           willChange: "transform",
         }}
       >
-        {/* ── Elevation profile strip (between map and sheet) - hidden in simple mode ── */}
-        {!isSimple && elevation?.profile && (
+        {/* ── Elevation profile strip (between map and sheet) ── */}
+        {elevation?.profile && (
           <div style={{
             position: "relative",
             zIndex: 1,
@@ -2405,7 +2230,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
             <div style={{ minWidth: 0, flex: 1 }}>
               <div
                 style={{
-                  fontSize: isSimple ? 22 : 18, fontWeight: isSimple ? 900 : 800, margin: 0,
+                  fontSize: 18, fontWeight: 800, margin: 0,
                   color: "var(--roam-text)", letterSpacing: "-0.3px",
                   overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                 }}
@@ -2423,9 +2248,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
                 style={{
                   borderRadius: "var(--r-card)",
                   height: 40,
-                  ...(isSimple
-                    ? { display: "flex", alignItems: "center", gap: 6, padding: "0 14px 0 12px" }
-                    : { width: 40, display: "grid", placeItems: "center" }),
+                  width: 40, display: "grid", placeItems: "center",
                   background: "var(--roam-text, #1a1613)",
                   color: "var(--roam-surface, #f4efe6)",
                   border: "none",
@@ -2433,9 +2256,6 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
                 }}
               >
                 <Library size={16} strokeWidth={1.8} />
-                {isSimple && (
-                  <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.01em" }}>Plans</span>
-                )}
                 {plansDot && (
                   <span
                     aria-label="New plan available"
@@ -2454,31 +2274,28 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
                 )}
               </button>
 
-              {/* Invite - hidden in simple mode */}
-              {!isSimple && (
-                <button
-                  type="button"
-                  className="trip-interactive"
-                  aria-label="Invite"
-                  onClick={() => { haptic.selection(); setInviteMode("create"); setInviteOpen(true); }}
-                  style={{
-                    borderRadius: "var(--r-card)", width: 40, height: 40,
-                    display: "grid", placeItems: "center",
-                    background: "var(--roam-text, #1a1613)", color: "var(--roam-surface, #f4efe6)",
-                    border: "none",
-                  }}
-                >
-                  <UserPlus size={16} strokeWidth={1.8} />
-                </button>
-              )}
+              {/* Invite */}
+              <button
+                type="button"
+                className="trip-interactive"
+                aria-label="Invite"
+                onClick={() => { haptic.selection(); setInviteMode("create"); setInviteOpen(true); }}
+                style={{
+                  borderRadius: "var(--r-card)", width: 40, height: 40,
+                  display: "grid", placeItems: "center",
+                  background: "var(--roam-text, #1a1613)", color: "var(--roam-surface, #f4efe6)",
+                  border: "none",
+                }}
+              >
+                <UserPlus size={16} strokeWidth={1.8} />
+              </button>
 
-              {/* Share - hidden in simple mode */}
-              {!isSimple && (
-                <button
-                  type="button"
-                  className="trip-interactive"
-                  aria-label="Share trip card"
-                  onClick={() => {
+              {/* Share */}
+              <button
+                type="button"
+                className="trip-interactive"
+                aria-label="Share trip card"
+                onClick={() => {
                     haptic.selection();
                     const preview = plan?.preview;
                     if (!preview) return;
@@ -2507,8 +2324,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
                   }}
                 >
                   <ImageIcon size={16} strokeWidth={1.8} />
-                </button>
-              )}
+              </button>
 
               {/* Upgrade - show when NOT unlocked; hide Untethered badge when already unlocked */}
               {unlocked ? null : unlocked === false ? (
@@ -2570,13 +2386,6 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
               </div>
             )}
 
-            {/* ── Route intelligence score ── */}
-            {routeScore && !activeNav.isActive && (
-              <div style={{ marginBottom: 16 }}>
-                <RouteScoreCard score={routeScore} simple={isSimple} />
-              </div>
-            )}
-
             {/* ── Flood route warning banner ── */}
             {flood?.route_passes_through_warning && (
               <div style={{
@@ -2632,7 +2441,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
               places={places}
               traffic={traffic}
               hazards={hazards}
-              simple={isSimple}
+              simple={false}
               focusedStopId={focusedStopId}
               onFocusStop={(id) => {
                 setFocusedStopId(id);
@@ -2649,44 +2458,11 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
               offlineRouted={offlineRouted}
               isOnline={isOnline}
               onFilteredIdsChange={setFilteredPlaceIds}
-              onStopQuickAction={(action, stopId) => {
-                if (action === "add-note") {
-                  const idx = effectiveStops.findIndex((st) => st.id === stopId);
-                  const stop = effectiveStops[idx];
-                  if (stop) {
-                    setMemorySheetStop({
-                      stopId: stop.id ?? `stop-${idx}`,
-                      stopName: stop.name ?? null,
-                      stopIndex: idx,
-                      lat: stop.lat,
-                      lng: stop.lng,
-                    });
-                    setMemorySheetOpen(true);
-                  }
-                }
-              }}
+              onStopQuickAction={() => {}}
             />
           </div>
         </div>
       </div>{/* end trip-bottom-sheet */}
-
-      {/* ── Stop memory sheet (note + photos) - hidden in simple mode ── */}
-      {!isSimple && memorySheetStop && plan && (
-        <StopMemorySheet
-          open={memorySheetOpen}
-          planId={plan.plan_id}
-          stopId={memorySheetStop.stopId}
-          stopName={memorySheetStop.stopName}
-          stopIndex={memorySheetStop.stopIndex}
-          lat={memorySheetStop.lat}
-          lng={memorySheetStop.lng}
-          onClose={() => {
-            setMemorySheetOpen(false);
-            // Mark this stop as dismissed so proximity won't re-prompt this session
-            if (plan) dismissProximityStop(plan.plan_id, memorySheetStop.stopId);
-          }}
-        />
-      )}
 
       {/* ── Active Navigation Overlays ──
            Rendered last in the tree so they sit above the bottom sheet
@@ -2696,7 +2472,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         <NavigationHUD
           nav={activeNav.nav}
           visible={activeNav.isActive && activeNav.nav.status !== "off_route"}
-          simple={isSimple}
+          simple={false}
         />
         <OffRouteBanner
           visible={activeNav.nav.status === "off_route"}
@@ -2711,7 +2487,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           onOverview={mapNavMode.showOverview}
           onRecenter={mapNavMode.recenter}
           onEnd={activeNav.stop}
-          simple={isSimple}
+          simple={false}
           layerFilterActive={navLayerFiltered}
           onLayerToggle={() => setNavLayerMenuOpen((v) => !v)}
           onReport={() => setNavReportOpen((v) => !v)}
@@ -2727,11 +2503,22 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
             />
           ) : undefined}
         />
+        {activeNav.isActive && activeNav.nav.heading != null && (
+          <div style={{
+            position: "absolute",
+            bottom: "calc(env(safe-area-inset-bottom, 0px) + var(--roam-tab-h, 64px) + 110px)",
+            right: 12,
+            zIndex: 35,
+            pointerEvents: "none",
+          }}>
+            <CompassHUD heading={activeNav.nav.heading} />
+          </div>
+        )}
         <NavigationBar
           nav={activeNav.nav}
           fuelTracking={fuelTracking}
           visible={activeNav.isActive}
-          simple={isSimple}
+          simple={false}
           onTap={() => {
             setSheetSnap("expanded");
             setTimeout(() => setSheetSnap("peek"), 8000);

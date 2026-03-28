@@ -12,7 +12,6 @@ import { saveMinimalPlan } from "@/lib/offline/plansStore";
 import type { StopSuggestionItem } from "@/lib/types/places";
 
 import { useNewTripDraft } from "@/components/trips/new/useNewTripDraft";
-import { CLONE_TRIP_SEED_KEY, type CloneTripSeed } from "@/lib/types/discover";
 import { NewTripMap } from "@/components/trips/new/NewTripMap";
 import { StopsEditor } from "@/components/trips/new/StopsEditor";
 import { PlaceSearchModal } from "@/components/trips/new/PlaceSearchModal";
@@ -62,23 +61,6 @@ export default function NewTripClientPage() {
   const [paywallVariant, setPaywallVariant] = useState<"gate" | "upgrade">("gate");
   const [unlocked, setUnlocked] = useState<boolean | null>(null);
 
-  // ── Discover clone seed (still via sessionStorage - comes from /discover) ──
-  useEffect(() => {
-    try {
-      const cloneRaw = sessionStorage.getItem(CLONE_TRIP_SEED_KEY);
-      if (cloneRaw) {
-        sessionStorage.removeItem(CLONE_TRIP_SEED_KEY);
-        const seed = JSON.parse(cloneRaw) as CloneTripSeed;
-        if (Array.isArray(seed.stops) && seed.stops.length >= 2) {
-          draft.setStops(seed.stops);
-        }
-      }
-    } catch {
-      // malformed or unavailable - ignore
-    }
-    // Run once on mount only
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     checkTripGate().then((gate) => {

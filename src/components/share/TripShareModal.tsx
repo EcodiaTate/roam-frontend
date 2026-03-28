@@ -223,7 +223,7 @@ export function TripShareModal({ open, data, onClose, mapImageUrl }: Props) {
           <div style={{ borderRadius: "var(--r-card)", overflow: "hidden",
             boxShadow: "var(--shadow-heavy)",
             width: "100%", aspectRatio: `${CARD_W} / ${CARD_H}`,
-            background: "#0a1a0e", position: "relative" }}>
+            background: "var(--bg-sand)", position: "relative" }}>
             {photo ? (
               <>
                 <img src={photo} alt="" style={{ position: "absolute", inset: 0,

@@ -8,9 +8,6 @@ import type { TripPreferences } from "@/lib/types/trip";
 import { TripPrefsPanel } from "./TripPrefsPanel";
 import { haptic } from "@/lib/native/haptics";
 import { hideKeyboard } from "@/lib/native/keyboard";
-import { useUIMode } from "@/lib/hooks/useUIMode";
-
-
 import {
     Rocket,
     Compass,
@@ -425,8 +422,6 @@ export function StopsEditor(props: {
   /** Called when user taps the upgrade button. */
   onUpgrade?: () => void;
 }) {
-  const { isSimple } = useUIMode();
-
   // --- Smooth Drag Controller ---
   const [snapState, setSnapState] = useState<"peek" | "expanded">("peek");
   const [dragOffset, setDragOffset] = useState(0);
@@ -552,9 +547,7 @@ export function StopsEditor(props: {
                 style={{
                   borderRadius: 999,
                   height: 44,
-                  ...(isSimple
-                    ? { display: "flex", alignItems: "center", gap: 6, padding: "0 16px 0 12px" }
-                    : { width: 44, display: "grid", placeItems: "center" }),
+                  width: 44, display: "grid", placeItems: "center",
                   background: "var(--roam-text, #1a1613)",
                   color: "var(--roam-surface, #f4efe6)",
                   border: "none",
@@ -562,9 +555,6 @@ export function StopsEditor(props: {
                 }}
               >
                 <Library size={15} />
-                {isSimple && (
-                  <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.01em" }}>Plans</span>
-                )}
               </button>
 
               <button
@@ -580,9 +570,7 @@ export function StopsEditor(props: {
                 style={{
                   borderRadius: 999,
                   height: 44,
-                  ...(isSimple
-                    ? { display: "flex", alignItems: "center", gap: 6, padding: "0 16px 0 12px" }
-                    : { width: 44, display: "grid", placeItems: "center" }),
+                  width: 44, display: "grid", placeItems: "center",
                   background: "rgba(56,189,248,0.12)",
                   color: "var(--brand-sky, #38bdf8)",
                   border: "1px solid var(--roam-info)",
@@ -590,9 +578,6 @@ export function StopsEditor(props: {
                 }}
               >
                 <Sparkles size={15} />
-                {isSimple && (
-                  <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.01em" }}>AI Plan</span>
-                )}
               </button>
 
               {props.unlocked === false ? (

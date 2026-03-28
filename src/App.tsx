@@ -15,7 +15,6 @@ import AppError from "./app/(app)/error";
 import { NewTripSkeleton } from "./app/(app)/new/NewTripSkeleton";
 import LiveLoading from "./app/(app)/live/loading";
 import LoginLoading from "./app/(app)/login/loading";
-import PlacesLoading from "./app/(app)/places/loading";
 import UntetheredLoading from "./app/(app)/untethered/loading";
 
 // ── Lazy-loaded page components ────────────────────────────────────────
@@ -29,7 +28,6 @@ const AuthCallbackPage = lazy(() => import("./app/(app)/auth/callback/page"));
 const UntetheredPage = lazy(() => import("./app/(app)/untethered/page"));
 const LiveTripClientPage = lazy(() => import("./app/(app)/live/ClientPage"));
 const NewTripPage = lazy(() => import("./app/(app)/new/page"));
-const PlacesPage = lazy(() => import("./app/(app)/places/page"));
 
 // Legal routes
 const AttributionsPage = lazy(() => import("./app/(legal)/attributions/page"));
@@ -73,9 +71,7 @@ export function App() {
             {/* App shell routes */}
             <Route element={<ErrorBoundary fallback={(props) => <AppError {...props} />}><AppLayout /></ErrorBoundary>}>
             {/* Tab routes  PersistentTabs renders the actual content */}
-            <Route path="discover" element={<NullPage />} />
             <Route path="guide" element={<NullPage />} />
-            <Route path="journal" element={<NullPage />} />
             <Route path="trip" element={<NullPage />} />
             <Route path="sos" element={<NullPage />} />
 
@@ -101,14 +97,6 @@ export function App() {
               element={
                 <Suspense fallback={<NewTripSkeleton />}>
                   <NewTripPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="places"
-              element={
-                <Suspense fallback={<PlacesLoading />}>
-                  <PlacesPage />
                 </Suspense>
               }
             />

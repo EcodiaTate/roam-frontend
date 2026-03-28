@@ -34,6 +34,8 @@ import { usePlaceDetail } from "@/lib/context/PlaceDetailContext";
 import { GuideView, type GuideTabBarProps } from "@/components/trip/GuideView";
 
 import { Sparkles, MapPin, Wifi, WifiOff, Satellite, AlertTriangle } from "lucide-react";
+import { SectionHeader, LiveDot } from "@/components/ui/SectionHeader";
+import { WatermarkCard } from "@/components/ui/WatermarkCard";
 import { GuideSkeleton } from "./GuideSkeleton";
 
 import type { GuideBootstrap } from "@/lib/guide/guideEngine";
@@ -495,6 +497,7 @@ export default function GuideClientPage(props: {
     >
       {/* ── Sticky header ───────────────────────────────────────── */}
       <div
+        className="terra-topo"
         style={{
           flexShrink: 0,
           zIndex: 50,
@@ -503,6 +506,13 @@ export default function GuideClientPage(props: {
           boxShadow: "0 2px 0 var(--roam-border)",
         }}
       >
+        {/* Section label */}
+        <SectionHeader
+          label="Trip Guide"
+          right={isOnline ? <LiveDot label="LIVE DATA" /> : undefined}
+          variant="muted"
+          style={{ marginBottom: 6 }}
+        />
         {/* Title row: title | tabs (centered) | status */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", height: 44 }}>
           <div style={{ minWidth: 0, justifySelf: "start" }}>
@@ -690,6 +700,19 @@ export default function GuideClientPage(props: {
           </div>
         ) : null}
       </div>
+
+      {/* ── AI intro card — shown until guide has messages ───── */}
+      {guidePack && guidePack.thread.length === 0 && busy === "chat" && (
+        <div style={{ padding: "0 16px", marginBottom: 8 }}>
+          <WatermarkCard
+            icon="explore"
+            title="Your Guide"
+            subtitle="Preparing route intel, points of interest, and conditions for your trip."
+            accentLabel="AI Guide"
+            style={{ minHeight: 180 }}
+          />
+        </div>
+      )}
 
       {/* ── Content ─────────────────────────────────────────────── */}
       <div

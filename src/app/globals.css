@@ -344,6 +344,18 @@ input, textarea, [contenteditable] {
   background-image: url("data:image/svg+xml,%3Csvg width='400' height='400' viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 380c50-10 100-40 150-40s100 30 150 30 100-20 100-20' stroke='%23ffb693' stroke-width='0.5' fill='none' opacity='0.04'/%3E%3Cpath d='M0 320c40-5 80-25 120-25s80 20 120 20 80-15 160-35' stroke='%23ffb693' stroke-width='0.5' fill='none' opacity='0.03'/%3E%3Cpath d='M0 260c60 0 120-30 180-30s120 20 220 10' stroke='%23ffb693' stroke-width='0.5' fill='none' opacity='0.04'/%3E%3Cpath d='M0 200c80 10 160-40 240-40s160 50 160 50' stroke='%23ffb693' stroke-width='0.5' fill='none' opacity='0.03'/%3E%3Cpath d='M0 140c100-20 200 10 300 0s100-20 100-20' stroke='%23ffb693' stroke-width='0.5' fill='none' opacity='0.04'/%3E%3Cpath d='M0 80c120 10 240-30 360-10 40 5 40 5 40 5' stroke='%23ffb693' stroke-width='0.5' fill='none' opacity='0.03'/%3E%3C/svg%3E");
 }
 
+/* ── Topographic Q-curve texture ─────────────────────────────
+   Apply .terra-topo to hero sections, page headers, large card backgrounds.
+   Q-curve SVG paths at low opacity for subtle terrain feel. */
+.terra-topo {
+  background-image: url("data:image/svg+xml,%3Csvg width='200' height='200' viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 100 Q 50 50 100 100 T 200 100' stroke='%23B3541E' stroke-width='0.5' fill='none' opacity='0.05'/%3E%3Cpath d='M0 150 Q 50 100 100 150 T 200 150' stroke='%23B3541E' stroke-width='0.5' fill='none' opacity='0.03'/%3E%3Cpath d='M0 60 Q 60 30 120 60 T 200 60' stroke='%23B3541E' stroke-width='0.5' fill='none' opacity='0.04'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+}
+[data-theme="tactical-night"] .terra-topo {
+  background-image: url("data:image/svg+xml,%3Csvg width='200' height='200' viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 100 Q 50 50 100 100 T 200 100' stroke='%23D4764A' stroke-width='0.5' fill='none' opacity='0.03'/%3E%3Cpath d='M0 150 Q 50 100 100 150 T 200 150' stroke='%23D4764A' stroke-width='0.5' fill='none' opacity='0.02'/%3E%3Cpath d='M0 60 Q 60 30 120 60 T 200 60' stroke='%23D4764A' stroke-width='0.5' fill='none' opacity='0.03'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+}
+
 /* Hide scrollbars everywhere (native feel) */
 ::-webkit-scrollbar { display: none; }
 * { scrollbar-width: none; }
@@ -640,6 +652,64 @@ input, textarea, [contenteditable] {
   transition: transform 0.08s ease, opacity 0.08s ease;
 }
 
+/* ── HeroCard cinematic states ────────────────────────────── */
+.hero-card--pressable:active {
+  transform: scale(0.98);
+}
+
+@media (hover: hover) {
+  .hero-card--pressable:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-fab);
+  }
+
+  .hero-card--pressable:hover .hero-card__img {
+    filter: grayscale(0) !important;
+    opacity: 1 !important;
+  }
+
+  .hero-card--pressable:hover .hero-card__bg {
+    filter: grayscale(0);
+    opacity: 1;
+  }
+}
+
+@media (min-width: 768px) {
+  .hero-card {
+    min-height: 400px !important;
+  }
+}
+
+/* ── SideCard hover states ───────────────────────────────── */
+.side-card__arrow {
+  transition: transform 200ms var(--ease-out);
+}
+
+@media (hover: hover) {
+  .side-card:hover {
+    background: var(--roam-surface-hover) !important;
+  }
+
+  .side-card:hover .side-card__thumb {
+    filter: grayscale(0) !important;
+  }
+
+  .side-card:hover .side-card__arrow {
+    transform: translateX(4px);
+  }
+}
+
+.side-card:active {
+  transform: scale(0.98);
+}
+
+/* ── Bento grid responsive collapse ──────────────────────── */
+@media (max-width: 767px) {
+  .bento-responsive > * {
+    grid-column: span 12 !important;
+  }
+}
+
 /* ── Plan card action bar (mobile-first grid) ────────────── */
 .plan-card-actions {
   display: grid;
@@ -827,6 +897,20 @@ input, textarea, [contenteditable] {
   transform: scale(0.95);
   filter: brightness(0.88);
   box-shadow: none !important;
+}
+.roam-fab-press:active:not(:disabled) {
+  transform: scale(0.90);
+  box-shadow: var(--shadow-soft) !important;
+}
+
+/* ── WatermarkCard backgrounds ─────────────────────────── */
+.watermark-card-bg {
+  background: var(--roam-text);
+  box-shadow: var(--shadow-heavy);
+}
+[data-theme="tactical-night"] .watermark-card-bg {
+  background: var(--roam-surface-hover);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.50);
 }
 
 /* ── Glass-morphism surfaces in Tactical Night mode ─────── */
@@ -1906,6 +1990,45 @@ input[type="range"]::-moz-range-thumb {
   50% { opacity: 0.3; }
 }
 
+/* ── Enhanced offline indicator (larger badge with subtitle) ── */
+.terra-offline-indicator-enhanced {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border-radius: var(--r-pill);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+.terra-offline-indicator-enhanced.terra-offline-indicator--offline {
+  background: var(--terra-emergency-tint);
+  color: var(--terra-emergency);
+}
+.terra-offline-indicator-enhanced.terra-offline-indicator--degraded {
+  background: var(--terra-solar-tint);
+  color: var(--terra-solar);
+}
+.terra-offline-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.terra-offline-label {
+  line-height: 1.2;
+}
+.terra-offline-subtitle {
+  font-size: 9px;
+  font-weight: 600;
+  opacity: 0.7;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
 /* ── Terra alert banners ─────────────────────────────────
    Three severity tiers. Emergency Red reserved for SOS/critical only. */
 .terra-alert {
@@ -1955,4 +2078,71 @@ input[type="range"]::-moz-range-thumb {
   font-size: var(--font-xs);
   opacity: 0.85;
   line-height: 1.4;
+}
+
+
+/* ==========================================================================
+   TERRA NOMAD — Map Grid, Image Treatments & Scanline Overlays
+   ========================================================================== */
+
+/* ── Map dot-grid background ────────────────────────────── */
+.terra-grid {
+  background-color: var(--roam-surface);
+  background-image: radial-gradient(circle at 2px 2px, var(--roam-border) 1px, transparent 0);
+  background-size: 40px 40px;
+}
+[data-theme="tactical-night"] .terra-grid {
+  background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.04) 1px, transparent 0);
+}
+
+/* ── Grayscale reveal — images start muted, color on hover ── */
+.terra-img-reveal {
+  filter: grayscale(0.3);
+  opacity: 0.7;
+  transition: filter 700ms var(--ease-out), opacity 700ms var(--ease-out);
+}
+.group:hover .terra-img-reveal,
+.terra-img-reveal:hover,
+.terra-img-reveal.revealed {
+  filter: grayscale(0);
+  opacity: 1;
+}
+
+/* ── Tactical blend — vehicle/blueprint images ───────────── */
+.terra-img-tactical {
+  mix-blend-mode: luminosity;
+  opacity: 0.4;
+  filter: grayscale(1);
+}
+
+/* ── Map contrast — map preview images ───────────────────── */
+.terra-img-map {
+  filter: grayscale(0.2) contrast(1.25);
+}
+
+/* ── HUD scanline overlay ────────────────────────────────── */
+.terra-scanline {
+  position: relative;
+}
+.terra-scanline::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent 50%, rgba(179,84,30,0.02) 50%);
+  background-size: 100% 4px;
+  pointer-events: none;
+  border-radius: inherit;
+}
+[data-theme="tactical-night"] .terra-scanline::after {
+  background: linear-gradient(to bottom, transparent 50%, rgba(212,118,74,0.015) 50%);
+  background-size: 100% 4px;
+}
+
+/* ── Route preview pulse animation ───────────────────────── */
+@keyframes terra-route-pulse-anim {
+  0%, 100% { r: 10; opacity: 0.15; }
+  50% { r: 16; opacity: 0.05; }
+}
+.terra-route-pulse {
+  animation: terra-route-pulse-anim 2s ease-in-out infinite;
 }

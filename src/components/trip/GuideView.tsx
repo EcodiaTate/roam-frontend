@@ -1635,7 +1635,7 @@ export function GuideView({
                   fontSize: 14, fontWeight: 700,
                   background: "var(--brand-sky)", color: "white", cursor: "pointer",
                   display: "inline-flex", alignItems: "center", gap: 8,
-                  boxShadow: "0 2px 8px rgba(59,130,246,0.25)",
+                  boxShadow: "var(--shadow-soft)",
                 }}
               >
                 <Sparkles size={15} />

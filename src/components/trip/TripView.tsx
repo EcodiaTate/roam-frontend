@@ -51,6 +51,7 @@ import {
     type StopQuickAction,
 } from "@/components/trip/StopQuickActionMenu";
 
+import { SectionHeader } from "@/components/ui/SectionHeader";
 import s from "./Tripview.module.css";
 
 /* ── Types ────────────────────────────────────────────────────────────── */
@@ -776,7 +777,7 @@ export function TripView({
       {activeSection === "route" && (
         <>
           {/* Route meta */}
-          <div className={s.routeMeta}>
+          <div className={`${s.routeMeta} terra-topo`}>
             <div className={s.routeMetaStats}>
               <span>{formatDistance(distance)}</span>
               <span style={{ opacity: 0.4 }}>&middot;</span>

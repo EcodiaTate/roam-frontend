@@ -782,7 +782,7 @@ export function StopRow(props: {
                 background: "var(--roam-surface)",
                 border: "1px solid var(--roam-border)",
                 borderRadius: "var(--r-card)",
-                boxShadow: "0 12px 30px -5px rgba(0,0,0,0.2)",
+                boxShadow: "var(--shadow-heavy)",
                 zIndex: 50,
                 overflow: "hidden",
                 maxHeight: 220,
