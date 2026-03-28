@@ -200,10 +200,10 @@
   --terra-amber: #FFB693;       /* Solar Amber per spec */
 
   --bg-sand: #131313;          /* Deep Charcoal per spec */
-  --surface-card: rgba(26, 28, 32, 0.80);
-  --surface-muted: rgba(38, 40, 46, 0.70);
-  --surface-raised: rgba(48, 50, 56, 0.85);
-  --nav-card-bg: rgba(26, 28, 32, 0.85);
+  --surface-card: rgba(26, 28, 32, 0.96);
+  --surface-muted: rgba(38, 40, 46, 0.94);
+  --surface-raised: rgba(48, 50, 56, 0.97);
+  --nav-card-bg: rgba(26, 28, 32, 0.96);
 
   --text-main: #F0ECE6;        /* Warm parchment (15.2:1 on #131313 AAA) */
   --text-muted: #B0A89F;       /* Dusty amber stone (7.1:1 on #1E1E1E AAA) */
@@ -246,7 +246,7 @@
   --spinner-track: rgba(255, 255, 255, 0.08);
   --spinner-head: var(--brand-ochre);
 
-  --tab-bar-bg: rgba(18, 18, 22, 0.90);
+  --tab-bar-bg: rgba(18, 18, 22, 0.97);
   --tab-active-color: var(--brand-ochre);
   --tab-inactive-color: #B0A89F;  /* Muted stone — 7.1:1 on dark AAA */
   --tab-center-bg: #A0522D;    /* Darker ochre for on-color contrast (5.8:1 AAA lg) */
@@ -277,7 +277,7 @@
   --severity-minor: var(--brand-amber);
   --severity-minor-tint: rgba(255, 203, 164, 0.10);
 
-  --glass-bg: rgba(26, 28, 32, 0.60);
+  --glass-bg: rgba(26, 28, 32, 0.94);
   --glass-border: rgba(255, 255, 255, 0.10);
   --glass-blur: var(--blur-md);
 
