@@ -505,28 +505,24 @@ export default function EmergencyClientPage() {
         title="Emergency"
         subtitle="Triple Zero - Police, Fire, Ambulance"
         accentLabel="SOS"
-        style={{ margin: "0 0 4px" }}
         footer={
-          <div className="sos-loc-value" style={{ color: "rgba(255,255,255,0.7)" }}>
+          <div className="sos-footer-loc">
             {isLocating ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <Satellite size={28} className="animate-pulse" style={{ color: "var(--roam-info)" }} />
+              <>
+                <div className="sos-footer-countdown">
+                  <Satellite size={22} className="animate-pulse" />
                   <span className="sos-loc-wait">
                     {String(Math.floor(gpsSecondsLeft / 60)).padStart(2, "0")}:{String(gpsSecondsLeft % 60).padStart(2, "0")}
                   </span>
                 </div>
-                <div style={{ fontSize: 13, opacity: 0.7 }}>
-                  {waitMessage}
-                </div>
-              </div>
+                <div className="sos-footer-hint">{waitMessage}</div>
+              </>
             ) : lat == null || lon == null ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <div style={{ fontSize: 13, opacity: 0.7 }}>Location unavailable</div>
+              <>
+                <div className="sos-footer-hint">Location unavailable</div>
                 <button
                   type="button"
-                  className="trip-interactive sos-retry-loc-btn"
-                  style={{ background: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.9)" }}
+                  className="trip-interactive sos-retry-loc-btn sos-retry-loc-btn--dark"
                   onClick={() => {
                     haptic.medium();
                     fetchLocationAuto(true);
@@ -535,26 +531,24 @@ export default function EmergencyClientPage() {
                   <RefreshCw size={16} />
                   Retry location
                 </button>
-              </div>
+              </>
             ) : (
-              <div style={{ display: "flex", alignItems: "flex-start", flexWrap: "wrap", gap: 8 }}>
+              <div className="sos-footer-coords">
                 <CoordinateDisplay
                   lat={lat}
                   lng={lon}
                   label="YOUR LOCATION"
                   variant="expanded"
-                  style={{ background: "rgba(255,255,255,0.08)", flexShrink: 0 }}
+                  dark
+                  style={{ background: "rgba(255,255,255,0.08)" }}
                 />
-                <div style={{ display: "flex", alignItems: "center", gap: 6, paddingTop: 4 }}>
+                <div className="sos-footer-accuracy">
                   {accuracyM != null && (
-                    <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontWeight: 600, flexShrink: 0 }}>
-                      ±{Math.round(accuracyM)}m
-                    </span>
+                    <span className="sos-accuracy-badge">±{Math.round(accuracyM)}m</span>
                   )}
                   <button
                     type="button"
-                    className="trip-interactive sos-retry-loc-btn"
-                    style={{ background: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.9)" }}
+                    className="trip-interactive sos-retry-loc-btn sos-retry-loc-btn--dark"
                     onClick={() => {
                       haptic.light();
                       fetchLocationAuto(true);
@@ -569,7 +563,7 @@ export default function EmergencyClientPage() {
           </div>
         }
       >
-        <button type="button" className="sos-call-000" onClick={callEmergency} style={{ marginTop: 12 }}>
+        <button type="button" className="sos-call-000" onClick={callEmergency}>
           <PhoneCall size={40} />
           CALL 000
         </button>

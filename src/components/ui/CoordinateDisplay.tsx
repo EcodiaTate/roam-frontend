@@ -10,6 +10,8 @@ type Props = {
   label?: string;
   /** compact = single line inline, expanded = stacked with label */
   variant?: "compact" | "expanded";
+  /** Use on dark backgrounds (e.g. inside WatermarkCard) */
+  dark?: boolean;
   style?: CSSProperties;
 };
 
@@ -25,6 +27,7 @@ export const CoordinateDisplay = memo(function CoordinateDisplay({
   lng,
   label,
   variant = "expanded",
+  dark = false,
   style,
 }: Props) {
   const [copied, setCopied] = useState(false);
@@ -86,7 +89,7 @@ export const CoordinateDisplay = memo(function CoordinateDisplay({
             fontWeight: 800,
             textTransform: "uppercase",
             letterSpacing: "0.08em",
-            color: "var(--roam-text-muted, #999)",
+            color: dark ? "rgba(255, 255, 255, 0.5)" : "var(--roam-text-muted, #999)",
             lineHeight: 1,
           }}
         >
@@ -98,7 +101,7 @@ export const CoordinateDisplay = memo(function CoordinateDisplay({
           fontFamily: "var(--ff-mono, monospace)",
           fontSize: isCompact ? 13 : 15,
           fontWeight: 700,
-          color: "var(--roam-accent, #B3541E)",
+          color: dark ? "rgba(255, 255, 255, 0.95)" : "var(--roam-accent, #B3541E)",
           lineHeight: 1.3,
           fontVariantNumeric: "tabular-nums",
           transition: "opacity 200ms",

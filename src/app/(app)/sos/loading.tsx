@@ -4,43 +4,25 @@
 export default function SosLoading() {
   return (
     <div className="sos-page roam-scroll">
-      {/* CALL 000 button skeleton */}
+      {/* WatermarkCard skeleton (CALL 000 + location) */}
       <div
         style={{
-          width: "100%",
-          height: 120,
-          borderRadius: "var(--r-btn)",
-          background: "var(--roam-danger)",
+          borderRadius: "var(--r-card)",
+          background: "var(--roam-text)",
+          padding: 20,
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
           opacity: 0.35,
           animation: "sos-skel-pulse 1.6s ease-in-out infinite",
         }}
-      />
-
-      {/* Location block skeleton */}
-      <div
-        className="sos-location-block"
-        style={{ minHeight: 100, justifyContent: "center", gap: 10 }}
       >
-        {/* Label line */}
-        <div
-          style={{
-            width: 160,
-            height: 13,
-            borderRadius: "var(--r-card)",
-            background: "var(--roam-surface-hover)",
-            animation: "sos-skel-pulse 1.6s ease-in-out infinite",
-          }}
-        />
-        {/* Value line */}
-        <div
-          style={{
-            width: 240,
-            height: 22,
-            borderRadius: "var(--r-card)",
-            background: "var(--roam-surface-hover)",
-            animation: "sos-skel-pulse 1.6s ease-in-out infinite 0.15s",
-          }}
-        />
+        <div style={{ height: 14, width: 40, borderRadius: 4, background: "rgba(255,255,255,0.2)" }} />
+        <div style={{ height: 28, width: 180, borderRadius: 4, background: "rgba(255,255,255,0.15)" }} />
+        <div style={{ height: 120, borderRadius: "var(--r-btn)", background: "rgba(255,255,255,0.12)", marginTop: 8 }} />
+        <div style={{ borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: 12, marginTop: 4 }}>
+          <div style={{ height: 16, width: 200, borderRadius: 4, background: "rgba(255,255,255,0.1)" }} />
+        </div>
       </div>
 
       {/* MESSAGE CONTACTS button skeleton */}

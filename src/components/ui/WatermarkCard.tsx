@@ -23,7 +23,6 @@ export const WatermarkCard = forwardRef<HTMLDivElement, WatermarkCardProps>(
         className={className}
         style={{
           position: "relative",
-          overflow: "hidden",
           borderRadius: "var(--r-card)",
           padding: "var(--space-xl)",
           display: "flex",
@@ -32,36 +31,42 @@ export const WatermarkCard = forwardRef<HTMLDivElement, WatermarkCardProps>(
         }}
         {...props}
       >
-        {/* Dark background layer - uses roam-text in light (dark color), surface-hover in dark */}
+        {/* Dark background + watermark wrapper — overflow hidden here only */}
         <div
-          className="watermark-card-bg"
           style={{
             position: "absolute",
             inset: 0,
             borderRadius: "inherit",
+            overflow: "hidden",
             pointerEvents: "none",
-          }}
-        />
-
-        {/* Watermark icon */}
-        <span
-          className="material-symbols-outlined"
-          aria-hidden="true"
-          style={{
-            position: "absolute",
-            top: 0,
-            right: 0,
-            fontSize: "10rem",
-            lineHeight: 1,
-            opacity: 0.08,
-            color: "white",
-            transform: "translate(2rem, -2rem)",
-            pointerEvents: "none",
-            userSelect: "none",
           }}
         >
-          {icon}
-        </span>
+          <div
+            className="watermark-card-bg"
+            style={{
+              position: "absolute",
+              inset: 0,
+              borderRadius: "inherit",
+            }}
+          />
+          <span
+            className="material-symbols-outlined"
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              top: 0,
+              right: 0,
+              fontSize: "10rem",
+              lineHeight: 1,
+              opacity: 0.08,
+              color: "white",
+              transform: "translate(2rem, -2rem)",
+              userSelect: "none",
+            }}
+          >
+            {icon}
+          </span>
+        </div>
 
         {/* Content */}
         <div style={{ position: "relative", zIndex: 10, flex: 1, display: "flex", flexDirection: "column" }}>
