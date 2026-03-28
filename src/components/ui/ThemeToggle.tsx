@@ -6,7 +6,7 @@ import type { CSSProperties } from "react";
 
 /* ── Day/Night toggle ────────────────────────────────────────────────
    Compact pill that floats in the app shell.
-   Instant switch (no transition on mode change — per spec).
+   Instant switch (no transition on mode change - per spec).
    Icons: Sun (☀) for Day, Moon (☽) for Tactical Night.
    ──────────────────────────────────────────────────────────────────── */
 
@@ -46,12 +46,12 @@ export function ThemeToggle() {
       }}
     >
       {isDark ? (
-        /* Moon icon — Tactical Night active */
+        /* Moon icon - Tactical Night active */
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
         </svg>
       ) : (
-        /* Sun icon — Day mode active */
+        /* Sun icon - Day mode active */
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="5" />
           <line x1="12" y1="1" x2="12" y2="3" />

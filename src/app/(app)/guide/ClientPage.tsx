@@ -701,7 +701,7 @@ export default function GuideClientPage(props: {
         ) : null}
       </div>
 
-      {/* ── AI intro card — shown until guide has messages ───── */}
+      {/* ── AI intro card - shown until guide has messages ───── */}
       {guidePack && guidePack.thread.length === 0 && busy === "chat" && (
         <div style={{ padding: "0 16px", marginBottom: 8 }}>
           <WatermarkCard

@@ -19,7 +19,7 @@ interface VariantSpec {
 
 const VARIANTS: Record<Variant, VariantSpec> = {
   /**
-   * Headline — bold, uppercase, tracked. For page titles and section headers.
+   * Headline - bold, uppercase, tracked. For page titles and section headers.
    * Space Grotesk bold gives geometric clarity at any size.
    */
   headline: {
@@ -37,8 +37,8 @@ const VARIANTS: Record<Variant, VariantSpec> = {
   },
 
   /**
-   * DataPoint — semi-bold, large scale for immediate recognition.
-   * Designed for speed, range, heading — the numbers a driver scans first.
+   * DataPoint - semi-bold, large scale for immediate recognition.
+   * Designed for speed, range, heading - the numbers a driver scans first.
    * Tabular nums keep columns stable as digits change.
    */
   datapoint: {
@@ -55,7 +55,7 @@ const VARIANTS: Record<Variant, VariantSpec> = {
   },
 
   /**
-   * Label — small, uppercase, high-contrast.
+   * Label - small, uppercase, high-contrast.
    * For field labels, units, metadata captions.
    */
   label: {
@@ -72,7 +72,7 @@ const VARIANTS: Record<Variant, VariantSpec> = {
   },
 
   /**
-   * Body — readable at any size, optimised for longer text.
+   * Body - readable at any size, optimised for longer text.
    * Uses the app's primary font (Plus Jakarta Sans / system).
    */
   body: {
@@ -126,7 +126,7 @@ export const Typography = forwardRef<HTMLElement, TypographyProps>(function Typo
 });
 
 /* ────────────────────────────────────────────────────────────────────
-   Convenience aliases — keep imports concise:
+   Convenience aliases - keep imports concise:
      import { Headline, DataPoint, Label, Body } from "@/components/ui/Typography";
    ──────────────────────────────────────────────────────────────────── */
 

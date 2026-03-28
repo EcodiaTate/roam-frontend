@@ -65,7 +65,7 @@ export const CompassHUD = memo(function CompassHUD({ heading, size = "sm" }: Pro
         }}
       />
 
-      {/* SVG overlay for cardinal labels (static — don't rotate with heading) */}
+      {/* SVG overlay for cardinal labels (static - don't rotate with heading) */}
       <svg
         width={outer}
         height={outer}
@@ -94,7 +94,7 @@ export const CompassHUD = memo(function CompassHUD({ heading, size = "sm" }: Pro
         })}
       </svg>
 
-      {/* Needle — rotates with heading */}
+      {/* Needle - rotates with heading */}
       <div
         style={{
           position: "absolute",
@@ -104,7 +104,7 @@ export const CompassHUD = memo(function CompassHUD({ heading, size = "sm" }: Pro
           pointerEvents: "none",
         }}
       >
-        {/* Needle line — gradient from transparent at bottom to primary at top */}
+        {/* Needle line - gradient from transparent at bottom to primary at top */}
         <div
           style={{
             position: "absolute",
@@ -131,7 +131,7 @@ export const CompassHUD = memo(function CompassHUD({ heading, size = "sm" }: Pro
         />
       </div>
 
-      {/* Center text — heading degrees + cardinal */}
+      {/* Center text - heading degrees + cardinal */}
       <div
         style={{
           position: "absolute",

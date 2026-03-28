@@ -6,7 +6,7 @@ import type { LucideIcon } from "lucide-react";
 type Props = {
   /** Terrain or status type (e.g. "SEALED", "GRAVEL", "4WD TRACK") */
   type: string;
-  /** Optional label override — defaults to "TERRAIN STATUS" */
+  /** Optional label override - defaults to "TERRAIN STATUS" */
   label?: string;
   /** Optional icon prefix for environmental data variants */
   icon?: LucideIcon;

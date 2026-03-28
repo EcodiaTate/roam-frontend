@@ -9,7 +9,7 @@ import { type CSSProperties, type ReactNode, memo } from "react";
 import { useNetworkStatus } from "@/lib/hooks/useNetworkStatus";
 
 /* ────────────────────────────────────────────────────────────────────
-   OfflineBanner — shown when network is unavailable
+   OfflineBanner - shown when network is unavailable
    ──────────────────────────────────────────────────────────────────── */
 
 const bannerStyle: CSSProperties = {
@@ -48,7 +48,7 @@ const OfflineBanner = memo(function OfflineBanner() {
 });
 
 /* ────────────────────────────────────────────────────────────────────
-   PageHeader — title bar with optional trailing actions
+   PageHeader - title bar with optional trailing actions
    ──────────────────────────────────────────────────────────────────── */
 
 const headerStyle: CSSProperties = {
@@ -71,7 +71,7 @@ const titleStyle: CSSProperties = {
 };
 
 /* ────────────────────────────────────────────────────────────────────
-   CriticalData — large, prominent data display
+   CriticalData - large, prominent data display
    Prioritises speed / range / heading through size and weight.
    ──────────────────────────────────────────────────────────────────── */
 
@@ -98,7 +98,7 @@ export const CriticalData = memo(function CriticalData({ children, style, classN
 });
 
 /* ────────────────────────────────────────────────────────────────────
-   CriticalMetric — single metric cell inside CriticalData
+   CriticalMetric - single metric cell inside CriticalData
    ──────────────────────────────────────────────────────────────────── */
 
 export type CriticalMetricProps = {
@@ -162,7 +162,7 @@ export const CriticalMetric = memo(function CriticalMetric({
 });
 
 /* ────────────────────────────────────────────────────────────────────
-   ContentSection — grouped content area below critical data
+   ContentSection - grouped content area below critical data
    ──────────────────────────────────────────────────────────────────── */
 
 export type ContentSectionProps = {
@@ -203,7 +203,7 @@ export const ContentSection = memo(function ContentSection({
 });
 
 /* ────────────────────────────────────────────────────────────────────
-   PageShell — the main layout wrapper
+   PageShell - the main layout wrapper
    ──────────────────────────────────────────────────────────────────── */
 
 export type PageShellProps = {
@@ -245,7 +245,7 @@ export const PageShell = memo(function PageShell({
 
   return (
     <div className={className} style={shellStyle}>
-      {/* Offline banner — sits above header, pushes content down */}
+      {/* Offline banner - sits above header, pushes content down */}
       {!online && <OfflineBanner />}
 
       {/* Global page header */}

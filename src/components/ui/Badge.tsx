@@ -1,5 +1,5 @@
 // src/components/ui/Badge.tsx
-// Pill-shaped badge/chip component — h-11 (44px), no labels pattern.
+// Pill-shaped badge/chip component - h-11 (44px), no labels pattern.
 // Used for filters, tags, and status chips across the app.
 // Follows the unified search/filter design: pill shapes, h-11, no labels.
 

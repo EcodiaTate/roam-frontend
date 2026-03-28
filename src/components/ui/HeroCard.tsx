@@ -4,9 +4,9 @@
 // bottom content zone with headline + body + optional CTA.
 
 import {
-  type CSSProperties,
-  type ReactNode,
-  forwardRef,
+    type CSSProperties,
+    type ReactNode,
+    forwardRef,
 } from "react";
 import { haptic } from "@/lib/native/haptics";
 
@@ -21,13 +21,13 @@ interface HeroCardProps {
   backgroundSlot?: ReactNode;
   /** Top-right glassmorphic status badge */
   badge?: ReactNode;
-  /** Title — rendered with Headline typography */
+  /** Title - rendered with Headline typography */
   title: string;
-  /** Subtitle — rendered with Body typography */
+  /** Subtitle - rendered with Body typography */
   subtitle?: string;
   /** Optional CTA button content */
   cta?: ReactNode;
-  /** Click handler — enables pressable mode */
+  /** Click handler - enables pressable mode */
   onPress?: () => void;
   style?: CSSProperties;
   className?: string;

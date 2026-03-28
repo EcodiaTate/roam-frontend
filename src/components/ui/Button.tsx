@@ -105,7 +105,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           cursor: isDisabled ? "default" : "pointer",
           userSelect: "none",
           boxShadow: "var(--shadow-button)",
-          // Transitions — 200ms as specified
+          // Transitions - 200ms as specified
           transition: [
             "transform 200ms var(--ease-out)",
             "filter 200ms var(--ease-out)",
@@ -125,7 +125,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           // Overrides
           ...style,
         }}
-        // Active state via CSS — scale-down 95% + brightness shift
+        // Active state via CSS - scale-down 95% + brightness shift
         className="roam-btn-press"
         {...props}
       >

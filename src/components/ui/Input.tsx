@@ -9,7 +9,7 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   icon?: ReactNode;
   /** Trailing action element (e.g., clear button) */
   trailing?: ReactNode;
-  /** Error state — adds danger border */
+  /** Error state - adds danger border */
   error?: boolean;
 }
 

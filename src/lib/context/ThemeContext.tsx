@@ -1,15 +1,15 @@
 import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
+    createContext,
+    useCallback,
+    useContext,
+    useEffect,
+    useMemo,
+    useState,
+    type ReactNode,
 } from "react";
 
 /* ──────────────────────────────────────────────────────────────────────────
-   Terra Nomad — Theme Provider
+   Terra Nomad - Theme Provider
    Two modes:
      "day"            → Flat & Shadowed (light)
      "tactical-night" → Glass & Steel  (dark)
@@ -53,7 +53,7 @@ function applyMode(mode: ThemeMode) {
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mode, setModeState] = useState<ThemeMode>(getInitialMode);
 
-  // Apply on mount + whenever mode changes (instant — no transition)
+  // Apply on mount + whenever mode changes (instant - no transition)
   useEffect(() => {
     applyMode(mode);
     localStorage.setItem(STORAGE_KEY, mode);

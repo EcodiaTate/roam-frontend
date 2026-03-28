@@ -12,7 +12,7 @@ import { emergencySyncOnce } from "@/lib/offline/emergencySync";
 import { saveEmergencyContactLocalFirst, deleteEmergencyContactLocalFirst } from "@/lib/emergency/emergencyActions";
 
 import type { EmergencyContactLocal } from "@/lib/types/emergency";
-import { PhoneCall, MessageSquareText, Plus, Pencil, Trash2, Satellite, MapPin, RefreshCw } from "lucide-react";
+import { PhoneCall, MessageSquareText, Plus, Pencil, Trash2, Satellite, RefreshCw } from "lucide-react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { CoordinateDisplay } from "@/components/ui/CoordinateDisplay";
 import { WatermarkCard } from "@/components/ui/WatermarkCard";
@@ -503,7 +503,7 @@ export default function EmergencyClientPage() {
       <WatermarkCard
         icon="sos"
         title="Emergency"
-        subtitle="Triple Zero — Police, Fire, Ambulance"
+        subtitle="Triple Zero - Police, Fire, Ambulance"
         accentLabel="SOS"
         style={{ margin: "0 0 4px" }}
         footer={

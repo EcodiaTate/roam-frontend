@@ -7,7 +7,7 @@ import { forwardRef, type SelectHTMLAttributes, type ReactNode } from "react";
 interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   /** Leading icon */
   icon?: ReactNode;
-  /** Error state — adds danger border */
+  /** Error state - adds danger border */
   error?: boolean;
 }
 

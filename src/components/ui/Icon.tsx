@@ -48,13 +48,13 @@ const ICON_PATHS: Record<string, string> = {
 type Layout = "inline" | "stacked";
 
 const layoutStyles: Record<Layout, CSSProperties> = {
-  /** Icon and label side by side — for buttons, list rows, chips */
+  /** Icon and label side by side - for buttons, list rows, chips */
   inline: {
     display: "inline-flex",
     alignItems: "center",
     gap: 6,
   },
-  /** Icon above label — for dashboard cells, tab items */
+  /** Icon above label - for dashboard cells, tab items */
   stacked: {
     display: "flex",
     flexDirection: "column",
@@ -70,7 +70,7 @@ const layoutStyles: Record<Layout, CSSProperties> = {
 export type IconProps = {
   /** Icon name from the built-in set, OR a custom SVG path string */
   name: string;
-  /** Mandatory text label — always rendered visually (zero-learning-curve) */
+  /** Mandatory text label - always rendered visually (zero-learning-curve) */
   label: string;
   /** Size in px (default 20) */
   size?: number;
@@ -82,7 +82,7 @@ export type IconProps = {
   style?: CSSProperties;
   /** Additional CSS classes on the wrapper */
   className?: string;
-  /** Custom SVG content — use instead of `name` when you need a non-standard icon */
+  /** Custom SVG content - use instead of `name` when you need a non-standard icon */
   children?: ReactNode;
 };
 
@@ -98,7 +98,7 @@ export const Icon = memo(function Icon({
 }: IconProps) {
   const pathD = ICON_PATHS[name];
 
-  // Label style: small, uppercase, high-contrast — matches the Label typography variant
+  // Label style: small, uppercase, high-contrast - matches the Label typography variant
   const labelStyle: CSSProperties = {
     fontFamily: 'var(--ff-display)',
     fontWeight: 600,

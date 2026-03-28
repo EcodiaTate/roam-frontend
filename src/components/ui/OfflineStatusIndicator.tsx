@@ -5,10 +5,10 @@ import { useNetworkStatus } from "@/lib/hooks/useNetworkStatus";
 /**
  * Persistent global offline status indicator.
  *
- * Always visible in the header — never dismissable.
+ * Always visible in the header - never dismissable.
  * Three states:
  *   - Online: hidden (show nothing)
- *   - Degraded (Solar Amber dot + "No server") — device online but backend unreachable
+ *   - Degraded (Solar Amber dot + "No server") - device online but backend unreachable
  *   - Offline (Emergency Red pulsing dot + "OFFLINE MODE" + optional region/version subtitle)
  */
 export function OfflineStatusIndicator({
@@ -22,7 +22,7 @@ export function OfflineStatusIndicator({
 }) {
   const { deviceOnline, backendReachable } = useNetworkStatus();
 
-  // Online — show nothing
+  // Online - show nothing
   if (deviceOnline && backendReachable) return null;
 
   let stateClass: string;

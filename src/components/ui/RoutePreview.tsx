@@ -1,5 +1,5 @@
 // src/components/ui/RoutePreview.tsx
-// Static SVG route preview — lightweight alternative to full MapLibre
+// Static SVG route preview - lightweight alternative to full MapLibre
 // for card thumbnails and list items. Normalizes lat/lng points into
 // an 800×400 viewBox with dashed route path, start/end markers, and
 // optional current-position pulse.
@@ -58,7 +58,7 @@ function normalize(pts: [number, number][]): { x: number; y: number }[] {
   const offY = PAD + (h - dLat * scale) / 2;
   return pts.map(([lat, lng]) => ({
     x: offX + (lng - minLng) * scale,
-    // Flip Y — higher lat = higher on screen
+    // Flip Y - higher lat = higher on screen
     y: offY + (maxLat - lat) * scale,
   }));
 }

@@ -11,7 +11,7 @@ type ReadoutItem = {
   label: string;
   /** Optional unit appended to value (e.g. "km/h", "%") */
   unit?: string;
-  /** Color severity — omit for default text color */
+  /** Color severity - omit for default text color */
   severity?: Severity;
   /** Use smaller value size for secondary readings */
   secondary?: boolean;

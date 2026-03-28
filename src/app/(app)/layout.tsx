@@ -18,9 +18,9 @@ export function AppLayout() {
       {/* Wires useSavedPlaces into PlaceDetailContext so the sheet can toggle bookmarks */}
       <SavedPlacesSync />
       <div className="roam-shell">
-        {/* Day/Night mode toggle — top-left, always accessible */}
+        {/* Day/Night mode toggle - top-left, always accessible */}
         <ThemeToggle />
-        {/* Persistent offline status — always visible, never dismissable */}
+        {/* Persistent offline status - always visible, never dismissable */}
         <div style={{
           position: "fixed",
           top: "calc(env(safe-area-inset-top, 0px) + 6px)",

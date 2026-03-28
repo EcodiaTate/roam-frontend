@@ -57,7 +57,7 @@ export function TripSkeleton() {
         }} />
       </div>
 
-      {/* ── Side FAB stack (Exchange + Report) - matches ClientPage ── */}
+      {/* ── Side FAB stack (Report) - matches ClientPage ── */}
       <div style={{
         position: "absolute",
         bottom: "calc(220px + var(--roam-safe-bottom, 0px) + 24px)",
@@ -69,9 +69,6 @@ export function TripSkeleton() {
         alignItems: "flex-end",
       }}>
         <Skel w={46} h={46} r={16} delay={0.25} style={{
-          background: "linear-gradient(160deg, rgba(26,21,16,0.96) 0%, rgba(16,13,10,0.98) 100%)",
-        }} />
-        <Skel w={46} h={46} r={16} delay={0.3} style={{
           background: "linear-gradient(160deg, rgba(26,21,16,0.96) 0%, rgba(16,13,10,0.98) 100%)",
         }} />
       </div>

@@ -47,7 +47,7 @@ export const BentoItem = forwardRef<HTMLDivElement, BentoItemProps>(
 
 interface BentoGridProps {
   children: ReactNode;
-  /** Extra gap override — defaults to var(--space-lg) */
+  /** Extra gap override - defaults to var(--space-lg) */
   gap?: string;
   style?: CSSProperties;
   className?: string;

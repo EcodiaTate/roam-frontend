@@ -32,7 +32,7 @@ export const WatermarkCard = forwardRef<HTMLDivElement, WatermarkCardProps>(
         }}
         {...props}
       >
-        {/* Dark background layer — uses roam-text in light (dark color), surface-hover in dark */}
+        {/* Dark background layer - uses roam-text in light (dark color), surface-hover in dark */}
         <div
           className="watermark-card-bg"
           style={{

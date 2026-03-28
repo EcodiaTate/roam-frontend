@@ -6,7 +6,7 @@ import { AlertTriangle, AlertCircle, CheckCircle } from "lucide-react";
 type Severity = "emergency" | "advisory" | "nominal";
 
 type Props = {
-  /** Alert tier — "emergency" (Red #C62828) reserved for SOS/critical only */
+  /** Alert tier - "emergency" (Red #C62828) reserved for SOS/critical only */
   severity: Severity;
   /** Bold title line */
   title: string;
@@ -25,9 +25,9 @@ const ICON_MAP: Record<Severity, ReactNode> = {
 /**
  * Alert/warning banner following Terra Nomad severity tiers.
  *
- * - Emergency Red (#C62828) — SOS and critical vehicle warnings ONLY
- * - Solar Amber — non-critical advisories (low signal, slow charge, etc.)
- * - Potable Green (#6D7E4E) — water supply, nominal status confirmations
+ * - Emergency Red (#C62828) - SOS and critical vehicle warnings ONLY
+ * - Solar Amber - non-critical advisories (low signal, slow charge, etc.)
+ * - Potable Green (#6D7E4E) - water supply, nominal status confirmations
  */
 export const TerraAlert = memo(function TerraAlert({
   severity,

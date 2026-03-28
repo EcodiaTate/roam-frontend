@@ -6,7 +6,7 @@ import { haptic } from "@/lib/native/haptics";
 type Props = {
   lat: number;
   lng: number;
-  /** Label text — defaults to "CURRENT COORDS" */
+  /** Label text - defaults to "CURRENT COORDS" */
   label?: string;
   /** compact = single line inline, expanded = stacked with label */
   variant?: "compact" | "expanded";
