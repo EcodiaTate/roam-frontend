@@ -834,6 +834,14 @@ input, textarea, [contenteditable] {
   color: var(--on-color);
 }
 
+/* ── Login card — iPad responsive ─────────────────────────── */
+@media (min-width: 768px) {
+  .login-card {
+    max-width: 520px !important;
+    padding: 32px !important;
+  }
+}
+
 /* Apple Sign-In — HIG-compliant: black on light, white on dark */
 [data-theme="day"] .apple-sso-btn {
   background: #000000;

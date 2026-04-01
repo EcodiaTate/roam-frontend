@@ -21,15 +21,15 @@ import { useNetworkStatus } from "@/lib/hooks/useNetworkStatus";
  * layer handles token refresh when connectivity returns.
  */
 export function AuthGate({ children }: { children: ReactNode }) {
-  const { loading, session } = useAuth();
+  const { loading, session, isDemoMode } = useAuth();
   const { deviceOnline } = useNetworkStatus();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && !session && deviceOnline) {
+    if (!loading && !session && !isDemoMode && deviceOnline) {
       navigate("/login", { replace: true });
     }
-  }, [loading, session, deviceOnline, navigate]);
+  }, [loading, session, isDemoMode, deviceOnline, navigate]);
 
   if (loading) {
     return (
@@ -38,6 +38,9 @@ export function AuthGate({ children }: { children: ReactNode }) {
       </div>
     );
   }
+
+  // Demo mode: reviewer is signed in locally, pass through
+  if (isDemoMode) return <>{children}</>;
 
   // No session + offline: can't sign in, show a friendly waiting screen
   if (!session && !deviceOnline) {
@@ -84,7 +87,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     );
   }
 
-  if (!session) return null; // online, will redirect to /login
+  if (!session && !isDemoMode) return null; // online, will redirect to /login
 
   return <>{children}</>;
 }

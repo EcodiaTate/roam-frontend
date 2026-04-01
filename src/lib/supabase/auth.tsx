@@ -21,6 +21,8 @@ export type AuthState = {
   loading: boolean;
   session: Session | null;
   user: User | null;
+  /** True when signed in via the App Review demo account — no real Supabase session. */
+  isDemoMode: boolean;
 
   signInWithGoogle: () => Promise<{ error: AuthError | null }>;
   signInWithAppleNative: () => Promise<{ error: AuthError | null }>;
@@ -30,6 +32,11 @@ export type AuthState = {
   signOut: () => Promise<void>;
   deleteAccount: () => Promise<{ error: string | null }>;
 };
+
+// App Review demo credentials — allows Apple reviewers to access all features
+// without requiring a real Supabase account to be set up.
+const DEMO_EMAIL = "apple@ecodia.au";
+const DEMO_PASSWORD = "appleecodia";
 
 const AuthContext = createContext<AuthState | null>(null);
 
@@ -56,6 +63,11 @@ function asAuthError(message: string): AuthError {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isDemoMode, setIsDemoMode] = useState(() => {
+    // Persist demo mode across reloads so reviewers don't get logged out
+    // when the app restarts. Cleared on sign-out.
+    try { return localStorage.getItem("roam_demo_mode") === "1"; } catch { return false; }
+  });
 
   useEffect(() => {
     // Race getSession() against a short timeout so the app never hangs on
@@ -123,23 +135,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) return { error };
       if (data?.url) {
         const { Browser } = await import("@capacitor/browser");
-        // Listen for browser close — on Android the custom scheme redirect
-        // closes the Custom Tab, but we still need to exchange the code.
+
+        // Safety timeout: if the browser never closes (user gets stuck,
+        // deep-link fails, etc.) close it after 120s so the app isn't hung.
+        let settled = false;
+        const timeout = setTimeout(async () => {
+          if (!settled) {
+            settled = true;
+            Browser.close().catch(() => {});
+          }
+        }, 120_000);
+
         const closeHandler = await Browser.addListener("browserFinished", async () => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
           closeHandler.remove();
           // Give the deep-link handler a moment to route to /auth/callback
           // which triggers the Supabase code exchange via detectSessionInUrl.
-          // If no session appears within 2s, try exchanging from the URL hash
-          // that may have been set by the deep-link handler.
           setTimeout(async () => {
             const { data: sess } = await supabase.auth.getSession();
             if (!sess.session) {
-              // Force Supabase to re-check for tokens in the URL
               await supabase.auth.getSession();
             }
           }, 1000);
         });
-        await Browser.open({ url: data.url, presentationStyle: "popover" });
+        // On iPad, "fullscreen" stretches a phone-sized OAuth page over the entire
+        // iPad screen and fails Apple's "screen was not optimized" review criterion.
+        // "popover" presents a proper sheet/popover on iPad while remaining
+        // full-screen on iPhone.
+        const isIpad =
+          /iPad/.test(navigator.userAgent) ||
+          (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+        await Browser.open({
+          url: data.url,
+          presentationStyle: isIpad ? "popover" : "fullscreen",
+        });
       }
       return { error: null };
     }
@@ -209,6 +240,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: null };
       }
       if (code === "1000" || msg.includes("1000")) {
+        console.error("[Apple SSO] Error 1000 - check: (1) Sign in with Apple capability in Xcode, (2) Supabase Apple provider has au.ecodia.roam in Authorized Client IDs, (3) Apple Services ID config");
         return {
           error: asAuthError(
             "Apple Sign-In is temporarily unavailable. Please try again, or use another sign-in method.",
@@ -227,6 +259,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signInWithEmail = useCallback(async (email: string, password: string) => {
+    // App Review demo account: bypass Supabase and enter demo mode so the
+    // reviewer can access all features without a real account.
+    if (email.trim().toLowerCase() === DEMO_EMAIL && password === DEMO_PASSWORD) {
+      try { localStorage.setItem("roam_demo_mode", "1"); } catch {}
+      setIsDemoMode(true);
+      return { error: null };
+    }
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error };
   }, []);
@@ -237,6 +276,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    try { localStorage.removeItem("roam_demo_mode"); } catch {}
+    setIsDemoMode(false);
     await supabase.auth.signOut();
     setSession(null);
     planSync.stop();
@@ -266,6 +307,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       session,
       user,
+      isDemoMode,
       signInWithGoogle,
       signInWithAppleNative,
       signInWithEmail,
@@ -277,6 +319,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       session,
       user,
+      isDemoMode,
       signInWithGoogle,
       signInWithAppleNative,
       signInWithEmail,

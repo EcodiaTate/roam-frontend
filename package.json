@@ -12,7 +12,8 @@
     "cap:sync": "npx cap sync",
     "cap:ios": "npx cap open ios",
     "cap:android": "npx cap open android",
-    "lint": "eslint"
+    "lint": "eslint",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@aparajita/capacitor-secure-storage": "^8.0.0",
@@ -58,6 +59,7 @@
     "@vitejs/plugin-react": "^4",
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
+    "patch-package": "^8.0.1",
     "postcss": "^8.5.8",
     "tailwindcss": "^4",
     "typescript": "^5",

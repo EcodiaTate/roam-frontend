@@ -11,6 +11,7 @@ export default function LoginPage() {
   const {
     session,
     loading,
+    isDemoMode,
     signInWithGoogle,
     signInWithEmail,
     signUpWithEmail,
@@ -29,11 +30,11 @@ export default function LoginPage() {
   const isNative = useMemo(() => Capacitor.isNativePlatform(), []);
   const { deviceOnline } = useNetworkStatus();
 
-  // After sign-in, always redirect to /new
+  // After sign-in (real session or demo mode), redirect to /new
   useEffect(() => {
-    if (loading || !session) return;
-    router("/new", { replace: true });
-  }, [loading, session, router]);
+    if (loading) return;
+    if (session || isDemoMode) router("/new", { replace: true });
+  }, [loading, session, isDemoMode, router]);
 
   const handleGoogle = useCallback(async () => {
     haptic.tap();
@@ -112,11 +113,11 @@ export default function LoginPage() {
       bottom: "var(--bottom-nav-height, 80px)",
       overflowY: "auto", WebkitOverflowScrolling: "touch" as const,
       display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-      padding: "24px 20px 24px",
+      padding: "env(safe-area-inset-top, 24px) 20px max(24px, env(safe-area-inset-bottom, 24px))",
       background: "var(--roam-bg)",
       gap: 0,
     }}>
-      <div className="trip-card" style={{ gap: 12, width: "100%", maxWidth: 440, margin: "0 auto" }}>
+      <div className="trip-card login-card" style={{ gap: 12, width: "100%", maxWidth: 440, margin: "0 auto" }}>
         {!deviceOnline && (
           <div
             style={{
