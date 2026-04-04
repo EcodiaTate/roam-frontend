@@ -27,7 +27,7 @@ export default function AuthCallbackPage() {
     const params = window.location.search || window.location.hash;
 
     // If we're NOT inside the Capacitor WebView and we have OAuth params,
-    // we're in the in-app browser — redirect to the custom scheme so the
+    // we're in the in-app browser - redirect to the custom scheme so the
     // OS routes us back to the app.
     if (!Capacitor.isNativePlatform() && params) {
       window.location.href =

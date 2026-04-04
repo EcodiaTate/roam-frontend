@@ -32,7 +32,7 @@ const isNativeApp = typeof window !== "undefined" && Capacitor.isNativePlatform(
 
 function useCtaConfig(platform: Platform) {
   return useMemo(() => {
-    // Inside the native app, link back to the app — not the store
+    // Inside the native app, link back to the app - not the store
     if (isNativeApp) {
       return { href: "/login", label: "Back to Roam", external: false, isBack: true };
     }

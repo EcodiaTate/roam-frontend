@@ -31,7 +31,7 @@ export const WatermarkCard = forwardRef<HTMLDivElement, WatermarkCardProps>(
         }}
         {...props}
       >
-        {/* Dark background + watermark wrapper — overflow hidden here only */}
+        {/* Dark background + watermark wrapper - overflow hidden here only */}
         <div
           style={{
             position: "absolute",

@@ -21,7 +21,7 @@ export type AuthState = {
   loading: boolean;
   session: Session | null;
   user: User | null;
-  /** True when signed in via the App Review demo account — no real Supabase session. */
+  /** True when signed in via the App Review demo account - no real Supabase session. */
   isDemoMode: boolean;
 
   signInWithGoogle: () => Promise<{ error: AuthError | null }>;
@@ -33,7 +33,7 @@ export type AuthState = {
   deleteAccount: () => Promise<{ error: string | null }>;
 };
 
-// App Review demo credentials — allows Apple reviewers to access all features
+// App Review demo credentials - allows Apple reviewers to access all features
 // without requiring a real Supabase account to be set up.
 const DEMO_EMAIL = "apple@ecodia.au";
 const DEMO_PASSWORD = "appleecodia";
@@ -286,7 +286,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const deleteAccount = useCallback(async (): Promise<{ error: string | null }> => {
     try {
       await api.delete("/account");
-      // Server deleted the auth user — sign out locally
+      // Server deleted the auth user - sign out locally
       planSync.stop();
       await supabase.auth.signOut();
       setSession(null);

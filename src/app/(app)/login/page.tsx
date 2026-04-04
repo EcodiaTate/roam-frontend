@@ -160,7 +160,7 @@ export default function LoginPage() {
           Navigate anywhere. Even offline.
         </div>
 
-        {/* Apple Sign-In (native only) — Apple HIG: black on light, white on dark */}
+        {/* Apple Sign-In (native only) - Apple HIG: black on light, white on dark */}
         {isNative && (
           <button
             type="button"
