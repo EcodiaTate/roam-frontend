@@ -8,6 +8,7 @@ import { haptic } from "@/lib/native/haptics";
 import { toErrorMessage } from "@/lib/utils/errors";
 import { useBundleBuilder } from "@/lib/hooks/useBundleBuilder";
 import { checkTripGate, incrementTripsUsed } from "@/lib/paywall/tripGate";
+import { supabase } from "@/lib/supabase/client";
 import { saveMinimalPlan } from "@/lib/offline/plansStore";
 import type { StopSuggestionItem } from "@/lib/types/places";
 
@@ -63,28 +64,47 @@ export default function NewTripClientPage() {
 
 
   useEffect(() => {
-    checkTripGate().then((gate) => {
-      setUnlocked(gate.unlocked);
-      if (gate.allowed) {
-        // Trip 2 (tripsUsed === 1): show "last free trip" warning
-        // But skip this for unlocked (Untethered) users - they have unlimited trips.
-        if (gate.tripsUsed === 1 && !gate.unlocked) {
-          setIsLastFreeTrip(true);
+    let cancelled = false;
+    const run = () => {
+      checkTripGate().then((gate) => {
+        if (cancelled) return;
+        setUnlocked(gate.unlocked);
+        if (gate.allowed) {
+          // A prior run (pre-session-hydration) may have opened the paywall
+          // based on a stale local trip count - close it now that we know
+          // the real server-side state.
+          setPaywallOpen(false);
+          // Trip 2 (tripsUsed === 1): show "last free trip" warning
+          // But skip this for unlocked (Untethered) users - they have unlimited trips.
+          if (gate.tripsUsed === 1 && !gate.unlocked) {
+            setIsLastFreeTrip(true);
+            setWelcomeOpen(true);
+          }
+          setGateChecked(true);
+        } else if (gate.reason === "paywall") {
+          // Show paywall modal right here instead of redirecting to /trip.
+          // Redirecting caused an infinite loop when the user had no plans left.
+          // But if we got here because the session hadn't hydrated yet, an
+          // auth-state re-run below will flip unlocked=true and close it.
+          setPaywallOpen(true);
+          setGateChecked(true);
+        } else {
+          // "welcome" - first ever launch
           setWelcomeOpen(true);
+          setGateChecked(true);
         }
-        setGateChecked(true);
-      } else if (gate.reason === "paywall") {
-        // Show paywall modal right here instead of redirecting to /trip.
-        // Redirecting caused an infinite loop when the user had no plans left.
-        setPaywallOpen(true);
-        setGateChecked(true);
-      } else {
-        // "welcome" - first ever launch
-        setWelcomeOpen(true);
-        setGateChecked(true);
+      });
+    };
+    run();
+    // Re-check once the Supabase session is actually available. On a fresh
+    // login this effect fires before the session is hydrated, so the first
+    // check sees no user and the gate falls through to tripCount/localStorage.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") {
+        run();
       }
     });
-    // Run once on mount
+    return () => { cancelled = true; subscription.unsubscribe(); };
   }, []);
 
   const styleId = useMemo(() => {

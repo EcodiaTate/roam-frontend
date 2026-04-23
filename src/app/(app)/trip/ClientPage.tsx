@@ -88,6 +88,7 @@ import { Image as ImageIcon, UserPlus, Library, WifiOff, Megaphone, Plus } from 
 import { TripSkeleton } from "./TripSkeleton";
 import { EnrichmentBanner } from "@/components/trip/EnrichmentBanner";
 import { isUnlocked as checkIsUnlocked, checkTripGate } from "@/lib/paywall/tripGate";
+import { supabase } from "@/lib/supabase/client";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { NativeShareRenderer } from "@/components/share/NativeShareRenderer";
 import { usePlaceDetail } from "@/lib/context/PlaceDetailContext";
@@ -255,14 +256,30 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   const [stopAddedToast, setStopAddedToast] = useState<string | null>(null);
 
   useEffect(() => {
-    checkIsUnlocked().then((result) => {
-      setUnlocked(result);
-      // If redirected from /new with ?upgrade=1, open the paywall as gate variant
-      if (!result && sp.get("upgrade") === "1") {
-        setPaywallVariant("gate");
-        setPaywallOpen(true);
+    let cancelled = false;
+    const run = () => {
+      checkIsUnlocked().then((result) => {
+        if (cancelled) return;
+        setUnlocked(result);
+        // If redirected from /new with ?upgrade=1, open the paywall as gate variant
+        if (!result && sp.get("upgrade") === "1") {
+          setPaywallVariant("gate");
+          setPaywallOpen(true);
+        }
+      });
+    };
+    run();
+    // Re-check when auth state changes. On a fresh login the component mounts
+    // before the Supabase session finishes hydrating, so the initial call can
+    // see no user and fall back to localStorage (= false) — wrongly showing
+    // the paywall for entitled users. SIGNED_IN / TOKEN_REFRESHED fire once
+    // the session is actually in place, and we re-query.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") {
+        run();
       }
     });
+    return () => { cancelled = true; subscription.unsubscribe(); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Show notification dot on Plans button when another plan is saved (not the current one)

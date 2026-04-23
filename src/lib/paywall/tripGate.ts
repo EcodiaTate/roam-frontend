@@ -58,16 +58,25 @@ function localSet(key: string, value: string): void {
 
 /* ── Supabase: unlock status ─────────────────────────────────────── */
 
-/** Returns true if the authenticated user has an entitlement row in Supabase. */
+/** Returns true if the authenticated user has an entitlement row in Supabase.
+ *  Returns null when we can't determine (no session yet, query error) so the
+ *  caller can fall back to localStorage instead of treating "unknown" as "no".
+ *
+ *  IMPORTANT: Uses getSession() (reads from localStorage cache), not getUser()
+ *  (network round-trip). Right after login the session is hydrated into the
+ *  client before getUser() can validate with the server, so getUser() races
+ *  and transiently returns null — which would make an entitled user look
+ *  unentitled for the first few seconds. */
 async function fetchUnlockFromSupabase(): Promise<boolean | null> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null; // not logged in - can't check
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+    if (!userId) return null; // not logged in / session not hydrated yet
 
     const { data, error } = await supabase
       .from("user_entitlements")
       .select("id")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .limit(1)
       .maybeSingle();
 
