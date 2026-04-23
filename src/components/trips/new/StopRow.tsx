@@ -817,7 +817,17 @@ export function StopRow(props: {
                   >
                     <span style={{ fontSize: 14, fontWeight: 700, color: "var(--roam-text)" }}>{it.name}</span>
                     <span style={{ fontSize: 12, color: "var(--roam-text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {((it.extra as Record<string, unknown> | undefined)?.address as string) || `${it.category} · ${it.lat.toFixed(3)}, ${it.lng.toFixed(3)}`}
+                      {(() => {
+                        const extra = it.extra as Record<string, unknown> | undefined;
+                        const placeName = extra?.place_name as string | undefined;
+                        const addr = extra?.address as string | undefined;
+                        // Prefer the full Mapbox place_name (includes house
+                        // number context); fall back to the shorter context
+                        // string; final fallback is category + coords.
+                        return (placeName && placeName !== it.name)
+                          ? placeName
+                          : (addr || `${it.category} · ${it.lat.toFixed(3)}, ${it.lng.toFixed(3)}`);
+                      })()}
                     </span>
                   </button>
                 ))}
