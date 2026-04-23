@@ -201,7 +201,7 @@ export function VehicleFuelSettings({
   if (!open) return null;
 
   return (
-    <div style={overlay} onClick={onClose}>
+    <div className="roam-modal-backdrop" data-roam-modal="fuel-settings" style={overlay} onClick={onClose}>
       <div style={panel} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div style={headerRow}>

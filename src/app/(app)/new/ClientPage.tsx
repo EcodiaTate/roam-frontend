@@ -61,6 +61,19 @@ export default function NewTripClientPage() {
   const [paywallVariant, setPaywallVariant] = useState<"gate" | "upgrade">("gate");
   const [unlocked, setUnlocked] = useState<boolean | null>(null);
 
+  // ── Desktop panel open/closed (≥900px only) ──────────────────────
+  // Mirrors the /trip page's pattern so the side panel here also has an
+  // edge-tab toggle. On mobile this state is unused (CSS ignores the
+  // data-desktop-open attribute below 900px).
+  const [desktopPanelOpen, setDesktopPanelOpen] = useState(true);
+  useEffect(() => {
+    document.documentElement.setAttribute(
+      "data-desktop-panel-open",
+      desktopPanelOpen ? "true" : "false",
+    );
+    return () => { document.documentElement.removeAttribute("data-desktop-panel-open"); };
+  }, [desktopPanelOpen]);
+
 
   useEffect(() => {
     let cancelled = false;
@@ -357,7 +370,22 @@ export default function NewTripClientPage() {
         }}
         unlocked={unlocked}
         onUpgrade={() => { setPaywallVariant("upgrade"); setPaywallOpen(true); }}
+        desktopOpen={desktopPanelOpen}
       />
+
+      {/* Desktop-only side-panel toggle. Hidden on mobile via CSS.
+          Sibling of the sheet so it isn't carried by the sheet's own
+          translateX when the panel is collapsed. */}
+      <button
+        type="button"
+        className="trip-desktop-panel-toggle"
+        data-panel-open={desktopPanelOpen ? "true" : "false"}
+        onClick={() => setDesktopPanelOpen((v) => !v)}
+        aria-label={desktopPanelOpen ? "Collapse panel" : "Expand panel"}
+        aria-expanded={desktopPanelOpen}
+      >
+        {desktopPanelOpen ? "‹" : "›"}
+      </button>
 
       {/* Planning overlay - only for full offline bundle builds */}
       <PlanningOverlay

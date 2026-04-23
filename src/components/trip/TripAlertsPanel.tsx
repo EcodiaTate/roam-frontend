@@ -994,7 +994,6 @@ export function RouteBlockedBanner({
           width: 40, height: 40, borderRadius: "var(--r-card)",
           background: "var(--danger-tint)", border: "2px solid var(--roam-border-strong)",
           display: "grid", placeItems: "center", flexShrink: 0,
-          animation: "roam-pulse-glow 2s ease-in-out infinite",
         }}>
           <Ban size={20} color="var(--roam-danger)" strokeWidth={2.5} />
         </div>
@@ -1033,12 +1032,6 @@ export function RouteBlockedBanner({
         </div>
       </div>
 
-      <style>{`
-        @keyframes roam-pulse-glow {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.3); }
-          50% { box-shadow: 0 0 12px 4px rgba(220,38,38,0.2); }
-        }
-      `}</style>
     </div>
   );
 }

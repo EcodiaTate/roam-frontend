@@ -192,6 +192,8 @@ export function InviteCodeModal({ open, planId, mode, onClose, onRedeemed }: Pro
 
   const modalContent = (
     <div
+      className="roam-modal-backdrop"
+      data-roam-modal="invite"
       onClick={handleClose}
       style={{
         position: "fixed",

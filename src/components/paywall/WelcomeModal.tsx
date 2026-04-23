@@ -29,6 +29,8 @@ export function WelcomeModal({ open, lastFreeTrip = false, onClose }: Props) {
 
   return createPortal(
     <div
+      className="roam-modal-backdrop"
+      data-roam-modal="welcome"
       style={{
         position: "fixed",
         inset: 0,

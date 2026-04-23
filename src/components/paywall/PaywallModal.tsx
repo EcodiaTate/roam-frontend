@@ -176,6 +176,8 @@ export function PaywallModal({ open, onClose, onUnlocked, variant = "gate" }: Pr
 
   return createPortal(
     <div
+      className="roam-modal-backdrop"
+      data-roam-modal="paywall"
       onClick={handleClose}
       style={{
         position: "fixed",

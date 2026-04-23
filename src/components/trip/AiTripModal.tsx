@@ -495,6 +495,8 @@ export function AiTripModal({
 
       {/* Backdrop */}
       <div
+        className="roam-modal-backdrop"
+        data-roam-modal="ai-trip"
         style={{
           position: "fixed",
           inset: 0,
@@ -510,6 +512,8 @@ export function AiTripModal({
       {/* Modal */}
       <div
         ref={modalRef}
+        className="roam-modal-sheet"
+        data-roam-modal="ai-trip"
         style={{
           position: "fixed",
           left: "50%",

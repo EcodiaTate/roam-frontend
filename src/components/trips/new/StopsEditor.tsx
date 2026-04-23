@@ -421,6 +421,12 @@ export function StopsEditor(props: {
   unlocked?: boolean | null;
   /** Called when user taps the upgrade button. */
   onUpgrade?: () => void;
+
+  /** Desktop side-panel state (≥900px only; ignored on mobile). When
+   *  true the panel is visible, when false it slides off-screen to the
+   *  left. Used to apply data-desktop-open on the sheet root so the
+   *  desktop CSS media query picks it up. */
+  desktopOpen?: boolean;
 }) {
   // --- Smooth Drag Controller ---
   const [snapState, setSnapState] = useState<"peek" | "expanded">("peek");
@@ -507,12 +513,16 @@ export function StopsEditor(props: {
   return (
     <div
       className="trip-bottom-sheet-wrap"
+      data-desktop-open={props.desktopOpen === false ? "false" : "true"}
       style={{
         transform: finalTransform,
         transition: isDraggingState ? "none" : "transform 0.35s cubic-bezier(0.34, 1.12, 0.64, 1)",
       }}
     >
-      <div className="trip-bottom-sheet">
+      <div
+        className="trip-bottom-sheet"
+        data-desktop-open={props.desktopOpen === false ? "false" : "true"}
+      >
         {/* DRAG HEADER */}
         <div
           className="trip-sheet-header trip-interactive"

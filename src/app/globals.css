@@ -2269,10 +2269,18 @@ input[type="range"]::-moz-range-thumb {
   .pt-wrap,
   .pt-pane { overflow: visible !important; }
 
-  /* ── /trip bottom sheet → left-side panel ──────────────────
-     Docks against the nav rail at left: var(--desktop-rail-w) so the
-     rail and panel sit flush. translateX controls open/closed. */
-  .trip-bottom-sheet {
+  /* ── /trip + /new bottom sheet → left-side panel ──────────────
+     Only applies to sheets that opt in by setting data-desktop-open.
+     /live uses the same .trip-bottom-sheet class for the in-drive HUD
+     which should stay bottom-docked on desktop too, so it doesn't opt
+     in and therefore keeps its mobile styling. */
+  .trip-bottom-sheet-wrap[data-desktop-open] {
+    position: static !important;
+    transform: none !important;
+    height: auto !important;
+    bottom: auto !important;
+  }
+  .trip-bottom-sheet[data-desktop-open] {
     position: fixed !important;
     top: 0 !important;
     left: var(--desktop-rail-w) !important;
@@ -2289,12 +2297,12 @@ input[type="range"]::-moz-range-thumb {
   .trip-bottom-sheet[data-desktop-open="false"] { transform: translateX(-100%) !important; }
 
   /* Neutralise the rounded top corners - mobile-only shape. */
-  .trip-bottom-sheet .trip-elevation-wrap { border-radius: 0 !important; }
-  .trip-bottom-sheet .trip-drag-handle { display: none; }
-  .trip-bottom-sheet .trip-sheet-header { min-height: 0; padding-top: 16px; }
-  .trip-bottom-sheet .trip-sheet-content,
-  .trip-bottom-sheet .trip-list-container,
-  .trip-bottom-sheet .trip-sheet-body { padding-bottom: 20px; }
+  .trip-bottom-sheet[data-desktop-open] .trip-elevation-wrap { border-radius: 0 !important; }
+  .trip-bottom-sheet[data-desktop-open] .trip-drag-handle { display: none; }
+  .trip-bottom-sheet[data-desktop-open] .trip-sheet-header { min-height: 0; padding-top: 16px; }
+  .trip-bottom-sheet[data-desktop-open] .trip-sheet-content,
+  .trip-bottom-sheet[data-desktop-open] .trip-list-container,
+  .trip-bottom-sheet[data-desktop-open] .trip-sheet-body { padding-bottom: 20px; }
 
   /* Panel toggle - a fixed button pinned to the viewport, NOT a child
      of the sheet, so the sheet's translateX(-100%) doesn't carry it
@@ -2365,6 +2373,68 @@ input[type="range"]::-moz-range-thumb {
   /* ── Plan drawer: slides over the right half on desktop, same
      as it covers the map on mobile. z-index above the panel. */
   .plan-drawer { z-index: 60 !important; }
+
+  /* ── Generic modal backdrops (opt in via data-roam-modal) ──
+     Mobile uses a bottom-drawer pattern (justify-content: flex-end +
+     the modal inside is anchored to the bottom with translateY slide).
+     Desktop centres the modal in the visible map area (right of the
+     rail + left panel) so it doesn't cover the chrome. */
+  .roam-modal-backdrop[data-roam-modal] {
+    /* Shrink the backdrop to the visible map area so clicks outside
+       the modal still hit the chrome (rail / side panel). */
+    left: calc(var(--desktop-rail-w) + var(--desktop-panel-visible)) !important;
+    right: 0 !important;
+    justify-content: center !important;
+    align-items: center !important;
+    /* Soften the backdrop - full blur is heavy and we already hide
+       the underlying map chrome via positioning. */
+    background: rgba(10, 8, 6, 0.55) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  /* Center-docked: inner sheet should not anchor to bottom anymore. */
+  .roam-modal-backdrop[data-roam-modal] > * {
+    margin: auto !important;
+    border-radius: var(--r-card) !important;
+  }
+  /* AI trip modal uses a separate absolutely-positioned sheet (not
+     nested in the backdrop). Re-anchor it to the map area centre. */
+  .roam-modal-sheet[data-roam-modal="ai-trip"] {
+    left: calc(var(--desktop-rail-w) + var(--desktop-panel-visible) + (100vw - var(--desktop-rail-w) - var(--desktop-panel-visible)) / 2) !important;
+    top: 50% !important;
+    bottom: auto !important;
+    transform: translate(-50%, -50%) !important;
+    border-radius: var(--r-card) !important;
+    padding-bottom: 12px !important;
+  }
+
+  /* The standalone .trip-modal-overlay (used by PlaceSearchModal and
+     similar) uses the same bottom-drawer pattern; re-centre it. */
+  .trip-modal-overlay {
+    left: calc(var(--desktop-rail-w) + var(--desktop-panel-visible)) !important;
+    right: 0 !important;
+    justify-content: center !important;
+    align-items: center !important;
+    background: rgba(10, 8, 6, 0.55) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  .trip-modal-overlay > .trip-modal {
+    margin: auto !important;
+    max-width: 520px !important;
+    max-height: 88vh !important;
+    border-radius: var(--r-card) !important;
+  }
+
+  /* Report picker backdrop - confined to the visible map area so it
+     doesn't dim the nav rail / side panel. */
+  .report-backdrop {
+    left: calc(var(--desktop-rail-w) + var(--desktop-panel-visible)) !important;
+    right: 0 !important;
+    background: rgba(10, 8, 6, 0.55) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
 
   /* ═════════════════════════════════════════════════════════════
      MAP CHROME: nudge every floating overlay to live in the
