@@ -712,6 +712,7 @@ export function PlanDrawer({
 
       {/* Drawer */}
       <div
+        className="plan-drawer"
         style={{
           position: "fixed",
           top: 0,

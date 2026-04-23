@@ -468,6 +468,7 @@ export function PlaceDetailSheet({
 
   return (
     <div
+      className="place-detail-backdrop"
       style={{
         position: "fixed",
         inset: 0,
@@ -488,6 +489,8 @@ export function PlaceDetailSheet({
     >
       <div
         ref={sheetRef}
+        className="place-detail-sheet"
+        data-visible={visible}
         style={{
           background: "var(--roam-surface)",
           borderRadius: "28px 28px 0 0",

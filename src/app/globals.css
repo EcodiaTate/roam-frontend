@@ -2186,3 +2186,191 @@ input[type="range"]::-moz-range-thumb {
 .terra-route-pulse {
   animation: terra-route-pulse-anim 2s ease-in-out infinite;
 }
+
+
+/* ==========================================================================
+   DESKTOP / LAPTOP LAYOUT (≥ 900px)
+   ──────────────────────────────────────────────────────────────────────────
+   Reshape the mobile chrome for laptops WITHOUT touching mobile layout:
+     • Bottom tab bar → vertical rail on the left edge (72px wide).
+     • /trip bottom sheet → right-side panel (420px wide, always open).
+     • PlaceDetailSheet → right-side panel (same width).
+     • Map keeps its full viewport; it self-resizes via existing
+       ResizeObserver hooks so no JS changes are needed.
+   Everything below this block is mobile-untouched. This section must stay
+   additive: only use !important where needed to beat inline styles on the
+   bottom sheet (which sets position/bottom/left/right/height/transform
+   inline in trip/ClientPage.tsx).
+   ========================================================================== */
+
+@media (min-width: 900px) {
+  :root {
+    --desktop-rail-w: 72px;
+    --desktop-panel-w: 420px;
+  }
+
+  /* ── Left nav rail (was: bottom tab bar) ─────────────────── */
+  .roam-tabs-wrap {
+    top: 0 !important;
+    bottom: 0 !important;
+    right: auto !important;
+    left: 0 !important;
+    width: var(--desktop-rail-w);
+    height: 100vh;
+    flex-direction: column;
+  }
+  .roam-tabs-wrap::after {
+    /* Hide the safe-area leg - no home indicator on desktop. */
+    display: none;
+  }
+  .roam-tabs {
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
+    height: 100%;
+    width: 100%;
+    padding: 12px 0;
+    gap: 8px;
+  }
+  .roam-tabs > * {
+    /* Stack tabs evenly top-to-bottom instead of spacing space-evenly
+       horizontally. */
+    width: 100%;
+  }
+  /* Labels beside icons get cramped in a 72px rail; keep icon-only. */
+  .roam-tab-label {
+    display: none !important;
+  }
+  /* Flatten the raised center-button on desktop so all three tabs look
+     uniform in the vertical rail. */
+  .roam-tab-center .roam-tab-bump {
+    display: none;
+  }
+  .roam-tab-center {
+    transform: none !important;
+  }
+  .roam-tab {
+    padding: 12px 0 !important;
+  }
+
+  /* Shell content clears the rail on the left instead of the tab bar
+     on the bottom. Pages that used padding-bottom: var(--bottom-nav-height)
+     read 0 here so they don't leave dead space above where the bar was. */
+  .roam-main {
+    left: var(--desktop-rail-w) !important;
+    inset: 0 0 0 var(--desktop-rail-w) !important;
+    --bottom-nav-height: 0px;
+  }
+
+  /* ── /trip bottom sheet → right-side panel ───────────────── */
+  /* Override the inline transform/position set in trip/ClientPage.tsx.
+     On desktop the sheet is always open and docks to the right edge;
+     no snap states, no drag. */
+  .trip-bottom-sheet {
+    position: absolute !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: auto !important;
+    width: var(--desktop-panel-w) !important;
+    height: 100% !important;
+    transform: none !important;
+    transition: none !important;
+    border-radius: 0 !important;
+    box-shadow: -2px 0 24px color-mix(in srgb, var(--roam-text) 8%, transparent);
+  }
+  .trip-bottom-sheet-wrap {
+    position: absolute !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: auto !important;
+    width: var(--desktop-panel-w) !important;
+    height: 100% !important;
+    pointer-events: auto;
+  }
+  /* Hide the drag handle - there's nothing to drag on desktop. */
+  .trip-bottom-sheet .trip-drag-handle {
+    display: none;
+  }
+  /* Restore tap target for the sheet header so it doesn't eat clicks on
+     content near the top. */
+  .trip-bottom-sheet .trip-sheet-header {
+    min-height: 0;
+    padding-top: 16px;
+  }
+
+  /* Content scroll clearance: on mobile the sheet has 200px of bottom
+     padding to float above the tab bar; on desktop the rail is on the
+     left, so trim that excess padding. */
+  .trip-bottom-sheet .trip-sheet-content,
+  .trip-bottom-sheet .trip-list-container,
+  .trip-bottom-sheet .trip-sheet-body {
+    padding-bottom: 20px;
+  }
+
+  /* ── Place detail sheet → right-side panel ──────────────── */
+  /* PlaceDetailSheet sets position:fixed + transform:translateY inline;
+     override so it docks to the right edge and slides in from the right. */
+  /* Backdrop: transparent + click-through on desktop, so the map stays
+     interactive while the detail panel sits docked on the right. */
+  .place-detail-backdrop {
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    pointer-events: none !important;
+  }
+
+  .place-detail-sheet {
+    position: fixed !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    right: 0 !important;
+    left: auto !important;
+    width: var(--desktop-panel-w) !important;
+    max-width: none !important;
+    margin: 0 !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+    pointer-events: auto;
+  }
+  .place-detail-sheet[data-visible="true"] {
+    transform: translateX(0) !important;
+  }
+  .place-detail-sheet[data-visible="false"] {
+    transform: translateX(100%) !important;
+  }
+  .place-detail-sheet .place-detail-drag-zone {
+    /* Nothing to drag on desktop. */
+    display: none;
+  }
+
+  /* ── App container: shift left edge past the nav rail ─────
+     The side panel (right-docked sheet) overlays the map on top,
+     mirroring the mobile "sheet over map" pattern - the map runs
+     edge-to-edge underneath. This keeps MapLibre's existing snap
+     points/camera math unchanged. */
+  .trip-app-container {
+    position: fixed !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: var(--desktop-rail-w) !important;
+    right: 0 !important;
+  }
+
+  /* ── Plan drawer: keep right-slide, but don't cover the panel ── */
+  /* On mobile the drawer is 360px from the right edge. On desktop the
+     right-side trip panel is already 420px wide, so bump the drawer
+     to sit flush against the panel's left edge (or full-cover it). */
+  .plan-drawer {
+    right: var(--desktop-panel-w) !important;
+    width: min(100%, 420px) !important;
+  }
+}
+
+/* ── Extra-wide screens (≥ 1280px): give the panel a little more room ── */
+@media (min-width: 1280px) {
+  :root {
+    --desktop-panel-w: 480px;
+  }
+}
