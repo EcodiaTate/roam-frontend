@@ -2250,11 +2250,11 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           aria-label={desktopPanelOpen ? "Collapse panel" : "Expand panel"}
           aria-expanded={desktopPanelOpen}
         >
-          {desktopPanelOpen ? "›" : "‹"}
+          {desktopPanelOpen ? "‹" : "›"}
         </button>
         {/* ── Elevation profile strip (between map and sheet) ── */}
         {elevation?.profile && (
-          <div style={{
+          <div className="trip-elevation-wrap" style={{
             position: "relative",
             zIndex: 1,
             borderRadius: "28px 28px 0 0",

@@ -2268,37 +2268,46 @@ input[type="range"]::-moz-range-thumb {
     --bottom-nav-height: 0px;
   }
 
-  /* ── /trip bottom sheet → right-side panel ───────────────── */
-  /* Override the inline transform/position set in trip/ClientPage.tsx.
-     The panel docks to the right and toggles open/closed via the
-     data-desktop-open attribute - snap/drag math is ignored here. */
+  /* ── /trip bottom sheet → left-side panel ────────────────
+     Override the inline transform/position set in trip/ClientPage.tsx.
+     The panel docks to the LEFT (next to the nav rail) and toggles
+     open/closed via the data-desktop-open attribute - snap/drag math
+     is ignored here. */
   .trip-bottom-sheet {
     position: absolute !important;
     top: 0 !important;
-    right: 0 !important;
+    left: 0 !important;
     bottom: 0 !important;
-    left: auto !important;
+    right: auto !important;
     width: var(--desktop-panel-w) !important;
     height: 100% !important;
     transition: transform 0.25s cubic-bezier(0.34, 1.12, 0.64, 1) !important;
     border-radius: 0 !important;
-    box-shadow: -2px 0 24px color-mix(in srgb, var(--roam-text) 8%, transparent);
+    box-shadow: 2px 0 24px color-mix(in srgb, var(--roam-text) 8%, transparent);
   }
   .trip-bottom-sheet[data-desktop-open="true"] {
     transform: translateX(0) !important;
   }
   .trip-bottom-sheet[data-desktop-open="false"] {
-    transform: translateX(100%) !important;
+    transform: translateX(-100%) !important;
   }
 
-  /* Edge-tab toggle that hangs off the panel's left side. When the
-     panel is closed, the toggle moves with translateX to stay visible
-     at the viewport's right edge. */
+  /* Neutralise the elevation strip's rounded top corners - they belong
+     to the mobile "sheet resting on map" shape. On desktop the panel
+     is a rectangular column so the curves would bleed onto whatever
+     sits behind them and look broken. */
+  .trip-bottom-sheet .trip-elevation-wrap {
+    border-radius: 0 !important;
+  }
+
+  /* Edge-tab toggle that hangs off the panel's RIGHT side (since the
+     panel is docked on the left). Moves with the panel via translateX
+     so it always sits at the visible edge. */
   .trip-desktop-panel-toggle {
-    display: flex;
     position: absolute;
     top: 16px;
-    left: -28px;
+    right: -28px;
+    left: auto;
     width: 28px;
     height: 44px;
     display: flex;
@@ -2307,8 +2316,8 @@ input[type="range"]::-moz-range-thumb {
     background: var(--roam-surface);
     color: var(--roam-text-muted);
     border: none;
-    border-radius: var(--r-card) 0 0 var(--r-card);
-    box-shadow: -2px 0 8px color-mix(in srgb, var(--roam-text) 8%, transparent);
+    border-radius: 0 var(--r-card) var(--r-card) 0;
+    box-shadow: 2px 0 8px color-mix(in srgb, var(--roam-text) 8%, transparent);
     cursor: pointer;
     font-size: 18px;
     font-weight: 800;
