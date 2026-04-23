@@ -2277,9 +2277,20 @@ input[type="range"]::-moz-range-thumb {
   .roam-tab-center { transform: none !important; }
   .roam-tab { padding: 14px 0 !important; }
 
-  /* Shell content fills the whole viewport; the rail floats on top
-     of it (same pattern as the mobile tab bar overlaying the map). */
-  .roam-main { --bottom-nav-height: 0px; }
+  /* Shell content clears the left nav rail so scrollable pages like
+     /guide and /sos don't render under it. The trip/new/live pages use
+     `.trip-app-container` which is position:fixed and escapes this
+     offset, so the map still runs edge-to-edge under the rail. */
+  .roam-main {
+    left: var(--desktop-rail-w) !important;
+    --bottom-nav-height: 0px;
+  }
+  /* Nav rail is fully opaque on desktop: there's no content behind it
+     to blend into, so a translucent fill would just read as a smudge. */
+  .roam-tabs {
+    background-color: var(--roam-bg) !important;
+    border-right: 1px solid color-mix(in srgb, var(--roam-text) 8%, transparent);
+  }
 
   /* PersistentTabs wrap clips content with overflow:hidden, which would
      clip the panel's edge-tab toggle. Let overflow escape on desktop. */
