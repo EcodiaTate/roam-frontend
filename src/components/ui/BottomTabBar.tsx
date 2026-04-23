@@ -23,23 +23,23 @@ type Tab = {
 
 /* ── Nav styles ───────────────────────────────────────────────────────── */
 
+// Ambient, not flashy: solid-ish surface colour instead of a blurred
+// backdrop so the bar reads as part of the app chrome rather than a
+// showy glass effect. Cheaper on older devices too.
 const NAV_STYLE: CSSProperties = {
-  backgroundColor: "color-mix(in srgb, var(--roam-bg) 80%, transparent)",
-  backdropFilter: "blur(24px) saturate(140%)",
-  WebkitBackdropFilter: "blur(24px) saturate(140%)",
+  backgroundColor: "color-mix(in srgb, var(--roam-bg) 92%, transparent)",
   boxShadow: "0 -1px 3px color-mix(in srgb, var(--roam-text) 6%, transparent)",
 };
 
-// Safe-area leg below the nav - extends the blur into the home indicator zone
+// Safe-area leg below the nav - just continues the nav's surface colour
+// into the home indicator zone.
 const SAFE_LEG_STYLE: CSSProperties = {
   position: "absolute",
   top: "100%",
   left: 0,
   right: 0,
   height: "env(safe-area-inset-bottom, 0px)",
-  backgroundColor: "color-mix(in srgb, var(--roam-bg) 80%, transparent)",
-  backdropFilter: "blur(24px) saturate(140%)",
-  WebkitBackdropFilter: "blur(24px) saturate(140%)",
+  backgroundColor: "color-mix(in srgb, var(--roam-bg) 92%, transparent)",
 };
 
 /* ── Icons ────────────────────────────────────────────────────────────

@@ -4,74 +4,33 @@ import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, Loader2, CheckCircle2, WifiOff } from "lucide-react";
 import type { EnrichProgress } from "@/lib/hooks/useEnrichment";
 
-/* ── Smooth display counter ──────────────────────────────────────────
- * Instead of showing the raw completed/total (which jumps),
- * we animate a display value that:
- *   1. Immediately jumps UP to the real completed count when it advances
- *   2. Between real ticks, slowly creeps toward the *next* integer
- *      (never reaching it - caps at +0.85) so the bar always appears active
- *   3. When done, snaps to total
- */
-function useSmoothedProgress(progress: EnrichProgress | null) {
-  const [display, setDisplay] = useState(0);
-  const rafRef = useRef<number>(0);
-  const startTimeRef = useRef(0);
-  const baseRef = useRef(0); // the real completed value we're animating from
-
-  useEffect(() => {
-    if (!progress || progress.phase === "idle" || progress.phase === "cancelled") {
-      setDisplay(0);
-      baseRef.current = 0;
-      return;
-    }
-
-    if (progress.phase === "done") {
-      cancelAnimationFrame(rafRef.current);
-      setDisplay(progress.total);
-      return;
-    }
-
-    const real = progress.completed;
-    const total = progress.total;
-
-    // Real count jumped - snap up and restart creep
-    if (real > baseRef.current) {
-      baseRef.current = real;
-      startTimeRef.current = performance.now();
-    }
-
-    cancelAnimationFrame(rafRef.current);
-
-    function animate() {
-      const elapsed = performance.now() - startTimeRef.current;
-      const base = baseRef.current;
-
-      // Creep: ease-out over ~8s toward +0.85 of the next item
-      // This makes the bar look like it's always doing something
-      const creepDuration = 8000;
-      const creepMax = 0.85;
-      const t = Math.min(elapsed / creepDuration, 1);
-      const eased = 1 - (1 - t) * (1 - t); // ease-out quadratic
-      const creep = eased * creepMax;
-
-      const displayVal = Math.min(base + creep, total);
-      setDisplay(displayVal);
-
-      if (displayVal < total && base < total) {
-        rafRef.current = requestAnimationFrame(animate);
-      }
-    }
-
-    rafRef.current = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [progress]);
-
-  return display;
+/* Real completed count, no creep. Previously this animated toward the
+ * next integer over ~8s to look like progress was always moving - the
+ * effect felt laggy on fast trips and never-quite-done on slow ones.
+ * The progress-bar fill transition in CSS still smooths width jumps. */
+function useSmoothedProgress(progress: EnrichProgress | null): number {
+  if (!progress) return 0;
+  if (progress.phase === "idle" || progress.phase === "cancelled") return 0;
+  if (progress.phase === "done") return progress.total;
+  return progress.completed;
 }
 
 export function EnrichmentBanner({ progress }: { progress: EnrichProgress | null }) {
   const [dismissed, setDismissed] = useState(false);
   const [exiting, setExiting] = useState(false);
+  // Delay first render so fast enrichment runs finish before the banner
+  // ever appears - avoids a 300ms flash of "Setting up your trip…".
+  const [showReady, setShowReady] = useState(false);
+  const isActive =
+    progress !== null &&
+    progress.phase !== "idle" &&
+    progress.phase !== "cancelled" &&
+    progress.phase !== "done";
+  useEffect(() => {
+    if (!isActive) { setShowReady(false); return; }
+    const t = setTimeout(() => setShowReady(true), 3000);
+    return () => clearTimeout(t);
+  }, [isActive]);
   const isDone = progress?.phase === "done";
   const isError = progress?.phase === "error";
   const prevDoneRef = useRef(false);
@@ -91,6 +50,12 @@ export function EnrichmentBanner({ progress }: { progress: EnrichProgress | null
 
   if (dismissed || !progress) return null;
   if (progress.phase === "idle" || progress.phase === "cancelled") return null;
+  // If a fast run finishes before the 3s reveal timer, skip the whole
+  // banner - the user doesn't need a "done" chip for something they
+  // never saw start. Errors still show (they demand attention).
+  if (isDone && !showReady) return null;
+  // Hide the in-progress state until the reveal timer fires.
+  if (isActive && !showReady) return null;
 
   const total = progress.total;
   const displayInt = Math.floor(smoothed);

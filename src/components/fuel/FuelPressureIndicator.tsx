@@ -16,17 +16,19 @@ const pillBase: React.CSSProperties = {
   gap: 6,
   padding: "7px 14px",
   borderRadius: 999,
-  backdropFilter: "blur(16px)",
-  WebkitBackdropFilter: "blur(16px)",
-  boxShadow: "var(--shadow-heavy)",
-  fontWeight: 900,
+  boxShadow: "var(--shadow-soft)",
+  fontWeight: 800,
   fontSize: 12,
   letterSpacing: "-0.2px",
-  transition: "all 0.3s ease",
+  transition: "background 0.3s ease, color 0.3s ease",
   pointerEvents: "none",
 };
 
 /* ── Color schemes ────────────────────────────────────────────────────── */
+// Flat single-colour backgrounds (no gradient, no border, no pulse) so
+// the pill reads as ambient status, not an alarm. Colour alone carries
+// the level; the critical state used to also animate, which fought for
+// attention with everything else on the map.
 
 type PressureLevel = "ok" | "warn" | "critical";
 
@@ -40,26 +42,10 @@ const LEVEL_STYLES: Record<PressureLevel, {
   bg: string;
   text: string;
   icon: string;
-  border: string;
 }> = {
-  ok: {
-    bg: "linear-gradient(160deg, rgba(45,110,64,0.95) 0%, rgba(31,82,54,0.98) 100%)",
-    text: "var(--on-color)",
-    icon: "var(--on-color)",
-    border: "1px solid var(--roam-success)",
-  },
-  warn: {
-    bg: "linear-gradient(160deg, rgba(184,135,42,0.95) 0%, rgba(148,107,30,0.98) 100%)",
-    text: "var(--on-color)",
-    icon: "var(--on-color)",
-    border: "1px solid var(--roam-warn)",
-  },
-  critical: {
-    bg: "linear-gradient(160deg, rgba(181,69,46,0.95) 0%, rgba(145,50,30,0.98) 100%)",
-    text: "var(--on-color)",
-    icon: "var(--on-color)",
-    border: "1px solid var(--roam-danger)",
-  },
+  ok:       { bg: "var(--roam-success)", text: "var(--on-color)", icon: "var(--on-color)" },
+  warn:     { bg: "var(--roam-warn)",    text: "var(--on-color)", icon: "var(--on-color)" },
+  critical: { bg: "var(--roam-danger)",  text: "var(--on-color)", icon: "var(--on-color)" },
 };
 
 /* ── Component ────────────────────────────────────────────────────────── */
@@ -75,24 +61,17 @@ export const FuelPressureIndicator = memo(function FuelPressureIndicator({
     const level = getLevel(tracking.fuel_pressure);
     const style = LEVEL_STYLES[level];
 
-    let label: string;
-    if (tracking.km_to_next_fuel !== null) {
-      const km = Math.round(tracking.km_to_next_fuel);
-      if (level === "critical") {
-        label = `FUEL ${km}km`;
-      } else {
-        label = `Next fuel ${km}km`;
-      }
-    } else {
-      label = "No fuel ahead";
-    }
+    const label =
+      tracking.km_to_next_fuel !== null
+        ? `Fuel ${Math.round(tracking.km_to_next_fuel)} km`
+        : "No fuel ahead";
 
-    return { level, style, label };
+    return { style, label };
   }, [tracking]);
 
   if (!display) return null;
 
-  const { level, style, label } = display;
+  const { style, label } = display;
 
   return (
     <div
@@ -101,18 +80,10 @@ export const FuelPressureIndicator = memo(function FuelPressureIndicator({
         ...pillBase,
         background: style.bg,
         color: style.text,
-        border: style.border,
-        // Pulse animation for critical
-        animation: level === "critical" ? "roam-fuel-pulse 1.5s ease-in-out infinite" : undefined,
       }}
     >
-      <Fuel
-        size={level === "critical" ? 15 : 13}
-        strokeWidth={2.5}
-        style={{ color: style.icon }}
-      />
+      <Fuel size={13} strokeWidth={2.5} style={{ color: style.icon }} />
       <span>{label}</span>
-
     </div>
   );
 });

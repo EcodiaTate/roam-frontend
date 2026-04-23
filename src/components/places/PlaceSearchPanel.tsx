@@ -171,6 +171,15 @@ const CHIP_GROUPS: { label: string; chips: ChipDef[] }[] = [
 
 const ALL_CHIPS: ChipDef[] = CHIP_GROUPS.flatMap((g) => g.chips);
 
+// Default-visible essentials shown inline. Everything else is tucked under
+// a single "More" pill so the chip row doesn't dwarf the results on load.
+const ESSENTIAL_CHIP_KEYS: PlaceCategory[] = [
+  "fuel", "water", "toilet", "rest_area", "restaurant", "camp",
+];
+const ESSENTIAL_CHIPS: ChipDef[] = ESSENTIAL_CHIP_KEYS
+  .map((k) => ALL_CHIPS.find((c) => c.key === k))
+  .filter((c): c is ChipDef => !!c);
+
 // ──────────────────────────────────────────────────────────────
 // Category-specific sub-filters
 // ──────────────────────────────────────────────────────────────
@@ -369,8 +378,6 @@ export type PlaceSearchPanelProps = {
   onAddSavedToTrip?: (place: SavedPlace) => void;
   /** Called when filters change - used to highlight map markers */
   onFilteredIdsChange?: (ids: Set<string> | null) => void;
-  /** Called when user taps the global "Show on map" button */
-  onShowOnMap?: () => void;
   /** Called per-place when user taps the map icon on a row */
   onShowPlaceOnMap?: (place: PlaceItem) => void;
   /** Add an ambient-search result (not in the bundle) to the trip. Should
@@ -388,7 +395,6 @@ export function PlaceSearchPanel({
   onSelectPlace,
   onAddSavedToTrip: _onAddSavedToTrip,
   onFilteredIdsChange,
-  onShowOnMap,
   onShowPlaceOnMap,
   onAddExternalPlace,
   maxHeight = "calc(100vh - 200px)",
@@ -439,9 +445,14 @@ export function PlaceSearchPanel({
     persisted?.subFilters ?? {},
   );
 
-  const [filtersExpanded, setFiltersExpanded] = useState(
-    persisted?.filtersExpanded ?? false,
-  );
+  // Filters panel starts collapsed every session so the UI isn't busy on
+  // open; persisted filter *values* still restore, just not the expanded
+  // chrome. Users can re-expand in one tap via the Filters pill.
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
+  // Category chips: show only essentials by default, tucked-away long tail
+  // is opt-in. Any already-selected category gets rendered inline so the
+  // user can see their active filter without expanding.
+  const [chipsExpanded, setChipsExpanded] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>(
     persisted?.sortMode ?? "distance",
   );
@@ -575,6 +586,41 @@ export function PlaceSearchPanel({
     maxDistanceKm != null ||
     aheadOnly ||
     Object.values(subFilters).some(Boolean);
+
+  // Count of *attribute* filters active (for the "Filters (N)" badge on
+  // the toggle). Category chips have their own visual active state so
+  // aren't counted here.
+  const activeFilterCount =
+    (free ? 1 : 0) +
+    (openNow ? 1 : 0) +
+    (accessible ? 1 : 0) +
+    (aheadOnly ? 1 : 0) +
+    (maxDistanceKm != null ? 1 : 0) +
+    Object.values(subFilters).filter(Boolean).length;
+
+  // Which category chips to render inline. Essentials always; any category
+  // the user has already selected so they can see/toggle it; and everything
+  // else only when the "More" pill has been expanded. Non-zero-count
+  // filtering happens in the render above, not here, so counts update with
+  // the current item set.
+  const visibleChips = useMemo<ChipDef[]>(() => {
+    if (chipsExpanded) return ALL_CHIPS;
+    const essentialKeys = new Set(ESSENTIAL_CHIP_KEYS);
+    const activeKeys = new Set(categories);
+    return ALL_CHIPS.filter(
+      (c) => essentialKeys.has(c.key) || activeKeys.has(c.key),
+    );
+  }, [chipsExpanded, categories]);
+
+  // How many additional chips the "More" pill would reveal (only counting
+  // those with non-zero items, so the pill doesn't lie).
+  const extraChipsAvailable = useMemo(() => {
+    if (chipsExpanded) return 0;
+    const visibleKeys = new Set(visibleChips.map((c) => c.key));
+    return ALL_CHIPS.filter(
+      (c) => !visibleKeys.has(c.key) && (catCounts[c.key] ?? 0) > 0,
+    ).length;
+  }, [chipsExpanded, visibleChips, catCounts]);
 
   // ── Category-specific sub-filters ────────────────────────────
   const activeSubFilters = useMemo<SubFilter[]>(() => {
@@ -734,13 +780,15 @@ export function PlaceSearchPanel({
         >
           <SlidersHorizontal size={14} />
           Filters
+          {activeFilterCount > 0 && (
+            <span style={badgeStyle(true)}>{activeFilterCount}</span>
+          )}
           {filtersExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
         </button>
       </div>
 
-      {/* ── Category chips (grouped, horizontally scrollable) ────── */}
+      {/* ── Category chips (essentials inline, rest behind "More") ── */}
       <div style={{ padding: "10px 16px 0" }}>
-        {/* All chip */}
         <div
           style={{
             display: "flex",
@@ -762,7 +810,7 @@ export function PlaceSearchPanel({
             </span>
           </button>
 
-          {ALL_CHIPS.map((chip) => {
+          {visibleChips.map((chip) => {
             const count = catCounts[chip.key] ?? 0;
             if (count === 0) return null;
             const active = categories.includes(chip.key);
@@ -780,6 +828,21 @@ export function PlaceSearchPanel({
               </button>
             );
           })}
+
+          {extraChipsAvailable > 0 && (
+            <button
+              type="button"
+              onClick={() => { haptic.selection(); setChipsExpanded((v) => !v); }}
+              style={chipStyle(false)}
+              aria-expanded={chipsExpanded}
+            >
+              {chipsExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+              {chipsExpanded ? "Less" : "More"}
+              {!chipsExpanded && (
+                <span style={badgeStyle(false)}>{extraChipsAvailable}</span>
+              )}
+            </button>
+          )}
         </div>
       </div>
 
@@ -905,53 +968,34 @@ export function PlaceSearchPanel({
           )}
         </div>
 
-        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          {onShowOnMap && sorted.length > 0 && sorted.length < items.length && (
-            <button
-              type="button"
-              onClick={() => { haptic.medium(); onShowOnMap(); }}
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                background: "var(--accent-tint)",
-                color: "var(--roam-accent)",
-                border: "none",
-                borderRadius: "var(--r-card)",
-                padding: "5px 10px",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 5,
-              }}
-            >
-              <MapPin size={11} />
-              Show on map
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => {
-              haptic.selection();
-              setSortMode((m) => (m === "distance" ? "alpha" : "distance"));
-            }}
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              background: "var(--roam-surface-hover)",
-              color: "var(--roam-text-muted)",
-              border: "none",
-              borderRadius: "var(--r-card)",
-              padding: "5px 10px",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
-            }}
-          >
-            <ArrowUpDown size={11} />
-            {sortMode === "distance" ? "A–Z" : "Nearest"}
-          </button>
-        </div>
+        {/* Sort toggle only. "Show on map" was redundant - the map is
+           already visible behind the sheet, and filters highlight
+           matching markers via onFilteredIdsChange. Sort is a short
+           icon-label combo to keep the header quiet. */}
+        <button
+          type="button"
+          onClick={() => {
+            haptic.selection();
+            setSortMode((m) => (m === "distance" ? "alpha" : "distance"));
+          }}
+          aria-label={sortMode === "distance" ? "Sort alphabetically" : "Sort by nearest"}
+          style={{
+            fontSize: 12,
+            fontWeight: 700,
+            background: "transparent",
+            color: "var(--roam-text-muted)",
+            border: "none",
+            borderRadius: "var(--r-card)",
+            padding: "4px 8px",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          <ArrowUpDown size={11} />
+          {sortMode === "distance" ? "A–Z" : "Near"}
+        </button>
       </div>
 
       {/* ── Ambient external results (Mapbox) ────────────────────── */}

@@ -118,6 +118,39 @@ export function FuelSummaryCard({
   // Total route km from legs
   const totalKm = legs.reduce((sum, l) => sum + l.distance_km, 0);
 
+  // When the route is healthy (no critical gaps, no warn-or-worse warnings),
+  // render a compact one-line summary so the sheet top isn't dominated by
+  // a 120px card that just says "everything's fine". Tap to expand for the
+  // full detail view.
+  const isHealthy = !has_critical_gaps && topWarnings.length === 0;
+  if (isHealthy && !expanded) {
+    return (
+      <button
+        type="button"
+        onClick={toggleExpanded}
+        style={{
+          ...cardBase,
+          padding: "10px 12px",
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          cursor: "pointer",
+          textAlign: "left",
+          width: "100%",
+          border: "none",
+        }}
+        aria-expanded={false}
+        aria-label={`Fuel: ${statusLabel}, ${stations.length} stations, tap for details`}
+      >
+        <Fuel size={13} strokeWidth={2.2} style={{ color: statusColor, flexShrink: 0 }} />
+        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--roam-text)", flex: 1, minWidth: 0 }}>
+          Fuel · {stations.length} station{stations.length !== 1 ? "s" : ""} · {profile.tank_range_km}km range
+        </span>
+        <ChevronDown size={12} style={{ color: "var(--roam-text-muted)", flexShrink: 0 }} />
+      </button>
+    );
+  }
+
   return (
     <div style={cardBase} role="region" aria-label={`Fuel coverage: ${statusLabel}, ${stations.length} stations on route, range ${profile.tank_range_km}km`}>
       {/* ── Row 1: 2-column header ── */}

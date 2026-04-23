@@ -213,9 +213,13 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteMode, setInviteMode] = useState<"create" | "redeem">("create");
 
-  // Remote sync toast
+  // Remote sync toast. Debounced so a flurry of collaborator edits
+  // shows as one brief toast, not a rolling always-on banner. maxAge
+  // caps visibility at 3s after the *first* edit in a burst, regardless
+  // of how many follow; then a cooldown window suppresses duplicates.
   const [remoteToastVisible, setRemoteToastVisible] = useState(false);
-  const remoteToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const remoteToastHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const remoteToastCooldownUntilRef = useRef(0);
 
   // Plans drawer state
   const [drawOpen, setDrawOpen] = useState(false);
@@ -1280,10 +1284,19 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           }
         }
 
-        // Show toast
-        setRemoteToastVisible(true);
-        if (remoteToastTimerRef.current) clearTimeout(remoteToastTimerRef.current);
-        remoteToastTimerRef.current = setTimeout(() => setRemoteToastVisible(false), 3000);
+        // Show toast - but only if we're not in the cooldown window from
+        // a recent burst. This collapses rapid collaborator edits into a
+        // single toast instead of an always-on banner on busy trips.
+        const now = Date.now();
+        if (now >= remoteToastCooldownUntilRef.current) {
+          setRemoteToastVisible(true);
+          if (remoteToastHideTimerRef.current) clearTimeout(remoteToastHideTimerRef.current);
+          remoteToastHideTimerRef.current = setTimeout(() => {
+            setRemoteToastVisible(false);
+          }, 3000);
+          // 7s cooldown: 3s visible + 4s quiet before another toast can show.
+          remoteToastCooldownUntilRef.current = now + 7000;
+        }
       } catch (e) {
         console.warn("[Trip] remote plan sync failed:", e);
       }
@@ -1291,7 +1304,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
 
     return () => {
       unsub();
-      if (remoteToastTimerRef.current) clearTimeout(remoteToastTimerRef.current);
+      if (remoteToastHideTimerRef.current) clearTimeout(remoteToastHideTimerRef.current);
     };
   }, [plan?.plan_id, plan?.route_key, phase, handleRebuild]);
 
@@ -2160,9 +2173,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
             position: "fixed",
             inset: 0,
             zIndex: 200,
-            background: "rgba(10, 8, 6, 0.75)",
-            backdropFilter: "blur(6px)",
-            WebkitBackdropFilter: "blur(6px)",
+            background: "rgba(10, 8, 6, 0.6)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -2207,7 +2218,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
                 color: "var(--roam-text-muted, #7a7067)",
                 lineHeight: 1.5,
               }}>
-                Creating a new trip requires an internet connection to fetch routes and maps. Reconnect and try again.
+                Needs internet to plan a trip.
               </p>
             </div>
 

@@ -755,6 +755,8 @@ export function TripView({
       {err && <div className={s.errorBox}>{err}</div>}
 
       {/* ── Section tabs ───────────────────────────────────────────────── */}
+      {/* Badge only on the *inactive* tab - a count on the tab you're
+          already looking at is noise. */}
       <div className={s.tabBar}>
         {tabs.map((tab) => {
           const active = activeSection === tab.key;
@@ -770,7 +772,7 @@ export function TripView({
             >
               {tab.icon}
               {tab.label}
-              {tab.badge && <span className={s.tabBadge}>{tab.badge}</span>}
+              {!active && tab.badge && <span className={s.tabBadge}>{tab.badge}</span>}
             </button>
           );
         })}
@@ -867,16 +869,10 @@ export function TripView({
                       </div>
                     </div>
 
-                    {/* Name + type + schedule */}
+                    {/* Name + schedule (type is already shown by the
+                        colored marker icon on the left). */}
                     <div className={s.stopContent}>
                       <div className={s.stopName}>{stopLabel(stop, index)}</div>
-                      {!simple && (
-                        <div className={s.stopMeta}>
-                          <span className={s.stopTypeBadge}>
-                            {type === "poi" ? "stop" : type}
-                          </span>
-                        </div>
-                      )}
                       {stopSchedule(stop) && (
                         <div className={s.stopSchedule}>
                           <Clock size={10} style={{ flexShrink: 0, opacity: 0.7 }} />
@@ -991,38 +987,44 @@ export function TripView({
               </div>
             )}
 
-            {/* Add stop button */}
-            <button
-              type="button"
-              className={s.addStopBtn}
-              onClick={() => {
-                haptic.tap();
-                setActiveSection("places");
-              }}
-            >
-              <Plus size={14} strokeWidth={2} />
-              Add stop
-            </button>
+            {/* Add-stop row: the primary full-width Add button with the
+                Optimise icon-button tucked to its right so the two share
+                a single tap-target row instead of stacking into two
+                visually competing CTAs. */}
+            <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+              <button
+                type="button"
+                className={s.addStopBtn}
+                style={{ flex: 1, marginTop: 0 }}
+                onClick={() => {
+                  haptic.tap();
+                  setActiveSection("places");
+                }}
+              >
+                <Plus size={14} strokeWidth={2} />
+                Add stop
+              </button>
 
-            {/* Optimize route button - hidden in simple mode */}
-            {!simple && stops.filter((st) => !isLockedStop(st)).length >= 2 && (
-              optimizeToast ? (
-                <div className={s.optimizeToast}>
-                  <CheckCheck size={13} strokeWidth={2.5} />
-                  Route optimised
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  className={s.optimizeBtn}
-                  disabled={!!busy}
-                  onClick={optimizeRoute}
-                >
-                  <Shuffle size={13} strokeWidth={2} />
-                  Optimise Route
-                </button>
-              )
-            )}
+              {!simple && stops.filter((st) => !isLockedStop(st)).length >= 2 && (
+                optimizeToast ? (
+                  <div className={s.optimizeToast}>
+                    <CheckCheck size={13} strokeWidth={2.5} />
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className={s.optimizeBtn}
+                    style={{ marginTop: 0, width: 44, padding: 0, flexShrink: 0 }}
+                    disabled={!!busy}
+                    onClick={optimizeRoute}
+                    title="Optimise stop order"
+                    aria-label="Optimise stop order"
+                  >
+                    <Shuffle size={14} strokeWidth={2} />
+                  </button>
+                )
+              )}
+            </div>
 
             {/* Save / Reset footer */}
             {dirty && (
