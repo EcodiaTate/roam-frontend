@@ -2309,9 +2309,14 @@ input[type="range"]::-moz-range-thumb {
     bottom: auto !important;
   }
   .trip-bottom-sheet[data-desktop-open] {
+    /* .pt-pane is `will-change: transform` which creates a new
+       containing block for `position: fixed` descendants. So this
+       sheet's `left: 0` is anchored to `.roam-main`'s left edge, which
+       already starts at viewport 72px (past the rail). No extra offset
+       needed here. */
     position: fixed !important;
     top: 0 !important;
-    left: var(--desktop-rail-w) !important;
+    left: 0 !important;
     bottom: 0 !important;
     right: auto !important;
     width: var(--desktop-panel-w) !important;
@@ -2410,32 +2415,21 @@ input[type="range"]::-moz-range-thumb {
   .plan-drawer { z-index: 60 !important; }
 
   /* ── Generic modal backdrops (opt in via data-roam-modal) ──
-     Mobile uses a bottom-drawer pattern (justify-content: flex-end +
-     the modal inside is anchored to the bottom with translateY slide).
-     Desktop centres the modal in the visible map area (right of the
-     rail + left panel) so it doesn't cover the chrome. */
+     Modals cover the full viewport on every breakpoint — they're
+     meant to focus the user on the dialog, so dimming the nav rail
+     and side panel is correct. Just centre the inner sheet. */
   .roam-modal-backdrop[data-roam-modal] {
-    /* Shrink the backdrop to the visible map area so clicks outside
-       the modal still hit the chrome (rail / side panel). */
-    left: calc(var(--desktop-rail-w) + var(--desktop-panel-visible)) !important;
+    left: 0 !important;
     right: 0 !important;
     justify-content: center !important;
     align-items: center !important;
-    /* Soften the backdrop - full blur is heavy and we already hide
-       the underlying map chrome via positioning. */
-    background: rgba(10, 8, 6, 0.55) !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
   }
-  /* Center-docked: inner sheet should not anchor to bottom anymore. */
   .roam-modal-backdrop[data-roam-modal] > * {
     margin: auto !important;
     border-radius: var(--r-card) !important;
   }
-  /* AI trip modal uses a separate absolutely-positioned sheet (not
-     nested in the backdrop). Re-anchor it to the map area centre. */
   .roam-modal-sheet[data-roam-modal="ai-trip"] {
-    left: calc(var(--desktop-rail-w) + var(--desktop-panel-visible) + (100vw - var(--desktop-rail-w) - var(--desktop-panel-visible)) / 2) !important;
+    left: 50% !important;
     top: 50% !important;
     bottom: auto !important;
     transform: translate(-50%, -50%) !important;
@@ -2443,16 +2437,11 @@ input[type="range"]::-moz-range-thumb {
     padding-bottom: 12px !important;
   }
 
-  /* The standalone .trip-modal-overlay (used by PlaceSearchModal and
-     similar) uses the same bottom-drawer pattern; re-centre it. */
   .trip-modal-overlay {
-    left: calc(var(--desktop-rail-w) + var(--desktop-panel-visible)) !important;
+    left: 0 !important;
     right: 0 !important;
     justify-content: center !important;
     align-items: center !important;
-    background: rgba(10, 8, 6, 0.55) !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
   }
   .trip-modal-overlay > .trip-modal {
     margin: auto !important;
@@ -2461,14 +2450,10 @@ input[type="range"]::-moz-range-thumb {
     border-radius: var(--r-card) !important;
   }
 
-  /* Report picker backdrop - confined to the visible map area so it
-     doesn't dim the nav rail / side panel. */
+  /* Report picker backdrop stays full-viewport too. */
   .report-backdrop {
-    left: calc(var(--desktop-rail-w) + var(--desktop-panel-visible)) !important;
+    left: 0 !important;
     right: 0 !important;
-    background: rgba(10, 8, 6, 0.55) !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
   }
 
   /* ═════════════════════════════════════════════════════════════

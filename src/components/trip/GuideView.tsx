@@ -761,6 +761,7 @@ function PlaceCard({
   onShowOnMap,
   onDetail,
   isOnline,
+  isSaved,
 }: {
   place: PlaceItem | DiscoveredPlace;
   isFocused: boolean;
@@ -769,6 +770,7 @@ function PlaceCard({
   onShowOnMap?: () => void;
   onDetail?: () => void;
   isOnline: boolean;
+  isSaved?: boolean;
 }) {
   const extra: Record<string, unknown> = (place.extra ?? {}) as Record<string, unknown>;
   const suburb = extra["addr:suburb"] || extra["addr:city"] || extra.address;
@@ -831,17 +833,20 @@ function PlaceCard({
               <div style={{ display: "flex", gap: 5, flexShrink: 0 }} onPointerDown={stop} onTouchStart={stop}>
                 <button
                   type="button"
-                  onClick={(e) => { stop(e); haptic.medium(); onAdd(); }}
+                  disabled={isSaved}
+                  onClick={(e) => { stop(e); if (isSaved) return; haptic.medium(); onAdd(); }}
                   style={{
                     borderRadius: "var(--r-card)", height: 36, minHeight: 44, padding: "0 12px",
-                    fontWeight: 700, fontSize: 12, border: "none",
-                    background: cc.accent, color: "white",
-                    cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5,
+                    fontWeight: 700, fontSize: 12, border: isSaved ? `1px solid ${cc.accent}` : "none",
+                    background: isSaved ? "transparent" : cc.accent,
+                    color: isSaved ? cc.accent : "white",
+                    cursor: isSaved ? "default" : "pointer",
+                    display: "inline-flex", alignItems: "center", gap: 5,
                     WebkitTapHighlightColor: "transparent",
                   }}
                 >
-                  <Plus size={11} />
-                  Add
+                  {isSaved ? <Check size={11} /> : <Plus size={11} />}
+                  {isSaved ? "Added" : "Add"}
                 </button>
                 {onShowOnMap ? (
                   <button
@@ -933,13 +938,14 @@ function PlaceCard({
 // ──────────────────────────────────────────────────────────────
 
 function DiscoveryGroup({
-  category, places, focusedPlaceId, onFocusPlace, onAddStop, onShowOnMap, onDetailPlace, isOnline,
+  category, places, focusedPlaceId, onFocusPlace, onAddStop, onShowOnMap, onDetailPlace, isOnline, savedIds,
 }: {
   category: string; places: DiscoveredPlace[]; focusedPlaceId: string | null;
   onFocusPlace: (id: string | null) => void; onAddStop: (place: PlaceItem) => void;
   onShowOnMap?: (placeId: string, lat: number, lng: number) => void;
   onDetailPlace?: (place: DiscoveredPlace) => void;
   isOnline: boolean;
+  savedIds?: Set<string>;
 }) {
   const Icon = CATEGORY_ICON[category] ?? MapPin;
   const cc = catColor(category);
@@ -968,6 +974,7 @@ function DiscoveryGroup({
           onShowOnMap={onShowOnMap ? () => onShowOnMap(p.id, p.lat, p.lng) : undefined}
           onDetail={onDetailPlace ? () => onDetailPlace(p) : undefined}
           isOnline={isOnline}
+          isSaved={savedIds?.has(p.id)}
         />
       ))}
 
@@ -1013,6 +1020,38 @@ export function GuideView({
   const [activeTab, setActiveTab] = useState<ViewTab>(initialTab ?? "chat");
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [pendingUserMsg, setPendingUserMsg] = useState<string | null>(null);
+  // Optimistic "Added" state for stop-row buttons. We flip this immediately
+  // on tap so the button confirms right away even though addPlaceToTrip is
+  // a heavy flow (reroute + corridor + IDB writes).
+  const [savedPlaceIds, setSavedPlaceIds] = useState<Set<string>>(() => new Set());
+  const handleAddStopOptimistic = (place: PlaceItem) => {
+    setSavedPlaceIds((prev) => {
+      if (prev.has(place.id)) return prev;
+      const next = new Set(prev);
+      next.add(place.id);
+      return next;
+    });
+    try {
+      const ret = onAddStop(place) as unknown;
+      if (ret && typeof (ret as { then?: unknown }).then === "function") {
+        (ret as Promise<unknown>).catch(() => {
+          setSavedPlaceIds((prev) => {
+            if (!prev.has(place.id)) return prev;
+            const next = new Set(prev);
+            next.delete(place.id);
+            return next;
+          });
+        });
+      }
+    } catch {
+      setSavedPlaceIds((prev) => {
+        if (!prev.has(place.id)) return prev;
+        const next = new Set(prev);
+        next.delete(place.id);
+        return next;
+      });
+    }
+  };
   const GUIDE_TABS: ViewTab[] = ["chat", "discoveries"];
   const trackRef = useRef<HTMLDivElement>(null);
   const guideContainerRef = useRef<HTMLDivElement>(null);
@@ -1114,13 +1153,29 @@ export function GuideView({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
-  // Filter out hidden system prompts (e.g., auto-greeting) from visible thread
-  const thread = useMemo(
-    () => (guidePack?.thread ?? []).filter(
+  // Filter out hidden system prompts (e.g., auto-greeting) from visible thread.
+  // Also collapse consecutive assistant messages with identical content — this
+  // can happen when a greeting re-fires after a remount / nav; the user sees
+  // the same intro twice, which looks broken.
+  const thread = useMemo(() => {
+    const filtered = (guidePack?.thread ?? []).filter(
       (m) => !(m.role === "user" && m.content.startsWith("[SYSTEM:"))
-    ),
-    [guidePack?.thread],
-  );
+    );
+    const out: typeof filtered = [];
+    for (const m of filtered) {
+      const prev = out[out.length - 1];
+      if (
+        prev &&
+        prev.role === "assistant" &&
+        m.role === "assistant" &&
+        (prev.content ?? "").trim() === (m.content ?? "").trim()
+      ) {
+        continue;
+      }
+      out.push(m);
+    }
+    return out;
+  }, [guidePack?.thread]);
 
   // Clear optimistic pending message once it appears in the actual thread
   // (pack updates via onPackUpdate before the full send completes)
@@ -1243,6 +1298,10 @@ export function GuideView({
   async function handleAsk(text?: string) {
     const msg = (text ?? chatInput).trim();
     if (!msg) return;
+    // Block submission while a previous send is still running — otherwise
+    // racing sends scramble the thread (stale pack closures each append
+    // their own text to the same base thread, and the later write wins).
+    if (chatBusy || pendingUserMsg) return;
     haptic.medium();
     setChatInput("");
     setActiveTab("chat");
@@ -1614,7 +1673,17 @@ export function GuideView({
 
       {/* ── TAB: DISCOVERIES ─────────────────────────────── */}
       <div style={{ width: "50%", minWidth: 0 }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{
+          display: "flex", flexDirection: "column", gap: 12,
+          // Match chat pane's height math so the Found list can actually
+          // scroll. Without this the outer track `overflow: hidden` clips
+          // everything past the viewport and the user sees a dead list.
+          maxHeight: "calc(100dvh - 180px - var(--bottom-nav-height, 80px) - env(safe-area-inset-bottom, 0px))",
+          overflowY: "auto",
+          paddingRight: 2,
+          WebkitOverflowScrolling: "touch",
+          overscrollBehaviorX: "contain",
+        }}>
           {discoveredPlaces.length === 0 ? (
             <div style={{
               background: "var(--roam-surface)", borderRadius: "var(--r-card)", padding: 32, textAlign: "center",
@@ -1683,9 +1752,10 @@ export function GuideView({
                 <DiscoveryGroup
                   key={g.category} category={g.category} places={g.places}
                   focusedPlaceId={focusedPlaceId} onFocusPlace={onFocusPlace}
-                  onAddStop={onAddStop} onShowOnMap={onShowOnMap}
+                  onAddStop={handleAddStopOptimistic} onShowOnMap={onShowOnMap}
                   onDetailPlace={openPlace}
                   isOnline={isOnline}
+                  savedIds={savedPlaceIds}
                 />
               ))}
             </>

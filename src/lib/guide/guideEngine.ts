@@ -760,9 +760,14 @@ export async function createGuidePack(
   }
 
   // Fingerprint changed (e.g. stop added, route recalculated) - inherit thread
-  // from the most recent pack for this plan so conversation isn't wiped.
+  // AND discovered_places from the most recent pack for this plan so the
+  // conversation + Found tab aren't wiped on reload. Previously we only
+  // kept the thread, so a hard reload (which can shift route_key via
+  // background enrichment) dropped every place the user had found.
   const previousPacks = await listGuidePacks(args.planId ?? null);
-  const inheritedThread = previousPacks.find((p) => p.pack.thread.length > 0)?.pack.thread ?? [];
+  const donor = previousPacks.find((p) => p.pack.thread.length > 0) ?? previousPacks[0];
+  const inheritedThread = donor?.pack.thread ?? [];
+  const inheritedDiscoveries = donor?.pack.discovered_places ?? [];
 
   const pack: GuidePack = {
     schema_version,
@@ -776,7 +781,7 @@ export async function createGuidePack(
     thread: inheritedThread,
     tool_calls: [],
     tool_results: [],
-    discovered_places: [],
+    discovered_places: inheritedDiscoveries,
     last_progress: args.progress ?? null,
     resolution_map: {},
     trip_links: {},

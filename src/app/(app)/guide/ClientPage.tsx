@@ -305,7 +305,10 @@ export default function GuideClientPage(props: {
     boot();
     return () => {
       cancelled = true;
-      didGreetRef.current = false;
+      // Don't reset didGreetRef here — if the effect re-runs (e.g. strict
+      // mode double-mount, or a ref-changing re-render that drops us into
+      // the deps), the greeting would fire twice. The ref guards across
+      // the component's lifetime; we only reset if the plan_id changes.
     };
   }, [desiredPlanId]);
 
@@ -329,9 +332,15 @@ export default function GuideClientPage(props: {
 
   // ── Handlers ─────────────────────────────────────────────────
 
+  const sendInFlightRef = useRef(false);
   const handleSendMessage = useCallback(
     async (text: string, preferredCategories: string[]) => {
       if (!guideKey || !guidePack || !guideContext) return;
+      // Hard guard: if a send is already in flight, don't race it. The UI
+      // also blocks this in handleAsk, but callers (auto-ask, onPackUpdate
+      // resubmits) could bypass that.
+      if (sendInFlightRef.current) return;
+      sendInFlightRef.current = true;
 
       setBusy("chat");
       setErr(null);
@@ -382,6 +391,7 @@ export default function GuideClientPage(props: {
         throw e;
       } finally {
         setBusy(null);
+        sendInFlightRef.current = false;
       }
     },
     [guideKey, guidePack, guideContext, tripProgress, geo.position, plan, navpack, places],
@@ -390,10 +400,13 @@ export default function GuideClientPage(props: {
   const handleAddStop = useCallback(
     async (place: PlaceItem) => {
       if (!plan || !navpack) return;
-      setBusy("add");
       setErr(null);
+      haptic.medium();
+      // Fire in background so the GuideView Add button can flip to "Added"
+      // immediately. We don't navigate away anymore — the user stays on
+      // Guide so they can add more places, and the trip updates under
+      // them via IDB/sync.
       try {
-        haptic.medium();
         await addPlaceToTrip({
           plan,
           place,
@@ -403,15 +416,14 @@ export default function GuideClientPage(props: {
           mode: "auto",
         });
         haptic.success();
-        router(`/trip?plan_id=${encodeURIComponent(plan.plan_id)}`);
       } catch (e: unknown) {
         haptic.error();
         setErr(toErrorMessage(e));
-      } finally {
-        setBusy(null);
+        // Rethrow so GuideView's optimistic state can roll back.
+        throw e;
       }
     },
-    [plan, navpack, corridor, router],
+    [plan, navpack, corridor],
   );
 
   // Register "Add to trip" as the navigate handler for PlaceDetailSheet while on this page
