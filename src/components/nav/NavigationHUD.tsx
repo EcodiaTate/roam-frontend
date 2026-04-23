@@ -93,7 +93,7 @@ export const NavigationHUD = memo(function NavigationHUD({ nav, visible, simple 
     : null;
 
   return (
-    <div style={{
+    <div className="roam-nav-hud" style={{
       position: "absolute",
       top: "calc(env(safe-area-inset-top, 0px) + 28px)",
       left: 12,

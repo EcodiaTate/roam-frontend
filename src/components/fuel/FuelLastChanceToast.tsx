@@ -123,7 +123,7 @@ export function FuelLastChanceToast({
   const gapKm = activeWarning.gap_km ?? 0;
 
   return (
-    <div style={toastContainer} role="alert">
+    <div className="trip-top-toast" style={toastContainer} role="alert">
       <div style={toastCard}>
         <Fuel size={20} strokeWidth={2.5} style={toastIcon} />
         <div style={toastContent}>

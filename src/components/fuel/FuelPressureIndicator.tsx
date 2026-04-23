@@ -96,6 +96,7 @@ export const FuelPressureIndicator = memo(function FuelPressureIndicator({
 
   return (
     <div
+      className="trip-fuel-pressure"
       style={{
         ...pillBase,
         background: style.bg,

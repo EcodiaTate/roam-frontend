@@ -315,8 +315,19 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
 
   // Desktop-only: collapse the side panel to give the map the full width.
   // Only consulted at ≥900px via CSS data-attr; ignored on mobile. Starts
-  // open because desktop has plenty of room.
+  // open because desktop has plenty of room. Mirrors to <html> so CSS vars
+  // (--desktop-panel-visible) can cascade to map chrome that lives outside
+  // this subtree.
   const [desktopPanelOpen, setDesktopPanelOpen] = useState(true);
+  useEffect(() => {
+    document.documentElement.setAttribute(
+      "data-desktop-panel-open",
+      desktopPanelOpen ? "true" : "false",
+    );
+    return () => {
+      document.documentElement.removeAttribute("data-desktop-panel-open");
+    };
+  }, [desktopPanelOpen]);
 
   // Overlay polling refs
   const overlayTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -1948,6 +1959,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       {/* ── Remote sync toast ── */}
       {remoteToastVisible && (
         <div
+          className="trip-top-toast"
           style={{
             position: "absolute",
             top: "calc(var(--roam-safe-top, 0px) + 8px)",
@@ -1973,6 +1985,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       {/* ── Stop-added toast ── */}
       {stopAddedToast && (
         <div
+          className="trip-top-toast"
           style={{
             position: "absolute",
             top: "calc(var(--roam-safe-top, 0px) + 8px)",
@@ -2012,7 +2025,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
 
       {/* ── Report FAB ── */}
       {!activeNav.isActive && (
-        <div style={{
+        <div className="trip-report-fab" style={{
           position: "absolute",
           bottom: "calc(220px + var(--roam-safe-bottom, 0px) + 24px)",
           right: 12,
@@ -2059,7 +2072,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
 
       {/* ── Report Phase 2: Placement Bar (map marker mode) ── */}
       {isPlacing && typeof reportPhase === "object" && (
-        <div style={{
+        <div className="trip-report-placement" style={{
           position: "absolute",
           bottom: "calc(220px + var(--roam-safe-bottom, 0px) + 16px)",
           left: 12, right: 12,
@@ -2241,17 +2254,6 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           willChange: "transform",
         }}
       >
-        {/* Desktop-only panel toggle. Visible via CSS only at ≥900px;
-            a thin edge-tab the user clicks to slide the panel in/out. */}
-        <button
-          type="button"
-          className="trip-desktop-panel-toggle"
-          onClick={() => setDesktopPanelOpen((v) => !v)}
-          aria-label={desktopPanelOpen ? "Collapse panel" : "Expand panel"}
-          aria-expanded={desktopPanelOpen}
-        >
-          {desktopPanelOpen ? "‹" : "›"}
-        </button>
         {/* ── Elevation profile strip (between map and sheet) ── */}
         {elevation?.profile && (
           <div className="trip-elevation-wrap" style={{
@@ -2527,6 +2529,21 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
         </div>
       </div>{/* end trip-bottom-sheet */}
 
+      {/* Desktop-only panel toggle. Visible via CSS only at ≥900px;
+          rendered as a sibling of the sheet (not a child) so the sheet's
+          translateX animation doesn't carry the button out of view.
+          data-panel-open drives its X position independently. */}
+      <button
+        type="button"
+        className="trip-desktop-panel-toggle"
+        data-panel-open={desktopPanelOpen ? "true" : "false"}
+        onClick={() => setDesktopPanelOpen((v) => !v)}
+        aria-label={desktopPanelOpen ? "Collapse panel" : "Expand panel"}
+        aria-expanded={desktopPanelOpen}
+      >
+        {desktopPanelOpen ? "‹" : "›"}
+      </button>
+
       {/* ── Active Navigation Overlays ──
            Rendered last in the tree so they sit above the bottom sheet
            and all other layers in the stacking context.
@@ -2567,7 +2584,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           ) : undefined}
         />
         {activeNav.isActive && activeNav.nav.heading != null && (
-          <div style={{
+          <div className="roam-compass-hud" style={{
             position: "absolute",
             bottom: "calc(env(safe-area-inset-bottom, 0px) + var(--roam-tab-h, 64px) + 110px)",
             right: 12,

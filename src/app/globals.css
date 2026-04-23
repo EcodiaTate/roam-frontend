@@ -2213,9 +2213,26 @@ input[type="range"]::-moz-range-thumb {
   :root {
     --desktop-rail-w: 72px;
     --desktop-panel-w: 420px;
+    /* When the side panel is open, map chrome on the left edge shifts
+       right by this amount so nothing sits under the panel. When the
+       panel is collapsed (data-desktop-panel-open="false" on <html>),
+       chrome slides back to sit right of the rail instead. Driven by
+       the toggle effect in trip/ClientPage.tsx. */
+    --desktop-panel-visible: var(--desktop-panel-w);
+    /* Zero out mobile's tab-bar offset so bottom-anchored chrome drops
+       to the true viewport bottom on desktop. */
+    --roam-tab-h: 0px;
+    --bottom-nav-height: 0px;
+    --roam-safe-bottom: 0px;
+    --roam-safe-top: 0px;
+  }
+  html[data-desktop-panel-open="false"] {
+    --desktop-panel-visible: 0px;
   }
 
   /* ── Left nav rail (was: bottom tab bar) ─────────────────── */
+  /* Tabs are vertically centred so the rail reads as a balanced
+     side-nav instead of a top-stacked list. */
   .roam-tabs-wrap {
     top: 0 !important;
     bottom: 0 !important;
@@ -2224,153 +2241,101 @@ input[type="range"]::-moz-range-thumb {
     width: var(--desktop-rail-w);
     height: 100vh;
     flex-direction: column;
-  }
-  .roam-tabs-wrap::after {
-    /* Hide the safe-area leg - no home indicator on desktop. */
-    display: none;
+    z-index: 120 !important;
   }
   .roam-tabs {
     flex-direction: column;
-    justify-content: flex-start;
+    justify-content: center;
     align-items: stretch;
     height: 100%;
     width: 100%;
     padding: 12px 0;
-    gap: 8px;
+    gap: 12px;
   }
   .roam-tabs > * {
-    /* Stack tabs evenly top-to-bottom instead of spacing space-evenly
-       horizontally. */
     width: 100%;
   }
-  /* Labels beside icons get cramped in a 72px rail; keep icon-only. */
-  .roam-tab-label {
-    display: none !important;
-  }
-  /* Flatten the raised center-button on desktop so all three tabs look
-     uniform in the vertical rail. */
-  .roam-tab-center .roam-tab-bump {
-    display: none;
-  }
-  .roam-tab-center {
-    transform: none !important;
-  }
-  .roam-tab {
-    padding: 12px 0 !important;
-  }
+  .roam-tab-label { display: none !important; }
+  .roam-tab-center .roam-tab-bump { display: none; }
+  .roam-tab-center { transform: none !important; }
+  .roam-tab { padding: 14px 0 !important; }
 
   /* Shell content fills the whole viewport; the rail floats on top
-     of it (same pattern as the mobile tab bar overlaying the map).
-     This avoids a visible gap between rail and content when the
-     rail's semi-transparent background blurs nothing behind it.
-     Pages that previously reserved bottom space for the tab bar
-     read 0 here since the bar is now on the left. */
-  .roam-main {
-    --bottom-nav-height: 0px;
-  }
+     of it (same pattern as the mobile tab bar overlaying the map). */
+  .roam-main { --bottom-nav-height: 0px; }
 
-  /* ── /trip bottom sheet → left-side panel ────────────────
-     Override the inline transform/position set in trip/ClientPage.tsx.
-     The panel docks to the LEFT (next to the nav rail) and toggles
-     open/closed via the data-desktop-open attribute - snap/drag math
-     is ignored here. */
+  /* PersistentTabs wrap clips content with overflow:hidden, which would
+     clip the panel's edge-tab toggle. Let overflow escape on desktop. */
+  .pt-wrap,
+  .pt-pane { overflow: visible !important; }
+
+  /* ── /trip bottom sheet → left-side panel ──────────────────
+     Docks against the nav rail at left: var(--desktop-rail-w) so the
+     rail and panel sit flush. translateX controls open/closed. */
   .trip-bottom-sheet {
-    position: absolute !important;
+    position: fixed !important;
     top: 0 !important;
-    left: 0 !important;
+    left: var(--desktop-rail-w) !important;
     bottom: 0 !important;
     right: auto !important;
     width: var(--desktop-panel-w) !important;
     height: 100% !important;
-    transition: transform 0.25s cubic-bezier(0.34, 1.12, 0.64, 1) !important;
+    transition: transform 0.28s cubic-bezier(0.34, 1.12, 0.64, 1) !important;
     border-radius: 0 !important;
-    box-shadow: 2px 0 24px color-mix(in srgb, var(--roam-text) 8%, transparent);
+    box-shadow: 2px 0 24px color-mix(in srgb, var(--roam-text) 10%, transparent);
+    z-index: 50 !important;
   }
-  .trip-bottom-sheet[data-desktop-open="true"] {
-    transform: translateX(0) !important;
-  }
-  .trip-bottom-sheet[data-desktop-open="false"] {
-    transform: translateX(-100%) !important;
-  }
+  .trip-bottom-sheet[data-desktop-open="true"]  { transform: translateX(0) !important; }
+  .trip-bottom-sheet[data-desktop-open="false"] { transform: translateX(-100%) !important; }
 
-  /* Neutralise the elevation strip's rounded top corners - they belong
-     to the mobile "sheet resting on map" shape. On desktop the panel
-     is a rectangular column so the curves would bleed onto whatever
-     sits behind them and look broken. */
-  .trip-bottom-sheet .trip-elevation-wrap {
-    border-radius: 0 !important;
-  }
+  /* Neutralise the rounded top corners - mobile-only shape. */
+  .trip-bottom-sheet .trip-elevation-wrap { border-radius: 0 !important; }
+  .trip-bottom-sheet .trip-drag-handle { display: none; }
+  .trip-bottom-sheet .trip-sheet-header { min-height: 0; padding-top: 16px; }
+  .trip-bottom-sheet .trip-sheet-content,
+  .trip-bottom-sheet .trip-list-container,
+  .trip-bottom-sheet .trip-sheet-body { padding-bottom: 20px; }
 
-  /* Edge-tab toggle that hangs off the panel's RIGHT side (since the
-     panel is docked on the left). Moves with the panel via translateX
-     so it always sits at the visible edge. */
+  /* Panel toggle - a fixed button pinned to the viewport, NOT a child
+     of the sheet, so the sheet's translateX(-100%) doesn't carry it
+     off-screen. Position is driven entirely by data-panel-open. */
   .trip-desktop-panel-toggle {
-    position: absolute;
-    top: 16px;
-    right: -28px;
-    left: auto;
-    width: 28px;
-    height: 44px;
-    display: flex;
+    display: flex !important;
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    left: calc(var(--desktop-rail-w) + var(--desktop-panel-visible));
+    width: 22px;
+    height: 56px;
     align-items: center;
     justify-content: center;
     background: var(--roam-surface);
     color: var(--roam-text-muted);
     border: none;
     border-radius: 0 var(--r-card) var(--r-card) 0;
-    box-shadow: 2px 0 8px color-mix(in srgb, var(--roam-text) 8%, transparent);
+    box-shadow: 2px 0 10px color-mix(in srgb, var(--roam-text) 10%, transparent);
     cursor: pointer;
     font-size: 18px;
     font-weight: 800;
     line-height: 1;
-    z-index: 2;
+    padding: 0;
+    z-index: 55; /* above the panel (50) */
+    transition: left 0.28s cubic-bezier(0.34, 1.12, 0.64, 1),
+                background 120ms ease,
+                color 120ms ease;
   }
   .trip-desktop-panel-toggle:hover {
     color: var(--roam-text);
     background: var(--roam-surface-hover);
   }
-  .trip-bottom-sheet-wrap {
-    position: absolute !important;
-    top: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    left: auto !important;
-    width: var(--desktop-panel-w) !important;
-    height: 100% !important;
-    pointer-events: auto;
-  }
-  /* Hide the drag handle - there's nothing to drag on desktop. */
-  .trip-bottom-sheet .trip-drag-handle {
-    display: none;
-  }
-  /* Restore tap target for the sheet header so it doesn't eat clicks on
-     content near the top. */
-  .trip-bottom-sheet .trip-sheet-header {
-    min-height: 0;
-    padding-top: 16px;
-  }
-
-  /* Content scroll clearance: on mobile the sheet has 200px of bottom
-     padding to float above the tab bar; on desktop the rail is on the
-     left, so trim that excess padding. */
-  .trip-bottom-sheet .trip-sheet-content,
-  .trip-bottom-sheet .trip-list-container,
-  .trip-bottom-sheet .trip-sheet-body {
-    padding-bottom: 20px;
-  }
 
   /* ── Place detail sheet → right-side panel ──────────────── */
-  /* PlaceDetailSheet sets position:fixed + transform:translateY inline;
-     override so it docks to the right edge and slides in from the right. */
-  /* Backdrop: transparent + click-through on desktop, so the map stays
-     interactive while the detail panel sits docked on the right. */
   .place-detail-backdrop {
     background: transparent !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     pointer-events: none !important;
   }
-
   .place-detail-sheet {
     position: fixed !important;
     top: 0 !important;
@@ -2384,22 +2349,11 @@ input[type="range"]::-moz-range-thumb {
     border-radius: 0 !important;
     pointer-events: auto;
   }
-  .place-detail-sheet[data-visible="true"] {
-    transform: translateX(0) !important;
-  }
-  .place-detail-sheet[data-visible="false"] {
-    transform: translateX(100%) !important;
-  }
-  .place-detail-sheet .place-detail-drag-zone {
-    /* Nothing to drag on desktop. */
-    display: none;
-  }
+  .place-detail-sheet[data-visible="true"]  { transform: translateX(0) !important; }
+  .place-detail-sheet[data-visible="false"] { transform: translateX(100%) !important; }
+  .place-detail-sheet .place-detail-drag-zone { display: none; }
 
-  /* ── App container: shift left edge past the nav rail ─────
-     The left-docked side panel overlays the map, mirroring the
-     mobile "sheet over map" pattern - the map runs edge-to-edge
-     underneath. This keeps MapLibre's existing snap/camera math
-     unchanged. */
+  /* ── App container: shift left edge past the nav rail ───── */
   .trip-app-container {
     position: fixed !important;
     top: 0 !important;
@@ -2408,23 +2362,84 @@ input[type="range"]::-moz-range-thumb {
     right: 0 !important;
   }
 
-  /* PersistentTabs wrap clips content with overflow:hidden, which
-     clips the panel's edge-tab toggle when it sits to the right of
-     the panel. Let overflow escape on desktop - map is inside a
-     fixed container anyway so nothing else needs clipping here. */
-  .pt-wrap,
-  .pt-pane {
-    overflow: visible !important;
+  /* ── Plan drawer: slides over the right half on desktop, same
+     as it covers the map on mobile. z-index above the panel. */
+  .plan-drawer { z-index: 60 !important; }
+
+  /* ═════════════════════════════════════════════════════════════
+     MAP CHROME: nudge every floating overlay to live in the
+     visible map area (between rail + panel on the left, the
+     right edge on the right). All of these are position:fixed
+     in their component files, so we can safely override here.
+     Chrome uses inline-style `left`/`right`/`bottom` with pixel
+     values, but when the selectors are specific enough and we
+     use !important, we win.
+     ═════════════════════════════════════════════════════════════ */
+
+  /* Top-anchored toasts/banners: re-centre in the visible map area
+     instead of the full viewport. Flex-centering avoids fighting with
+     the component's inline transform:translateX(-50%) by taking over
+     positioning entirely with fixed + left/right offsets. */
+  .trip-top-toast,
+  .trip-enrichment-banner {
+    position: fixed !important;
+    left: calc(var(--desktop-rail-w) + var(--desktop-panel-visible)) !important;
+    right: 0 !important;
+    top: 18px !important;
+    transform: none !important;
+    width: max-content;
+    max-width: calc(100vw - var(--desktop-rail-w) - var(--desktop-panel-visible) - 24px);
+    margin-left: auto !important;
+    margin-right: auto !important;
   }
 
-  /* ── Plan drawer: on desktop it covers the trip panel when opened,
-     same as it covers the map on mobile. Don't try to stack it next
-     to the panel - the drawer's inline translateX(100%) closed state
-     only moves it 360px off-screen, so any leftward shift leaves it
-     peeking. Leave it flush to the right edge so translateX(100%)
-     fully hides it, and bump its z-index above the panel (20). */
-  .plan-drawer {
-    z-index: 60 !important;
+  /* Bottom-left chrome (fuel pressure pill, etc.) moves right of
+     the panel instead of sitting on the bottom-left corner. */
+  .trip-fuel-pressure {
+    left: calc(var(--desktop-rail-w) + var(--desktop-panel-visible) + 16px) !important;
+    bottom: 18px !important;
+  }
+
+  /* Report FAB (megaphone, bottom-right on mobile) stays on the right
+     edge but drops to true-bottom since there's no tab bar. */
+  .trip-report-fab {
+    bottom: 18px !important;
+    right: 18px !important;
+  }
+
+  /* Report placement bar (when placing a report on the map): span the
+     visible map area, not the whole viewport. */
+  .trip-report-placement {
+    left: calc(var(--desktop-rail-w) + var(--desktop-panel-visible) + 12px) !important;
+    right: 12px !important;
+    bottom: 18px !important;
+  }
+
+  /* Active-navigation chrome (only visible during turn-by-turn):
+     all repositioned to the visible map area, right of the panel. */
+  .roam-nav-hud {
+    top: 18px !important;
+    left: calc(var(--desktop-rail-w) + var(--desktop-panel-visible) + 12px) !important;
+    right: 80px !important;
+  }
+  .roam-nav-offroute {
+    top: 18px !important;
+    left: calc(var(--desktop-rail-w) + var(--desktop-panel-visible) + 12px) !important;
+    right: 80px !important;
+  }
+  .roam-nav-bar {
+    left: calc(var(--desktop-rail-w) + var(--desktop-panel-visible) + 12px) !important;
+    right: 12px !important;
+    bottom: 18px !important;
+  }
+  .roam-nav-controls {
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    right: 18px !important;
+  }
+  .roam-compass-hud {
+    bottom: 100px !important;
+    right: 18px !important;
   }
 }
 

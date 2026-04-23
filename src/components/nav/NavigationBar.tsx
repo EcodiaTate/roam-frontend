@@ -67,6 +67,7 @@ export const NavigationBar = memo(function NavigationBar({ nav, fuelTracking, vi
 
   return (
     <div
+      className="roam-nav-bar"
       style={{
         position: "absolute",
         bottom: "calc(env(safe-area-inset-bottom, 0px) + var(--roam-tab-h, 64px) + 18px)",

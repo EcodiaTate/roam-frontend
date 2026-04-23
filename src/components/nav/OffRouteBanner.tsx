@@ -16,6 +16,7 @@ export function OffRouteBanner({ visible, distFromRoute_m, hasCorridorGraph, onR
 
   return (
     <div
+      className="roam-nav-offroute"
       style={{
         position: "absolute",
         top: "calc(env(safe-area-inset-top, 0px) + 12px)",

@@ -101,7 +101,7 @@ export function EnrichmentBanner({ progress }: { progress: EnrichProgress | null
 
   if (isDone) {
     return (
-      <div className={`pointer-events-auto absolute left-4 top-[env(safe-area-inset-top,0px)] z-50 mt-2 ${animClass}`} onAnimationEnd={handleAnimEnd}>
+      <div className={`trip-enrichment-banner pointer-events-auto absolute left-4 top-[env(safe-area-inset-top,0px)] z-50 mt-2 ${animClass}`} onAnimationEnd={handleAnimEnd}>
         <div style={S.doneChip}>
           <CheckCircle2 style={{ width: 16, height: 16, flexShrink: 0 }} />
           <span>Trip fully loaded</span>
@@ -113,7 +113,7 @@ export function EnrichmentBanner({ progress }: { progress: EnrichProgress | null
 
   if (isError) {
     return (
-      <div className={`pointer-events-auto absolute left-4 top-[env(safe-area-inset-top,0px)] z-50 mt-2 ${animClass}`}>
+      <div className={`trip-enrichment-banner pointer-events-auto absolute left-4 top-[env(safe-area-inset-top,0px)] z-50 mt-2 ${animClass}`}>
         <div style={S.chipOuter}>
           <div style={S.chipInner}>
             <AlertTriangle style={{ width: 16, height: 16, flexShrink: 0, color: "var(--roam-warn)" }} />
@@ -136,7 +136,7 @@ export function EnrichmentBanner({ progress }: { progress: EnrichProgress | null
   }
 
   return (
-    <div className={`pointer-events-auto absolute left-4 top-[env(safe-area-inset-top,0px)] z-50 mt-2 ${animClass}`}>
+    <div className={`trip-enrichment-banner pointer-events-auto absolute left-4 top-[env(safe-area-inset-top,0px)] z-50 mt-2 ${animClass}`}>
       <div style={S.chipOuter}>
         <div style={S.chipInner}>
           <Loader2 className="enrich-spin" style={{ width: 16, height: 16, flexShrink: 0, color: "var(--roam-info)" }} />

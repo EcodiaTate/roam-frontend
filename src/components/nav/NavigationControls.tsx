@@ -107,7 +107,7 @@ export function NavigationControls({
   // Position: sits below the HUD card, right-aligned
   // HUD card is ~82-90px from top, so controls start below that
   return (
-    <div style={{
+    <div className="roam-nav-controls" style={{
       position: "absolute",
       top: "calc(env(safe-area-inset-top, 0px) + 120px)",
       right: 12,
