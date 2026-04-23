@@ -2187,6 +2187,12 @@ input[type="range"]::-moz-range-thumb {
   animation: terra-route-pulse-anim 2s ease-in-out infinite;
 }
 
+/* Desktop-only panel toggle is hidden on mobile; shown inside the
+   (min-width: 900px) block below. */
+.trip-desktop-panel-toggle {
+  display: none;
+}
+
 
 /* ==========================================================================
    DESKTOP / LAPTOP LAYOUT (≥ 900px)
@@ -2264,8 +2270,8 @@ input[type="range"]::-moz-range-thumb {
 
   /* ── /trip bottom sheet → right-side panel ───────────────── */
   /* Override the inline transform/position set in trip/ClientPage.tsx.
-     On desktop the sheet is always open and docks to the right edge;
-     no snap states, no drag. */
+     The panel docks to the right and toggles open/closed via the
+     data-desktop-open attribute - snap/drag math is ignored here. */
   .trip-bottom-sheet {
     position: absolute !important;
     top: 0 !important;
@@ -2274,10 +2280,44 @@ input[type="range"]::-moz-range-thumb {
     left: auto !important;
     width: var(--desktop-panel-w) !important;
     height: 100% !important;
-    transform: none !important;
-    transition: none !important;
+    transition: transform 0.25s cubic-bezier(0.34, 1.12, 0.64, 1) !important;
     border-radius: 0 !important;
     box-shadow: -2px 0 24px color-mix(in srgb, var(--roam-text) 8%, transparent);
+  }
+  .trip-bottom-sheet[data-desktop-open="true"] {
+    transform: translateX(0) !important;
+  }
+  .trip-bottom-sheet[data-desktop-open="false"] {
+    transform: translateX(100%) !important;
+  }
+
+  /* Edge-tab toggle that hangs off the panel's left side. When the
+     panel is closed, the toggle moves with translateX to stay visible
+     at the viewport's right edge. */
+  .trip-desktop-panel-toggle {
+    display: flex;
+    position: absolute;
+    top: 16px;
+    left: -28px;
+    width: 28px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--roam-surface);
+    color: var(--roam-text-muted);
+    border: none;
+    border-radius: var(--r-card) 0 0 var(--r-card);
+    box-shadow: -2px 0 8px color-mix(in srgb, var(--roam-text) 8%, transparent);
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: 800;
+    line-height: 1;
+    z-index: 2;
+  }
+  .trip-desktop-panel-toggle:hover {
+    color: var(--roam-text);
+    background: var(--roam-surface-hover);
   }
   .trip-bottom-sheet-wrap {
     position: absolute !important;
@@ -2358,13 +2398,14 @@ input[type="range"]::-moz-range-thumb {
     right: 0 !important;
   }
 
-  /* ── Plan drawer: keep right-slide, but don't cover the panel ── */
-  /* On mobile the drawer is 360px from the right edge. On desktop the
-     right-side trip panel is already 420px wide, so bump the drawer
-     to sit flush against the panel's left edge (or full-cover it). */
+  /* ── Plan drawer: on desktop it covers the trip panel when opened,
+     same as it covers the map on mobile. Don't try to stack it next
+     to the panel - the drawer's inline translateX(100%) closed state
+     only moves it 360px off-screen, so any leftward shift leaves it
+     peeking. Leave it flush to the right edge so translateX(100%)
+     fully hides it, and bump its z-index above the panel (20). */
   .plan-drawer {
-    right: var(--desktop-panel-w) !important;
-    width: min(100%, 420px) !important;
+    z-index: 60 !important;
   }
 }
 

@@ -313,6 +313,11 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   const [isDraggingState, setIsDraggingState] = useState(false);
   const dragData = useRef({ startY: 0, startSnap: "peek" as SheetSnap });
 
+  // Desktop-only: collapse the side panel to give the map the full width.
+  // Only consulted at ≥900px via CSS data-attr; ignored on mobile. Starts
+  // open because desktop has plenty of room.
+  const [desktopPanelOpen, setDesktopPanelOpen] = useState(true);
+
   // Overlay polling refs
   const overlayTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -2219,10 +2224,13 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       )}
 
       {/* Bottom Sheet - extra 300px below absorbs spring overshoot so
-           the bottom edge never lifts above the tab bar */}
+           the bottom edge never lifts above the tab bar.
+           On desktop (≥900px) CSS converts this to a right-docked side
+           panel; data-desktop-open drives the open/closed X-slide. */}
       <div
         ref={sheetRef}
         className="trip-bottom-sheet"
+        data-desktop-open={desktopPanelOpen ? "true" : "false"}
         style={{
           position: "absolute",
           bottom: -300, left: 0, right: 0,
@@ -2233,6 +2241,17 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
           willChange: "transform",
         }}
       >
+        {/* Desktop-only panel toggle. Visible via CSS only at ≥900px;
+            a thin edge-tab the user clicks to slide the panel in/out. */}
+        <button
+          type="button"
+          className="trip-desktop-panel-toggle"
+          onClick={() => setDesktopPanelOpen((v) => !v)}
+          aria-label={desktopPanelOpen ? "Collapse panel" : "Expand panel"}
+          aria-expanded={desktopPanelOpen}
+        >
+          {desktopPanelOpen ? "›" : "‹"}
+        </button>
         {/* ── Elevation profile strip (between map and sheet) ── */}
         {elevation?.profile && (
           <div style={{
