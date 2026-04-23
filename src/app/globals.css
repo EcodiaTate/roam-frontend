@@ -2259,12 +2259,13 @@ input[type="range"]::-moz-range-thumb {
     padding: 12px 0 !important;
   }
 
-  /* Shell content clears the rail on the left instead of the tab bar
-     on the bottom. Pages that used padding-bottom: var(--bottom-nav-height)
-     read 0 here so they don't leave dead space above where the bar was. */
+  /* Shell content fills the whole viewport; the rail floats on top
+     of it (same pattern as the mobile tab bar overlaying the map).
+     This avoids a visible gap between rail and content when the
+     rail's semi-transparent background blurs nothing behind it.
+     Pages that previously reserved bottom space for the tab bar
+     read 0 here since the bar is now on the left. */
   .roam-main {
-    left: var(--desktop-rail-w) !important;
-    inset: 0 0 0 var(--desktop-rail-w) !important;
     --bottom-nav-height: 0px;
   }
 
@@ -2395,16 +2396,25 @@ input[type="range"]::-moz-range-thumb {
   }
 
   /* ── App container: shift left edge past the nav rail ─────
-     The side panel (right-docked sheet) overlays the map on top,
-     mirroring the mobile "sheet over map" pattern - the map runs
-     edge-to-edge underneath. This keeps MapLibre's existing snap
-     points/camera math unchanged. */
+     The left-docked side panel overlays the map, mirroring the
+     mobile "sheet over map" pattern - the map runs edge-to-edge
+     underneath. This keeps MapLibre's existing snap/camera math
+     unchanged. */
   .trip-app-container {
     position: fixed !important;
     top: 0 !important;
     bottom: 0 !important;
     left: var(--desktop-rail-w) !important;
     right: 0 !important;
+  }
+
+  /* PersistentTabs wrap clips content with overflow:hidden, which
+     clips the panel's edge-tab toggle when it sits to the right of
+     the panel. Let overflow escape on desktop - map is inside a
+     fixed container anyway so nothing else needs clipping here. */
+  .pt-wrap,
+  .pt-pane {
+    overflow: visible !important;
   }
 
   /* ── Plan drawer: on desktop it covers the trip panel when opened,
