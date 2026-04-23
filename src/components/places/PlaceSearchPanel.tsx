@@ -21,6 +21,8 @@ import {
     type UserPosition,
 } from "@/lib/places/offlineSearch";
 import { haptic } from "@/lib/native/haptics";
+import { placesApi } from "@/lib/api/places";
+import { CATEGORY_ICON } from "@/lib/places/categoryMeta";
 
 import { fmtCat } from "@/lib/places/format";
 import { TogglePill } from "@/components/ui/TogglePill";
@@ -76,6 +78,9 @@ import {
     Flag,
     ArrowUp,
     Clock,
+    Plus,
+    Loader2,
+    Globe,
 } from "lucide-react";
 
 // ──────────────────────────────────────────────────────────────
@@ -368,6 +373,11 @@ export type PlaceSearchPanelProps = {
   onShowOnMap?: () => void;
   /** Called per-place when user taps the map icon on a row */
   onShowPlaceOnMap?: (place: PlaceItem) => void;
+  /** Add an ambient-search result (not in the bundle) to the trip. Should
+   *  trigger reroute + corridor extension. When provided, typing a query
+   *  that matches few/no bundled places will surface live Mapbox results
+   *  with an "Add" button. */
+  onAddExternalPlace?: (place: PlaceItem) => Promise<void> | void;
   maxHeight?: string | number;
 };
 
@@ -380,6 +390,7 @@ export function PlaceSearchPanel({
   onFilteredIdsChange,
   onShowOnMap,
   onShowPlaceOnMap,
+  onAddExternalPlace,
   maxHeight = "calc(100vh - 200px)",
 }: PlaceSearchPanelProps) {
   const { savedIds, toggleSave, places: savedPlaces } = useSavedPlaces();
@@ -570,6 +581,76 @@ export function PlaceSearchPanel({
     if (categories.length !== 1) return [];
     return CAT_SUBFILTERS[categories[0] as PlaceCategory] ?? [];
   }, [categories]);
+
+  // ── Ambient external search (Mapbox) ─────────────────────────
+  // When the in-bundle results are sparse, fire a debounced live search so
+  // the user can find places that weren't prefetched into the bundle (e.g.
+  // a specific address). Tapping "Add" triggers reroute + corridor extension.
+  const EXTERNAL_SEARCH_ENABLED = !!onAddExternalPlace;
+  const [externalResults, setExternalResults] = useState<PlaceItem[]>([]);
+  const [externalLoading, setExternalLoading] = useState(false);
+  const [addingId, setAddingId] = useState<string | null>(null);
+  const externalReqIdRef = useRef(0);
+
+  useEffect(() => {
+    if (!EXTERNAL_SEARCH_ENABLED) return;
+    const q = deferredQuery.trim();
+    // Only trigger for non-trivial queries; short strings would spam Mapbox
+    // and the in-bundle search already handles them fine.
+    if (q.length < 3) {
+      setExternalResults([]);
+      setExternalLoading(false);
+      return;
+    }
+    // Skip if the bundle already has plenty of matches - no need to reach out.
+    if (sorted.length >= 5) {
+      setExternalResults([]);
+      setExternalLoading(false);
+      return;
+    }
+
+    const reqId = ++externalReqIdRef.current;
+    setExternalLoading(true);
+    const center = userPosition
+      ? { lat: userPosition.lat, lng: userPosition.lng }
+      : { lat: -27.4705, lng: 153.026 }; // Brisbane fallback
+    const timer = setTimeout(() => {
+      placesApi
+        .search({ center, radius_m: 200_000, query: q, limit: 10, categories: [] })
+        .then((res) => {
+          if (externalReqIdRef.current !== reqId) return;
+          // Hide results that are already in the bundle (by id or close proximity).
+          const existingIds = new Set(sorted.map((r) => r.place.id));
+          const filtered = (res.items ?? []).filter((it) => !existingIds.has(it.id));
+          setExternalResults(filtered);
+        })
+        .catch(() => {
+          if (externalReqIdRef.current !== reqId) return;
+          setExternalResults([]);
+        })
+        .finally(() => {
+          if (externalReqIdRef.current === reqId) setExternalLoading(false);
+        });
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [deferredQuery, sorted, userPosition, EXTERNAL_SEARCH_ENABLED]);
+
+  const handleAddExternal = useCallback(
+    async (place: PlaceItem) => {
+      if (!onAddExternalPlace) return;
+      setAddingId(place.id);
+      haptic.medium();
+      try {
+        await onAddExternalPlace(place);
+        haptic.success();
+      } catch {
+        haptic.error();
+      } finally {
+        setAddingId(null);
+      }
+    },
+    [onAddExternalPlace],
+  );
 
 
   return (
@@ -872,6 +953,96 @@ export function PlaceSearchPanel({
           </button>
         </div>
       </div>
+
+      {/* ── Ambient external results (Mapbox) ────────────────────── */}
+      {EXTERNAL_SEARCH_ENABLED && (externalLoading || externalResults.length > 0) && (
+        <div style={{ padding: "4px 16px 6px", flexShrink: 0 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 11,
+              fontWeight: 800,
+              color: "var(--roam-text-muted)",
+              textTransform: "uppercase",
+              letterSpacing: 0.4,
+              marginBottom: 6,
+            }}
+          >
+            <Globe size={11} />
+            More places
+            {externalLoading && (
+              <Loader2 size={11} style={{ marginLeft: 4, animation: "spin 1s linear infinite" }} />
+            )}
+          </div>
+          {externalResults.map((p) => {
+            const CatIcon = CATEGORY_ICON[p.category] ?? MapPin;
+            const extra = (p.extra ?? {}) as Record<string, unknown>;
+            const placeName = extra.place_name as string | undefined;
+            const address = extra.address as string | undefined;
+            const subtitle =
+              placeName && placeName !== p.name
+                ? placeName
+                : address || fmtCat(p.category);
+            const isAdding = addingId === p.id;
+            return (
+              <div
+                key={p.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "8px 0",
+                  minWidth: 0,
+                }}
+              >
+                <div
+                  style={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: "var(--r-card)",
+                    background: "var(--roam-surface-hover)",
+                    display: "grid",
+                    placeItems: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <CatIcon size={15} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="trip-title trip-truncate">{p.name}</div>
+                  <div className="trip-muted-small trip-truncate trip-mt-xs">{subtitle}</div>
+                </div>
+                <button
+                  type="button"
+                  disabled={isAdding || !!addingId}
+                  onClick={() => handleAddExternal(p)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                    background: isAdding ? "var(--roam-surface-hover)" : "var(--accent-tint)",
+                    color: "var(--roam-accent)",
+                    border: "none",
+                    borderRadius: "var(--r-card)",
+                    padding: "6px 10px",
+                    fontSize: 12,
+                    fontWeight: 800,
+                    cursor: isAdding ? "default" : "pointer",
+                    opacity: !isAdding && addingId ? 0.5 : 1,
+                    flexShrink: 0,
+                  }}
+                  aria-label={`Add ${p.name} to trip`}
+                >
+                  {isAdding ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} /> : <Plus size={12} />}
+                  {isAdding ? "Adding" : "Add"}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* ── Results list ─────────────────────────────────────────── */}
       {sorted.length === 0 ? (

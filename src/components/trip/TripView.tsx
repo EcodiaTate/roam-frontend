@@ -151,6 +151,7 @@ export function TripView({
   isOnline,
   onFilteredIdsChange,
   onStopQuickAction,
+  onAddExternalPlace,
   simple,
 }: {
   planId: string;
@@ -174,6 +175,8 @@ export function TripView({
   isOnline?: boolean;
   onFilteredIdsChange?: (ids: Set<string> | null) => void;
   onStopQuickAction?: StopQuickActionHandler;
+  /** Add an off-bundle place from ambient external search. */
+  onAddExternalPlace?: (place: PlaceItem) => Promise<void> | void;
   /** Simple mode - fewer controls, bigger tap targets */
   simple?: boolean;
 }) {
@@ -1070,6 +1073,7 @@ export function TripView({
             onSelectPlace={(p) => { openPlace(p); }}
             onShowPlaceOnMap={onFocusPlace ? (p) => { onFocusPlace(p.id); } : undefined}
             onFilteredIdsChange={onFilteredIdsChange}
+            onAddExternalPlace={onAddExternalPlace}
             maxHeight="50vh"
           />
         </div>

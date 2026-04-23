@@ -119,12 +119,21 @@ export function PlaceSearchModal(props: {
           )}
 
           {items.map((it) => {
-            const address = (it.extra as Record<string, unknown>)?.address as string | undefined;
+            const extra = it.extra as Record<string, unknown> | undefined;
+            // place_name is Mapbox's full-address string (e.g. "123 Elizabeth St,
+            // Brisbane QLD 4000, Australia") and includes the house number when
+            // present. Fall back to the shorter context string, then to coords.
+            const placeName = extra?.place_name as string | undefined;
+            const address = extra?.address as string | undefined;
+            const subtitle =
+              placeName && placeName !== it.name
+                ? placeName
+                : address || `${it.category} · ${it.lat.toFixed(4)}, ${it.lng.toFixed(4)}`;
             return (
               <button key={it.id} type="button" className="trip-interactive trip-list-row" onClick={() => handlePick(it)}>
                 <div className="trip-h2">{it.name}</div>
                 <div className="trip-muted-small trip-truncate" style={{ marginTop: 6 }}>
-                  {address || `${it.category} · ${it.lat.toFixed(4)}, ${it.lng.toFixed(4)}`}
+                  {subtitle}
                 </div>
               </button>
             );

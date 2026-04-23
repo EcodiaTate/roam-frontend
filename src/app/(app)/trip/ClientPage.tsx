@@ -63,7 +63,8 @@ import { cumulativeKm, buildPolylineIndex, snapToPolylineIndexed, haversineM } f
 import { shortId } from "@/lib/utils/ids";
 
 import type { NavPack, CorridorGraphPack, TrafficOverlay, HazardOverlay, ElevationResponse } from "@/lib/types/navigation";
-import type { PlacesPack } from "@/lib/types/places";
+import type { PlacesPack, PlaceItem } from "@/lib/types/places";
+import { addPlaceToTrip } from "@/lib/guide/addToTrip";
 import type { TripStop } from "@/lib/types/trip";
 import type { FuelAnalysis, VehicleFuelProfile } from "@/lib/types/fuel";
 import type {
@@ -1193,6 +1194,36 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
       } catch {}
     }
   }, [navpack, plan, places, corridor, isOnline, traffic, hazards, weather, fuelOverlay]);
+
+  // ── Add an off-bundle place (ambient search) ─────────────────────
+  // Extends the corridor + refetches places/traffic/hazards/fuel via
+  // addPlaceToTrip, then mirrors the resulting packs into React state so
+  // the UI refreshes instantly without a reload.
+  const handleAddExternalPlace = useCallback(
+    async (place: PlaceItem) => {
+      if (!plan || !navpack) return;
+      const result = await addPlaceToTrip({
+        plan,
+        place,
+        navpack,
+        corridor,
+        profile: navpack.req?.profile ?? "drive",
+        mode: "auto",
+      });
+      setNavpack(result.navpack);
+      // Online path also returns the refreshed corridor + overlays; the
+      // offline-rebuild path only returns navpack + fuelAnalysis. Narrow
+      // on presence so we don't blindly trample pristine state.
+      if ("corridor" in result) {
+        if (result.corridor) setCorridor(result.corridor);
+        if (result.places) setPlaces(result.places);
+        if (result.traffic) setTraffic(result.traffic);
+        if (result.hazards) setHazards(result.hazards);
+      }
+      if (result.fuelAnalysis) setFuelAnalysis(result.fuelAnalysis as FuelAnalysis);
+    },
+    [plan, navpack, corridor],
+  );
 
   // ── React to remote plan changes (shared trip sync) ───────────────
   // planSync merges Supabase Realtime updates into IDB and emits
@@ -2470,6 +2501,7 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
               offlineRouted={offlineRouted}
               isOnline={isOnline}
               onFilteredIdsChange={setFilteredPlaceIds}
+              onAddExternalPlace={handleAddExternalPlace}
               onStopQuickAction={() => {}}
             />
           </div>
