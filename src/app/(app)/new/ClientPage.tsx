@@ -7,8 +7,7 @@ import { navApi } from "@/lib/api/nav";
 import { haptic } from "@/lib/native/haptics";
 import { toErrorMessage } from "@/lib/utils/errors";
 import { useBundleBuilder } from "@/lib/hooks/useBundleBuilder";
-import { checkTripGate, incrementTripsUsed } from "@/lib/paywall/tripGate";
-import { supabase } from "@/lib/supabase/client";
+import { checkTripGate, incrementTripsUsed, onAuthReadyForGate } from "@/lib/paywall/tripGate";
 import { saveMinimalPlan } from "@/lib/offline/plansStore";
 import type { StopSuggestionItem } from "@/lib/types/places";
 
@@ -99,12 +98,8 @@ export default function NewTripClientPage() {
     // Re-check once the Supabase session is actually available. On a fresh
     // login this effect fires before the session is hydrated, so the first
     // check sees no user and the gate falls through to tripCount/localStorage.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") {
-        run();
-      }
-    });
-    return () => { cancelled = true; subscription.unsubscribe(); };
+    const unsub = onAuthReadyForGate(run);
+    return () => { cancelled = true; unsub(); };
   }, []);
 
   const styleId = useMemo(() => {

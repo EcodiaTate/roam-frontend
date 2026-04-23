@@ -87,8 +87,7 @@ import type {
 import { Image as ImageIcon, UserPlus, Library, WifiOff, Megaphone, Plus } from "lucide-react";
 import { TripSkeleton } from "./TripSkeleton";
 import { EnrichmentBanner } from "@/components/trip/EnrichmentBanner";
-import { isUnlocked as checkIsUnlocked, checkTripGate } from "@/lib/paywall/tripGate";
-import { supabase } from "@/lib/supabase/client";
+import { isUnlocked as checkIsUnlocked, checkTripGate, onAuthReadyForGate } from "@/lib/paywall/tripGate";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { NativeShareRenderer } from "@/components/share/NativeShareRenderer";
 import { usePlaceDetail } from "@/lib/context/PlaceDetailContext";
@@ -272,14 +271,10 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
     // Re-check when auth state changes. On a fresh login the component mounts
     // before the Supabase session finishes hydrating, so the initial call can
     // see no user and fall back to localStorage (= false) — wrongly showing
-    // the paywall for entitled users. SIGNED_IN / TOKEN_REFRESHED fire once
-    // the session is actually in place, and we re-query.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") {
-        run();
-      }
-    });
-    return () => { cancelled = true; subscription.unsubscribe(); };
+    // the paywall for entitled users. onAuthReadyForGate re-fires once the
+    // session is actually in place.
+    const unsub = onAuthReadyForGate(run);
+    return () => { cancelled = true; unsub(); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Show notification dot on Plans button when another plan is saved (not the current one)

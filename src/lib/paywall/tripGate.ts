@@ -299,6 +299,22 @@ export async function isUnlocked(): Promise<boolean> {
 }
 
 /**
+ * Subscribe to auth events that should trigger re-checking entitlement.
+ * Right after login the Supabase session takes a moment to hydrate into the
+ * client; callers that ran their gate check before hydration finished need
+ * a chance to re-run once the session is actually in place. Returns an
+ * unsubscribe function.
+ */
+export function onAuthReadyForGate(cb: () => void): () => void {
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") {
+      cb();
+    }
+  });
+  return () => subscription.unsubscribe();
+}
+
+/**
  * Merge localStorage trip count into the server after sign-in.
  * Ensures pre-auth trips are never lost and can't be replayed by clearing storage.
  * Should be called exactly once per SIGNED_IN event.
