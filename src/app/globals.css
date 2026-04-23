@@ -2339,13 +2339,18 @@ input[type="range"]::-moz-range-thumb {
 
   /* Panel toggle - a fixed button pinned to the viewport, NOT a child
      of the sheet, so the sheet's translateX(-100%) doesn't carry it
-     off-screen. Position is driven entirely by data-panel-open. */
+     off-screen. Position is driven entirely by data-panel-open.
+     Containing block note: `.pt-pane` sets `will-change: transform`,
+     which re-parents position:fixed descendants so their coordinates
+     are relative to the pane (not the viewport). The pane already
+     starts at viewport `--desktop-rail-w`, so we DON'T add rail-w
+     here — otherwise the FAB drifts rail-w px past the sheet edge. */
   .trip-desktop-panel-toggle {
     display: flex !important;
     position: fixed;
     top: 50%;
     transform: translateY(-50%);
-    left: calc(var(--desktop-rail-w) + var(--desktop-panel-visible));
+    left: var(--desktop-panel-visible);
     width: 22px;
     height: 56px;
     align-items: center;
@@ -2469,11 +2474,16 @@ input[type="range"]::-moz-range-thumb {
   /* Top-anchored toasts/banners: re-centre in the visible map area
      instead of the full viewport. Flex-centering avoids fighting with
      the component's inline transform:translateX(-50%) by taking over
-     positioning entirely with fixed + left/right offsets. */
+     positioning entirely with fixed + left/right offsets.
+     Containing-block note: `.pt-pane` is `will-change: transform` and
+     becomes the containing block for position:fixed descendants. The
+     pane already starts at viewport `--desktop-rail-w`, so we omit
+     the rail-w in these left calcs — otherwise chrome drifts a full
+     rail-width past where the panel actually ends. */
   .trip-top-toast,
   .trip-enrichment-banner {
     position: fixed !important;
-    left: calc(var(--desktop-rail-w) + var(--desktop-panel-visible)) !important;
+    left: var(--desktop-panel-visible) !important;
     right: 0 !important;
     top: 18px !important;
     transform: none !important;
@@ -2483,42 +2493,34 @@ input[type="range"]::-moz-range-thumb {
     margin-right: auto !important;
   }
 
-  /* Bottom-left chrome (fuel pressure pill, etc.) moves right of
-     the panel instead of sitting on the bottom-left corner. */
   .trip-fuel-pressure {
-    left: calc(var(--desktop-rail-w) + var(--desktop-panel-visible) + 16px) !important;
+    left: calc(var(--desktop-panel-visible) + 16px) !important;
     bottom: 18px !important;
   }
 
-  /* Report FAB (megaphone, bottom-right on mobile) stays on the right
-     edge but drops to true-bottom since there's no tab bar. */
   .trip-report-fab {
     bottom: 18px !important;
     right: 18px !important;
   }
 
-  /* Report placement bar (when placing a report on the map): span the
-     visible map area, not the whole viewport. */
   .trip-report-placement {
-    left: calc(var(--desktop-rail-w) + var(--desktop-panel-visible) + 12px) !important;
+    left: calc(var(--desktop-panel-visible) + 12px) !important;
     right: 12px !important;
     bottom: 18px !important;
   }
 
-  /* Active-navigation chrome (only visible during turn-by-turn):
-     all repositioned to the visible map area, right of the panel. */
   .roam-nav-hud {
     top: 18px !important;
-    left: calc(var(--desktop-rail-w) + var(--desktop-panel-visible) + 12px) !important;
+    left: calc(var(--desktop-panel-visible) + 12px) !important;
     right: 80px !important;
   }
   .roam-nav-offroute {
     top: 18px !important;
-    left: calc(var(--desktop-rail-w) + var(--desktop-panel-visible) + 12px) !important;
+    left: calc(var(--desktop-panel-visible) + 12px) !important;
     right: 80px !important;
   }
   .roam-nav-bar {
-    left: calc(var(--desktop-rail-w) + var(--desktop-panel-visible) + 12px) !important;
+    left: calc(var(--desktop-panel-visible) + 12px) !important;
     right: 12px !important;
     bottom: 18px !important;
   }
