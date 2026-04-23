@@ -143,11 +143,15 @@
   display: flex;
   flex-direction: column;
   position: relative;
-  will-change: transform;
-  /* Two-phase removal animation driven by data-removing attribute.
-     Phase 1: slide right + fade out (250ms).
-     Phase 2: collapse height (200ms, triggered by data-collapsing). */
+  /* Removed `will-change: transform` at rest. Creating a GPU layer for
+     every stop eats memory and doesn't help when the transform is only
+     active during the 250ms removal animation. Only opt-in during the
+     animation itself (see [data-removing]). */
   transition: transform 250ms ease, opacity 200ms ease;
+}
+.stopEntry[data-removing="true"],
+.stopEntry[data-collapsing="true"] {
+  will-change: transform, height;
 }
 
 .stopEntry[data-removing="true"] {

@@ -6,6 +6,23 @@
    Design System: "Terra Nomad"
    ========================================================================== */
 
+/* ──────────────────────────────────────────────────────────────
+   PERF: Kill backdrop-filter project-wide.
+   backdrop-filter: blur(...) is a mobile performance killer -
+   on mid-range Android (Snapdragon 600-series, most Redmi / Moto)
+   it can add 30-80ms of compositing per frame. The design rule
+   from the memory is "no blur" anyway (ambient not flashy).
+   Inline `style={{backdropFilter: "blur(...)"}}` across many
+   components made hunting them all painful; this single rule
+   overrides them all at the style layer. Backgrounds usually
+   already have a solid rgba(...) fallback so the visual cost
+   is small.
+   ────────────────────────────────────────────────────────────── */
+* {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 
 /* ==========================================================================
    1. SHARED TOKENS (mode-independent)
@@ -2359,7 +2376,14 @@ input[type="range"]::-moz-range-thumb {
   }
   .place-detail-sheet[data-visible="true"]  { transform: translateX(0) !important; }
   .place-detail-sheet[data-visible="false"] { transform: translateX(100%) !important; }
-  .place-detail-sheet .place-detail-drag-zone { display: none; }
+  /* Keep the drag-zone visible so the X close button inside it works;
+     just disable the drag cursor and hide the handle pill. */
+  .place-detail-sheet .place-detail-drag-zone {
+    cursor: default !important;
+  }
+  .place-detail-sheet .place-detail-drag-handle {
+    display: none !important;
+  }
 
   /* ── App container: shift left edge past the nav rail ───── */
   .trip-app-container {

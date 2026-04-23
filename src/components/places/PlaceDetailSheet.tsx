@@ -473,10 +473,11 @@ export function PlaceDetailSheet({
         position: "fixed",
         inset: 0,
         zIndex: 200,
-        background: visible ? "var(--overlay-bg)" : "transparent",
-        backdropFilter: visible ? "blur(4px)" : "none",
-        WebkitBackdropFilter: visible ? "blur(4px)" : "none",
-        transition: "background 0.28s ease, backdrop-filter 0.28s ease",
+        // No blur: mid-range Android chokes on backdrop-filter and the
+        // solid rgba overlay reads the same visually. Also aligns with
+        // the "no blur" design rule.
+        background: visible ? "rgba(10, 8, 6, 0.5)" : "transparent",
+        transition: "background 0.2s ease",
         display: "flex",
         flexDirection: "column",
         justifyContent: "flex-end",
@@ -534,7 +535,7 @@ export function PlaceDetailSheet({
           </Suspense>
 
           {/* Drag handle */}
-          <div style={{
+          <div className="place-detail-drag-handle" style={{
             position: "absolute",
             top: 0,
             left: 0,
@@ -563,9 +564,7 @@ export function PlaceDetailSheet({
               width: 44, height: 44,
               borderRadius: "50%",
               border: "none",
-              background: "rgba(0,0,0,0.4)",
-              backdropFilter: "blur(8px)",
-              WebkitBackdropFilter: "blur(8px)",
+              background: "rgba(0,0,0,0.55)",
               color: "var(--on-color)",
               display: "grid",
               placeItems: "center",

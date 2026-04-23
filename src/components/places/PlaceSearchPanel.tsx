@@ -468,12 +468,18 @@ export function PlaceSearchPanel({
     };
   }, [userPositionProp, tripProgress]);
 
-  // ── Persist state on change ───────────────────────────────────
+  // ── Persist state on change (debounced) ──────────────────────
+  // Rapid filter toggles (chip spam) used to fire a localStorage write
+  // + JSON.stringify per click, each synchronous. Coalesce into a
+  // single write ~400ms after the user stops.
   useEffect(() => {
-    savePersistedState({
-      categories, free, openNow, accessible, maxDistanceKm,
-      aheadOnly, subFilters, filtersExpanded, sortMode,
-    });
+    const t = setTimeout(() => {
+      savePersistedState({
+        categories, free, openNow, accessible, maxDistanceKm,
+        aheadOnly, subFilters, filtersExpanded, sortMode,
+      });
+    }, 400);
+    return () => clearTimeout(t);
   }, [categories, free, openNow, accessible, maxDistanceKm, aheadOnly, subFilters, filtersExpanded, sortMode]);
 
   // ── Build PlaceFilter ─────────────────────────────────────────

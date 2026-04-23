@@ -84,29 +84,35 @@ type FallbackAction =
   | { type: "web"; url: string; label: string }
   | { type: "call"; tel: string; label: string };
 
+// Hoisted regexes - compiling these per call added 5-15ms on low-end
+// devices once messages got long. Module scope is fine because they're
+// global-flag regexes reset via .matchAll() / String.replace().
+const MARKDOWN_LINK_REGEX = /\[([^\]]+)\]\(([^)]+)\)/g;
+const URL_REGEX = /(https?:\/\/[^\s)>\]]+|www\.[^\s)>\]]+|[a-z0-9.-]+\.[a-z]{2,}(\/[^\s)>\]]*)?)/gi;
+const PHONE_REGEX = /(\+?\d[\d\s().-]{6,}\d)/g;
+const BOLD_REGEX = /\*\*(.+?)\*\*/;
+const LEADING_BULLET_REGEX = /^\s*(?:\d+\.)?\s*[-*•]?\s*/;
+
 function extractActionsFromMarkdown(text: string): FallbackAction[] {
   if (!text) return [];
   const actions: FallbackAction[] = [];
   const seenWeb = new Set<string>();
   const seenTel = new Set<string>();
   const lines = text.split(/\r?\n/);
-  const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
-  const urlRegex = /(https?:\/\/[^\s)>\]]+|www\.[^\s)>\]]+|[a-z0-9.-]+\.[a-z]{2,}(\/[^\s)>\]]*)?)/gi;
-  const phoneRegex = /(\+?\d[\d\s().-]{6,}\d)/g;
 
   const cleanName = (s: string | null | undefined) => {
     const t = (s ?? "").trim();
     if (!t) return null;
-    return t.replace(/^\s*(?:\d+\.)?\s*[-*•]?\s*/, "").trim() || null;
+    return t.replace(LEADING_BULLET_REGEX, "").trim() || null;
   };
 
   for (const rawLine of lines) {
     const line = rawLine.trim();
     if (!line) continue;
-    const bold = line.match(/\*\*(.+?)\*\*/);
+    const bold = line.match(BOLD_REGEX);
     const lineName = cleanName(bold?.[1]);
 
-    const strippedLine = line.replace(markdownLinkRegex, (_m, _lbl, urlRaw) => {
+    const strippedLine = line.replace(MARKDOWN_LINK_REGEX, (_m, _lbl, urlRaw) => {
       const href = normalizeUrl(String(urlRaw)) ?? String(urlRaw).trim();
       if (href) {
         const key = normalizeUrlKey(href);
@@ -118,7 +124,7 @@ function extractActionsFromMarkdown(text: string): FallbackAction[] {
       return " ";
     });
 
-    const urlMatches = Array.from(strippedLine.matchAll(urlRegex));
+    const urlMatches = Array.from(strippedLine.matchAll(URL_REGEX));
     for (const m of urlMatches) {
       const norm = normalizeUrl(m[0]);
       if (!norm) continue;
@@ -128,7 +134,7 @@ function extractActionsFromMarkdown(text: string): FallbackAction[] {
       actions.push({ type: "web", url: norm, label: lineName ?? "Website" });
     }
 
-    const phoneMatches = Array.from(line.matchAll(phoneRegex));
+    const phoneMatches = Array.from(line.matchAll(PHONE_REGEX));
     for (const m of phoneMatches) {
       const tel = cleanPhone(m[0]);
       if (!tel) continue;

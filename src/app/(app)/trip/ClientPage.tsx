@@ -1216,31 +1216,67 @@ export function TripClientPage(props: { initialPlanId: string | null }) {
   }, [navpack, plan, places, corridor, isOnline, traffic, hazards, weather, fuelOverlay]);
 
   // ── Add an off-bundle place (ambient search) ─────────────────────
-  // Extends the corridor + refetches places/traffic/hazards/fuel via
-  // addPlaceToTrip, then mirrors the resulting packs into React state so
-  // the UI refreshes instantly without a reload.
+  // Optimistic: insert the stop into the stops list immediately so the UI
+  // reflects the user's intent without waiting for the (slow) full
+  // reroute + corridor extension + overlay refetch. The actual rebuild
+  // runs in the background via addPlaceToTrip - when it resolves we swap
+  // the real packs in; on failure we roll back to the pre-insert state.
   const handleAddExternalPlace = useCallback(
     async (place: PlaceItem) => {
       if (!plan || !navpack) return;
-      const result = await addPlaceToTrip({
+      const profile = navpack.req?.profile ?? "drive";
+
+      // Snapshot for rollback.
+      const prevNavpack = navpack;
+
+      // Build an optimistic navpack: original stops + new stop before end.
+      const baseStops = (navpack.req?.stops ?? []) as TripStop[];
+      const optimisticStop: TripStop = {
+        id: `opt_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+        type: "poi",
+        name: place.name,
+        lat: place.lat,
+        lng: place.lng,
+      };
+      const endIdx = baseStops.findIndex((s) => (s.type ?? "poi") === "end");
+      const nextStops = [...baseStops];
+      if (endIdx >= 0) nextStops.splice(endIdx, 0, optimisticStop);
+      else nextStops.push(optimisticStop);
+
+      const optimisticNavpack: NavPack = {
+        ...navpack,
+        req: { ...navpack.req, stops: nextStops },
+      };
+      setNavpack(optimisticNavpack);
+
+      // Fire the real rebuild in the background. Don't await - the
+      // returning promise resolves minutes later on slow networks.
+      addPlaceToTrip({
         plan,
         place,
-        navpack,
+        navpack: prevNavpack, // reroute from the pre-insert navpack
         corridor,
-        profile: navpack.req?.profile ?? "drive",
+        profile,
         mode: "auto",
-      });
-      setNavpack(result.navpack);
-      // Online path also returns the refreshed corridor + overlays; the
-      // offline-rebuild path only returns navpack + fuelAnalysis. Narrow
-      // on presence so we don't blindly trample pristine state.
-      if ("corridor" in result) {
-        if (result.corridor) setCorridor(result.corridor);
-        if (result.places) setPlaces(result.places);
-        if (result.traffic) setTraffic(result.traffic);
-        if (result.hazards) setHazards(result.hazards);
-      }
-      if (result.fuelAnalysis) setFuelAnalysis(result.fuelAnalysis as FuelAnalysis);
+      })
+        .then((result) => {
+          setNavpack(result.navpack);
+          if ("corridor" in result) {
+            if (result.corridor) setCorridor(result.corridor);
+            if (result.places) setPlaces(result.places);
+            if (result.traffic) setTraffic(result.traffic);
+            if (result.hazards) setHazards(result.hazards);
+          }
+          if (result.fuelAnalysis) setFuelAnalysis(result.fuelAnalysis as FuelAnalysis);
+        })
+        .catch((err) => {
+          // Rollback the optimistic insert if the rebuild fails. The user
+          // will see the stop vanish - better than a ghost stop that's
+          // not actually on the route.
+          console.warn("[Trip] background add-place failed, rolling back:", err);
+          setNavpack(prevNavpack);
+          haptic.error();
+        });
     },
     [plan, navpack, corridor],
   );
