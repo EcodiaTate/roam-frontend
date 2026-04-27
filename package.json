@@ -13,7 +13,9 @@
     "cap:ios": "npx cap open ios",
     "cap:android": "npx cap open android",
     "lint": "eslint",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "test:cls": "playwright test --config=tests/cls/playwright.config.ts",
+    "test:cls:install": "npx playwright install chromium"
   },
   "dependencies": {
     "@aparajita/capacitor-secure-storage": "^8.0.0",
@@ -51,6 +53,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
+    "@playwright/test": "^1.49.1",
     "@tailwindcss/postcss": "^4",
     "@types/maplibre-gl": "^1.13.2",
     "@types/node": "^20",
