@@ -43,7 +43,8 @@ const META_STYLE: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
   gap: 6,
-  flexWrap: "wrap",
+  flexWrap: "nowrap",
+  overflow: "hidden",
 };
 
 const PILL_STYLE: React.CSSProperties = {
@@ -54,19 +55,13 @@ const PILL_STYLE: React.CSSProperties = {
   padding: "1px 5px",
 };
 
-const DIST_CONTAINER_STYLE: React.CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "flex-end",
-  gap: 3,
-  flexShrink: 0,
-};
-
-const DIST_VALUE_STYLE: React.CSSProperties = {
+// Distance is shown inline on the meta line (Bug 3: use horizontal space, not a separate column).
+const DIST_INLINE_STYLE: React.CSSProperties = {
   fontSize: 12,
   fontWeight: 800,
   color: "var(--roam-text)",
   whiteSpace: "nowrap",
+  flexShrink: 0,
 };
 
 const AHEAD_STYLE: React.CSSProperties = {
@@ -154,11 +149,21 @@ export const PlaceRow = memo(function PlaceRow({ place, distKm, ahead, onSelect,
         <CatIcon size={17} style={ICON_STYLE} />
       </div>
 
-      {/* Content */}
+      {/* Content - two lines: name primary, meta+distance secondary */}
       <div style={CONTENT_STYLE}>
         <div style={NAME_STYLE}>{place.name}</div>
         <div style={META_STYLE}>
           <span>{fmtCat(place.category)}</span>
+
+          {/* Distance + direction inline on the meta line */}
+          {dist && <span style={DIST_INLINE_STYLE}>{dist}</span>}
+          {dist && ahead !== null && (
+            <span style={ahead ? AHEAD_STYLE : BEHIND_STYLE}>
+              {ahead
+                ? <><ArrowUp size={9} />Ahead</>
+                : <><ArrowDown size={9} />Behind</>}
+            </span>
+          )}
 
           {pills.length > 0 &&
             pills.slice(0, 3).map((p) => (
@@ -178,20 +183,6 @@ export const PlaceRow = memo(function PlaceRow({ place, distKm, ahead, onSelect,
           )}
         </div>
       </div>
-
-      {/* Distance + direction */}
-      {dist && (
-        <div style={DIST_CONTAINER_STYLE}>
-          <span style={DIST_VALUE_STYLE}>{dist}</span>
-          {ahead !== null && (
-            <span style={ahead ? AHEAD_STYLE : BEHIND_STYLE}>
-              {ahead
-                ? <><ArrowUp size={9} />Ahead</>
-                : <><ArrowDown size={9} />Behind</>}
-            </span>
-          )}
-        </div>
-      )}
 
       {/* Show on map */}
       {onShowOnMap && (

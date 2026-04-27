@@ -2,7 +2,7 @@
 
 import { memo, useMemo } from "react";
 import type { ActiveNavState } from "@/lib/nav/activeNav";
-import { formatShort, formatDistance, formatInstruction, maneuverIcon } from "@/lib/nav/instructions";
+import { formatShort, formatDistance, maneuverIcon } from "@/lib/nav/instructions";
 
 type Props = {
   nav: ActiveNavState;
@@ -33,63 +33,54 @@ const ARROW_SVGS: Record<string, string> = {
   "depart":            "M4 2v20M4 2l12 7-12 7",
 };
 
-function ManeuverArrow({ iconName, size = 44 }: { iconName: string; size?: number }) {
-  const pathD = ARROW_SVGS[iconName] ?? ARROW_SVGS["arrow-up"];
-  const isArrive = iconName === "arrive" || iconName === "depart";
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill={isArrive ? "currentColor" : "none"}
-      stroke={isArrive ? "none" : "currentColor"}
-      strokeWidth={2.5}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d={pathD} />
-    </svg>
-  );
-}
-
-const NAV_CARD_BG = "var(--nav-card-bg, #f0e9dc)";
+// Dark, high-contrast background: readable in direct sunlight on day and night themes.
+const NAV_CARD_BG = "rgba(18, 14, 10, 0.93)";
 
 export const NavigationHUD = memo(function NavigationHUD({ nav, visible, simple }: Props) {
-  const currentStep = nav.currentStep;
-  const nextStep = nav.nextStep;
-  // Memoize on maneuver type+modifier (stable strings) instead of object reference,
-  // since activeNav returns a new currentStep object every GPS tick even if the step hasn't changed.
-  const maneuverType = currentStep?.maneuver?.type;
-  const maneuverModifier = currentStep?.maneuver?.modifier;
+  const currentStep = nav.currentStep;  // step currently being traversed (road name source)
+  const nextStep    = nav.nextStep;     // upcoming maneuver point
+
+  // Bug 1 fix: the HUD must show the UPCOMING maneuver instruction (nextStep), not
+  // the already-executed one (currentStep). Each step's maneuver point is at its START,
+  // so currentStep's maneuver is already behind the driver. nextStep's maneuver is what
+  // the driver needs to do next. Falls back to currentStep only on the final arrival
+  // segment when nextStep is null.
+  const displayStep = nextStep ?? currentStep;
+
+  const maneuverType     = displayStep?.maneuver?.type;
+  const maneuverModifier = displayStep?.maneuver?.modifier;
   const iconName = useMemo(
-    () => (currentStep ? maneuverIcon(currentStep.maneuver) : "arrow-up"),
+    () => (displayStep ? maneuverIcon(displayStep.maneuver) : "arrow-up"),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [maneuverType, maneuverModifier],
   );
 
-  const isImminent  = nav.distToNextManeuver_m < 100;
+  const isImminent    = nav.distToNextManeuver_m < 100;
   const isApproaching = nav.distToNextManeuver_m < 500;
 
-  if (!visible || !currentStep) return null;
+  if (!visible || !displayStep) return null;
 
-  const cs = simple ? 72 : 66;
-  const pad = simple ? 8 : 7;
+  const cs  = simple ? 72 : 66;
+  const pad = simple ? 8  : 7;
 
   const circleColor = isImminent
-    ? "var(--brand-ochre)" : isApproaching
-    ? "var(--brand-sky-dark, #145a88)" : "var(--brand-eucalypt-dark, #1f5236)";
+    ? "var(--brand-ochre)"
+    : isApproaching
+    ? "var(--brand-sky-dark, #145a88)"
+    : "var(--brand-eucalypt-dark, #1f5236)";
 
+  // Distance text colour: state-coded on dark background.
   const distColor = isImminent
-    ? "var(--brand-ochre)" : isApproaching
-    ? "var(--brand-sky)" : "var(--roam-text, #1a1613)";
+    ? "var(--brand-ochre)"
+    : isApproaching
+    ? "#4DB8F0"
+    : "#f0ece6";
 
-  const accentColor = isImminent
-    ? "var(--brand-ochre)" : isApproaching
-    ? "var(--brand-sky)" : "var(--brand-eucalypt)";
-
-  const streetText = currentStep.name
-    ? (currentStep.ref && !simple ? `${currentStep.name} · ${currentStep.ref}` : currentStep.name)
+  // Current road name - the street the driver is on right now.
+  const streetText = currentStep?.name
+    ? (currentStep.ref && !simple
+        ? `${currentStep.name} · ${currentStep.ref}`
+        : currentStep.name)
     : null;
 
   return (
@@ -113,11 +104,11 @@ export const NavigationHUD = memo(function NavigationHUD({ nav, visible, simple 
           padding: `${pad}px 20px ${pad}px ${pad}px`,
           borderRadius: (cs + pad * 2) / 2,
           background: NAV_CARD_BG,
-          boxShadow: "var(--shadow-medium)",
+          boxShadow: "0 4px 24px rgba(0,0,0,0.55), 0 1px 4px rgba(0,0,0,0.3)",
           pointerEvents: "auto",
         }}
       >
-        {/* Circle - rendered as SVG background circle + arrow path in one SVG */}
+        {/* Maneuver icon circle - coloured by urgency state */}
         <svg
           className={isImminent ? "hud-imminent" : undefined}
           width={cs}
@@ -134,14 +125,12 @@ export const NavigationHUD = memo(function NavigationHUD({ nav, visible, simple 
             overflow: "visible",
           }}
         >
-          {/* Background circle */}
           <circle cx={cs / 2} cy={cs / 2} r={cs / 2} fill={circleColor} style={{ transition: "fill 0.4s ease" }} />
-          {/* Centered arrow - scale 24→iconSize, then center in circle */}
           {(() => {
             const iconSize = simple ? 36 : 32;
-            const scale = iconSize / 24;
-            const offset = (cs - iconSize) / 2;
-            const pathD = ARROW_SVGS[iconName] ?? ARROW_SVGS["arrow-up"];
+            const scale    = iconSize / 24;
+            const offset   = (cs - iconSize) / 2;
+            const pathD    = ARROW_SVGS[iconName] ?? ARROW_SVGS["arrow-up"];
             const isArrive = iconName === "arrive" || iconName === "depart";
             return (
               <g transform={`translate(${offset}, ${offset}) scale(${scale})`}>
@@ -158,62 +147,44 @@ export const NavigationHUD = memo(function NavigationHUD({ nav, visible, simple 
           })()}
         </svg>
 
-        {/* Instruction + street inline */}
+        {/* Primary direction word + current road name (demoted secondary) */}
         <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
+          {/* Direction verb - what to do at the upcoming maneuver. Large, bright. */}
           <div style={{
-            fontSize: simple ? 18 : 15,
+            fontSize: simple ? 24 : 20,
             fontWeight: 950,
-            color: "var(--roam-text, #1a1613)",
-            lineHeight: 1.2,
+            color: "#f0ece6",
+            lineHeight: 1.15,
             letterSpacing: "-0.3px",
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
           }}>
-            {formatShort(currentStep)}
-            {streetText && (
-              <span style={{
-                fontWeight: 800,
-                color: accentColor,
-                opacity: 0.75,
-                transition: "color 0.4s ease",
-              }}>
-                {" "}{streetText}
-              </span>
-            )}
+            {formatShort(displayStep)}
           </div>
 
-          {/* "then" preview - inside the card */}
-          {!simple && nextStep && (
+          {/* Current road - smaller, muted. Tells driver what street they're on now. */}
+          {streetText && (
             <div style={{
-              marginTop: 5,
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
+              marginTop: 3,
+              fontSize: simple ? 13 : 12,
+              fontWeight: 700,
+              color: "rgba(240, 236, 230, 0.55)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
             }}>
-              <svg width={11} height={11} viewBox="0 0 24 24" fill="none"
-                stroke="var(--roam-text, #1a1613)" strokeWidth={2.5}
-                strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.45, flexShrink: 0 }}>
-                <path d={ARROW_SVGS[maneuverIcon(nextStep.maneuver)] ?? ARROW_SVGS["arrow-up"]} />
-              </svg>
-              <span style={{
-                fontSize: 12, fontWeight: 800,
-                color: "var(--roam-text, #1a1613)",
-                opacity: 0.45,
-                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-              }}>
-                {formatInstruction(nextStep)}
-              </span>
+              {streetText}
             </div>
           )}
         </div>
 
-        {/* Distance */}
+        {/* Distance to next maneuver - very large, tabular nums */}
         <div style={{
-          fontSize: simple ? 32 : 26,
+          fontSize: simple ? 40 : 34,
           fontWeight: 950,
           color: distColor,
-          letterSpacing: "-1.2px",
+          letterSpacing: "-1.5px",
           lineHeight: 1,
           transition: "color 0.3s ease",
           fontVariantNumeric: "tabular-nums",

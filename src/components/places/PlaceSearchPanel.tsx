@@ -268,7 +268,7 @@ function savePersistedState(s: PersistedState) {
 // No external dependency - uses a single scroll listener.
 // ──────────────────────────────────────────────────────────────
 
-const ROW_HEIGHT = 60; // px - fixed estimate per row
+const ROW_HEIGHT = 68; // px - fixed estimate per row (taller for better tablet scannability)
 const OVERSCAN = 5;    // extra rows rendered above/below viewport
 
 type VirtualListProps = {
@@ -706,7 +706,10 @@ export function PlaceSearchPanel({
 
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 0, height: "100%" }}>
+    // Bug 4 (CLS): outer container is exactly maxHeight tall - panel never grows when
+    // filters expand or external results load. Chrome elements use flexShrink:0; the
+    // results list takes the remaining flex space via flex:1 on its wrapper.
+    <div style={{ display: "flex", flexDirection: "column", gap: 0, height: maxHeight, overflow: "hidden" }}>
 
       {/* ── Search bar ──────────────────────────────────────────── */}
       <div
@@ -715,6 +718,7 @@ export function PlaceSearchPanel({
           alignItems: "center",
           gap: 8,
           padding: "10px 16px 0",
+          flexShrink: 0,
         }}
       >
         <div
@@ -794,7 +798,7 @@ export function PlaceSearchPanel({
       </div>
 
       {/* ── Category chips (essentials inline, rest behind "More") ── */}
-      <div style={{ padding: "10px 16px 0" }}>
+      <div style={{ padding: "10px 16px 0", flexShrink: 0 }}>
         <div
           style={{
             display: "flex",
@@ -863,6 +867,7 @@ export function PlaceSearchPanel({
             display: "flex",
             flexDirection: "column",
             gap: 10,
+            flexShrink: 0,
           }}
         >
           {/* Toggle row */}
@@ -946,7 +951,7 @@ export function PlaceSearchPanel({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "10px 16px 6px",
+          padding: "8px 16px 4px",
           flexShrink: 0,
         }}
       >
@@ -1006,7 +1011,7 @@ export function PlaceSearchPanel({
 
       {/* ── Ambient external results (Mapbox) ────────────────────── */}
       {EXTERNAL_SEARCH_ENABLED && (externalLoading || externalResults.length > 0) && (
-        <div style={{ padding: "4px 16px 6px", flexShrink: 0 }}>
+        <div style={{ padding: "4px 16px 6px", flexShrink: 0, overflowY: "auto", maxHeight: "35%" }}>
           <div
             style={{
               display: "flex",
@@ -1094,15 +1099,22 @@ export function PlaceSearchPanel({
         </div>
       )}
 
-      {/* ── Results list ─────────────────────────────────────────── */}
+      {/* ── Results list - flex:1 so it fills whatever space the chrome leaves.
+           Bug 4 (CLS): list height contracts when filters expand rather than growing the panel. */}
       {sorted.length === 0 ? (
         <div
           style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
             padding: "32px 24px",
             textAlign: "center",
             color: "var(--roam-text-muted)",
             fontSize: 14,
             fontWeight: 600,
+            minHeight: 0,
           }}
         >
           No places found
@@ -1113,14 +1125,16 @@ export function PlaceSearchPanel({
           )}
         </div>
       ) : (
-        <VirtualList
-          items={sorted}
-          savedIds={savedIds}
-          onSelect={onSelectPlace}
-          onShowOnMap={onShowPlaceOnMap}
-          onToggleSave={toggleSave}
-          height={maxHeight}
-        />
+        <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+          <VirtualList
+            items={sorted}
+            savedIds={savedIds}
+            onSelect={onSelectPlace}
+            onShowOnMap={onShowPlaceOnMap}
+            onToggleSave={toggleSave}
+            height="100%"
+          />
+        </div>
       )}
     </div>
   );
