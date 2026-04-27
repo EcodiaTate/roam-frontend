@@ -83,6 +83,10 @@ export const NavigationHUD = memo(function NavigationHUD({ nav, visible, simple 
         : currentStep.name)
     : null;
 
+  // CLS Site 1 fix: lock outer wrapper to the card height so the absolutely-positioned
+  // container never collapses between nav states (approaching / long-stretch / re-entering).
+  // The inner nav-hud-unroll already has height: cs + pad * 2; the minHeight on the outer
+  // wrapper guarantees the space is reserved even during the entrance animation's scale(0) phase.
   return (
     <div className="roam-nav-hud" style={{
       position: "absolute",
@@ -91,6 +95,7 @@ export const NavigationHUD = memo(function NavigationHUD({ nav, visible, simple 
       right: 12,
       zIndex: 30,
       pointerEvents: "none",
+      minHeight: cs + pad * 2,
     }}>
       <div
         className="nav-hud-unroll"

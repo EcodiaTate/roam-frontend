@@ -513,6 +513,10 @@ export function PlaceDetailSheet({
       >
 
         {/* ── Map hero with overlaid drag handle ────────────── */}
+        {/* CLS Site 3+4 fix: pre-size to PlaceMapPreview's height (150px) so the
+            Suspense null-fallback doesn't cause a 0px→150px jump when the lazy
+            map chunk loads. The drag handle and close button are position:absolute
+            inside here so they still render correctly at the reserved height. */}
         <div
           className="place-detail-drag-zone"
           style={{
@@ -520,6 +524,9 @@ export function PlaceDetailSheet({
             flexShrink: 0,
             cursor: "grab",
             touchAction: "none",
+            height: 150,
+            background: "var(--roam-surface-hover)",
+            overflow: "hidden",
           }}
         >
           <Suspense fallback={null}>

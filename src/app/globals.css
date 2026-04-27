@@ -1010,7 +1010,11 @@ input, textarea, [contenteditable] {
   top: 0; left: 0; right: 0; bottom: 0;
   z-index: 0;
 }
-.trip-map-inner { width: 100%; height: 100%; }
+/* CLS Site 2 fix: contain:layout tells the browser that layout changes inside the map
+   canvas (MapLibre redraws, layer additions) cannot affect the surrounding page layout.
+   The element is already absolutely sized via its parent, so this is safe and prevents
+   any accidental reflow cascade from overlay controls showing or hiding. */
+.trip-map-inner { width: 100%; height: 100%; contain: layout; }
 
 .trip-map-switcher {
   position: absolute;
