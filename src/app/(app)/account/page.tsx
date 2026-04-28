@@ -9,8 +9,17 @@ import { useNavigate } from "react-router";
 import { ArrowLeft, LogOut, Trash2, Mail, Shield, ExternalLink } from "lucide-react";
 import { useAuth } from "@/lib/supabase/auth";
 import { haptic } from "@/lib/native/haptics";
+import { AuthGate } from "@/components/auth/AuthGate";
 
 export default function AccountPage() {
+  return (
+    <AuthGate>
+      <AccountPageInner />
+    </AuthGate>
+  );
+}
+
+function AccountPageInner() {
   const { user, session, signOut, deleteAccount } = useAuth();
   const navigate = useNavigate();
 
