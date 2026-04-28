@@ -27,7 +27,12 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [signupSuccess, setSignupSuccess] = useState(false);
 
-  const isNative = useMemo(() => Capacitor.isNativePlatform(), []);
+  // Apple Sign-In is iOS-only: @capacitor-community/apple-sign-in has no Android
+  // bridge implementation, so on Android any tap throws "plugin is not implemented
+  // on android". Gate the button on platform === 'ios' so Android users only see
+  // sign-in methods that actually work (Google + email/password). Apple HIG also
+  // requires Sign in with Apple to appear only on Apple platforms.
+  const isIOS = useMemo(() => Capacitor.getPlatform() === "ios", []);
   const { deviceOnline } = useNetworkStatus();
 
   // After sign-in (real session or demo mode), redirect to /new
@@ -160,8 +165,8 @@ export default function LoginPage() {
           Navigate anywhere. Even offline.
         </div>
 
-        {/* Apple Sign-In (native only) - Apple HIG: black on light, white on dark */}
-        {isNative && (
+        {/* Apple Sign-In (iOS-only) - plugin has no Android bridge. Apple HIG: black on light, white on dark */}
+        {isIOS && (
           <button
             type="button"
             onClick={handleApple}
