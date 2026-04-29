@@ -1,4 +1,4 @@
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { haptic } from "@/lib/native/haptics";
 import { Map, Route, Download, AudioLines, Fuel, Sparkles } from "lucide-react";
@@ -11,7 +11,8 @@ type Props = {
 };
 
 export function WelcomeModal({ open, lastFreeTrip = false, onClose }: Props) {
-  const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     if (!open) return;
