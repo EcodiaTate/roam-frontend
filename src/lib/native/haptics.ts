@@ -5,6 +5,12 @@ import { isNative, hasPlugin } from "./platform";
 type VibratePattern = number | number[];
 
 function vibrate(pattern: VibratePattern) {
+  // Web no-op: navigator.vibrate on web triggers Chrome console warnings
+  // ("Blocked call to navigator.vibrate because user has not tapped on the
+  // frame...") and serves no real UX purpose on desktop browsers. Only
+  // attempt the vibrate fallback when we are inside the native shell and
+  // the Capacitor Haptics plugin happens to be unavailable for that call.
+  if (!isNative) return;
   if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
     try {
       navigator.vibrate(pattern);
