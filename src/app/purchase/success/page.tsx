@@ -400,6 +400,31 @@ function PurchaseSuccessInner() {
               animation: "shimmer-bar 2s ease-in-out infinite",
             }} />
           </div>
+
+          {/* Inline escape - lets impatient users bail before the 30s timeout */}
+          <button
+            type="button"
+            onClick={() => { haptic.tap(); navigate("/", { replace: true }); }}
+            className="trip-interactive"
+            style={{
+              marginTop: 8,
+              background: "transparent",
+              border: "none",
+              padding: "6px 12px",
+              fontSize: 13,
+              fontWeight: 600,
+              color: "rgba(255,255,255,0.55)",
+              cursor: "pointer",
+              textDecoration: "underline",
+              textDecorationColor: "rgba(255,255,255,0.25)",
+              textUnderlineOffset: 3,
+              WebkitTapHighlightColor: "transparent",
+              letterSpacing: "0.01em",
+            }}
+            aria-label="Take me home"
+          >
+            Take me home
+          </button>
         </div>
       )}
 
